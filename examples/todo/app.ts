@@ -26,7 +26,8 @@ export interface TodoAppOptions {
 
 export function todoApp(o: TodoAppOptions): (req: Request) => Promise<Response> {
   const todos = todoList(o.db)
-  // No `login` option: each user's plan login stays in a volume of that user and this app, never in the database.
+  // No `login` option: byoa keeps each user's plan login encrypted in this app's database (with encryptionKey), and
+  // writes a copy into each job's new sandbox. `login: cliLogin` keeps it in a volume of the user instead.
   const agents = createAgents({
     app: 'todo',
     sandbox: o.sandbox,
