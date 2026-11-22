@@ -4,7 +4,7 @@
 
 byoa is an open-source library that helps you build AI-native apps fast. Your app runs the user's own Claude Code or Codex in a sandbox. The user signs in with their own ChatGPT or Claude plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
 
-You can use any sandbox provider. To change the provider, you change one adapter.
+Version 1 supports two sandbox providers: E2B and Daytona. More providers come later. To change the provider, you change one adapter.
 
 ## The problem
 
@@ -20,7 +20,7 @@ byoa is that layer, as a library, so you do not build it again for each app.
 
 ## What byoa is, and what it is not
 
-- byoa **is** a library. It runs inside your app's own backend (Node, Convex, or Cloudflare Workers).
+- byoa **is** a library. It runs inside your app's own backend (Node or Convex). Cloudflare Workers support is planned.
 - byoa **stores tokens in your own database**, through a store adapter.
 - byoa **is not** a hosted service. We do not run a server, and we never see your users' tokens.
 
@@ -42,9 +42,9 @@ byoa is that layer, as a library, so you do not build it again for each app.
  └──────┬──────────────────────────────┬───────────────────────┬──────────┘
         │ create / resume / destroy    │ MCP calls via proxy   │ mount
  ┌──────▼─────────────────────┐ ┌──────▼──────────────┐ ┌──────▼─────────┐
- │ ANY SANDBOX PROVIDER       │ │ MCP SERVER OWNERS   │ │ USER-OWNED     │
- │ E2B · Daytona · Modal ·    │ │ Notion · Gmail ·    │ │ LOGIN VOLUME   │
- │ Vercel · Cloudflare · ...  │ │ Heptabase · ...     │ │ ~/.claude      │
+ │ SANDBOX PROVIDER           │ │ MCP SERVER OWNERS   │ │ USER-OWNED     │
+ │ v1: E2B · Daytona          │ │ Notion · Gmail ·    │ │ LOGIN VOLUME   │
+ │ later: Modal, Vercel, ...  │ │ Heptabase · ...     │ │ ~/.claude      │
  │ ┌────────────────────────┐ │ └─────────────────────┘ │ ~/.codex       │
  │ │ HARNESS in the sandbox │ │                         └────────────────┘
  │ │ Claude Code / Codex    │─┼──── model calls on the user's plan ───┐
@@ -95,4 +95,4 @@ We call version 1 done only when all of these checks pass. The full list is in [
 
 ## License
 
-MIT
+Apache License 2.0. See [LICENSE](LICENSE).
