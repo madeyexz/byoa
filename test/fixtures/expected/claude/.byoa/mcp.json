@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "linear": {
+      "type": "http",
+      "url": "https://app.example.com/byoa/mcp/linear",
+      "headers": {
+        "Authorization": "Bearer ${BYOA_JOB_TOKEN}"
+      }
+    },
+    "notion": {
+      "type": "http",
+      "url": "https://app.example.com/byoa/mcp/notion",
+      "headers": {
+        "Authorization": "Bearer ${BYOA_JOB_TOKEN}"
+      }
+    }
+  }
+}

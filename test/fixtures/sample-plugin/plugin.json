@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "reading-tools",
+  "version": "1.0.0",
+  "description": "A sample plugin for byoa's config check (V10)"
+}

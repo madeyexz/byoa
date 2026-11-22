@@ -1,0 +1,34 @@
+#!/bin/bash
+# A stand-in for the codex CLI in byoa's own tests only: it prints what codex-cli 0.171.0 prints for the commands
+# byoa runs. It is never installed in a sandbox; the real checks (V3, V11) use the real binary.
+case "$1" in
+  --version) echo "codex-cli 0.171.0" ;;
+  login)
+    if [ "$2" = "--device-auth" ]; then
+      echo "Welcome to Codex [v0.171.0]"
+      echo
+      echo "Follow these steps to sign in with ChatGPT using device code authorization:"
+      echo
+      echo "1. Open this link in your browser and sign in to your account"
+      echo "   https://auth.openai.com/codex/device"
+      echo
+      echo "2. Enter this one-time code (expires in 15 minutes)"
+      echo "   ABCD-12345"
+      echo
+      sleep 1 # the user enters the code on OpenAI's page
+      mkdir -p "$CODEX_HOME"
+      echo '{"tokens":{"access_token":"lab-secret-codex"}}' > "$CODEX_HOME/auth.json"
+      echo "Successfully logged in"
+    fi ;;
+  logout) rm -f "$CODEX_HOME/auth.json" ;;
+  exec)
+    cat > /dev/null
+    args=$(printf '%s' "$*" | sed 's/["\\]/\\&/g')
+    echo '{"type":"thread.started","thread_id":"th1"}'
+    echo '{"type":"turn.started"}'
+    echo '{"type":"item.started","item":{"id":"item_1","type":"mcp_tool_call","server":"notes","tool":"whoami","arguments":{},"status":"in_progress"}}'
+    echo '{"type":"item.completed","item":{"id":"item_1","type":"mcp_tool_call","server":"notes","tool":"whoami","arguments":{},"result":{"content":[{"type":"text","text":"you are alice"}]},"status":"completed"}}'
+    echo "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"args: $args; home: ${CODEX_HOME##*/}\"}}"
+    echo '{"type":"turn.completed","usage":{"input_tokens":10,"cached_input_tokens":5,"output_tokens":3}}'
+    ;;
+esac

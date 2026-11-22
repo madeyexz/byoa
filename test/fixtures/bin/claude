@@ -1,0 +1,37 @@
+#!/bin/bash
+# A stand-in for the claude CLI in byoa's own tests only: it prints what Claude Code 2.1.330 prints for the commands
+# byoa runs. It is never installed in a sandbox; the real checks (V3, V11) use the real binary.
+case "$1" in
+  --version) echo "2.1.330 (Claude Code)" ;;
+  auth)
+    case "$2" in
+      login)
+        echo "Browser didn't open? Use the url below to sign in (c to copy)"
+        echo
+        echo "https://claude.ai/oauth/authorize?code=true&client_id=test-client&response_type=code&state=xyz"
+        echo
+        printf "Paste code here if prompted > "
+        read -r code
+        if [ "$code" = "good-code" ]; then
+          mkdir -p "$CLAUDE_CONFIG_DIR"
+          echo '{"claudeAiOauth":{"accessToken":"lab-secret-claude"}}' > "$CLAUDE_CONFIG_DIR/.credentials.json"
+          echo "Login successful."
+        else
+          echo "Couldn't log in: invalid code"
+          exit 1
+        fi ;;
+      logout) rm -f "$CLAUDE_CONFIG_DIR/.credentials.json" ;;
+    esac ;;
+  -p)
+    task=$(cat)
+    echo '{"type":"system","subtype":"init","session_id":"s1","tools":[]}'
+    if [[ "$task" == *expire* ]]; then
+      echo '{"type":"result","subtype":"success","is_error":true,"result":"OAuth token has expired. Please run /login","usage":{}}'
+      exit 1
+    fi
+    echo "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"args: $*; config: ${CLAUDE_CONFIG_DIR##*/}; autoupdater: $DISABLE_AUTOUPDATER\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"mcp__notes__whoami\",\"input\":{}}]}}"
+    echo '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":[{"type":"text","text":"you are alice"}]}]}}'
+    echo '{"type":"assistant","message":{"content":[{"type":"text","text":"You are alice."}]}}'
+    echo '{"type":"result","subtype":"success","is_error":false,"result":"You are alice.","usage":{"input_tokens":10,"cache_read_input_tokens":5,"output_tokens":3},"total_cost_usd":0.01}'
+    ;;
+esac

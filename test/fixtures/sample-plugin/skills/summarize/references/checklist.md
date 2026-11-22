@@ -1,0 +1,2 @@
+- Every point names one idea.
+- No point repeats another.

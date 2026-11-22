@@ -1,6 +1,6 @@
 # byoa: bring your own agent
 
-**Status: spec only. No code yet.**
+**Status: core library in progress, not on npm yet.**
 
 byoa is an open-source library that helps you build AI-native apps fast. Your app runs the user's own Claude Code or Codex in a sandbox. The user signs in with their own ChatGPT or Claude plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
 
@@ -58,22 +58,44 @@ byoa is that layer, as a library, so you do not build it again for each app.
 
 ## How it will look
 
-This is a sketch. The API can change.
+This is the API in this repository today. It can change before version 1.
 
 ```ts
 import { createAgents } from 'byoa'
 import { e2b } from 'byoa/sandbox/e2b'
-import { convexStore } from 'byoa/store/convex'
+import { postgresStore } from 'byoa/store/postgres'
 
-const agents = createAgents({ sandbox: e2b({ apiKey }), store: convexStore(ctx) })
+const agents = createAgents({
+  app: 'myapp',                                    // each app has its own login volumes
+  sandbox: e2b({ apiKey }),
+  store: postgresStore({ query: (sql, args) => pool.query(sql, args) }),
+  encryptionKey,                                   // openssl rand -base64 32; grants are encrypted with it
+  proxyUrl: 'https://myapp.example.com/byoa/mcp',  // serve agents.proxy here
+  oauth: { redirectUrl: 'https://myapp.example.com/byoa/callback' },
+})
 
-await agents.connectLogin(userId, 'claude')                     // real claude CLI sign-in
-await agents.connectLogin(userId, 'codex')                      // real codex CLI, device auth
-await agents.connectMcp(userId, 'https://mcp.notion.com/mcp')   // OAuth, one refresh owner
-const run = await agents.run(userId, { harness: 'claude', task, skills: ['./skills'] })
+const claude = await agents.connectLogin(userId, 'claude')  // { url }: Anthropic's own sign-in page
+await agents.finishLogin(userId, 'claude', { code })        // the code that page shows
+const codex = await agents.connectLogin(userId, 'codex')    // { url, code }: OpenAI's page and the code to enter
+await agents.finishLogin(userId, 'codex', { waitMs: 60_000 })
+
+const mcp = await agents.connectMcp(userId, 'https://mcp.notion.com/mcp', { name: 'notion' })
+// mcp.signInUrl: the server's sign-in page; your redirectUrl route then calls agents.finishMcp({ state, code })
+
+for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['notion'], setup: { agentsMd, skills } })) {
+  // start, text, tool_call, tool_result, permission, error, end: the same events for Claude Code and Codex
+}
 ```
 
-To change the provider, change `e2b(...)` to `daytona(...)`.
+Each job runs in a new sandbox, and byoa destroys the sandbox after the job. The user's AI login stays in a volume of that user and app. The MCP config in the sandbox points to `agents.proxy`, with a token for that one job. The real MCP tokens stay in your database.
+
+To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, destroy. The Daytona adapter and the Convex store adapter are not written yet.
+
+## Test your app without a plan or a sandbox
+
+Use `harness: 'fake'`, `localSandbox()` from `byoa/sandbox/local` and `memoryStore()`. The fake harness runs no model. It calls MCP tools through the real proxy: each task line `call <server>.<tool> <json>` is one call.
+
+To test byoa itself: `npm test` (V10, the fake-harness tests and the unit tests), and `npm run test:v11` (V11; it downloads about 600 MB). CI runs both on every commit.
 
 ## How we will verify it
 

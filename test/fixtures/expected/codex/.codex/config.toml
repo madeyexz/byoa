@@ -1,0 +1,7 @@
+[mcp_servers.linear]
+url = "https://app.example.com/byoa/mcp/linear"
+bearer_token_env_var = "BYOA_JOB_TOKEN"
+
+[mcp_servers.notion]
+url = "https://app.example.com/byoa/mcp/notion"
+bearer_token_env_var = "BYOA_JOB_TOKEN"

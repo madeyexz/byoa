@@ -1,0 +1,33 @@
+# On every commit: the typecheck, V10, the fake-harness tests and the other unit tests, and V11 (SPEC.md,
+# Verification). V1 to V9 use real providers and plans, so they run before a release, not here.
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      # V10 also checks that the pinned, real Codex reads the config.toml byoa writes
+      - name: Install the pinned Codex for V10
+        run: |
+          v=$(node -e "import('./src/harness/pins.ts').then((m) => console.log(m.PINS.codex))")
+          npm install --prefix "$RUNNER_TEMP/codex" --no-audit --no-fund "@openai/codex@$v"
+          echo "BYOA_CODEX_BIN=$RUNNER_TEMP/codex/node_modules/.bin/codex" >> "$GITHUB_ENV"
+      - run: npm test
+
+  v11:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm run test:v11

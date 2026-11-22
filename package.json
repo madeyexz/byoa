@@ -1,0 +1,49 @@
+{
+  "name": "byoa",
+  "version": "0.1.0",
+  "description": "Run your users' own Claude Code or Codex in any sandbox, with their MCP connections and skills. A library for your own backend.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/madeyexz/byoa.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./sandbox/e2b": "./dist/sandbox/e2b.js",
+    "./sandbox/local": "./dist/sandbox/local.js",
+    "./store/postgres": "./dist/store/postgres.js",
+    "./verify": "./dist/verify.js",
+    "./node": "./dist/node.js"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test 'test/*.test.ts'",
+    "test:v11": "BYOA_V11=1 node --test test/v11.test.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2"
+  },
+  "peerDependencies": {
+    "e2b": "^2.64.0"
+  },
+  "peerDependenciesMeta": {
+    "e2b": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.17",
+    "@types/node": "^24.0.0",
+    "e2b": "^2.64.0",
+    "typescript": "^5.9.0"
+  }
+}

@@ -299,7 +299,7 @@
   <canvas id="shader" aria-hidden="true"></canvas>
   <div class="wrap">
     <div>
-      <span class="pill"><span class="dot"></span>Open source · Apache 2.0 · Spec only. No code yet.</span>
+      <span class="pill"><span class="dot"></span>Open source · Apache 2.0 · Core library in progress, not on npm yet.</span>
       <h1>Build AI-native apps.<br><span class="grad">Your users bring the agent.</span></h1>
       <p class="lead">byoa is an open-source library for apps that run agents in sandboxes. Your app runs each user's own <b>Claude Code</b> or <b>Codex</b>. The user signs in with the <b>Claude or ChatGPT plan they already have</b>, so their plan pays for the agent work.</p>
       <div class="cta">
@@ -587,17 +587,32 @@
     </div>
     <div class="win">
       <div class="bar"><i></i><i></i><i></i><span>your-backend/agents.ts</span></div>
-      <div class="body"><p>This is a sketch. The API can change.</p>
+      <div class="body"><p>This is the API in this repository today. It can change before version 1.</p>
 <pre class="shiki vesper" style="background-color:#101010;color:#FFF" tabindex="0"><code><span class="line"><span style="color:#A0A0A0">import</span><span style="color:#FFF"> { createAgents } </span><span style="color:#A0A0A0">from</span><span style="color:#99FFE4"> 'byoa'</span></span>
 <span class="line"><span style="color:#A0A0A0">import</span><span style="color:#FFF"> { e2b } </span><span style="color:#A0A0A0">from</span><span style="color:#99FFE4"> 'byoa/sandbox/e2b'</span></span>
-<span class="line"><span style="color:#A0A0A0">import</span><span style="color:#FFF"> { convexStore } </span><span style="color:#A0A0A0">from</span><span style="color:#99FFE4"> 'byoa/store/convex'</span></span>
+<span class="line"><span style="color:#A0A0A0">import</span><span style="color:#FFF"> { postgresStore } </span><span style="color:#A0A0A0">from</span><span style="color:#99FFE4"> 'byoa/store/postgres'</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#A0A0A0">const</span><span style="color:#FFF"> agents </span><span style="color:#A0A0A0">=</span><span style="color:#FFC799"> createAgents</span><span style="color:#FFF">({ sandbox: </span><span style="color:#FFC799">e2b</span><span style="color:#FFF">({ apiKey }), store: </span><span style="color:#FFC799">convexStore</span><span style="color:#FFF">(ctx) })</span></span>
+<span class="line"><span style="color:#A0A0A0">const</span><span style="color:#FFF"> agents </span><span style="color:#A0A0A0">=</span><span style="color:#FFC799"> createAgents</span><span style="color:#FFF">({</span></span>
+<span class="line"><span style="color:#FFF">  app: </span><span style="color:#99FFE4">'myapp'</span><span style="color:#FFF">,                                    </span><span style="color:#8B8B8B94">// each app has its own login volumes</span></span>
+<span class="line"><span style="color:#FFF">  sandbox: </span><span style="color:#FFC799">e2b</span><span style="color:#FFF">({ apiKey }),</span></span>
+<span class="line"><span style="color:#FFF">  store: </span><span style="color:#FFC799">postgresStore</span><span style="color:#FFF">({ </span><span style="color:#FFC799">query</span><span style="color:#FFF">: (sql, args) </span><span style="color:#A0A0A0">=></span><span style="color:#FFF"> pool.</span><span style="color:#FFC799">query</span><span style="color:#FFF">(sql, args) }),</span></span>
+<span class="line"><span style="color:#FFF">  encryptionKey,                                   </span><span style="color:#8B8B8B94">// openssl rand -base64 32; grants are encrypted with it</span></span>
+<span class="line"><span style="color:#FFF">  proxyUrl: </span><span style="color:#99FFE4">'https://myapp.example.com/byoa/mcp'</span><span style="color:#FFF">,  </span><span style="color:#8B8B8B94">// serve agents.proxy here</span></span>
+<span class="line"><span style="color:#FFF">  oauth: { redirectUrl: </span><span style="color:#99FFE4">'https://myapp.example.com/byoa/callback'</span><span style="color:#FFF"> },</span></span>
+<span class="line"><span style="color:#FFF">})</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#A0A0A0">await</span><span style="color:#FFF"> agents.</span><span style="color:#FFC799">connectLogin</span><span style="color:#FFF">(userId, </span><span style="color:#99FFE4">'claude'</span><span style="color:#FFF">)                     </span><span style="color:#8B8B8B94">// real claude CLI sign-in</span></span>
-<span class="line"><span style="color:#A0A0A0">await</span><span style="color:#FFF"> agents.</span><span style="color:#FFC799">connectLogin</span><span style="color:#FFF">(userId, </span><span style="color:#99FFE4">'codex'</span><span style="color:#FFF">)                      </span><span style="color:#8B8B8B94">// real codex CLI, device auth</span></span>
-<span class="line"><span style="color:#A0A0A0">await</span><span style="color:#FFF"> agents.</span><span style="color:#FFC799">connectMcp</span><span style="color:#FFF">(userId, </span><span style="color:#99FFE4">'https://mcp.notion.com/mcp'</span><span style="color:#FFF">)   </span><span style="color:#8B8B8B94">// OAuth, one refresh owner</span></span>
-<span class="line"><span style="color:#A0A0A0">const</span><span style="color:#FFF"> run </span><span style="color:#A0A0A0">=</span><span style="color:#A0A0A0"> await</span><span style="color:#FFF"> agents.</span><span style="color:#FFC799">run</span><span style="color:#FFF">(userId, { harness: </span><span style="color:#99FFE4">'claude'</span><span style="color:#FFF">, task, skills: [</span><span style="color:#99FFE4">'./skills'</span><span style="color:#FFF">] })</span></span></code></pre><p>To change the provider, change <code>e2b(...)</code> to <code>daytona(...)</code>.</p>
+<span class="line"><span style="color:#A0A0A0">const</span><span style="color:#FFF"> claude </span><span style="color:#A0A0A0">=</span><span style="color:#A0A0A0"> await</span><span style="color:#FFF"> agents.</span><span style="color:#FFC799">connectLogin</span><span style="color:#FFF">(userId, </span><span style="color:#99FFE4">'claude'</span><span style="color:#FFF">)  </span><span style="color:#8B8B8B94">// { url }: Anthropic's own sign-in page</span></span>
+<span class="line"><span style="color:#A0A0A0">await</span><span style="color:#FFF"> agents.</span><span style="color:#FFC799">finishLogin</span><span style="color:#FFF">(userId, </span><span style="color:#99FFE4">'claude'</span><span style="color:#FFF">, { code })        </span><span style="color:#8B8B8B94">// the code that page shows</span></span>
+<span class="line"><span style="color:#A0A0A0">const</span><span style="color:#FFF"> codex </span><span style="color:#A0A0A0">=</span><span style="color:#A0A0A0"> await</span><span style="color:#FFF"> agents.</span><span style="color:#FFC799">connectLogin</span><span style="color:#FFF">(userId, </span><span style="color:#99FFE4">'codex'</span><span style="color:#FFF">)    </span><span style="color:#8B8B8B94">// { url, code }: OpenAI's page and the code to enter</span></span>
+<span class="line"><span style="color:#A0A0A0">await</span><span style="color:#FFF"> agents.</span><span style="color:#FFC799">finishLogin</span><span style="color:#FFF">(userId, </span><span style="color:#99FFE4">'codex'</span><span style="color:#FFF">, { waitMs: </span><span style="color:#FFC799">60_000</span><span style="color:#FFF"> })</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#A0A0A0">const</span><span style="color:#FFF"> mcp </span><span style="color:#A0A0A0">=</span><span style="color:#A0A0A0"> await</span><span style="color:#FFF"> agents.</span><span style="color:#FFC799">connectMcp</span><span style="color:#FFF">(userId, </span><span style="color:#99FFE4">'https://mcp.notion.com/mcp'</span><span style="color:#FFF">, { name: </span><span style="color:#99FFE4">'notion'</span><span style="color:#FFF"> })</span></span>
+<span class="line"><span style="color:#8B8B8B94">// mcp.signInUrl: the server's sign-in page; your redirectUrl route then calls agents.finishMcp({ state, code })</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#A0A0A0">for</span><span style="color:#A0A0A0"> await</span><span style="color:#FFF"> (</span><span style="color:#A0A0A0">const</span><span style="color:#FFF"> event </span><span style="color:#A0A0A0">of</span><span style="color:#FFF"> agents.</span><span style="color:#FFC799">run</span><span style="color:#FFF">(userId, { harness: </span><span style="color:#99FFE4">'claude'</span><span style="color:#FFF">, task, mcp: [</span><span style="color:#99FFE4">'notion'</span><span style="color:#FFF">], setup: { agentsMd, skills } })) {</span></span>
+<span class="line"><span style="color:#8B8B8B94">  // start, text, tool_call, tool_result, permission, error, end: the same events for Claude Code and Codex</span></span>
+<span class="line"><span style="color:#FFF">}</span></span></code></pre><p>Each job runs in a new sandbox, and byoa destroys the sandbox after the job. The user&#39;s AI login stays in a volume of that user and app. The MCP config in the sandbox points to <code>agents.proxy</code>, with a token for that one job. The real MCP tokens stay in your database.</p>
+<p>To change the provider, change <code>e2b(...)</code> to another adapter. An adapter implements one interface (<a href="https://github.com/madeyexz/byoa/blob/main/src/sandbox/types.ts">src/sandbox/types.ts</a>): create (with volumes), resume, run a command, write a file, destroy. The Daytona adapter and the Convex store adapter are not written yet.</p>
 </div>
     </div>
   </div>
@@ -609,7 +624,7 @@
   <p class="sublead">These are the targets in SPEC.md. Claude Code and Codex are both in the first version. Other agents can come later.</p>
   <div class="card scope">
     <div class="head">
-      <span>Now: Spec only. No code yet.</span>
+      <span>Now: Core library in progress, not on npm yet.</span>
       <div class="keys">
         <span><i style="background:var(--green)"></i>v1 target</span>
         <span><i style="border:1.5px dashed var(--amber)"></i>planned</span>
