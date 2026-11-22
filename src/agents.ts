@@ -79,6 +79,18 @@ export interface Session {
   close(): Promise<void>
 }
 
+export interface JobToken {
+  /** Send it as `Authorization: Bearer` to each server in `mcp`. */
+  token: string
+  job: string
+  /** The MCP servers this token reaches, at the proxy. */
+  mcp: { name: string; url: string }[]
+  /** Servers asked for that this user has not connected. */
+  missing: string[]
+  /** Ends the token (R3.4). */
+  close(): Promise<void>
+}
+
 /** The harness has no login in this user's volume. */
 export class LoginError extends Error { readonly code = 'signed-out' }
 
@@ -159,6 +171,23 @@ export function createAgents(o: AgentsOptions) {
     return { user: f.user, name: f.name }
   }
 
+  /** A job token with no sandbox (R3), for an app's own program that runs a harness somewhere else, such as on the
+   *  user's own computer. The same rules as a job's token: one user, only the servers named that this user has
+   *  connected, refused after `close` (R3.4) and after `ttlMs` (default: the job timeout and 5 minutes). */
+  async function jobToken(user: string, r: { mcp?: string[]; ttlMs?: number } = {}): Promise<JobToken> {
+    const want = [...new Set(r.mcp ?? [])]
+    const have = new Set((await grants.list(user)).map((g) => g.name))
+    const servers = want.filter((s) => have.has(s))
+    const { token, job } = await jobs.issue(user, servers, r.ttlMs ?? timeout + 5 * 60_000)
+    let closed = false
+    return {
+      token, job,
+      mcp: servers.map((name) => ({ name, url: serverUrl(o.proxyUrl, name) })),
+      missing: want.filter((s) => !have.has(s)),
+      async close() { if (!closed) { closed = true; await jobs.end(job) } },
+    }
+  }
+
   /** Opens one job (R5.4) for an app that runs its own program around the unmodified harness (Bookish runs its own
    *  core, which starts `claude` or `codex`): a new sandbox with the user's login volume, the pinned harness, the
    *  user's setup in `work`, and a job token for the MCP servers this job gets. `close` ends the job token and
@@ -166,21 +195,18 @@ export function createAgents(o: AgentsOptions) {
   async function session(user: string, r: SessionOptions): Promise<Session> {
     const h = r.harness
     const plugins = r.plugins ?? []
-    const want = [...new Set([...(r.mcp ?? []), ...plugins.flatMap((p) => p.mcp.map((m) => m.name))])]
-    const have = new Set((await grants.list(user)).map((g) => g.name))
-    const servers = want.filter((s) => have.has(s))
-    const setup: Setup = { agentsMd: r.setup?.agentsMd, skills: [...(r.setup?.skills ?? []), ...plugins.flatMap((p) => p.setup.skills ?? [])] }
-    const files = harnessFiles(h === 'codex' ? 'codex' : 'claude', setup, { proxyUrl: o.proxyUrl, servers })
-
-    const { token, job } = await jobs.issue(user, servers, timeout + 5 * 60_000)
+    const t = await jobToken(user, { mcp: [...(r.mcp ?? []), ...plugins.flatMap((p) => p.mcp.map((m) => m.name))] })
+    const { token, job } = t
     let sbx: Sandbox | undefined, closed = false
     const close = async () => {
       if (closed) return
       closed = true
-      await jobs.end(job).catch(() => {})
+      await t.close().catch(() => {})
       await sbx?.destroy()
     }
     try {
+      const setup: Setup = { agentsMd: r.setup?.agentsMd, skills: [...(r.setup?.skills ?? []), ...plugins.flatMap((p) => p.setup.skills ?? [])] }
+      const files = harnessFiles(h === 'codex' ? 'codex' : 'claude', setup, { proxyUrl: o.proxyUrl, servers: t.mcp.map((m) => m.name) })
       sbx = await o.sandbox.create({ volumes: h === 'fake' ? [] : await login.volumes(user, h), labels: { 'byoa-app': o.app, 'byoa-job': job }, timeoutMs: timeout + 60_000 })
       const work = `${sbx.home}/work`
       let bin: string, version: string, env: Record<string, string> = {}
@@ -203,8 +229,8 @@ export function createAgents(o: AgentsOptions) {
       return {
         sandbox: box, work, harness: h, bin, version, token,
         env: { ...env, [JOB_TOKEN_ENV]: token },
-        mcp: servers.map((name) => ({ name, url: serverUrl(o.proxyUrl, name) })),
-        missing: want.filter((s) => !have.has(s)),
+        mcp: t.mcp,
+        missing: t.missing,
         close,
         async reportLogin(state) {
           if (h === 'fake') return
@@ -277,6 +303,7 @@ export function createAgents(o: AgentsOptions) {
     removeMcp: (user: string, name: string) => grants.remove(user, name),
     run,
     session,
+    jobToken,
     /** The MCP proxy, a fetch handler (Request → Response). Serve it at `proxyUrl` and below. */
     proxy: mcpProxy({ proxyUrl: o.proxyUrl, jobs, grants }),
     /** The Client ID Metadata Document to serve at `oauth.clientMetadataUrl`. */
