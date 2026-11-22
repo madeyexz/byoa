@@ -2,7 +2,7 @@
 // driver (R1), the MCP grants and their one refresh owner (R2), the proxy (R3), the config writers (R4) and the
 // harness installer (R5.1).
 import { auth } from '@modelcontextprotocol/sdk/client/auth.js'
-import { CLAUDE_MCP_CONFIG, JOB_TOKEN_ENV, SERVER_NAME, harnessFiles, type Plugin, type Setup } from './config.ts'
+import { CLAUDE_MCP_CONFIG, JOB_TOKEN_ENV, SERVER_NAME, harnessFiles, serverUrl, type Plugin, type Setup } from './config.ts'
 import { importKey, open, seal } from './crypto.ts'
 import { claudeArgs, claudeReader } from './harness/claude.ts'
 import { codexArgs, codexReader } from './harness/codex.ts'
@@ -48,6 +48,39 @@ export interface RunOptions {
   mcp?: string[]
   model?: string
 }
+
+export interface SessionOptions {
+  harness: RunHarness
+  setup?: Setup
+  plugins?: Plugin[]
+  /** The MCP servers this job gets (R2.5). Default: none. A plugin's servers are added. */
+  mcp?: string[]
+}
+
+export interface Session {
+  sandbox: Sandbox
+  /** The job's folder, with the files byoa writes for the harness (R4). */
+  work: string
+  harness: RunHarness
+  /** The pinned, unmodified harness binary in the sandbox (for `fake`: the fake harness's script, run with node). */
+  bin: string
+  version: string
+  /** The harness's environment: its login folder and the job token (JOB_TOKEN_ENV). */
+  env: Record<string, string>
+  /** The job token: each MCP server below takes it as `Authorization: Bearer`, until close. */
+  token: string
+  /** The MCP servers this job has, at the proxy (R3.1). */
+  mcp: { name: string; url: string }[]
+  /** Servers asked for that this user has not connected; the job runs without them. */
+  missing: string[]
+  /** What the harness showed of its login: `expired` when it refused it, `signed-in` when a job worked (R1.6). */
+  reportLogin(state: 'signed-in' | 'expired'): Promise<void>
+  /** Ends the job token (R3.4) and destroys the sandbox (R5.4). */
+  close(): Promise<void>
+}
+
+/** The harness has no login in this user's volume. */
+export class LoginError extends Error { readonly code = 'signed-out' }
 
 export type ConnectResult = { name: string; connected: true } | { name: string; connected: false; signInUrl: string }
 
@@ -126,69 +159,108 @@ export function createAgents(o: AgentsOptions) {
     return { user: f.user, name: f.name }
   }
 
-  /** Runs one job (R5.4): a new sandbox with the user's login volume, the user's setup, the harness, the job; then
-   *  the job token ends and the sandbox is destroyed. Events in one schema for every harness (R5.5). */
-  async function* run(user: string, r: RunOptions): AsyncGenerator<AgentEvent> {
+  /** Opens one job (R5.4) for an app that runs its own program around the unmodified harness (Bookish runs its own
+   *  core, which starts `claude` or `codex`): a new sandbox with the user's login volume, the pinned harness, the
+   *  user's setup in `work`, and a job token for the MCP servers this job gets. `close` ends the job token and
+   *  destroys the sandbox; call it in a `finally`. Throws LoginError when the harness is not signed in. */
+  async function session(user: string, r: SessionOptions): Promise<Session> {
     const h = r.harness
     const plugins = r.plugins ?? []
     const want = [...new Set([...(r.mcp ?? []), ...plugins.flatMap((p) => p.mcp.map((m) => m.name))])]
     const have = new Set((await grants.list(user)).map((g) => g.name))
     const servers = want.filter((s) => have.has(s))
-    for (const s of want) if (!have.has(s)) yield { type: 'error', code: 'mcp', message: `${s} is not connected for this user; the job runs without it` }
     const setup: Setup = { agentsMd: r.setup?.agentsMd, skills: [...(r.setup?.skills ?? []), ...plugins.flatMap((p) => p.setup.skills ?? [])] }
     const files = harnessFiles(h === 'codex' ? 'codex' : 'claude', setup, { proxyUrl: o.proxyUrl, servers })
 
     const { token, job } = await jobs.issue(user, servers, timeout + 5 * 60_000)
-    let sbx: Sandbox | undefined, cleaned = false
-    const cleanup = async (): Promise<string | undefined> => {
-      if (cleaned) return
-      cleaned = true
+    let sbx: Sandbox | undefined, closed = false
+    const close = async () => {
+      if (closed) return
+      closed = true
       await jobs.end(job).catch(() => {})
-      try { await sbx?.destroy() } catch (e) { return `the sandbox was not destroyed: ${(e as Error).message}` }
+      await sbx?.destroy()
     }
+    try {
+      sbx = await o.sandbox.create({ volumes: h === 'fake' ? [] : await login.volumes(user, h), labels: { 'byoa-app': o.app, 'byoa-job': job }, timeoutMs: timeout + 60_000 })
+      const work = `${sbx.home}/work`
+      let bin: string, version: string, env: Record<string, string> = {}
+      if (h === 'fake') {
+        bin = `${sbx.home}/.byoa/fake.mjs`
+        await sbx.writeFile(bin, FAKE_JS)
+        version = 'fake'
+      } else {
+        if (!(await login.present(sbx, user, h))) {
+          await login.setState(user, h, 'signed-out')
+          throw new LoginError(`${h} is not signed in for this user; call connectLogin first`)
+        }
+        const inst = await ensureHarness(sbx, h, pins)
+        bin = inst.bin
+        version = inst.version
+        env = await login.env(sbx, user, h)
+      }
+      for (const [p, text] of Object.entries(files)) await sbx.writeFile(`${work}/${p}`, text)
+      const box = sbx
+      return {
+        sandbox: box, work, harness: h, bin, version, token,
+        env: { ...env, [JOB_TOKEN_ENV]: token },
+        mcp: servers.map((name) => ({ name, url: serverUrl(o.proxyUrl, name) })),
+        missing: want.filter((s) => !have.has(s)),
+        close,
+        async reportLogin(state) {
+          if (h === 'fake') return
+          if (state === 'expired' || (await login.state(user, h)) !== state) await login.setState(user, h, state)
+        },
+      }
+    } catch (e) {
+      await close().catch(() => {})
+      throw e
+    }
+  }
+
+  /** Runs one job (R5.4): a session, the harness with the task, then close. Events in one schema for every harness
+   *  (R5.5). */
+  async function* run(user: string, r: RunOptions): AsyncGenerator<AgentEvent> {
+    const h = r.harness
+    let s: Session | undefined
     let end: AgentEvent = { type: 'end', ok: false }
     try {
-      body: try {
-        sbx = await o.sandbox.create({ volumes: h === 'fake' ? [] : await login.volumes(user, h), labels: { 'byoa-app': o.app, 'byoa-job': job }, timeoutMs: timeout + 60_000 })
-        const work = `${sbx.home}/work`
-        let cmd: string, version: string, env: Record<string, string> = {}, reader: EventReader
-        if (h === 'fake') {
-          await sbx.writeFile(`${sbx.home}/.byoa/fake.mjs`, FAKE_JS)
-          cmd = `node ${q(`${sbx.home}/.byoa/fake.mjs`)}`
-          version = 'fake'
-          reader = fakeReader()
-        } else {
-          if (!(await login.present(sbx, user, h))) {
-            await login.setState(user, h, 'signed-out')
-            yield { type: 'error', code: 'signed-out', message: `${h} is not signed in for this user; call connectLogin first` }
-            break body
-          }
-          const inst = await ensureHarness(sbx, h, pins)
-          version = inst.version
-          env = await login.env(sbx, user, h)
-          const args = h === 'claude' ? claudeArgs({ mcpConfig: CLAUDE_MCP_CONFIG, model: r.model }) : codexArgs({ work, model: r.model })
-          cmd = [inst.bin, ...args].map(q).join(' ')
+      for (const m of await missingOf(user, r)) yield { type: 'error', code: 'mcp', message: `${m} is not connected for this user; the job runs without it` }
+      try {
+        s = await session(user, r)
+        let cmd: string, reader: EventReader
+        if (h === 'fake') { cmd = `node ${q(s.bin)}`; reader = fakeReader() }
+        else {
+          const args = h === 'claude' ? claudeArgs({ mcpConfig: CLAUDE_MCP_CONFIG, model: r.model }) : codexArgs({ work: s.work, model: r.model })
+          cmd = [s.bin, ...args].map(q).join(' ')
           reader = h === 'claude' ? claudeReader() : codexReader()
         }
-        for (const [p, text] of Object.entries(files)) await sbx.writeFile(`${work}/${p}`, text)
-        await sbx.writeFile(`${work}/.byoa/task.md`, r.task)
-        yield { type: 'start', harness: h, version, sandbox: o.sandbox.name }
+        await s.sandbox.writeFile(`${s.work}/.byoa/task.md`, r.task)
+        yield { type: 'start', harness: h, version: s.version, sandbox: o.sandbox.name }
 
-        for await (const ev of stream(sbx, `${cmd} < .byoa/task.md`, { cwd: work, env: { ...env, [JOB_TOKEN_ENV]: token }, timeoutMs: timeout }, reader)) {
+        for await (const ev of stream(s.sandbox, `${cmd} < .byoa/task.md`, { cwd: s.work, env: s.env, timeoutMs: timeout }, reader)) {
           if (ev.type === 'end') { end = ev; break }
-          if (ev.type === 'error' && ev.code === 'expired' && h !== 'fake') await login.setState(user, h, 'expired')
+          if (ev.type === 'error' && ev.code === 'expired') await s.reportLogin('expired')
           yield ev
         }
-        if (end.type === 'end' && end.ok && h !== 'fake' && (await login.state(user, h)) !== 'signed-in') await login.setState(user, h, 'signed-in')
+        if (end.type === 'end' && end.ok) await s.reportLogin('signed-in')
       } catch (e) {
-        yield { type: 'error', code: e instanceof GrantError ? 'mcp' : 'sandbox', message: (e as Error).message }
+        if (e instanceof LoginError) yield { type: 'error', code: 'signed-out', message: e.message }
+        else yield { type: 'error', code: e instanceof GrantError ? 'mcp' : 'sandbox', message: (e as Error).message }
       }
-      const failed = await cleanup()
-      if (failed) yield { type: 'error', code: 'sandbox', message: failed }
+      if (s) {
+        const failed = await s.close().then(() => undefined, (e) => `the sandbox was not destroyed: ${(e as Error).message}`)
+        if (failed) yield { type: 'error', code: 'sandbox', message: failed }
+      }
       yield end
     } finally {
-      await cleanup()
+      await s?.close().catch(() => {})
     }
+  }
+
+  async function missingOf(user: string, r: SessionOptions) {
+    const want = [...new Set([...(r.mcp ?? []), ...(r.plugins ?? []).flatMap((p) => p.mcp.map((m) => m.name))])]
+    const have = new Set((await grants.list(user)).map((g) => g.name))
+    return want.filter((s) => !have.has(s))
   }
 
   return {
@@ -204,6 +276,7 @@ export function createAgents(o: AgentsOptions) {
     listMcp: (user: string) => grants.list(user),
     removeMcp: (user: string, name: string) => grants.remove(user, name),
     run,
+    session,
     /** The MCP proxy, a fetch handler (Request → Response). Serve it at `proxyUrl` and below. */
     proxy: mcpProxy({ proxyUrl: o.proxyUrl, jobs, grants }),
     /** The Client ID Metadata Document to serve at `oauth.clientMetadataUrl`. */

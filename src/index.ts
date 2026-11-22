@@ -1,4 +1,4 @@
-export { createAgents, type AgentsOptions, type RunOptions, type RunHarness, type ConnectResult } from './agents.ts'
+export { createAgents, LoginError, type AgentsOptions, type RunOptions, type RunHarness, type ConnectResult, type Session, type SessionOptions } from './agents.ts'
 export { memoryStore, type Store, type Entry } from './store.ts'
 export type { Sandbox, SandboxProvider, CreateOptions, RunOptions as SandboxRunOptions, RunResult, Volume } from './sandbox/types.ts'
 export { harnessFiles, readPlugin, JOB_TOKEN_ENV, type Setup, type Skill, type Plugin } from './config.ts'

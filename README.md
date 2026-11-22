@@ -98,6 +98,16 @@ for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['n
 }
 ```
 
+An app that runs its own program around the unmodified harness (for example its own server, which starts `claude` or `codex` itself) opens the job with `agents.session` instead. It gets the same sandbox, login, pinned harness and job token, and runs its own command:
+
+```ts
+const s = await agents.session(userId, { harness: 'claude', mcp: ['notion'] })
+try {
+  // s.bin: the pinned claude binary; s.env: its login folder and the job token; s.mcp: [{ name, url }] at the proxy
+  await s.sandbox.run(`my-server --claude ${s.bin}`, { env: s.env })
+} finally { await s.close() }  // ends the job token and destroys the sandbox
+```
+
 Each job runs in a new sandbox, and byoa destroys the sandbox after the job. The user's AI login stays in a volume of that user and app. The MCP config in the sandbox points to `agents.proxy`, with a token for that one job. The real MCP tokens stay in your database.
 
 To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, destroy.

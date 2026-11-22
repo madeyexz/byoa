@@ -71,3 +71,27 @@ test('fake harness: a consumer that stops reading early still ends the job and d
   for await (const e of agents.run('alice', { harness: 'fake', task: TASK, mcp: ['notes'] })) if (e.type === 'text') break
   assert.equal(sandbox.live.size, 0)
 })
+
+test('session: an app runs its own program in the job\'s sandbox, its MCP calls go through the proxy, and close ends both', async () => {
+  const { agents, sandbox, mcp } = await setup()
+  const s = await agents.session('alice', { harness: 'fake', mcp: ['notes', 'gmail'] })
+  assert.deepEqual(s.mcp.map((m) => m.name), ['notes'])
+  assert.deepEqual(s.missing, ['gmail'])
+  // the app's own program: here a curl to the proxy with the job token, as an app's core that starts the CLI would
+  const call = (env: Record<string, string>) => s.sandbox.run(`curl -s -o /dev/null -w '%{http_code}' -X POST -H "authorization: Bearer $BYOA_JOB_TOKEN" -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}' ${s.mcp[0]!.url}`, { env })
+  assert.equal((await call(s.env)).stdout, '200')
+  assert.equal((await call({ BYOA_JOB_TOKEN: 'byoa_job_not-a-token' })).stdout, '401')
+  const everything = [...sandbox.envs.map((e) => JSON.stringify(e))].join('\n')
+  for (const t of mcp.issued) assert.ok(!everything.includes(t), 'a real token reached the sandbox')
+  await s.close()
+  assert.equal(sandbox.live.size, 0)
+  const r = await fetch(s.mcp[0]!.url, { method: 'POST', headers: { authorization: `Bearer ${s.token}`, 'content-type': 'application/json' }, body: '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' })
+  assert.equal(r.status, 401, 'the job token ends with the session')
+})
+
+test('session: a harness with no login throws LoginError, leaves no sandbox, and the login state says signed-out', async () => {
+  const { agents, sandbox } = await setup()
+  await assert.rejects(agents.session('alice', { harness: 'claude' }), (e: Error) => e.name === 'Error' && (e as { code?: string }).code === 'signed-out')
+  assert.equal(sandbox.live.size, 0)
+  assert.equal(await agents.loginState('alice', 'claude'), 'signed-out')
+})
