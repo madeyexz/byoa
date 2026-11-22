@@ -1,11 +1,16 @@
-// Cloudflare Worker "byoa-site" on byoa.rippling.computer. It serves site/index.html from the main branch,
-// so a push that updates index.html (node build.mjs) updates the page with no redeploy.
-const PAGE = 'https://raw.githubusercontent.com/madeyexz/byoa/main/site/index.html'
+// Cloudflare Worker "byoa-site" on byoa.rippling.computer. It serves site/index.html, site/art/ and site/fonts/
+// from the main branch, so a push that updates them (node build.mjs) updates the page with no redeploy.
+const BASE = 'https://raw.githubusercontent.com/madeyexz/byoa/main/site/'
+const TYPES = { png: 'image/png', webp: 'image/webp', woff2: 'font/woff2' }
 
 export default {
-  async fetch() {
-    const r = await fetch(PAGE, { cf: { cacheTtl: 300, cacheEverything: true } })
-    if (!r.ok) return new Response('byoa: the page is not available now', { status: 502 })
-    return new Response(r.body, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300' } })
+  async fetch(request) {
+    // /art/<file> and /fonts/<file> are files; every other path is the page
+    const asset = new URL(request.url).pathname.match(/^\/((?:art|fonts)\/[\w.-]+\.(\w+))$/)
+    const type = asset ? TYPES[asset[2]] : 'text/html; charset=utf-8'
+    if (!type) return new Response('Not found', { status: 404 })
+    const r = await fetch(BASE + (asset ? asset[1] : 'index.html'), { cf: { cacheTtl: 300, cacheEverything: true } })
+    if (!r.ok) return asset ? new Response('Not found', { status: 404 }) : new Response('byoa: the page is not available now', { status: 502 })
+    return new Response(r.body, { headers: { 'content-type': type, 'cache-control': 'public, max-age=300' } })
   },
 }
