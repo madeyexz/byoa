@@ -443,7 +443,7 @@
     <div class="kick">Who brings what</div>
     <h2>Your app brings the product.<br>Each user brings the agent.</h2>
     <p class="sub">You build the app and pick the sandbox. Each user brings their plan and their tools. byoa runs inside your backend and runs each job in a new sandbox.</p>
-    <div class="ascii-wrap" role="img" aria-label="You, the developer, build the app, pick the sandbox provider and own the database. You import byoa into your app's backend. The end user uses the app, signs in with their own Claude or ChatGPT plan on the lab's page, and connects each MCP tool once. Your app code calls agents.run on byoa. byoa keeps the encrypted MCP grants in your database. For each job, byoa creates a new sandbox at E2B or Daytona on your account, runs the user's own unmodified Claude Code or Codex there, and destroys it after the job. The sandbox has the user's login volume and only a job token. Its model calls go to Anthropic or OpenAI, paid by the user's plan. Its MCP calls go to the byoa proxy, which adds the real token and sends them to the user's MCP servers.">
+    <div class="ascii-wrap" role="img" aria-label="You, the developer, build the app, pick the sandbox provider and own the database. You import byoa into your app's backend. The end user uses the app, signs in with their own Claude or ChatGPT plan on the lab's page, and connects each MCP tool once. Your app code calls agents.run on byoa. byoa keeps the encrypted MCP grants and AI logins in your database. For each job, byoa creates a new sandbox at E2B or Daytona on your account, runs the user's own unmodified Claude Code or Codex there, and destroys it after the job. The sandbox gets a copy of the user's AI login and only a job token. Its model calls go to Anthropic or OpenAI, paid by the user's plan. Its MCP calls go to the byoa proxy, which adds the real token and sends them to the user's MCP servers.">
 <pre class="ascii wide" style="--cols:96" aria-hidden="true"><span class="l">DEVELOPER · YOU</span>                                           <span class="l">END USER</span>
 <span class="k">┌────────────────────────────────────┐</span>                    <span class="k">┌────────────────────────────────────┐</span>
 <span class="k">│</span> <span class="t">builds the app</span>                     <span class="k">│</span>                    <span class="k">│</span> <span class="t">uses the app</span>                       <span class="k">│</span>
@@ -458,7 +458,7 @@
 <span class="k">│</span>  <span class="t">your app code</span> <span class="c">───</span><span class="x"> agents.run(userId, task) </span><span class="c">───▶</span><span class="o">┃</span> <span class="bn">byoa</span> <span class="bs">· open source, Apache 2.0</span>         <span class="o">┃</span>   <span class="k">│</span>
 <span class="k">│</span>                                                 <span class="o">┃</span> <span class="bs">AI login · harness install</span>             <span class="o">┃</span>   <span class="k">│</span>
 <span class="k">│</span>                                                 <span class="o">┃</span> <span class="bs">MCP OAuth · MCP proxy</span>                  <span class="o">┃</span>   <span class="k">│</span>
-<span class="k">│</span>  <span class="t">your database</span> <span class="c">◀───</span><span class="m"> MCP grants, encrypted </span><span class="c">──────</span><span class="o">┃</span> <span class="bs">skills, AGENTS.md and MCP config</span>       <span class="o">┃</span>   <span class="k">│</span>
+<span class="k">│</span>  <span class="t">your database</span> <span class="c">◀───</span><span class="m"> MCP grants, AI logins </span><span class="c">──────</span><span class="o">┃</span> <span class="bs">skills, AGENTS.md and MCP config</span>       <span class="o">┃</span>   <span class="k">│</span>
 <span class="k">│</span>                                                 <span class="o">┗━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━┛</span>   <span class="k">│</span>
 <span class="k">│</span>                                                       <span class="c">│</span>         <span class="c">▲</span>                   <span class="c">│</span>        <span class="k">│</span>
 <span class="k">│</span>                                                       <span class="c">│</span>         <span class="c">│</span>                   <span class="c">│</span>        <span class="k">│</span>
@@ -469,7 +469,7 @@
 <span class="k">┌─</span><span class="l"> SANDBOX · a new one for each job </span><span class="k">──────────────────────────────</span><span class="c">┴</span><span class="k">────┐</span>              <span class="c">│</span>
 <span class="k">│</span> <span class="t">E2B or Daytona, on your account</span>                                      <span class="k">│</span>              <span class="c">│</span>
 <span class="k">│</span> <span class="t">runs the user&#x27;s own Claude Code or Codex, unmodified</span>                 <span class="k">│</span>              <span class="c">│</span>
-<span class="k">│</span> <span class="t">the user&#x27;s login volume is mounted; no real MCP token</span>                <span class="k">│</span>              <span class="c">│</span>
+<span class="k">│</span> <span class="t">a copy of the user&#x27;s AI login; no real MCP token</span>                     <span class="k">│</span>              <span class="c">│</span>
 <span class="k">└──────────────────┬───────────────────────────────────────────────────┘</span>   <span class="m">MCP calls,</span> <span class="c">│</span>
                    <span class="c">│</span> <span class="p">model calls, paid by</span>                                    <span class="m">with the</span> <span class="c">│</span>
                    <span class="c">│</span> <span class="p">the user&#x27;s own plan</span>                                   <span class="m">real token</span> <span class="c">│</span>
@@ -511,8 +511,8 @@
 <span class="k">│</span> <span class="t">E2B or Daytona, your account</span>   <span class="k">│</span> <span class="c">│</span>
 <span class="k">│</span> <span class="t">the user&#x27;s own Claude Code</span>     <span class="k">│</span> <span class="c">│</span>
 <span class="k">│</span> <span class="t">or Codex, unmodified</span>           <span class="k">│</span> <span class="c">│</span>
-<span class="k">│</span> <span class="t">the user&#x27;s login volume</span>        <span class="k">│</span> <span class="c">│</span>
-<span class="k">│</span> <span class="t">is mounted here</span>                <span class="k">│</span> <span class="c">│</span>
+<span class="k">│</span> <span class="t">a copy of the user&#x27;s</span>           <span class="k">│</span> <span class="c">│</span>
+<span class="k">│</span> <span class="t">AI login, saved back</span>           <span class="k">│</span> <span class="c">│</span>
 <span class="k">│</span> <span class="t">no real MCP token here</span>         <span class="k">│</span> <span class="c">│</span>
 <span class="k">└─────┬──────────────────────────┘</span> <span class="c">│</span>
       <span class="c">│</span> <span class="p">model calls, paid by</span>       <span class="c">│</span>
@@ -669,7 +669,7 @@
       <p class="swipe">Scroll sideways to see the whole diagram →</p>
       <div class="scroll">
       <svg viewBox="0 0 1040 790" role="img" aria-labelledby="archTitle">
-        <title id="archTitle">Architecture: the end user uses your app. byoa runs inside your app's backend. It controls a sandbox that runs Claude Code or Codex, mounts the user's login volume, and sends MCP calls through its proxy to MCP servers. The harness calls the AI labs on the user's plan.</title>
+        <title id="archTitle">Architecture: the end user uses your app. byoa runs inside your app's backend. It controls a sandbox that runs Claude Code or Codex, writes the user's AI login into it, and sends MCP calls through its proxy to MCP servers. The harness calls the AI labs on the user's plan.</title>
         <defs>
           <marker id="sq" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5"><rect width="10" height="10" fill="#141418"/></marker>
           <marker id="sqT" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5"><rect width="10" height="10" fill="#ff5a36"/></marker>
@@ -703,7 +703,7 @@
           <rect class="d-chip" x="296" y="310" width="218" height="58"/>
           <text class="d-ct" x="312" y="335">Event stream</text><text class="d-sub w" x="312" y="355">one schema, both harnesses</text>
           <rect class="d-chip" x="526" y="310" width="218" height="58"/>
-          <text class="d-ct" x="542" y="335">Token store</text><text class="d-sub w" x="542" y="355">your own database</text>
+          <text class="d-ct" x="542" y="335">Token store</text><text class="d-sub w" x="542" y="355">grants and AI logins</text>
           <rect class="d-chip hot" x="756" y="310" width="218" height="58"/>
           <text class="d-ct k" x="772" y="335">MCP proxy</text><text class="d-sub k" x="772" y="355">adds the real token</text>
         </g>
@@ -724,12 +724,12 @@
         <text class="d-sub" x="64" y="612">the unmodified binary, pinned version</text>
 
         <rect class="d-box" x="480" y="470" width="220" height="184"/>
-        <text class="d-lbl" x="502" y="498">USER-OWNED</text>
+        <text class="d-lbl" x="502" y="498">OPTION: USER&#x27;S</text>
         <text class="d-lbl" x="502" y="515">LOGIN VOLUME</text>
         <text class="d-mono" x="502" y="552">~/.claude</text>
         <text class="d-mono" x="502" y="574">~/.codex</text>
-        <text class="d-sub" x="502" y="612">one per user, stays</text>
-        <text class="d-sub" x="502" y="630">between jobs</text>
+        <text class="d-sub" x="502" y="612">instead of the database</text>
+        <text class="d-sub" x="502" y="630">(cliLogin)</text>
         <path class="d-flow rev" d="M424 586 H476" marker-start="url(#sq)" marker-end="url(#sq)"/>
         <text class="d-fl" x="450" y="574" text-anchor="middle">mount</text>
 
@@ -821,7 +821,7 @@
     <div class="cells">
       <div><span class="tag">R2.3</span><h3>One refresh owner</h3><p>Your backend owns each grant's refresh. Two jobs that need a refresh at the same time cause one refresh request.</p></div>
       <div><span class="tag">R2.4</span><h3>Your database</h3><p>byoa stores grants through a store adapter, encrypted with a key that your app gives.</p></div>
-      <div><span class="tag">R1.4</span><h3>Your user's login</h3><p>By default, the AI login stays in a volume that belongs to that one user. byoa does not copy the Claude login into your database.</p></div>
+      <div><span class="tag">R1.4</span><h3>Your user's login</h3><p>By default, byoa keeps the AI login encrypted in your database, and each job gets a copy. A volume that belongs to that one user is an option. Check the labs&#x27; terms for your app.</p></div>
     </div>
 
     <div class="life">
@@ -834,7 +834,7 @@
         <li><div class="art"><img class="px" src="art/crate-open.png" alt=""></div><span class="n">03</span><b>Run the job</b><span>Text, tool calls and permission requests stream back as events.</span></li>
         <li><div class="art"><img class="px" src="art/poof.png" alt=""></div><span class="n">04</span><b>Destroy</b><span>byoa destroys the sandbox at the provider.</span></li>
       </ol>
-      <div class="persist"><b>STAYS BETWEEN JOBS</b><img class="px" src="art/key.png" alt=""><span>the user's login volume</span><img class="px" src="art/store.png" alt=""><span>the user's MCP grants</span></div>
+      <div class="persist"><b>STAYS BETWEEN JOBS</b><img class="px" src="art/key.png" alt=""><span>the user's AI login</span><img class="px" src="art/store.png" alt=""><span>the user's MCP grants</span></div>
     </div>
   </div>
 </section>

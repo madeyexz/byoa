@@ -41,14 +41,15 @@ export async function testApp(o: Partial<AgentsOptions> & { env?: Record<string,
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
   const proxyUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/byoa/mcp`
   // a root of its own, so login volumes of other tests and earlier runs are not here
-  const sandbox = watched(localSandbox({ root: mkdtempSync(join(tmpdir(), 'byoa-test-')), env: o.env }))
+  const root = mkdtempSync(join(tmpdir(), 'byoa-test-'))
+  const sandbox = watched(localSandbox({ root, env: o.env }))
   const store = memoryStore()
   const agents = createAgents({
     app: 'testapp', sandbox, store, encryptionKey: randomBytes(32).toString('base64'), proxyUrl,
     oauth: { redirectUrl: 'http://127.0.0.1:9/callback', clientName: 'Test app' }, ...o,
   })
   handler = agents.proxy
-  return { agents, sandbox, store, proxyUrl, close: () => new Promise<void>((r) => { server.closeAllConnections(); server.close(() => r()) }) }
+  return { agents, sandbox, store, root, proxyUrl, close: () => new Promise<void>((r) => { server.closeAllConnections(); server.close(() => r()) }) }
 }
 
 export async function collect(it: AsyncIterable<AgentEvent>) {

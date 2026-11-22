@@ -1,7 +1,7 @@
 // The store adapter (R6): the only place byoa keeps state, in the app's own database. Four operations, so an app can
 // write one for any database. byoa keeps there: MCP grants (encrypted, R2.4), the job tokens the proxy accepts (only
-// their hashes), the user's login state (only the words signed-in / signed-out / expired, never the login itself,
-// R1.4), and pending MCP sign-ins.
+// their hashes), the user's AI login (the CLI's own files, encrypted, R1.4) and its login state, and pending MCP
+// sign-ins.
 
 /** A stored value and its version. The version changes on every write; compare-and-set compares it. */
 export interface Entry {

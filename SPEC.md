@@ -36,8 +36,8 @@ Out of scope for version 1:
 - **R1.1** byoa MUST sign the user in to Claude Code by running the unmodified `claude` CLI login in the sandbox. The user completes sign-in on Anthropic's own page.
 - **R1.2** byoa MUST sign the user in to Codex by running the unmodified `codex login --device-auth` in the sandbox. The user enters the code on OpenAI's own page.
 - **R1.3** byoa MUST give the app the sign-in URL and code as data, so the app can show them on any device (for example a phone).
-- **R1.4** By default, the login MUST stay in a volume or sandbox that belongs to that one user. byoa MUST NOT copy the Claude login into the app's database.
-- **R1.5** The login part MUST be replaceable. After an app gets an agreement from a lab (for example as a Sign in with ChatGPT partner), the app can switch to a login that its servers hold, with no change to R2 to R5.
+- **R1.4** By default, byoa MUST keep the login (the CLI's own login files) in the app's own database, through the store adapter (R6), encrypted with a key that the app gives, for one user of one app. Each job MUST get a copy in its new sandbox, and byoa MUST save the files back when the CLI changed them (a token refresh). byoa MUST NOT let two sandboxes hold one user's login at the same time, so that two token refreshes do not revoke each other. byoa MUST NOT call the lab's token endpoints itself; the CLI is the only client that uses the tokens.
+- **R1.5** The login part MUST be replaceable, with no change to R2 to R5. byoa MUST also ship a login that stays in a volume of that one user of that one app, mounted through the sandbox adapter (R5.3), which the app's database never holds.
 - **R1.6** byoa MUST report login state: `signed-in`, `signed-out`, `expired`.
 
 ### R2. MCP connections
@@ -67,7 +67,7 @@ Out of scope for version 1:
 - **R5.1** byoa MUST install a pinned version of each harness in each new sandbox, or use a provider template with that version.
 - **R5.2** A new harness version MUST reach every user at their next job. (Bookish had to copy a new core into old sandboxes, because a template reaches only new sandboxes.)
 - **R5.3** Each sandbox provider MUST be one adapter with one interface: create, resume, run a command, write a file, mount a volume, destroy.
-- **R5.4** The default lifecycle MUST be: create a sandbox, load the user's setup, run the job, destroy the sandbox. The login volume (R1.4) and grants (R2) stay.
+- **R5.4** The default lifecycle MUST be: create a sandbox, load the user's setup, run the job, destroy the sandbox. The user's AI login (R1.4) and grants (R2) stay.
 - **R5.5** `agents.run` MUST stream events (text, tool calls, permission requests, errors, end) in one schema for both harnesses.
 
 ### R6. Store adapter
@@ -85,13 +85,15 @@ Out of scope for version 1:
 byoa follows the labs' published rules as read on 2026-11-22:
 
 - Anthropic ([legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)) allows an end user to sign in to the unmodified Claude Code binary with their own plan, including where a platform hosts Claude Code. It forbids third parties to "collect, store, or intermediate Claude.ai credentials or session tokens", unless Anthropic agrees otherwise.
-- OpenAI ([Sign in with ChatGPT Terms](https://openai.com/policies/sign-in-with-chatgpt-terms/)) requires tokens to be stored "local and under the user's control", and the plan to be used "only for the application they connected". Paid or remotely hosted apps must [apply](https://openai.com/form/sign-in-with-chatgpt-interest/) to be partners.
+- OpenAI ([Sign in with ChatGPT Terms](https://openai.com/policies/sign-in-with-chatgpt-terms/), effective 2026-11-04) requires that "any persistent storage of Authentication Tokens must be local and under the user's control, not in a remote or managed environment", and that the plan is used "only for the application they connected". Paid or remotely hosted apps must [apply](https://openai.com/form/sign-in-with-chatgpt-interest/) to be partners.
 
 So byoa MUST:
 
 - run only unmodified `claude` and `codex` binaries, and never pretend to be another client;
 - send the user to the lab's own sign-in page;
 - not share one AI login between apps.
+
+The labs' terms above restrict where these tokens may be stored. byoa keeps the AI login in the app's database by default (R1.4), and ships a per-user volume as an option (R1.5). Each app checks the labs' terms for its own use.
 
 Each app is responsible for its own agreements with the labs. We plan to sign agreements for our own apps when they have traction.
 
@@ -119,4 +121,5 @@ V1 to V9 run against real providers and real plans, so they cost money. They run
 
 - Does the first version support Cloudflare Workers, or only Node and Convex?
 - How does a Claude login move from one sandbox provider to another without the app holding it? Today the user signs in again.
+- Do Anthropic and OpenAI accept the default stored login (R1.4) for apps that run their unmodified CLIs, or does an app need an agreement with them? We will ask them.
 - Do we write a spec for credential references as an extension of Agent Plugins, and send it to the Agentic AI Foundation?

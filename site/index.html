@@ -443,7 +443,7 @@
     <div class="kick">Who brings what</div>
     <h2>Your app brings the product.<br>Each user brings the agent.</h2>
     <p class="sub">You build the app and pick the sandbox. Each user brings their plan and their tools. byoa runs inside your backend and runs each job in a new sandbox.</p>
-    <div class="ascii-wrap" role="img" aria-label="You, the developer, build the app, pick the sandbox provider and own the database. You import byoa into your app's backend. The end user uses the app, signs in with their own Claude or ChatGPT plan on the lab's page, and connects each MCP tool once. Your app code calls agents.run on byoa. byoa keeps the encrypted MCP grants in your database. For each job, byoa creates a new sandbox at E2B or Daytona on your account, runs the user's own unmodified Claude Code or Codex there, and destroys it after the job. The sandbox has the user's login volume and only a job token. Its model calls go to Anthropic or OpenAI, paid by the user's plan. Its MCP calls go to the byoa proxy, which adds the real token and sends them to the user's MCP servers.">
+    <div class="ascii-wrap" role="img" aria-label="You, the developer, build the app, pick the sandbox provider and own the database. You import byoa into your app's backend. The end user uses the app, signs in with their own Claude or ChatGPT plan on the lab's page, and connects each MCP tool once. Your app code calls agents.run on byoa. byoa keeps the encrypted MCP grants and AI logins in your database. For each job, byoa creates a new sandbox at E2B or Daytona on your account, runs the user's own unmodified Claude Code or Codex there, and destroys it after the job. The sandbox gets a copy of the user's AI login and only a job token. Its model calls go to Anthropic or OpenAI, paid by the user's plan. Its MCP calls go to the byoa proxy, which adds the real token and sends them to the user's MCP servers.">
 <pre class="ascii wide" style="--cols:96" aria-hidden="true"><span class="l">DEVELOPER · YOU</span>                                           <span class="l">END USER</span>
 <span class="k">┌────────────────────────────────────┐</span>                    <span class="k">┌────────────────────────────────────┐</span>
 <span class="k">│</span> <span class="t">builds the app</span>                     <span class="k">│</span>                    <span class="k">│</span> <span class="t">uses the app</span>                       <span class="k">│</span>
@@ -458,7 +458,7 @@
 <span class="k">│</span>  <span class="t">your app code</span> <span class="c">───</span><span class="x"> agents.run(userId, task) </span><span class="c">───▶</span><span class="o">┃</span> <span class="bn">byoa</span> <span class="bs">· open source, Apache 2.0</span>         <span class="o">┃</span>   <span class="k">│</span>
 <span class="k">│</span>                                                 <span class="o">┃</span> <span class="bs">AI login · harness install</span>             <span class="o">┃</span>   <span class="k">│</span>
 <span class="k">│</span>                                                 <span class="o">┃</span> <span class="bs">MCP OAuth · MCP proxy</span>                  <span class="o">┃</span>   <span class="k">│</span>
-<span class="k">│</span>  <span class="t">your database</span> <span class="c">◀───</span><span class="m"> MCP grants, encrypted </span><span class="c">──────</span><span class="o">┃</span> <span class="bs">skills, AGENTS.md and MCP config</span>       <span class="o">┃</span>   <span class="k">│</span>
+<span class="k">│</span>  <span class="t">your database</span> <span class="c">◀───</span><span class="m"> MCP grants, AI logins </span><span class="c">──────</span><span class="o">┃</span> <span class="bs">skills, AGENTS.md and MCP config</span>       <span class="o">┃</span>   <span class="k">│</span>
 <span class="k">│</span>                                                 <span class="o">┗━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━┛</span>   <span class="k">│</span>
 <span class="k">│</span>                                                       <span class="c">│</span>         <span class="c">▲</span>                   <span class="c">│</span>        <span class="k">│</span>
 <span class="k">│</span>                                                       <span class="c">│</span>         <span class="c">│</span>                   <span class="c">│</span>        <span class="k">│</span>
@@ -469,7 +469,7 @@
 <span class="k">┌─</span><span class="l"> SANDBOX · a new one for each job </span><span class="k">──────────────────────────────</span><span class="c">┴</span><span class="k">────┐</span>              <span class="c">│</span>
 <span class="k">│</span> <span class="t">E2B or Daytona, on your account</span>                                      <span class="k">│</span>              <span class="c">│</span>
 <span class="k">│</span> <span class="t">runs the user&#x27;s own Claude Code or Codex, unmodified</span>                 <span class="k">│</span>              <span class="c">│</span>
-<span class="k">│</span> <span class="t">the user&#x27;s login volume is mounted; no real MCP token</span>                <span class="k">│</span>              <span class="c">│</span>
+<span class="k">│</span> <span class="t">a copy of the user&#x27;s AI login; no real MCP token</span>                     <span class="k">│</span>              <span class="c">│</span>
 <span class="k">└──────────────────┬───────────────────────────────────────────────────┘</span>   <span class="m">MCP calls,</span> <span class="c">│</span>
                    <span class="c">│</span> <span class="p">model calls, paid by</span>                                    <span class="m">with the</span> <span class="c">│</span>
                    <span class="c">│</span> <span class="p">the user&#x27;s own plan</span>                                   <span class="m">real token</span> <span class="c">│</span>
@@ -511,8 +511,8 @@
 <span class="k">│</span> <span class="t">E2B or Daytona, your account</span>   <span class="k">│</span> <span class="c">│</span>
 <span class="k">│</span> <span class="t">the user&#x27;s own Claude Code</span>     <span class="k">│</span> <span class="c">│</span>
 <span class="k">│</span> <span class="t">or Codex, unmodified</span>           <span class="k">│</span> <span class="c">│</span>
-<span class="k">│</span> <span class="t">the user&#x27;s login volume</span>        <span class="k">│</span> <span class="c">│</span>
-<span class="k">│</span> <span class="t">is mounted here</span>                <span class="k">│</span> <span class="c">│</span>
+<span class="k">│</span> <span class="t">a copy of the user&#x27;s</span>           <span class="k">│</span> <span class="c">│</span>
+<span class="k">│</span> <span class="t">AI login, saved back</span>           <span class="k">│</span> <span class="c">│</span>
 <span class="k">│</span> <span class="t">no real MCP token here</span>         <span class="k">│</span> <span class="c">│</span>
 <span class="k">└─────┬──────────────────────────┘</span> <span class="c">│</span>
       <span class="c">│</span> <span class="p">model calls, paid by</span>       <span class="c">│</span>
@@ -678,7 +678,7 @@
       <p class="swipe">Scroll sideways to see the whole diagram →</p>
       <div class="scroll">
       <svg viewBox="0 0 1040 790" role="img" aria-labelledby="archTitle">
-        <title id="archTitle">Architecture: the end user uses your app. byoa runs inside your app's backend. It controls a sandbox that runs Claude Code or Codex, mounts the user's login volume, and sends MCP calls through its proxy to MCP servers. The harness calls the AI labs on the user's plan.</title>
+        <title id="archTitle">Architecture: the end user uses your app. byoa runs inside your app's backend. It controls a sandbox that runs Claude Code or Codex, writes the user's AI login into it, and sends MCP calls through its proxy to MCP servers. The harness calls the AI labs on the user's plan.</title>
         <defs>
           <marker id="sq" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5"><rect width="10" height="10" fill="#141418"/></marker>
           <marker id="sqT" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5"><rect width="10" height="10" fill="#ff5a36"/></marker>
@@ -712,7 +712,7 @@
           <rect class="d-chip" x="296" y="310" width="218" height="58"/>
           <text class="d-ct" x="312" y="335">Event stream</text><text class="d-sub w" x="312" y="355">one schema, both harnesses</text>
           <rect class="d-chip" x="526" y="310" width="218" height="58"/>
-          <text class="d-ct" x="542" y="335">Token store</text><text class="d-sub w" x="542" y="355">your own database</text>
+          <text class="d-ct" x="542" y="335">Token store</text><text class="d-sub w" x="542" y="355">grants and AI logins</text>
           <rect class="d-chip hot" x="756" y="310" width="218" height="58"/>
           <text class="d-ct k" x="772" y="335">MCP proxy</text><text class="d-sub k" x="772" y="355">adds the real token</text>
         </g>
@@ -733,12 +733,12 @@
         <text class="d-sub" x="64" y="612">the unmodified binary, pinned version</text>
 
         <rect class="d-box" x="480" y="470" width="220" height="184"/>
-        <text class="d-lbl" x="502" y="498">USER-OWNED</text>
+        <text class="d-lbl" x="502" y="498">OPTION: USER&#x27;S</text>
         <text class="d-lbl" x="502" y="515">LOGIN VOLUME</text>
         <text class="d-mono" x="502" y="552">~/.claude</text>
         <text class="d-mono" x="502" y="574">~/.codex</text>
-        <text class="d-sub" x="502" y="612">one per user, stays</text>
-        <text class="d-sub" x="502" y="630">between jobs</text>
+        <text class="d-sub" x="502" y="612">instead of the database</text>
+        <text class="d-sub" x="502" y="630">(cliLogin)</text>
         <path class="d-flow rev" d="M424 586 H476" marker-start="url(#sq)" marker-end="url(#sq)"/>
         <text class="d-fl" x="450" y="574" text-anchor="middle">mount</text>
 
@@ -830,7 +830,7 @@
     <div class="cells">
       <div><span class="tag">R2.3</span><h3>One refresh owner</h3><p>Your backend owns each grant's refresh. Two jobs that need a refresh at the same time cause one refresh request.</p></div>
       <div><span class="tag">R2.4</span><h3>Your database</h3><p>byoa stores grants through a store adapter, encrypted with a key that your app gives.</p></div>
-      <div><span class="tag">R1.4</span><h3>Your user's login</h3><p>By default, the AI login stays in a volume that belongs to that one user. byoa does not copy the Claude login into your database.</p></div>
+      <div><span class="tag">R1.4</span><h3>Your user's login</h3><p>By default, byoa keeps the AI login encrypted in your database, and each job gets a copy. A volume that belongs to that one user is an option. Check the labs&#x27; terms for your app.</p></div>
     </div>
 
     <div class="life">
@@ -843,7 +843,7 @@
         <li><div class="art"><img class="px" src="art/crate-open.png" alt=""></div><span class="n">03</span><b>Run the job</b><span>Text, tool calls and permission requests stream back as events.</span></li>
         <li><div class="art"><img class="px" src="art/poof.png" alt=""></div><span class="n">04</span><b>Destroy</b><span>byoa destroys the sandbox at the provider.</span></li>
       </ol>
-      <div class="persist"><b>STAYS BETWEEN JOBS</b><img class="px" src="art/key.png" alt=""><span>the user's login volume</span><img class="px" src="art/store.png" alt=""><span>the user's MCP grants</span></div>
+      <div class="persist"><b>STAYS BETWEEN JOBS</b><img class="px" src="art/key.png" alt=""><span>the user's AI login</span><img class="px" src="art/store.png" alt=""><span>the user's MCP grants</span></div>
     </div>
   </div>
 </section>
@@ -871,10 +871,10 @@
 <span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> postgresStore</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">byoa/store/postgres</span><span style="color:#C98A7D77">'</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">agents</span><span style="color:#666666"> =</span><span style="color:#80A665"> createAgents</span><span style="color:#666666">({</span></span>
-<span class="line"><span style="color:#B8A965">  app</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">myapp</span><span style="color:#C98A7D77">'</span><span style="color:#666666">,                                    </span><span style="color:#758575DD">// each app has its own login volumes</span></span>
+<span class="line"><span style="color:#B8A965">  app</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">myapp</span><span style="color:#C98A7D77">'</span><span style="color:#666666">,                                    </span><span style="color:#758575DD">// one app's AI logins are only this app's</span></span>
 <span class="line"><span style="color:#B8A965">  sandbox</span><span style="color:#666666">: </span><span style="color:#80A665">e2b</span><span style="color:#666666">({ </span><span style="color:#BD976A">apiKey</span><span style="color:#666666"> }),</span></span>
 <span class="line"><span style="color:#B8A965">  store</span><span style="color:#666666">: </span><span style="color:#80A665">postgresStore</span><span style="color:#666666">({ </span><span style="color:#80A665">query</span><span style="color:#666666">: (</span><span style="color:#BD976A">sql</span><span style="color:#666666">, </span><span style="color:#BD976A">args</span><span style="color:#666666">) => </span><span style="color:#BD976A">pool</span><span style="color:#666666">.</span><span style="color:#80A665">query</span><span style="color:#666666">(</span><span style="color:#BD976A">sql</span><span style="color:#666666">, </span><span style="color:#BD976A">args</span><span style="color:#666666">) }),</span></span>
-<span class="line"><span style="color:#BD976A">  encryptionKey</span><span style="color:#666666">,                                   </span><span style="color:#758575DD">// openssl rand -base64 32; grants are encrypted with it</span></span>
+<span class="line"><span style="color:#BD976A">  encryptionKey</span><span style="color:#666666">,                                   </span><span style="color:#758575DD">// openssl rand -base64 32; grants and AI logins are encrypted with it</span></span>
 <span class="line"><span style="color:#B8A965">  proxyUrl</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">https://myapp.example.com/byoa/mcp</span><span style="color:#C98A7D77">'</span><span style="color:#666666">,  </span><span style="color:#758575DD">// serve agents.proxy here</span></span>
 <span class="line"><span style="color:#B8A965">  oauth</span><span style="color:#666666">: { </span><span style="color:#B8A965">redirectUrl</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">https://myapp.example.com/byoa/callback</span><span style="color:#C98A7D77">'</span><span style="color:#666666"> },</span></span>
 <span class="line"><span style="color:#666666">})</span></span>
@@ -896,9 +896,22 @@
 <span class="line"><span style="color:#4D9375">  await</span><span style="color:#BD976A"> s</span><span style="color:#666666">.</span><span style="color:#BD976A">sandbox</span><span style="color:#666666">.</span><span style="color:#80A665">run</span><span style="color:#666666">(</span><span style="color:#C98A7D77">`</span><span style="color:#C98A7D">my-server --claude </span><span style="color:#4D9375">${</span><span style="color:#C98A7D">s</span><span style="color:#666666">.</span><span style="color:#C98A7D">bin</span><span style="color:#4D9375">}</span><span style="color:#C98A7D77">`</span><span style="color:#666666">,</span><span style="color:#666666"> { </span><span style="color:#B8A965">env</span><span style="color:#666666">: </span><span style="color:#BD976A">s</span><span style="color:#666666">.</span><span style="color:#BD976A">env</span><span style="color:#666666"> })</span></span>
 <span class="line"><span style="color:#666666">}</span><span style="color:#4D9375"> finally</span><span style="color:#666666"> {</span><span style="color:#4D9375"> await</span><span style="color:#BD976A"> s</span><span style="color:#666666">.</span><span style="color:#80A665">close</span><span style="color:#666666">()</span><span style="color:#666666"> }</span><span style="color:#758575DD">  // ends the job token and destroys the sandbox</span></span></code></pre><p>A program outside byoa&#39;s sandboxes, such as a harness on the user&#39;s own computer, gets a job token with no sandbox: <code>const t = await agents.jobToken(userId, { mcp: [&#39;notion&#39;] })</code> gives <code>t.token</code> and <code>t.mcp</code> (the proxy URLs), with the same rules as a job&#39;s token, until <code>t.close()</code>.</p>
 <p>To move an MCP grant that the user already made elsewhere into byoa, call <code>agents.importMcp(userId, { name, url, oauth })</code> with the MCP SDK&#39;s state (<code>client</code>, <code>tokens</code>, <code>at</code>). Delete the old copy, so the grant keeps one refresh owner.</p>
-<p>Each job runs in a new sandbox, and byoa destroys the sandbox after the job. The user&#39;s AI login stays in a volume of that user and app. The MCP config in the sandbox points to <code>agents.proxy</code>, with a token for that one job. The real MCP tokens stay in your database.</p>
+<p>Each job runs in a new sandbox, and byoa destroys the sandbox after the job. By default, the user&#39;s AI login stays encrypted in your database, and each job gets a copy (see AI login below). The MCP config in the sandbox points to <code>agents.proxy</code>, with a token for that one job. The real MCP tokens stay in your database.</p>
 <p>To change the provider, change <code>e2b(...)</code> to another adapter. An adapter implements one interface (<a href="https://github.com/madeyexz/byoa/blob/main/src/sandbox/types.ts">src/sandbox/types.ts</a>): create (with volumes), resume, run a command, write a file, destroy.</p>
-<p>For Daytona, use <code>daytona({ apiKey })</code> from <code>byoa/sandbox/daytona</code> (it needs <code>@daytona/sdk</code>). Daytona allows 100 volumes per organization, so the adapter keeps every user&#39;s AI login in its own subpath of one shared volume (<code>byoa</code> by default). A sandbox mounts only that user&#39;s subpath. On Daytona Tier 1 and Tier 2, a sandbox can reach only <a href="https://www.daytona.io/docs/en/network-limits">allowed domains</a>, so serve <code>agents.proxy</code> on one of them (for example <code>*.convex.site</code> or <code>*.workers.dev</code>), or use Tier 3 or higher.</p>
+<p>For Daytona, use <code>daytona({ apiKey })</code> from <code>byoa/sandbox/daytona</code> (it needs <code>@daytona/sdk</code>). Daytona allows 100 volumes per organization, so with <code>cliLogin</code> the adapter keeps every user&#39;s AI login in its own subpath of one shared volume (<code>byoa</code> by default). A sandbox mounts only that user&#39;s subpath. On Daytona Tier 1 and Tier 2, a sandbox can reach only <a href="https://www.daytona.io/docs/en/network-limits">allowed domains</a>, so serve <code>agents.proxy</code> on one of them (for example <code>*.convex.site</code> or <code>*.workers.dev</code>), or use Tier 3 or higher.</p>
+<h3>AI login</h3>
+<p>By default, byoa keeps each user&#39;s Claude or ChatGPT plan login in your own database, encrypted with your <code>encryptionKey</code>, through the store adapter. The sign-in is the unmodified CLI, on the lab&#39;s own page. When it ends, byoa keeps the CLI&#39;s own login files. Each job writes them into its new sandbox, and saves them back when the CLI refreshed them. One job of a user and harness holds the login at a time; another job waits for it. byoa never calls the labs&#39; token endpoints itself. So the sandbox provider needs no volumes.</p>
+<p>The labs&#39; published terms restrict where these tokens may be stored: Anthropic&#39;s say developers may not &quot;collect, store, or intermediate Claude.ai credentials or session tokens&quot;, and OpenAI&#39;s say stored tokens must be &quot;local and under the user&#39;s control, not in a remote or managed environment&quot; (see <a href="https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules">SPEC.md</a>). Check them for your app.</p>
+<p>To keep the logins in a table of their own, with a key of their own, so you can give them their own access rules and backups:</p>
+<pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> createAgents</span><span style="color:#666666">,</span><span style="color:#BD976A"> storedLogin</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">byoa</span><span style="color:#C98A7D77">'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#758575DD">// Convex: convex/schema.ts has  byoaLogin: convexTable(),  and convex/byoaLogin.ts has</span></span>
+<span class="line"><span style="color:#758575DD">//   export const { get, put, remove, cas } = convexFunctions('byoaLogin')</span></span>
+<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">loginStore</span><span style="color:#666666"> =</span><span style="color:#80A665"> convexStore</span><span style="color:#666666">(</span><span style="color:#BD976A">ctx</span><span style="color:#666666">,</span><span style="color:#BD976A"> internal</span><span style="color:#666666">.</span><span style="color:#BD976A">byoaLogin</span><span style="color:#666666">)</span></span>
+<span class="line"><span style="color:#758575DD">// Postgres: run postgresSchema('byoa_ai_login') once</span></span>
+<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">loginStore</span><span style="color:#666666"> =</span><span style="color:#80A665"> postgresStore</span><span style="color:#666666">({ </span><span style="color:#BD976A">query</span><span style="color:#666666">, </span><span style="color:#B8A965">table</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">byoa_ai_login</span><span style="color:#C98A7D77">'</span><span style="color:#666666"> })</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">agents</span><span style="color:#666666"> =</span><span style="color:#80A665"> createAgents</span><span style="color:#666666">({ ...</span><span style="color:#BD976A">options</span><span style="color:#666666">, </span><span style="color:#B8A965">login</span><span style="color:#666666">: </span><span style="color:#80A665">storedLogin</span><span style="color:#666666">({ </span><span style="color:#B8A965">store</span><span style="color:#666666">: </span><span style="color:#BD976A">loginStore</span><span style="color:#666666">, </span><span style="color:#B8A965">encryptionKey</span><span style="color:#666666">: </span><span style="color:#BD976A">loginKey</span><span style="color:#666666"> }) })</span></span></code></pre><p>To keep each login in a volume of that user and app instead, behind the sandbox adapter, pass <code>login: cliLogin</code> (from <code>byoa</code>). Your database then never holds the login. This needs a provider with volumes; on E2B, volumes must be turned on for your team.</p>
 <h3>Convex</h3>
 <p>In a Convex app, byoa&#39;s state is one table and four internal functions in your deployment (<code>byoa/store/convex</code>). Call byoa from actions and HTTP actions, which can make network calls; serve <code>agents.proxy</code> from an HTTP action.</p>
 <pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#758575DD">// convex/schema.ts</span></span>
@@ -989,7 +1002,7 @@
 <li>We run the real, unmodified <code>claude</code> and <code>codex</code> binaries. We never pretend to be another client.</li>
 <li>The user signs in through Anthropic&#39;s or OpenAI&#39;s own sign-in page.</li>
 <li>One app&#39;s AI login is used only by that app.</li>
-<li>Each app signs its own agreements with the labs when it needs them. See <a href="https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules">SPEC.md</a>.</li>
+<li>The labs&#39; terms restrict where an AI login may be stored. byoa keeps it in your database by default, so each app checks those terms and signs its own agreements with the labs. See <a href="https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules">SPEC.md</a>.</li>
 </ul>
 </div>
     </div>

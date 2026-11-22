@@ -10,7 +10,8 @@ import type { AgentEvent, EventReader } from './harness/events.ts'
 import { FAKE_JS, fakeReader } from './harness/fake.ts'
 import { ensureHarness } from './harness/install.ts'
 import { PINS, type HarnessName, type Pins } from './harness/pins.ts'
-import { cliLogin, type LoginDeps, type LoginDriver } from './login.ts'
+import { storedLogin } from './login-stored.ts'
+import type { LoginDeps, LoginDriver } from './login.ts'
 import { GrantError, Grants, type Grant } from './mcp/grants.ts'
 import { Provider, clientMetadataDocument, type OAuthConfig } from './mcp/oauth.ts'
 import { JobTokens, mcpProxy } from './mcp/proxy.ts'
@@ -19,19 +20,21 @@ import { q } from './sh.ts'
 import type { Store } from './store.ts'
 
 export interface AgentsOptions {
-  /** The app's own name (lower-case letters, digits, -). It is part of every login volume's name, so one app's AI
-   *  login is never another app's (Lab rules). */
+  /** The app's own name (lower-case letters, digits, -). It names this app's sandboxes, and every login volume of
+   *  cliLogin, so one app's AI login is never another app's (Lab rules). */
   app: string
   sandbox: SandboxProvider
   store: Store
-  /** 32 random bytes as base64 (`openssl rand -base64 32`). byoa encrypts every MCP grant with it (R2.4). */
+  /** 32 random bytes as base64 (`openssl rand -base64 32`). byoa encrypts every MCP grant (R2.4) and, by default,
+   *  every AI login (R1.4) with it. */
   encryptionKey: string
   /** The public URL where the app serves `agents.proxy`, such as https://app.example.com/byoa/mcp. Each MCP server
    *  is at `<proxyUrl>/<name>`. */
   proxyUrl: string
   oauth: { redirectUrl: string; clientMetadataUrl?: string; clientName?: string }
   pins?: Pins
-  /** Another login, for an app with its own agreement with a lab (R1.5). Default: the labs' CLI sign-in. */
+  /** Where the AI login stays (R1.5). Default: storedLogin(), encrypted in `store` (R1.4). `cliLogin`: in a volume
+   *  of the user, through the sandbox adapter. */
   login?: (deps: LoginDeps) => LoginDriver
   /** The most one job may take. Default 30 minutes. */
   jobTimeoutMs?: number
@@ -91,7 +94,7 @@ export interface JobToken {
   close(): Promise<void>
 }
 
-/** The harness has no login in this user's volume. */
+/** The harness has no login for this user. */
 export class LoginError extends Error { readonly code = 'signed-out' }
 
 export type ConnectResult = { name: string; connected: true } | { name: string; connected: false; signInUrl: string }
@@ -107,7 +110,7 @@ export function createAgents(o: AgentsOptions) {
   const pins = o.pins ?? PINS
   const grants = new Grants(o.store, key, oauth)
   const jobs = new JobTokens(o.store)
-  const login = (o.login ?? cliLogin)({ sandbox: o.sandbox, store: o.store, app: o.app, pins })
+  const login = (o.login ?? storedLogin())({ sandbox: o.sandbox, store: o.store, app: o.app, pins, encryptionKey: o.encryptionKey, jobTimeoutMs: o.jobTimeoutMs })
   const timeout = o.jobTimeoutMs ?? 30 * 60_000
 
   /** One MCP `initialize`, to see whether the server answers and whether it wants a token. */
@@ -203,7 +206,7 @@ export function createAgents(o: AgentsOptions) {
   }
 
   /** Opens one job (R5.4) for an app that runs its own program around the unmodified harness (Bookish runs its own
-   *  core, which starts `claude` or `codex`): a new sandbox with the user's login volume, the pinned harness, the
+   *  core, which starts `claude` or `codex`): a new sandbox with the user's AI login, the pinned harness, the
    *  user's setup in `work`, and a job token for the MCP servers this job gets. `close` ends the job token and
    *  destroys the sandbox; call it in a `finally`. Throws LoginError when the harness is not signed in. */
   async function session(user: string, r: SessionOptions): Promise<Session> {
@@ -216,6 +219,8 @@ export function createAgents(o: AgentsOptions) {
       if (closed) return
       closed = true
       await t.close().catch(() => {})
+      // the stored login (the default) saves what the CLI changed and gives its lease back, before the sandbox goes
+      if (sbx && h !== 'fake') await login.release?.(sbx, user, h).catch(() => {})
       await sbx?.destroy()
     }
     try {

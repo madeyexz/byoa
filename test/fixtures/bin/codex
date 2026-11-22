@@ -22,7 +22,14 @@ case "$1" in
     fi ;;
   logout) rm -f "$CODEX_HOME/auth.json" ;;
   exec)
-    cat > /dev/null
+    task=$(cat)
+    if [[ "$task" == *cred* ]]; then
+      t=$(sed -E 's/.*"access_token":"([^"]*)".*/\1/' "$CODEX_HOME/auth.json" 2>/dev/null)
+      [ -n "$t" ] && echo "{\"tokens\":{\"access_token\":\"${t}x\"}}" > "$CODEX_HOME/auth.json"
+      echo "{\"type\":\"item.completed\",\"item\":{\"id\":\"m\",\"type\":\"agent_message\",\"text\":\"cred: ${t:-none}\"}}"
+      echo '{"type":"turn.completed","usage":{}}'
+      exit 0
+    fi
     args=$(printf '%s' "$*" | sed 's/["\\]/\\&/g')
     echo '{"type":"thread.started","thread_id":"th1"}'
     echo '{"type":"turn.started"}'

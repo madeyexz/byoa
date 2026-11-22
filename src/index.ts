@@ -5,5 +5,6 @@ export { harnessFiles, readPlugin, JOB_TOKEN_ENV, type Setup, type Skill, type P
 export type { AgentEvent, Usage } from './harness/events.ts'
 export { PINS, PACKAGES, type Pins, type HarnessName } from './harness/pins.ts'
 export { ensureHarness } from './harness/install.ts'
+export { storedLogin, LOGIN_FILES, type StoredLoginOptions } from './login-stored.ts'
 export { cliLogin, type LoginDriver, type LoginDeps, type LoginState, type LoginStart, type LoginResult } from './login.ts'
 export { clientMetadataDocument, type OAuthConfig } from './mcp/oauth.ts'

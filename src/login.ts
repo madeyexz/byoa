@@ -1,12 +1,11 @@
-// AI login (R1). The default driver runs the labs' own, unmodified CLI sign-in in a sandbox that has the user's login
-// volume mounted: `claude auth login` (R1.1) or `codex login --device-auth` (R1.2). The user signs in on the lab's own
-// page; byoa gives the app only that page's address and, for Codex, the code to enter there (R1.3). The login files
-// stay in the volume, which belongs to one user of one app (R1.4); byoa never reads them or copies them anywhere.
+// AI login (R1), in a volume (R1.5): an option; the default is storedLogin (login-stored.ts, R1.4). This driver runs
+// the labs' own, unmodified CLI sign-in in a sandbox that has the user's login volume mounted: `claude auth login`
+// (R1.1) or `codex login --device-auth` (R1.2). The user signs in on the lab's own page; byoa gives the app only that
+// page's address and, for Codex, the code to enter there (R1.3). The login files stay in the volume, which belongs to
+// one user of one app; byoa never reads them or copies them anywhere.
 // Each step uses only the sandbox interface (run, write a file), so it works on every provider and from short-lived
 // backends such as Convex actions: the CLI runs in the background, and later calls resume the sandbox to read its
-// output and to type the code into it.
-// The driver is replaceable (R1.5): an app with its own agreement with a lab passes another LoginDriver to
-// createAgents; nothing else in byoa changes.
+// output and to type the code into it. storedLogin uses the same steps with no volume, through CliHooks.
 // Adapted from Bookish site/agent/login.ts.
 import { sha256hex } from './crypto.ts'
 import { ensureHarness } from './harness/install.ts'
@@ -31,7 +30,15 @@ export interface LoginResult {
   error?: string
 }
 
-export interface LoginDeps { sandbox: SandboxProvider; store: Store; app: string; pins: Pins }
+export interface LoginDeps {
+  sandbox: SandboxProvider
+  store: Store
+  app: string
+  pins: Pins
+  /** The app's encryptionKey. */
+  encryptionKey: string
+  jobTimeoutMs?: number
+}
 
 export interface LoginDriver {
   /** The volumes every job of this user and harness mounts. */
@@ -40,6 +47,8 @@ export interface LoginDriver {
   env(sbx: Sandbox, user: string, h: HarnessName): Promise<Record<string, string>>
   /** Whether the sandbox has a login for the harness. */
   present(sbx: Sandbox, user: string, h: HarnessName): Promise<boolean>
+  /** After the job, before byoa destroys the sandbox (also when the job failed, or env was never called). */
+  release?(sbx: Sandbox, user: string, h: HarnessName): Promise<void>
   start(user: string, h: HarnessName): Promise<LoginStart>
   /** Claude Code: `code` is the code Anthropic's page shows after sign-in. Codex: no code; `waitMs` waits that long
    *  for the user to finish on OpenAI's page. */
@@ -77,14 +86,24 @@ echo $? > status
 kill $holder 2>/dev/null
 `
 
-export function cliLogin(d: LoginDeps): LoginDriver {
-  const volumeName = async (user: string, h: HarnessName) => `byoa-${d.app}-${h}-${(await sha256hex(user)).slice(0, 24)}`
-  const volumes = async (user: string, h: HarnessName): Promise<Volume[]> => [{ name: await volumeName(user, h), path: LOGIN_DIRS[h] }]
-  const envOf = (sbx: Sandbox, h: HarnessName): Record<string, string> => h === 'claude'
+/** The harness's environment: where it keeps its login, relative to the sandbox's home folder. */
+export const loginEnv = (sbx: Sandbox, h: HarnessName): Record<string, string> => h === 'claude'
     // Claude Code keeps .credentials.json and .claude.json in CLAUDE_CONFIG_DIR, so both are in the volume; and it
     // must not update itself: byoa runs the pinned version (R5.1)
     ? { CLAUDE_CONFIG_DIR: `${sbx.home}/${LOGIN_DIRS.claude}`, DISABLE_AUTOUPDATER: '1' }
     : { CODEX_HOME: `${sbx.home}/${LOGIN_DIRS.codex}` }
+
+/** For storedLogin only: how the CLI sign-in differs when the login is not in a volume. */
+export interface CliHooks {
+  volumes?: (user: string, h: HarnessName) => Promise<Volume[]>
+  /** The CLI signed in: called with its sandbox, before byoa destroys it. */
+  signedIn?: (sbx: Sandbox, user: string, h: HarnessName) => Promise<void>
+}
+
+export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
+  const volumeName = async (user: string, h: HarnessName) => `byoa-${d.app}-${h}-${(await sha256hex(user)).slice(0, 24)}`
+  const volumes = hooks.volumes ?? (async (user: string, h: HarnessName): Promise<Volume[]> => [{ name: await volumeName(user, h), path: LOGIN_DIRS[h] }])
+  const envOf = loginEnv
   const present = async (sbx: Sandbox, _user: string, h: HarnessName) => (await sbx.run(`test -s ${q(`${sbx.home}/${CREDS[h]}`)}`)).exitCode === 0
   const dirOf = (sbx: Sandbox) => `${sbx.home}/.byoa/login`
   const read = async (sbx: Sandbox) => {
@@ -157,7 +176,7 @@ export function cliLogin(d: LoginDeps): LoginDriver {
       }
       const ok = await present(sbx, user, h)
       await d.store.delete(pendingKey(user, h))
-      await sbx.destroy().catch(() => {})
+      try { if (ok) await hooks.signedIn?.(sbx, user, h) } finally { await sbx.destroy().catch(() => {}) }
       if (ok) { await setState(user, h, 'signed-in'); return { state: 'signed-in' } }
       return { state: await state(user, h), error: lastLine(r.out) }
     },
