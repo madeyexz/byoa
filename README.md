@@ -100,9 +100,27 @@ for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['n
 
 Each job runs in a new sandbox, and byoa destroys the sandbox after the job. The user's AI login stays in a volume of that user and app. The MCP config in the sandbox points to `agents.proxy`, with a token for that one job. The real MCP tokens stay in your database.
 
-To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, destroy. The Convex store adapter is not written yet.
+To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, destroy.
 
 For Daytona, use `daytona({ apiKey })` from `byoa/sandbox/daytona` (it needs `@daytona/sdk`). Daytona allows 100 volumes per organization, so the adapter keeps every user's AI login in its own subpath of one shared volume (`byoa` by default). A sandbox mounts only that user's subpath. On Daytona Tier 1 and Tier 2, a sandbox can reach only [allowed domains](https://www.daytona.io/docs/en/network-limits), so serve `agents.proxy` on one of them (for example `*.convex.site` or `*.workers.dev`), or use Tier 3 or higher.
+
+### Convex
+
+In a Convex app, byoa's state is one table and four internal functions in your deployment (`byoa/store/convex`). Call byoa from actions and HTTP actions, which can make network calls; serve `agents.proxy` from an HTTP action.
+
+```ts
+// convex/schema.ts
+import { convexTable } from 'byoa/store/convex'
+export default defineSchema({ ...yourTables, byoa: convexTable() })
+
+// convex/byoa.ts
+import { convexFunctions } from 'byoa/store/convex'
+export const { get, put, remove, cas } = convexFunctions()
+
+// in an action or HTTP action
+import { convexStore } from 'byoa/store/convex'
+const agents = createAgents({ ...options, store: convexStore(ctx, internal.byoa) })
+```
 
 ## Test your app without a plan or a sandbox
 

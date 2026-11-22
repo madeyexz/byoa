@@ -67,6 +67,14 @@
       "bun": "./src/store/postgres.ts",
       "default": "./dist/store/postgres.js"
     },
+    "./store/convex": {
+      "types": [
+        "./dist/store/convex.d.ts",
+        "./src/store/convex.ts"
+      ],
+      "bun": "./src/store/convex.ts",
+      "default": "./dist/store/convex.js"
+    },
     "./verify": {
       "types": [
         "./dist/verify.d.ts",
@@ -103,6 +111,7 @@
   },
   "peerDependencies": {
     "@daytona/sdk": "^2.1.0",
+    "convex": "^1.25.0",
     "e2b": "^2.64.0"
   },
   "peerDependenciesMeta": {
@@ -111,12 +120,17 @@
     },
     "e2b": {
       "optional": true
+    },
+    "convex": {
+      "optional": true
     }
   },
   "devDependencies": {
     "@daytona/sdk": "^2.1.0",
     "@electric-sql/pglite": "^0.5.17",
     "@types/node": "^24.0.0",
+    "convex": "^1.51.0",
+    "convex-test": "^0.0.73",
     "e2b": "^2.64.0",
     "typescript": "^5.9.0"
   },

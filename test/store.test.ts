@@ -1,10 +1,14 @@
 // R6: every store adapter has the same get / put / delete / compare-and-set behavior. The Postgres adapter runs on
-// PGlite, the real Postgres compiled to WebAssembly.
+// PGlite, the real Postgres compiled to WebAssembly; the Convex adapter on convex-test, Convex's own mock backend, with
+// the functions and table exactly as an app exports them.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { PGlite } from '@electric-sql/pglite'
 import { memoryStore, type Store } from '../src/store.ts'
 import { POSTGRES_SCHEMA, postgresStore } from '../src/store/postgres.ts'
+import { anyApi, defineSchema } from 'convex/server'
+import { convexTest } from 'convex-test'
+import { convexFunctions, convexStore, convexTable } from '../src/store/convex.ts'
 
 async function pg(): Promise<Store> {
   const db = new PGlite()
@@ -12,7 +16,15 @@ async function pg(): Promise<Store> {
   return postgresStore({ query: async (sql, params) => { const r = await db.query(sql, params); return { rows: r.rows, rowCount: r.affectedRows ?? 0 } } })
 }
 
-for (const [name, make] of [['memory', async () => memoryStore()], ['postgres', pg]] as const) {
+async function convex(): Promise<Store> {
+  const t = convexTest(defineSchema({ byoa: convexTable() }), {
+    '/convex/_generated/api.js': async () => ({}),
+    '/convex/byoa.ts': async () => convexFunctions(),
+  })
+  return convexStore({ runQuery: t.query, runMutation: t.mutation }, anyApi.byoa as any)
+}
+
+for (const [name, make] of [['memory', async () => memoryStore()], ['postgres', pg], ['convex', convex]] as const) {
   test(`store ${name}: get, put, delete`, async () => {
     const s = await make()
     assert.equal(await s.get('a'), null)
