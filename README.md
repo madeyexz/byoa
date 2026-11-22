@@ -1,10 +1,79 @@
-# byoa: bring your own agent
+<a href="https://byoa.rippling.computer">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/readme/banner-dark.png">
+  <img alt="byoa: your users bring their own agent. An open-source library for AI-native apps: your app runs each user's own Claude Code or Codex in a sandbox, on the Claude or ChatGPT plan they already have. Version 1 targets: Claude Code, Codex, E2B, Daytona, Node and Convex. Cloudflare Workers is planned." src=".github/readme/banner-light.png">
+</picture>
+</a>
+
+<div align="center">
 
 **Status: core library in progress, not on npm yet.**
+
+[Website](https://byoa.rippling.computer) · [Spec](SPEC.md) · [Example app](examples/todo) · [Contributing](CONTRIBUTING.md)
+
+[![CI](https://github.com/madeyexz/byoa/actions/workflows/ci.yml/badge.svg)](https://github.com/madeyexz/byoa/actions/workflows/ci.yml)
+![License: Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-2f4cff?style=flat-square)
+![Agents: Claude Code · Codex](https://img.shields.io/badge/agents-Claude_Code_%C2%B7_Codex-9db6ff?style=flat-square)
+![Sandboxes: E2B · Daytona](https://img.shields.io/badge/sandboxes-E2B_%C2%B7_Daytona-ffc93c?style=flat-square)
+![Not a hosted service](https://img.shields.io/badge/a_library-not_a_hosted_service-ff5a36?style=flat-square)
+
+</div>
+
+# byoa: bring your own agent
 
 byoa is an open-source library that helps you build AI-native apps fast. Your app runs the user's own Claude Code or Codex in a sandbox. The user signs in with their own ChatGPT or Claude plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
 
 Version 1 supports two sandbox providers: E2B and Daytona. More providers come later. To change the provider, you change one adapter.
+
+## Who brings what
+
+**Your app brings the product. Each user brings the agent.** You build the app and pick the sandbox. Each user brings their plan and their tools. byoa runs inside your backend and runs each job in a new sandbox.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/readme/who-dark.png">
+  <img alt="Who brings what: you, the developer, build the app, pick the sandbox provider and own the database, and import byoa into your app's backend. The end user uses the app, signs in on the lab's own page and connects each MCP tool once. byoa creates, runs and destroys a sandbox for each job; the sandbox runs the user's own Claude Code or Codex, makes model calls on the user's own plan, and sends MCP calls with a job token to byoa, which adds the real token." src=".github/readme/who-light.png">
+</picture>
+
+<details>
+<summary>The same diagram as text</summary>
+
+```text
+DEVELOPER · YOU                                           END USER
+┌────────────────────────────────────┐                    ┌────────────────────────────────────┐
+│ builds the app                     │                    │ uses the app                       │
+│ picks the sandbox provider         │                    │ has a Claude or ChatGPT plan       │
+│ owns the database                  │                    │ has MCP tools and skills           │
+└──────────────────┬─────────────────┘                    └──────────────────┬─────────────────┘
+                   │ imports byoa             signs in on the lab's own page │
+                   │                             connects each MCP tool once │
+                   ▼                                                         ▼
+┌─ YOUR APP'S BACKEND · you run it ────────────────────────────────────────────────────────────┐
+│                                                 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓   │
+│  your app code ─── agents.run(userId, task) ───▶┃ byoa · open source, Apache 2.0         ┃   │
+│                                                 ┃ AI login · harness install             ┃   │
+│                                                 ┃ MCP OAuth · MCP proxy                  ┃   │
+│  your database ◀─── MCP grants, AI logins ──────┃ skills, AGENTS.md and MCP config       ┃   │
+│                                                 ┗━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━┛   │
+│                                                       │         ▲                   │        │
+│                                                       │         │                   │        │
+└───────────────────────────────────────────────────────┼─────────┼───────────────────┼────────┘
+                                 create · run · destroy │         │ MCP calls,        │
+                                                        │         │ with a job token  │
+                                                        ▼         │                   │
+┌─ SANDBOX · a new one for each job ──────────────────────────────┴────┐              │
+│ E2B or Daytona, on your account                                      │              │
+│ runs the user's own Claude Code or Codex, unmodified                 │              │
+│ a copy of the user's AI login; no real MCP token                     │              │
+└──────────────────┬───────────────────────────────────────────────────┘   MCP calls, │
+                   │ model calls, paid by                                    with the │
+                   │ the user's own plan                                   real token │
+                   ▼                                                                  ▼
+┌─ AI LABS ──────────────────────────┐                    ┌─ MCP SERVERS ──────────────────────┐
+│ Anthropic · OpenAI                 │                    │ Notion · Gmail · … the user's own  │
+└────────────────────────────────────┘                    └────────────────────────────────────┘
+```
+
+</details>
 
 ## The problem
 
@@ -18,43 +87,81 @@ To make an app AI-native, you run a big lab's harness (Claude Code or Codex) in 
 
 byoa is that layer, as a library, so you do not build it again for each app.
 
+
 ## What byoa is, and what it is not
 
 - byoa **is** a library. It runs inside your app's own backend (Node or Convex). Cloudflare Workers support is planned.
 - byoa **stores tokens in your own database**, through a store adapter.
 - byoa **is not** a hosted service. We do not run a server, and we never see your users' tokens.
 
-```text
- ┌────────────────────────────────────────────────────────────────────────┐
- │ END USER                                                               │
- │ has: ChatGPT or Claude plan · Notion, Gmail, Heptabase accounts        │
- └───────────────────────────────┬────────────────────────────────────────┘
-                                 │ uses the app
- ┌───────────────────────────────▼────────────────────────────────────────┐
- │ YOUR APP   (its own backend)        calls: agents.run(userId, task)    │
- │ ╔════════════════════════════════════════════════════════════════════╗ │
- │ ║ byoa  (open source, runs inside your backend)                      ║ │
- │ ║  login flow (real claude/codex CLI) · sandbox adapters             ║ │
- │ ║  MCP OAuth + one refresh owner      · harness installer (pinned)   ║ │
- │ ║  skills / AGENTS.md / mcp.json      · MCP proxy                    ║ │
- │ ║  token store: your own database (MCP grants, AI logins)            ║ │
- │ ╚════════════════════════════════════════════════════════════════════╝ │
- └──────┬──────────────────────────────┬───────────────────────┬──────────┘
-        │ create / resume / destroy    │ MCP calls via proxy   │ mount
- ┌──────▼─────────────────────┐ ┌──────▼──────────────┐ ┌──────▼─────────┐
- │ SANDBOX PROVIDER           │ │ MCP SERVER OWNERS   │ │ OPTION: USER'S │
- │ v1: E2B · Daytona          │ │ Notion · Gmail ·    │ │ LOGIN VOLUME   │
- │ later: Modal, Vercel, ...  │ │ Heptabase · ...     │ │ ~/.claude      │
- │ ┌────────────────────────┐ │ └─────────────────────┘ │ ~/.codex       │
- │ │ HARNESS in the sandbox │ │                         └────────────────┘
- │ │ Claude Code / Codex    │─┼──── model calls on the user's plan ───┐
- │ └────────────────────────┘ │                                       │
- └────────────────────────────┘                                       │
-                                               ┌──────────────────────▼──┐
-                                               │ AI LABS                 │
-                                               │ Anthropic · OpenAI      │
-                                               └─────────────────────────┘
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/readme/scope-dark.png">
+  <img alt="What version 1 covers. Agents: Claude Code and Codex (v1), Gemini or Antigravity maybe later. User plans: Claude and ChatGPT (v1). Sandboxes: E2B and Daytona (v1), other providers planned. Backends: Node and Convex actions (v1), Cloudflare Workers planned. Token stores: Convex and Postgres (v1), or your own with get, put, delete and compare-and-set." src=".github/readme/scope-light.png">
+</picture>
+
+## Why byoa
+
+<table>
+<tr>
+<td width="50%" valign="top">
+<img alt="" src=".github/readme/why-plan.png">
+<br><sub><code>R1 · AI LOGIN</code></sub>
+<h3>The user's plan pays.</h3>
+Each user signs in with their own Claude or ChatGPT plan, on Anthropic's or OpenAI's own sign-in page. The agent work runs on that plan, not on your API bill. byoa gives you the sign-in URL and code as data, so you can show them on any device, also a phone.
+</td>
+<td width="50%" valign="top">
+<img alt="" src=".github/readme/why-agents.png">
+<br><sub><code>R5 · HARNESS AND SANDBOX</code></sub>
+<h3>The real agents.</h3>
+Your app runs the real, unmodified Claude Code and Codex. Users get the full harness, with their tools and skills. Both harnesses stream events in one schema, so your UI handles one format.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img alt="" src=".github/readme/why-sandbox.png">
+<br><sub><code>R5.3 · ONE ADAPTER</code></sub>
+<h3>Any sandbox.</h3>
+Each sandbox provider is one adapter with one interface. E2B and Daytona come first. To change the provider, you change one line.
+</td>
+<td width="50%" valign="top">
+<img alt="" src=".github/readme/why-connect.png">
+<br><sub><code>R2 · R3 · MCP</code></sub>
+<h3>Connect once.</h3>
+The user connects each MCP tool one time. Every agent run has it. The real tokens never go into the sandbox.
+</td>
+</tr>
+</table>
+
+## How it works
+
+byoa sits in your backend, between your users and their agents. Your app calls `agents.run(userId, task)`. byoa starts a sandbox, loads the user's setup, and runs the user's own harness on the user's own plan.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/readme/how-dark.png">
+  <img alt="Architecture: the end user, with a Claude or ChatGPT plan and Notion, Gmail and Heptabase accounts, uses your app. byoa runs inside your app's own backend: sandbox adapters (E2B, Daytona), the AI login flow (the real claude and codex CLI), a pinned harness installer, MCP OAuth with one refresh owner, skills and config, one event stream for both harnesses, the token store and the MCP proxy. It creates, runs and destroys the sandbox, where the unmodified Claude Code or Codex calls the AI labs on the user's own plan. As an option, the user's login is a volume mounted into the sandbox (cliLogin) instead of in the database. MCP calls go through the proxy to the MCP servers." src=".github/readme/how-light.png">
+</picture>
+
+### Real tokens never go into the sandbox
+
+The agent in the sandbox gets a short-lived job token. The proxy in your backend adds the real MCP token to each request.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/readme/tokens-dark.png">
+  <img alt="Token flow: the harness in the sandbox has an mcp.json that points to your proxy, with a job token for one job and one user, and no real MCP token. The MCP proxy in your backend checks the job token, adds the real token from the token store (your database, your key), sends the request on to the MCP server, and refuses the job token after the job ends." src=".github/readme/tokens-light.png">
+</picture>
+
+- **One refresh owner** (R2.3). Your backend owns each grant's refresh. Two jobs that need a refresh at the same time cause one refresh request.
+- **Your database** (R2.4). byoa stores grants through a store adapter, encrypted with a key that your app gives.
+- **Your user's login** (R1.4). By default, byoa keeps the AI login encrypted in your database, and each job gets a copy. A volume that belongs to that one user is an option. Check the labs' terms for your app.
+
+### Every job gets a fresh sandbox
+
+The sandbox is disposable. The user's setup stays, so the next job needs no new sign-in.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/readme/lifecycle-dark.png">
+  <img alt="Lifecycle: 1. Create: byoa starts a sandbox at your provider. 2. Load the setup: pinned harness, skills, AGENTS.md and MCP config. 3. Run the job: text, tool calls and permission requests stream back as events. 4. Destroy: byoa destroys the sandbox at the provider. The user's AI login and MCP grants stay between jobs." src=".github/readme/lifecycle-light.png">
+</picture>
 
 ## Install
 
@@ -202,3 +309,5 @@ We call version 1 done only when all of these checks pass. The full list is in [
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).
+
+<a href="https://byoa.rippling.computer"><img alt="Bring your own agent." src=".github/readme/end.png"></a>
