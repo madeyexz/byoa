@@ -48,7 +48,9 @@ export async function testApp(o: Partial<AgentsOptions> & { env?: Record<string,
     oauth: { redirectUrl: 'http://127.0.0.1:9/callback', clientName: 'Test app' }, ...o,
   })
   handler = agents.proxy
-  return { agents, sandbox, store, proxyUrl, close: () => new Promise<void>((r) => { server.closeAllConnections(); server.close(() => r()) }) }
+  /** Serve another proxy handler at proxyUrl, such as one of a second createAgents on the same store. */
+  const serve = (h: typeof handler) => { handler = h }
+  return { agents, sandbox, store, proxyUrl, serve, close: () => new Promise<void>((r) => { server.closeAllConnections(); server.close(() => r()) }) }
 }
 
 export async function collect(it: AsyncIterable<AgentEvent>) {

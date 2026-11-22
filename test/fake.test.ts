@@ -1,16 +1,18 @@
 // The fake harness (R7.2), end to end: a real job lifecycle in the local sandbox, MCP calls through the real proxy to
 // a local MCP server with OAuth. These are the cheap versions of V5 to V8; the real checks run on a real provider.
 import assert from 'node:assert/strict'
+import { randomBytes } from 'node:crypto'
 import { after, test } from 'node:test'
+import { createAgents } from '../src/index.ts'
 import { fakeMcp, signInAsUser, type FakeMcp } from './helpers/mcp-server.ts'
 import { collect, testApp } from './helpers/app.ts'
 
 const closers: (() => Promise<void>)[] = []
 after(() => Promise.all(closers.map((c) => c())))
 
-async function setup(opts: Parameters<typeof fakeMcp>[0] = {}) {
+async function setup(opts: Parameters<typeof fakeMcp>[0] = {}, appOpts: Parameters<typeof testApp>[0] = {}) {
   const mcp: FakeMcp = await fakeMcp(opts)
-  const app = await testApp()
+  const app = await testApp(appOpts)
   closers.push(mcp.close, app.close)
   const r = await app.agents.connectMcp('alice', mcp.url, { name: 'notes' })
   if (r.connected) throw new Error('expected a sign-in')
@@ -117,4 +119,17 @@ test('jobToken: a token with no sandbox reaches only its user\'s named servers, 
   assert.equal(await init(url, short.token), 200)
   await new Promise((r) => setTimeout(r, 400))
   assert.equal(await init(url, short.token), 401, 'refused after its time')
+})
+
+test('no sandbox provider: a second createAgents on the same store serves the proxy (as a Convex HTTP action does) and runs no job', async () => {
+  const encryptionKey = randomBytes(32).toString('base64')
+  const { agents, store, proxyUrl, serve } = await setup({}, { encryptionKey })
+  const proxyOnly = createAgents({ app: 'testapp', store, encryptionKey, proxyUrl, oauth: { redirectUrl: 'http://127.0.0.1:9/callback' } })
+  serve(proxyOnly.proxy)
+  const ev = await collect(agents.run('alice', { harness: 'fake', task: TASK, mcp: ['notes'] }))
+  assert.deepEqual(ev.at(-1), { type: 'end', ok: true, result: 'you are alice ({"detail":true})' })
+  await assert.rejects(proxyOnly.connectLogin('alice', 'claude'), /no sandbox provider/)
+  const none = await collect(proxyOnly.run('alice', { harness: 'fake', task: TASK }))
+  assert.match(none.find((e) => e.type === 'error')?.message ?? '', /no sandbox provider/)
+  assert.deepEqual(none.at(-1), { type: 'end', ok: false })
 })

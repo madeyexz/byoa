@@ -22,7 +22,9 @@ export interface AgentsOptions {
   /** The app's own name (lower-case letters, digits, -). It is part of every login volume's name, so one app's AI
    *  login is never another app's (Lab rules). */
   app: string
-  sandbox: SandboxProvider
+  /** Leave it out where this backend only serves the proxy and MCP sign-ins, such as a Convex HTTP action, where
+   *  the providers' SDKs do not load. Jobs and AI sign-ins then throw. */
+  sandbox?: SandboxProvider
   store: Store
   /** 32 random bytes as base64 (`openssl rand -base64 32`). byoa encrypts every MCP grant with it (R2.4). */
   encryptionKey: string
@@ -96,6 +98,9 @@ export class LoginError extends Error { readonly code = 'signed-out' }
 
 export type ConnectResult = { name: string; connected: true } | { name: string; connected: false; signInUrl: string }
 
+const noSandbox = async (): Promise<never> => { throw new Error('byoa: this createAgents has no sandbox provider; pass `sandbox` where jobs and AI sign-ins run') }
+const NO_SANDBOX: SandboxProvider = { name: 'none', create: noSandbox, resume: noSandbox, deleteVolume: noSandbox }
+
 const FLOW_MS = 15 * 60_000
 const flowKey = (state: string) => `mcpflow/${state}`
 
@@ -105,9 +110,10 @@ export function createAgents(o: AgentsOptions) {
   key.catch(() => {}) // reported where it is used
   const oauth: OAuthConfig = { redirectUrl: o.oauth.redirectUrl, clientMetadataUrl: o.oauth.clientMetadataUrl, clientName: o.oauth.clientName ?? o.app }
   const pins = o.pins ?? PINS
+  const sandbox = o.sandbox ?? NO_SANDBOX
   const grants = new Grants(o.store, key, oauth)
   const jobs = new JobTokens(o.store)
-  const login = (o.login ?? cliLogin)({ sandbox: o.sandbox, store: o.store, app: o.app, pins })
+  const login = (o.login ?? cliLogin)({ sandbox, store: o.store, app: o.app, pins })
   const timeout = o.jobTimeoutMs ?? 30 * 60_000
 
   /** One MCP `initialize`, to see whether the server answers and whether it wants a token. */
@@ -207,7 +213,7 @@ export function createAgents(o: AgentsOptions) {
     try {
       const setup: Setup = { agentsMd: r.setup?.agentsMd, skills: [...(r.setup?.skills ?? []), ...plugins.flatMap((p) => p.setup.skills ?? [])] }
       const files = harnessFiles(h === 'codex' ? 'codex' : 'claude', setup, { proxyUrl: o.proxyUrl, servers: t.mcp.map((m) => m.name) })
-      sbx = await o.sandbox.create({ volumes: h === 'fake' ? [] : await login.volumes(user, h), labels: { 'byoa-app': o.app, 'byoa-job': job }, timeoutMs: timeout + 60_000 })
+      sbx = await sandbox.create({ volumes: h === 'fake' ? [] : await login.volumes(user, h), labels: { 'byoa-app': o.app, 'byoa-job': job }, timeoutMs: timeout + 60_000 })
       const work = `${sbx.home}/work`
       let bin: string, version: string, env: Record<string, string> = {}
       if (h === 'fake') {
@@ -261,7 +267,7 @@ export function createAgents(o: AgentsOptions) {
           reader = h === 'claude' ? claudeReader() : codexReader()
         }
         await s.sandbox.writeFile(`${s.work}/.byoa/task.md`, r.task)
-        yield { type: 'start', harness: h, version: s.version, sandbox: o.sandbox.name }
+        yield { type: 'start', harness: h, version: s.version, sandbox: sandbox.name }
 
         for await (const ev of stream(s.sandbox, `${cmd} < .byoa/task.md`, { cwd: s.work, env: s.env, timeoutMs: timeout }, reader)) {
           if (ev.type === 'end') { end = ev; break }

@@ -118,7 +118,7 @@ For Daytona, use `daytona({ apiKey })` from `byoa/sandbox/daytona` (it needs `@d
 
 ### Convex
 
-In a Convex app, byoa's state is one table and four internal functions in your deployment (`byoa/store/convex`). Call byoa from actions and HTTP actions, which can make network calls; serve `agents.proxy` from an HTTP action.
+In a Convex app, byoa's state is one table and four internal functions in your deployment (`byoa/store/convex`). Call byoa from actions and HTTP actions, which can make network calls; serve `agents.proxy` from an HTTP action. The E2B and Daytona SDKs load only in Node actions (`"use node"`), and HTTP actions cannot use Node, so leave `sandbox` out of the `createAgents` that serves the proxy and the MCP sign-in callback: it shares the store with the one in your Node actions, which runs the jobs.
 
 ```ts
 // convex/schema.ts
