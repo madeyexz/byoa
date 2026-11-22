@@ -119,3 +119,21 @@ test('R2: a refresh token the server no longer takes asks the user to connect ag
   assert.match(JSON.stringify(await r.json()), /connect it again/)
   assert.equal((await grants.read('alice', 'notes'))!.grant.needsSignIn, true)
 })
+
+test('R2: importMcp moves an existing grant into byoa; the proxy uses it and refreshes it', async () => {
+  const { mcp, store: oldStore } = await connected()
+  const g = await import('../src/mcp/grants.ts')
+  const old = new g.Grants(oldStore, (await import('../src/crypto.ts')).importKey(KEY), { redirectUrl: 'http://127.0.0.1:9/callback', clientName: 'x' })
+  const grant = (await old.read('alice', 'notes'))!.grant
+  const store = memoryStore()
+  const agents = agentsOn(store)
+  await assert.rejects(agents.importMcp('alice', { name: 'notes', url: mcp.url, oauth: {} }), /client and tokens/)
+  assert.deepEqual(await agents.importMcp('alice', { name: 'notes', url: mcp.url, oauth: { ...grant.oauth!, verifier: 'left over' } }), { name: 'notes' })
+  await old.remove('alice', 'notes') // moved, not copied: one refresh owner
+  assert.deepEqual(await agents.listMcp('alice'), [{ name: 'notes', url: mcp.url }])
+  const { token } = await new JobTokens(store).issue('alice', ['notes'], 60_000)
+  assert.equal((await call(agents.proxy, token)).status, 200)
+  mcp.expireAccess()
+  assert.equal((await call(agents.proxy, token)).status, 200)
+  assert.equal(mcp.refreshes, 1)
+})

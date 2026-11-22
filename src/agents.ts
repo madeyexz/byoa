@@ -171,6 +171,20 @@ export function createAgents(o: AgentsOptions) {
     return { user: f.user, name: f.name }
   }
 
+  /** Saves an MCP authorization grant that the user made elsewhere (R2.1), as finishMcp does: for an app that moves its
+   *  existing grants into byoa. `oauth` is the MCP SDK's state (`client`, `tokens`, and `at`, when the tokens were
+   *  saved). Move each grant, never copy it: the old holder must delete its copy, so the grant keeps one refresh
+   *  owner (R2.3). */
+  async function importMcp(user: string, g: { name: string; url: string; oauth: Provider['s'] }): Promise<{ name: string }> {
+    if (!SERVER_NAME.test(g.name)) throw new Error('byoa: name: lower-case letters, digits and -, at most 32')
+    const u = new URL(g.url)
+    if (u.protocol !== 'https:' && !(u.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(u.hostname))) throw new Error('byoa: an MCP server URL must start with https://')
+    if (typeof g.oauth?.tokens?.access_token !== 'string' || !g.oauth.client?.client_id) throw new Error('byoa: importMcp needs the grant\'s client and tokens')
+    const { client, tokens, at, discovery } = g.oauth
+    await grants.save(user, { name: g.name, url: u.href, oauth: { client, tokens, at: at ?? Date.now(), ...(discovery ? { discovery } : {}) } })
+    return { name: g.name }
+  }
+
   /** A job token with no sandbox (R3), for an app's own program that runs a harness somewhere else, such as on the
    *  user's own computer. The same rules as a job's token: one user, only the servers named that this user has
    *  connected, refused after `close` (R3.4) and after `ttlMs` (default: the job timeout and 5 minutes). */
@@ -298,6 +312,7 @@ export function createAgents(o: AgentsOptions) {
     loginState: (user: string, h: HarnessName) => login.state(user, h),
     signOut: (user: string, h: HarnessName) => login.signOut(user, h),
     connectMcp,
+    importMcp,
     finishMcp,
     listMcp: (user: string) => grants.list(user),
     removeMcp: (user: string, name: string) => grants.remove(user, name),

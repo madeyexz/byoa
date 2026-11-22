@@ -110,6 +110,8 @@ try {
 
 A program outside byoa's sandboxes, such as a harness on the user's own computer, gets a job token with no sandbox: `const t = await agents.jobToken(userId, { mcp: ['notion'] })` gives `t.token` and `t.mcp` (the proxy URLs), with the same rules as a job's token, until `t.close()`.
 
+To move an MCP grant that the user already made elsewhere into byoa, call `agents.importMcp(userId, { name, url, oauth })` with the MCP SDK's state (`client`, `tokens`, `at`). Delete the old copy, so the grant keeps one refresh owner.
+
 Each job runs in a new sandbox, and byoa destroys the sandbox after the job. The user's AI login stays in a volume of that user and app. The MCP config in the sandbox points to `agents.proxy`, with a token for that one job. The real MCP tokens stay in your database.
 
 To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, destroy.
