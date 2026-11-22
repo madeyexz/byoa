@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>byoa: bring your own agent</title>
+<meta name="description" content="An open-source library that runs your users' own Claude Code or Codex in any sandbox, with their MCPs and skills.">
+<style>
+  :root { color-scheme: light dark; --fg: #1d1d1f; --muted: #5f6368; --bg: #fbfbf8; --code: #f0efe9; --line: #e2e0d8; --accent: #b4441f; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #ecebe6; --muted: #a3a29c; --bg: #151513; --code: #1f1f1c; --line: #33322d; --accent: #f08a5d; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 56px 24px 96px; }
+  h1 { font-size: 2.4rem; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.02em; }
+  h2 { font-size: 1.35rem; margin: 48px 0 12px; padding-top: 16px; border-top: 1px solid var(--line); }
+  p, li { color: var(--fg); }
+  strong { font-weight: 650; }
+  a { color: var(--accent); }
+  code { font: 0.88em/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--code); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 16px; overflow-x: auto; }
+  pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.35; font-family: Menlo, "DejaVu Sans Mono", Consolas, ui-monospace, monospace; }
+  footer { margin-top: 64px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+<h1>byoa: bring your own agent</h1>
+<p><strong>Status: spec only. No code yet.</strong></p>
+<p>byoa is an open-source library that helps you build AI-native apps fast. Your app runs the user&#39;s own Claude Code or Codex in a sandbox. The user signs in with their own ChatGPT or Claude plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.</p>
+<p>You can use any sandbox provider. To change the provider, you change one adapter.</p>
+<h2>The problem</h2>
+<p>To make an app AI-native, you run a big lab&#39;s harness (Claude Code or Codex) in a sandbox, with the user&#39;s own AI plan. For each app, you must build the same connection layer again:</p>
+<ul>
+<li>the user&#39;s AI login, through the real CLI;</li>
+<li>the user&#39;s MCP connections and their OAuth tokens, with one refresh owner;</li>
+<li>the user&#39;s skills and AGENTS.md;</li>
+<li>the harness install and its updates;</li>
+<li>the code that connects all of this to one sandbox provider.</li>
+</ul>
+<p>We built this layer for <a href="https://github.com/madeyexz/ai-native-book-reader">Bookish</a>. Margins and an AI-native mail app need the same layer. byoa is that layer, as a library.</p>
+<h2>What byoa is, and what it is not</h2>
+<ul>
+<li>byoa <strong>is</strong> a library. It runs inside your app&#39;s own backend (Node, Convex, or Cloudflare Workers).</li>
+<li>byoa <strong>stores tokens in your own database</strong>, through a store adapter.</li>
+<li>byoa <strong>is not</strong> a hosted service. We do not run a server, and we never see your users&#39; tokens.</li>
+</ul>
+<pre><code class="language-text"> ┌────────────────────────────────────────────────────────────────────────┐
+ │ END USER                                                               │
+ │ has: ChatGPT or Claude plan · Notion, Gmail, Heptabase accounts        │
+ └───────────────────────────────┬────────────────────────────────────────┘
+                                 │ uses the app
+ ┌───────────────────────────────▼────────────────────────────────────────┐
+ │ YOUR APP   (its own backend)        calls: agents.run(userId, task)    │
+ │ ╔════════════════════════════════════════════════════════════════════╗ │
+ │ ║ byoa  (open source, runs inside your backend)                      ║ │
+ │ ║  login flow (real claude/codex CLI) · sandbox adapters             ║ │
+ │ ║  MCP OAuth + one refresh owner      · harness installer (pinned)   ║ │
+ │ ║  skills / AGENTS.md / mcp.json      · MCP proxy                    ║ │
+ │ ║  token store: your own database                                    ║ │
+ │ ╚════════════════════════════════════════════════════════════════════╝ │
+ └──────┬──────────────────────────────┬───────────────────────┬──────────┘
+        │ create / resume / destroy    │ MCP calls via proxy   │ mount
+ ┌──────▼─────────────────────┐ ┌──────▼──────────────┐ ┌──────▼─────────┐
+ │ ANY SANDBOX PROVIDER       │ │ MCP SERVER OWNERS   │ │ USER-OWNED     │
+ │ E2B · Daytona · Modal ·    │ │ Notion · Gmail ·    │ │ LOGIN VOLUME   │
+ │ Vercel · Cloudflare · ...  │ │ Heptabase · Margins │ │ ~/.claude      │
+ │ ┌────────────────────────┐ │ └─────────────────────┘ │ ~/.codex       │
+ │ │ HARNESS in the sandbox │ │                         └────────────────┘
+ │ │ Claude Code / Codex    │─┼──── model calls on the user&#39;s plan ───┐
+ │ └────────────────────────┘ │                                       │
+ └────────────────────────────┘                                       │
+                                               ┌──────────────────────▼──┐
+                                               │ AI LABS                 │
+                                               │ Anthropic · OpenAI      │
+                                               └─────────────────────────┘
+</code></pre>
+<h2>How it will look</h2>
+<p>This is a sketch. The API can change.</p>
+<pre><code class="language-ts">import { createAgents } from &#39;byoa&#39;
+import { e2b } from &#39;byoa/sandbox/e2b&#39;
+import { convexStore } from &#39;byoa/store/convex&#39;
+
+const agents = createAgents({ sandbox: e2b({ apiKey }), store: convexStore(ctx) })
+
+await agents.connectLogin(userId, &#39;claude&#39;)                     // real claude CLI sign-in
+await agents.connectLogin(userId, &#39;codex&#39;)                      // real codex CLI, device auth
+await agents.connectMcp(userId, &#39;https://mcp.notion.com/mcp&#39;)   // OAuth, one refresh owner
+const run = await agents.run(userId, { harness: &#39;claude&#39;, task, skills: [&#39;./skills&#39;] })
+</code></pre>
+<p>To change the provider, change <code>e2b(...)</code> to <code>daytona(...)</code>.</p>
+<h2>How we will verify it</h2>
+<p>We call version 1 done only when all of these checks pass. The full list is in <a href="https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification">SPEC.md</a>.</p>
+<ol>
+<li><strong>Two apps use it.</strong> Bookish moves its login, connector and sandbox code to byoa. A second app (Margins or the mail app) uses byoa with no copied code.</li>
+<li><strong>Two harnesses work.</strong> One user runs the same task with Claude Code and with Codex, each on that user&#39;s own plan.</li>
+<li><strong>Two providers work.</strong> The same user, with the same MCP grants and skills, runs a job on E2B and then on Daytona. Only the adapter changes.</li>
+<li><strong>Tokens stay out of the sandbox.</strong> A test searches the sandbox&#39;s environment, files and process list for each real MCP token after a job. It must find none.</li>
+<li><strong>One refresh owner.</strong> Two jobs run at the same time and both need a token refresh. The provider sees one refresh request, and no grant is revoked.</li>
+<li><strong>Sandboxes are disposable.</strong> The library destroys the sandbox after a job. The next job starts in a new sandbox, and the user does not sign in to an MCP server again.</li>
+</ol>
+<h2>Rules we follow</h2>
+<ul>
+<li>We run the real, unmodified <code>claude</code> and <code>codex</code> binaries. We never pretend to be another client.</li>
+<li>The user signs in through Anthropic&#39;s or OpenAI&#39;s own sign-in page.</li>
+<li>One app&#39;s AI login is used only by that app.</li>
+<li>Each app signs its own agreements with the labs when it needs them. See <a href="https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules">SPEC.md</a>.</li>
+</ul>
+<h2>License</h2>
+<p>MIT</p>
+
+<footer><a href="https://github.com/madeyexz/byoa">github.com/madeyexz/byoa</a> · built from README.md</footer>
+</main>
+</body>
+</html>
