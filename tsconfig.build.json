@@ -1,5 +1,10 @@
 {
+  // Bun installs from GitHub skip the build, and TypeScript then reads src/*.ts (the "types" fallback in package.json),
+  // with the app's own settings. These two flags are in Bun's default tsconfig, so src must pass them.
   "extends": "./tsconfig.json",
-  "compilerOptions": { "noEmit": false, "outDir": "dist", "rootDir": "src", "declaration": true, "sourceMap": true },
+  "compilerOptions": {
+    "noEmit": false, "outDir": "dist", "rootDir": "src", "declaration": true, "sourceMap": true,
+    "noUncheckedIndexedAccess": true, "noImplicitOverride": true
+  },
   "include": ["src"]
 }

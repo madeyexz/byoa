@@ -1,13 +1,13 @@
 // The E2B adapter against E2B itself (R5.3, R5.4, R1.4): create with a volume, run, write, destroy; a second sandbox
 // sees what the first wrote in the volume; a destroyed sandbox is gone at E2B. Needs E2B_API_KEY, and costs a little,
-// so it does not run on every commit. BYOA_E2B_TEMPLATE: any template with bash (default: E2B's `base`).
+// so it runs only with BYOA_E2B=1 (npm run test:e2b), not on every commit. BYOA_E2B_TEMPLATE: any template with bash (default: E2B's `base`).
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { test } from 'node:test'
 import { Sandbox as E2BSandbox } from 'e2b'
 import { e2b } from '../src/sandbox/e2b.ts'
 
-const skip = !process.env.E2B_API_KEY && 'set E2B_API_KEY to check the E2B adapter'
+const skip = !(process.env.BYOA_E2B && process.env.E2B_API_KEY) && 'set BYOA_E2B=1 and E2B_API_KEY to check the E2B adapter'
 
 test('E2B adapter: create, run, write, volume, destroy', { skip, timeout: 5 * 60_000 }, async () => {
   const p = e2b({ template: process.env.BYOA_E2B_TEMPLATE ?? 'base' })

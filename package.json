@@ -7,28 +7,96 @@
     "type": "git",
     "url": "git+https://github.com/madeyexz/byoa.git"
   },
+  "homepage": "https://byoa.rippling.computer",
+  "bugs": {
+    "url": "https://github.com/madeyexz/byoa/issues"
+  },
+  "keywords": [
+    "claude-code",
+    "codex",
+    "mcp",
+    "agents",
+    "sandbox",
+    "e2b",
+    "oauth"
+  ],
   "type": "module",
   "engines": {
     "node": ">=22.18"
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./sandbox/e2b": "./dist/sandbox/e2b.js",
-    "./sandbox/daytona": "./dist/sandbox/daytona.js",
-    "./sandbox/local": "./dist/sandbox/local.js",
-    "./store/postgres": "./dist/store/postgres.js",
-    "./verify": "./dist/verify.js",
-    "./node": "./dist/node.js"
+    ".": {
+      "types": [
+        "./dist/index.d.ts",
+        "./src/index.ts"
+      ],
+      "bun": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./sandbox/e2b": {
+      "types": [
+        "./dist/sandbox/e2b.d.ts",
+        "./src/sandbox/e2b.ts"
+      ],
+      "bun": "./src/sandbox/e2b.ts",
+      "default": "./dist/sandbox/e2b.js"
+    },
+    "./sandbox/daytona": {
+      "types": [
+        "./dist/sandbox/daytona.d.ts",
+        "./src/sandbox/daytona.ts"
+      ],
+      "bun": "./src/sandbox/daytona.ts",
+      "default": "./dist/sandbox/daytona.js"
+    },
+    "./sandbox/local": {
+      "types": [
+        "./dist/sandbox/local.d.ts",
+        "./src/sandbox/local.ts"
+      ],
+      "bun": "./src/sandbox/local.ts",
+      "default": "./dist/sandbox/local.js"
+    },
+    "./store/postgres": {
+      "types": [
+        "./dist/store/postgres.d.ts",
+        "./src/store/postgres.ts"
+      ],
+      "bun": "./src/store/postgres.ts",
+      "default": "./dist/store/postgres.js"
+    },
+    "./verify": {
+      "types": [
+        "./dist/verify.d.ts",
+        "./src/verify.ts"
+      ],
+      "bun": "./src/verify.ts",
+      "default": "./dist/verify.js"
+    },
+    "./node": {
+      "types": [
+        "./dist/node.d.ts",
+        "./src/node.ts"
+      ],
+      "bun": "./src/node.ts",
+      "default": "./dist/node.js"
+    },
+    "./package.json": "./package.json"
   },
+  "sideEffects": false,
   "files": [
     "dist",
     "src"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
     "typecheck": "tsc --noEmit",
     "test": "node --test 'test/*.test.ts'",
-    "test:v11": "BYOA_V11=1 node --test test/v11.test.ts"
+    "test:v11": "BYOA_V11=1 node --test test/v11.test.ts",
+    "test:e2b": "BYOA_E2B=1 node --test test/e2b.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2"
@@ -51,5 +119,9 @@
     "@types/node": "^24.0.0",
     "e2b": "^2.64.0",
     "typescript": "^5.9.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

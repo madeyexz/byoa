@@ -56,6 +56,17 @@ byoa is that layer, as a library, so you do not build it again for each app.
                                                └─────────────────────────┘
 ```
 
+## Install
+
+byoa is not on npm yet. Until version 1, install it from GitHub:
+
+```sh
+npm install github:madeyexz/byoa     # npm builds it on install
+bun add github:madeyexz/byoa        # Bun loads its TypeScript source
+```
+
+From version 1: `npm install byoa` or `bun add byoa`. For E2B, also install `e2b`. byoa needs Node 22.18 or later, or Bun.
+
 ## How it will look
 
 This is the API in this repository today. It can change before version 1.
@@ -97,7 +108,7 @@ For Daytona, use `daytona({ apiKey })` from `byoa/sandbox/daytona` (it needs `@d
 
 Use `harness: 'fake'`, `localSandbox()` from `byoa/sandbox/local` and `memoryStore()`. The fake harness runs no model. It calls MCP tools through the real proxy: each task line `call <server>.<tool> <json>` is one call.
 
-To test byoa itself: `npm test` (V10, the fake-harness tests and the unit tests), and `npm run test:v11` (V11; it downloads about 600 MB). CI runs both on every commit. With `E2B_API_KEY` and `DAYTONA_API_KEY` set, `npm test` also checks each adapter against its provider and runs V4 ([test/v4.test.ts](test/v4.test.ts)), which needs `cloudflared` to give the proxy a public URL.
+To test byoa itself: `npm test` (V10, the fake-harness tests and the unit tests), and `npm run test:v11` (V11; it downloads about 600 MB). CI runs both on every commit. With `DAYTONA_API_KEY` set, `npm test` also checks the Daytona adapter against Daytona; with `E2B_API_KEY` too, it runs V4 ([test/v4.test.ts](test/v4.test.ts)), which needs `cloudflared` to give the proxy a public URL. `npm run test:e2b` checks the E2B adapter against E2B; it needs `E2B_API_KEY` and an E2B team with volumes turned on.
 
 ## How we will verify it
 

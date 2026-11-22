@@ -56,7 +56,7 @@ export function mcpProxy(o: { proxyUrl: string; jobs: JobTokens; grants: Grants 
     const name = path.startsWith(base + '/') ? path.slice(base.length + 1) : ''
     if (!SERVER_NAME.test(name)) return fail(404, 'no such MCP server')
     const m = /^Bearer\s+(\S+)$/i.exec(req.headers.get('authorization') ?? '')
-    const job = m ? await o.jobs.check(m[1]) : null
+    const job = m ? await o.jobs.check(m[1]!) : null
     if (!job) return fail(401, 'the job token is not valid (the job ended, or it is not a job token)')
     if (!job.servers.includes(name)) return fail(403, `this job does not have the MCP server ${name}`)
 

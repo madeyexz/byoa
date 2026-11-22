@@ -20,7 +20,7 @@ export function claudeArgs(o: { mcpConfig: string; model?: string }): string[] {
 
 const mcpName = (n: string): { name: string; server?: string } => {
   const m = /^mcp__(.+?)__(.+)$/.exec(n)
-  return m ? { server: m[1], name: m[2] } : { name: n }
+  return m ? { server: m[1]!, name: m[2]! } : { name: n }
 }
 const textOf = (c: unknown): string => Array.isArray(c) ? c.map((x: any) => x?.text ?? '').join('') : String(c ?? '')
 

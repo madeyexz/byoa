@@ -55,7 +55,7 @@ function tarHashes(files: Map<string, string>): Writable {
     if (kind === 'meta') {
       const m = Buffer.concat(meta).toString('utf8')
       if (path === 'L') next = m.replace(/\0.*$/s, '')
-      else { const p = /(?:^|\n)\d+ path=([^\n]*)\n/.exec(m); if (p) next = p[1] }
+      else { const p = /(?:^|\n)\d+ path=([^\n]*)\n/.exec(m); if (p) next = p[1]! }
     }
   }
   const header = (h: Buffer) => {
@@ -118,22 +118,17 @@ export async function verifyHarness(sbx: Sandbox, h: HarnessName, bin: string, p
   for (const part of r.stdout.split(/^== /m).slice(1)) {
     const [head, spec, ...lines] = part.split('\n')
     const files = new Map<string, string>()
-    for (const l of lines) { const m = /^([0-9a-f]{64})\s+\.\/(.+)$/.exec(l); if (m) files.set(m[2], m[1]) }
-    pkgs.push({ role: head.startsWith('package') ? 'package' : 'platform', spec: spec.trim(), files })
+    for (const l of lines) { const m = /^([0-9a-f]{64})\s+\.\/(.+)$/.exec(l); if (m) files.set(m[2]!, m[1]!) }
+    pkgs.push({ role: head!.startsWith('package') ? 'package' : 'platform', spec: (spec ?? '').trim(), files })
   }
   const main = pkgs.find((p) => p.role === 'package')
   const plats = pkgs.filter((p) => p.role === 'platform')
   const wantMain = `${PACKAGES[h]}@${pins[h]}`
   if (main?.spec !== wantMain) problems.push(`the binary is from ${main?.spec ?? 'no package'}, not ${wantMain}`)
-  if (plats.length !== 1) problems.push(`expected one native package for this platform, found ${plats.length}`)
+  // older npm (10.1 in E2B's base template) installs every native package of the platform (glibc and musl); each one
+  // must be the published one
+  if (plats.length === 0) problems.push('found no native package for this platform')
   if (problems.length) return { harness: h, ok: false, packages: pkgs.map((p) => p.spec), files: 0, problems }
-
-  const plat = plats[0]
-  const at = plat.spec.lastIndexOf('@')
-  const [platName, platVersion] = [plat.spec.slice(0, at), plat.spec.slice(at + 1)]
-  // Claude Code's platform packages have their own names; Codex's are versions of @openai/codex (0.171.0-linux-x64)
-  const platOk = h === 'claude' ? platName.startsWith(`${PACKAGES.claude}-`) && platVersion === pins.claude : platName === PACKAGES.codex && platVersion.startsWith(`${pins.codex}-`)
-  if (!platOk) problems.push(`the native package ${plat.spec} is not one of ${wantMain}`)
 
   let files = 0
   const compare = (label: string, installed: Map<string, string>, published: Map<string, string>, replaced: Record<string, string> = {}) => {
@@ -146,10 +141,23 @@ export async function verifyHarness(sbx: Sandbox, h: HarnessName, bin: string, p
     }
     for (const p of installed.keys()) if (!published.has(p)) problems.push(`${label}: ${p} is not in the published package`)
   }
-  const [pubMain, pubPlat] = await Promise.all([publishedFiles(PACKAGES[h], pins[h]), publishedFiles(platName, platVersion)])
-  compare(plat.spec, plat.files, pubPlat)
-  // Claude Code's own postinstall copies the native binary over its placeholder bin/claude.exe
-  const replaced: Record<string, string> = h === 'claude' && pubPlat.has('claude') ? { 'bin/claude.exe': pubPlat.get('claude')! } : {}
+  const pubMain = await publishedFiles(PACKAGES[h], pins[h])
+  const nativeClaude = new Set<string>()
+  for (const plat of plats) {
+    const at = plat.spec.lastIndexOf('@')
+    const [platName, platVersion] = [plat.spec.slice(0, at), plat.spec.slice(at + 1)]
+    // Claude Code's platform packages have their own names; Codex's are versions of @openai/codex (0.171.0-linux-x64)
+    const platOk = h === 'claude' ? platName.startsWith(`${PACKAGES.claude}-`) && platVersion === pins.claude : platName === PACKAGES.codex && platVersion.startsWith(`${pins.codex}-`)
+    if (!platOk) { problems.push(`the native package ${plat.spec} is not one of ${wantMain}`); continue }
+    const pubPlat = await publishedFiles(platName, platVersion)
+    compare(plat.spec, plat.files, pubPlat)
+    if (pubPlat.has('claude')) nativeClaude.add(pubPlat.get('claude')!)
+  }
+  // Claude Code's own postinstall copies the native binary over its placeholder bin/claude.exe: it must be the
+  // binary of one of the published native packages
+  const exe = main!.files.get('bin/claude.exe')
+  const replaced: Record<string, string> = h === 'claude' && exe && nativeClaude.has(exe) ? { 'bin/claude.exe': exe } : {}
+  if (h === 'claude' && !replaced['bin/claude.exe']) problems.push(`${main!.spec}: bin/claude.exe is not the binary of a published native package`)
   compare(main!.spec, main!.files, pubMain, replaced)
-  return { harness: h, ok: problems.length === 0, packages: [main!.spec, plat.spec], files, problems }
+  return { harness: h, ok: problems.length === 0, packages: pkgs.map((p) => p.spec), files, problems }
 }

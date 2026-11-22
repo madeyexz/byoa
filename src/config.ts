@@ -90,8 +90,9 @@ export function readPlugin(files: Record<string, string>): Plugin {
   for (const [p, text] of Object.entries(files)) {
     const m = /^skills\/([^/]+)\/(.+)$/.exec(p)
     if (!m) continue
-    if (!bySkill.has(m[1])) bySkill.set(m[1], {})
-    bySkill.get(m[1])![m[2]] = text
+    const [, skill, rest] = m as unknown as [string, string, string]
+    if (!bySkill.has(skill)) bySkill.set(skill, {})
+    bySkill.get(skill)![rest] = text
   }
   const skills: Skill[] = []
   for (const [name, f] of [...bySkill].sort((a, b) => a[0].localeCompare(b[0]))) {
