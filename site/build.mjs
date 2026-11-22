@@ -1,5 +1,5 @@
 // Builds the byoa.rippling.computer page: the design in template.html, with these parts taken from README.md
-// so the page and the README stay the same: the status line, "The problem", "How it will look",
+// so the page and the README stay the same: "The problem", the first code block of "How it will look",
 // "How we will verify it" and "Rules we follow".
 // Run from site/: npm install && node build.mjs   → writes index.html
 // worker.js (the Cloudflare Worker "byoa-site") serves that file, art/ and fonts/ from the main branch.
@@ -29,17 +29,17 @@ const sections = Object.fromEntries(
     return [s.slice(0, i).trim(), s.slice(i + 1).trim()]
   }),
 )
-const section = (name) => {
+const section = (name, pick = (md) => md) => {
   if (!(name in sections)) throw new Error(`README.md has no "## ${name}" section`)
-  return marked.parse(sections[name])
+  const md = pick(sections[name])
+  if (!md) throw new Error(`README.md's "## ${name}" section has no part to show`)
+  return marked.parse(md)
 }
-const status = readme.match(/\*\*Status:\s*(.+?)\*\*/)
-if (!status) throw new Error('README.md has no **Status: ...** line')
 
 const slots = {
-  status: status[1].trim().replace(/^./, (c) => c.toUpperCase()),
   problem: section('The problem'),
-  code: section('How it will look'),
+  // only the main example; the README has the notes and the other examples
+  code: section('How it will look', (md) => md.match(/^```[\s\S]*?^```$/m)?.[0]),
   verify: section('How we will verify it'),
   rules: section('Rules we follow'),
   repo: REPO,

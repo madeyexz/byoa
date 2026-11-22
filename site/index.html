@@ -78,7 +78,6 @@
   .lead { font-size: clamp(18px, 1.6vw, 21px); color: var(--ink2); max-width: 680px; margin: 0 auto 34px; line-height: 1.5; }
   .lead b { color: var(--ink); font-weight: 600; }
   .cta { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-  .hero .note { margin: 22px 0 0; font: 13px var(--mono); color: var(--muted); }
   .blk { position: absolute; z-index: 1; }
   .hero .b-l1 { left: 0; bottom: 0; width: var(--g); height: 120px; background: var(--cobalt); }
   .hero .b-l2 { left: 0; bottom: 120px; width: var(--g); height: 120px; background: var(--peri); }
@@ -102,13 +101,11 @@
   .targets .cell { padding: 34px 18px 26px; text-align: center; border-right: 1px solid var(--rule); display: grid; gap: 10px; justify-items: center; }
   .targets .cell:last-child { border-right: 0; }
   .targets .nm { font-size: 22px; font-weight: 600; letter-spacing: -.03em; }
-  .targets .k { font: 11px var(--pixel); letter-spacing: .1em; color: var(--muted); }
   .badge { font: 11px var(--pixel); letter-spacing: .08em; padding: 3px 7px 2px; line-height: 1.2; display: inline-block; }
   .badge.v1 { background: var(--cobalt); color: #fff; }
   .badge.plan { background: var(--butter); color: var(--ink); }
   .badge.maybe { border: 1px dashed var(--rule2); color: var(--muted); }
   .badge.done { background: var(--mint); color: #fff; }
-  .targets .lbl { position: absolute; left: 0; top: -1px; transform: translateY(-100%); font: 11px var(--pixel); letter-spacing: .1em; color: var(--muted); padding: 6px 10px; border: 1px solid var(--rule); border-bottom: 0; background: var(--paper); }
 
   /* section heads */
   h2 { font-size: clamp(34px, 4.4vw, 62px); line-height: 1.02; letter-spacing: -.045em; font-weight: 540; margin: 0 0 18px; max-width: 900px; }
@@ -159,8 +156,6 @@
   .shared { margin-top: 10px; padding: 12px 14px; background: var(--cobalt); color: #fff; display: flex; gap: 14px; align-items: center; }
   .shared img { width: 34px; }
   .shared b { font-weight: 600; font-size: 16px; display: block; }
-  .shared span { font: 12px/1.4 var(--mono); color: #dfe6ff; }
-  .stack .cap { margin: 12px 0 0; font-size: 14.5px; color: var(--muted); }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
   /* why: sticky list + illustrated rows */
@@ -179,7 +174,6 @@
   .rowf.flip { grid-template-columns: 1.38fr .62fr; }
   .rowf.flip .txt { order: 2; }
   .rowf .txt p { color: var(--ink2); margin: 0 0 18px; }
-  .rowf .tag { font: 11px var(--pixel); letter-spacing: .1em; color: var(--muted); display: block; margin-bottom: 12px; }
   .panel { position: relative; aspect-ratio: 5/4; background-size: cover; background-position: center; overflow: hidden; display: grid; place-items: center; }
   .ui { position: relative; width: min(74%, 440px); background: var(--card); border: 1px solid rgba(20,20,24,.12); font-size: 14px; }
   .ui .uh { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--rule); font-weight: 560; }
@@ -187,13 +181,9 @@
   .ui .ub { padding: 14px; display: grid; gap: 8px; }
   .ui .opt { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--rule); background: var(--paper); }
   .ui .opt.hi { border-color: var(--ink); background: #fff; }
-  .ui .fine { font: 11.5px/1.45 var(--mono); color: var(--muted); margin: 4px 0 0; }
-  .ui .fine b { color: var(--ink); font-weight: 600; }
-  .ui .codepill { font: 600 15px var(--mono); letter-spacing: .1em; background: var(--paper2); padding: 2px 8px; border: 1px dashed var(--rule2); }
   .ui .kv { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--rule); }
   .ui .kv:last-child { border-bottom: 0; }
   .ui .kv img { width: 26px; }
-  .ui .kv small { font: 12px var(--mono); color: var(--muted); }
   .ui .ok { font: 11px var(--pixel); letter-spacing: .06em; color: #fff; background: var(--mint); padding: 3px 6px 2px; }
   .ui .wait { font: 11px var(--pixel); letter-spacing: .06em; color: var(--ink); background: var(--butter); padding: 3px 6px 2px; }
   .ui .soon { font: 11px var(--pixel); letter-spacing: .06em; color: var(--muted); border: 1px dashed var(--rule2); padding: 2px 6px 1px; }
@@ -206,8 +196,6 @@
   .ev { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 2px 0; }
   .ev b { font-weight: 500; color: var(--peri); }
   .ev.t b { color: var(--butter); } .ev.r b { color: var(--mint); } .ev.e b { color: var(--tomato); }
-  .ui.term .foot { border-top: 1px solid rgba(255,255,255,.1); padding: 9px 14px; color: #8b90b0; font-size: 11.5px; }
-  .ui.term .foot b { color: var(--mint); font-weight: 500; }
   .panel .pspr { position: absolute; z-index: 2; height: auto; }
   .diff { font: 13px/1.55 var(--mono); padding: 10px 12px; background: var(--paper); border: 1px solid var(--rule); }
   .diff .m { color: #c2410c; background: #ffe9e2; display: block; margin: 0 -12px; padding: 0 12px; }
@@ -218,7 +206,6 @@
     background-image: linear-gradient(var(--rule) 1px, transparent 1px), linear-gradient(90deg, var(--rule) 1px, transparent 1px);
     background-size: 40px 40px; background-position: -1px -1px; }
   .scroll { overflow-x: auto; }
-  .swipe { display: none; font: 12px var(--mono); color: var(--muted); margin: 0 0 10px; }
   .scroll svg { display: block; width: 100%; height: auto; min-width: 760px; }
   svg text { font-family: var(--sans); }
   .d-box { fill: var(--card); stroke: var(--ink); stroke-width: 1; }
@@ -248,16 +235,8 @@
   .d-fl.tom { fill: #d93d1a; } .d-fl.but { fill: #a87400; }
   .d-ok { font-size: 13px; fill: #1e9e72; font-weight: 600; }
   @keyframes flow { to { stroke-dashoffset: -24; } }
-  .legend { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 18px; font-size: 14px; color: var(--ink2); }
-  .legend span { display: inline-flex; align-items: center; gap: 9px; }
-  .legend i { width: 14px; height: 14px; display: inline-block; }
 
-  /* facts + lifecycle, as ruled cells */
-  .cells { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--rule); background: var(--card); margin-top: 18px; }
-  .cells > div { padding: 24px 24px 26px; border-right: 1px solid var(--rule); }
-  .cells > div:last-child { border-right: 0; }
-  .cells p { margin: 0; color: var(--ink2); font-size: 15.5px; }
-  .cells .tag { font: 11px var(--pixel); letter-spacing: .08em; color: var(--muted); display: block; margin-bottom: 14px; }
+  /* lifecycle, as ruled cells */
   .life { margin-top: 72px; }
   .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--rule); background: var(--card); }
   .steps li { padding: 26px 22px 24px; border-right: 1px solid var(--rule); position: relative; }
@@ -293,9 +272,6 @@
 
   /* scope */
   .scope { border: 1px solid var(--rule); background: var(--card); }
-  .scope .head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; padding: 14px 22px; border-bottom: 1px solid var(--rule); font-size: 14px; color: var(--ink2); background: var(--paper2); }
-  .scope .keys { display: flex; flex-wrap: wrap; gap: 16px; }
-  .scope .keys span { display: inline-flex; align-items: center; gap: 8px; }
   .scope .row { display: grid; grid-template-columns: 200px 1fr; border-bottom: 1px solid var(--rule); }
   .scope .row:last-child { border-bottom: 0; }
   .scope .k { padding: 20px 22px; font-size: 19px; letter-spacing: -.02em; font-weight: 540; border-right: 1px solid var(--rule); display: flex; align-items: center; gap: 12px; }
@@ -369,14 +345,13 @@
     .frame.pad { padding: 72px 18px; }
     .hero .frame { padding: 72px 12px 170px; }
     .hero .s-plug, .hero .d1, .hero .s-store, .hero .b-r2, .hero .b-l2, .hero .s-agent { display: none; }
-    .two, .cells, .isnot, .verify ol, .steps { grid-template-columns: 1fr; }
-    .cells > div, .steps li { border-right: 0; border-bottom: 1px solid var(--rule); }
+    .two, .isnot, .verify ol, .steps { grid-template-columns: 1fr; }
+    .steps li { border-right: 0; border-bottom: 1px solid var(--rule); }
     .isnot > div + div { border-left: 0; border-top: 1px solid var(--rule); }
     .steps li::after { display: none; }
     .scope .row { grid-template-columns: 1fr; }
     .scope .k { border-right: 0; border-bottom: 1px solid var(--rule); }
     .diagram { padding: 14px; }
-    .swipe { display: block; }
     .ui { width: 88%; font-size: 13px; }
     .panel { aspect-ratio: auto; padding: 44px 0; }
     .targets .frame { grid-template-columns: 1fr 1fr; }
@@ -422,19 +397,18 @@
         <a class="btn dark" href="#how"><span class="ico"><img class="px" src="art/crate.png" alt=""></span>See how it works <span class="chev"></span></a>
         <a class="btn" href="https://github.com/madeyexz/byoa/blob/main/SPEC.md">Read the spec <span class="chev"></span></a>
       </div>
-      <p class="note">Core library in progress, not on npm yet. · runs inside your backend, never a hosted service</p>
     </div>
   </div>
 </header>
 
 <section class="band targets" aria-label="Version 1 targets">
   <div class="frame">
-    <div class="cell"><span class="k">AGENT</span><span class="nm">Claude Code</span><span class="badge v1">V1 TARGET</span></div>
-    <div class="cell"><span class="k">AGENT</span><span class="nm">Codex</span><span class="badge v1">V1 TARGET</span></div>
-    <div class="cell"><span class="k">SANDBOX</span><span class="nm">E2B</span><span class="badge v1">V1 TARGET</span></div>
-    <div class="cell"><span class="k">SANDBOX</span><span class="nm">Daytona</span><span class="badge v1">V1 TARGET</span></div>
-    <div class="cell"><span class="k">BACKEND</span><span class="nm">Node · Convex</span><span class="badge v1">V1 TARGET</span></div>
-    <div class="cell"><span class="k">BACKEND</span><span class="nm">CF Workers</span><span class="badge plan">PLANNED</span></div>
+    <div class="cell"><span class="nm">Claude Code</span><span class="badge v1">V1 TARGET</span></div>
+    <div class="cell"><span class="nm">Codex</span><span class="badge v1">V1 TARGET</span></div>
+    <div class="cell"><span class="nm">E2B</span><span class="badge v1">V1 TARGET</span></div>
+    <div class="cell"><span class="nm">Daytona</span><span class="badge v1">V1 TARGET</span></div>
+    <div class="cell"><span class="nm">Node · Convex</span><span class="badge v1">V1 TARGET</span></div>
+    <div class="cell"><span class="nm">CF Workers</span><span class="badge plan">PLANNED</span></div>
   </div>
 </section>
 
@@ -543,26 +517,24 @@
 </div>
       <div class="two" aria-label="Before and after byoa">
         <div class="stack">
-          <div class="hd"><span>WITHOUT BYOA</span><span>5 PARTS × EACH APP</span></div>
+          <div class="hd"><span>WITHOUT BYOA</span></div>
           <div class="body">
             <div class="apps">
               <div class="app"><span class="nm">app 1</span><span class="pb">AI login</span><span class="pb">MCP OAuth</span><span class="pb">skills</span><span class="pb">harness</span><span class="pb">sandbox</span></div>
               <div class="app"><span class="nm">app 2</span><span class="pb">AI login</span><span class="pb">MCP OAuth</span><span class="pb">skills</span><span class="pb">harness</span><span class="pb">sandbox</span></div>
               <div class="app"><span class="nm">app 3</span><span class="pb">AI login</span><span class="pb">MCP OAuth</span><span class="pb">skills</span><span class="pb">harness</span><span class="pb">sandbox</span></div>
             </div>
-            <p class="cap">The same work, three times. Weeks before the first useful feature.</p>
           </div>
         </div>
         <div class="stack">
-          <div class="hd"><span>WITH BYOA</span><span>1 LIBRARY</span></div>
+          <div class="hd"><span>WITH BYOA</span></div>
           <div class="body">
             <div class="apps">
               <div class="app"><span class="nm">app 1</span><span class="pb prod">your product</span></div>
               <div class="app"><span class="nm">app 2</span><span class="pb prod">your product</span></div>
               <div class="app"><span class="nm">app 3</span><span class="pb prod">your product</span></div>
             </div>
-            <div class="shared"><img class="px" src="art/agent.png" alt=""><div><b>byoa</b><span>AI login · MCP OAuth · skills · harness install · sandbox adapters</span></div></div>
-            <p class="cap">Each app imports the layer. The goal: the first agent run in one day.</p>
+            <div class="shared"><img class="px" src="art/agent.png" alt=""><div><b>byoa</b></div></div>
           </div>
         </div>
       </div>
@@ -587,10 +559,8 @@
     <div>
       <div class="rowf" id="why-plan">
         <div class="txt">
-          <span class="tag">R1 · AI LOGIN</span>
           <h3>The user's plan pays.</h3>
           <p>Each user signs in with their own Claude or ChatGPT plan, on Anthropic's or OpenAI's own sign-in page. The agent work runs on that plan, not on your API bill.</p>
-          <p>byoa gives you the sign-in URL and code as data, so you can show them on any device, also a phone.</p>
         </div>
         <div class="panel" style="background-image:url(art/panel-plan.webp)">
           <div class="ui" role="img" aria-label="Example sign-in sheet in an app">
@@ -598,7 +568,6 @@
             <div class="ub">
               <div class="opt hi"><span>Use my Claude plan</span><span class="chev"></span></div>
               <div class="opt"><span>Use my ChatGPT plan</span><span class="chev"></span></div>
-              <p class="fine">Opens the lab's own sign-in page.<br>Codex: enter <span class="codepill">ABCD-1234</span> on OpenAI's page.</p>
             </div>
           </div>
           <img class="pspr px" src="art/key.png" alt="" style="width:64px;right:9%;top:12%">
@@ -607,10 +576,8 @@
 
       <div class="rowf flip" id="why-agents">
         <div class="txt">
-          <span class="tag">R5 · HARNESS AND SANDBOX</span>
           <h3>The real agents.</h3>
           <p>Your app runs the real, unmodified Claude Code and Codex. Users get the full harness, with their tools and skills.</p>
-          <p>Both harnesses stream events in one schema, so your UI handles one format.</p>
         </div>
         <div class="panel" style="background-image:url(art/panel-agents.webp)">
           <div class="ui term" role="img" aria-label="The same event stream from Claude Code and from Codex">
@@ -623,14 +590,12 @@
               <div class="ev"><b>text</b><span>Here is the summary.</span></div>
               <div class="ev e"><b>end</b><span>sandbox destroyed</span></div>
             </div>
-            <div class="foot"><b>✓</b> unmodified <span class="hname">claude</span> binary, pinned version</div>
           </div>
         </div>
       </div>
 
       <div class="rowf" id="why-sandbox">
         <div class="txt">
-          <span class="tag">R5.3 · ONE ADAPTER</span>
           <h3>Any sandbox.</h3>
           <p>Each sandbox provider is one adapter with one interface. E2B and Daytona come first. To change the provider, you change one line.</p>
         </div>
@@ -639,8 +604,8 @@
             <div class="uh"><img class="px" src="art/crate.png" alt="">createAgents({ sandbox })</div>
             <div class="ub">
               <div class="diff"><span class="m">- sandbox: e2b({ apiKey }),</span><span class="p">+ sandbox: daytona({ apiKey }),</span></div>
-              <div class="kv"><img class="px" src="art/crate.png" alt=""><span>E2B <small>adapter written</small></span><span class="ok">V1</span></div>
-              <div class="kv"><img class="px" src="art/crate.png" alt=""><span>Daytona <small>adapter written · V4 not run yet</small></span><span class="ok">V1</span></div>
+              <div class="kv"><img class="px" src="art/crate.png" alt=""><span>E2B</span><span class="ok">V1</span></div>
+              <div class="kv"><img class="px" src="art/crate.png" alt=""><span>Daytona</span><span class="ok">V1</span></div>
               <div class="kv"><img class="px" src="art/crate.png" alt="" style="opacity:.45"><span>Other providers</span><span class="soon">PLANNED</span></div>
             </div>
           </div>
@@ -649,7 +614,6 @@
 
       <div class="rowf flip" id="why-connect">
         <div class="txt">
-          <span class="tag">R2 · R3 · MCP</span>
           <h3>Connect once.</h3>
           <p>The user connects each MCP tool one time. Every agent run has it. The real tokens never go into the sandbox.</p>
         </div>
@@ -657,10 +621,9 @@
           <div class="ui" role="img" aria-label="Example list of one user's MCP connections">
             <div class="uh"><img class="px" src="art/plug.png" alt="">Your tools</div>
             <div class="ub" style="gap:0">
-              <div class="kv"><img class="px" src="art/plug.png" alt=""><span>Notion <small>OAuth 2.1 + PKCE</small></span><span class="ok">CONNECTED</span></div>
-              <div class="kv"><img class="px" src="art/plug.png" alt=""><span>Gmail <small>OAuth 2.1 + PKCE</small></span><span class="ok">CONNECTED</span></div>
-              <div class="kv"><img class="px" src="art/plug.png" alt=""><span>Heptabase <small>pasted bearer token</small></span><span class="ok">CONNECTED</span></div>
-              <p class="fine" style="margin-top:10px;display:flex;gap:10px;align-items:center"><img class="px" src="art/store.png" alt="" style="width:22px"><span>Real tokens: <b>your database</b>. In the sandbox: a job token for one job.</span></p>
+              <div class="kv"><img class="px" src="art/plug.png" alt=""><span>Notion</span><span class="ok">CONNECTED</span></div>
+              <div class="kv"><img class="px" src="art/plug.png" alt=""><span>Gmail</span><span class="ok">CONNECTED</span></div>
+              <div class="kv"><img class="px" src="art/plug.png" alt=""><span>Heptabase</span><span class="ok">CONNECTED</span></div>
             </div>
           </div>
         </div>
@@ -675,7 +638,6 @@
     <h2>byoa sits in your backend, between your users and their agents.</h2>
     <p class="sub">Your app calls <code>agents.run(userId, task)</code>. byoa starts a sandbox, loads the user's setup, and runs the user's own harness on the user's own plan.</p>
     <div class="diagram">
-      <p class="swipe">Scroll sideways to see the whole diagram →</p>
       <div class="scroll">
       <svg viewBox="0 0 1040 790" role="img" aria-labelledby="archTitle">
         <title id="archTitle">Architecture: the end user uses your app. byoa runs inside your app's backend. It controls a sandbox that runs Claude Code or Codex, writes the user's AI login into it, and sends MCP calls through its proxy to MCP servers. The harness calls the AI labs on the user's plan.</title>
@@ -687,7 +649,6 @@
         <image href="art/key.png" x="648" y="30" width="44" height="44" style="image-rendering:pixelated"/>
         <text class="d-lbl" x="352" y="40">END USER</text>
         <text class="d-ttl" x="352" y="65">Claude or ChatGPT plan</text>
-        <text class="d-sub" x="352" y="87">Notion, Gmail, Heptabase accounts</text>
 
         <path class="d-flow" d="M520 104 V146" marker-start="url(#sq)" marker-end="url(#sq)"/>
         <text class="d-fl" x="534" y="131">uses the app</text>
@@ -700,21 +661,21 @@
         <text x="100" y="226"><tspan class="d-ttl" style="fill:#fff;font-weight:650">byoa</tspan><tspan class="d-sub w" dx="10">open source · runs inside your backend</tspan></text>
         <g>
           <rect class="d-chip hot" x="66" y="242" width="218" height="58"/>
-          <text class="d-ct k" x="82" y="267">Sandbox adapters</text><text class="d-sub k" x="82" y="287">E2B · Daytona</text>
+          <text class="d-ct k" x="82" y="276">Sandbox adapters</text>
           <rect class="d-chip" x="296" y="242" width="218" height="58"/>
-          <text class="d-ct" x="312" y="267">AI login flow</text><text class="d-sub w" x="312" y="287">real claude / codex CLI</text>
+          <text class="d-ct" x="312" y="276">AI login flow</text>
           <rect class="d-chip" x="526" y="242" width="218" height="58"/>
-          <text class="d-ct" x="542" y="267">Harness installer</text><text class="d-sub w" x="542" y="287">pinned version</text>
+          <text class="d-ct" x="542" y="276">Harness installer</text>
           <rect class="d-chip" x="756" y="242" width="218" height="58"/>
-          <text class="d-ct" x="772" y="267">MCP OAuth</text><text class="d-sub w" x="772" y="287">one refresh owner</text>
+          <text class="d-ct" x="772" y="276">MCP OAuth</text>
           <rect class="d-chip" x="66" y="310" width="218" height="58"/>
-          <text class="d-ct" x="82" y="335">Skills and config</text><text class="d-sub w" x="82" y="355">skills · AGENTS.md · mcp.json</text>
+          <text class="d-ct" x="82" y="344">Skills and config</text>
           <rect class="d-chip" x="296" y="310" width="218" height="58"/>
-          <text class="d-ct" x="312" y="335">Event stream</text><text class="d-sub w" x="312" y="355">one schema, both harnesses</text>
+          <text class="d-ct" x="312" y="344">Event stream</text>
           <rect class="d-chip" x="526" y="310" width="218" height="58"/>
-          <text class="d-ct" x="542" y="335">Token store</text><text class="d-sub w" x="542" y="355">grants and AI logins</text>
+          <text class="d-ct" x="542" y="344">Token store</text>
           <rect class="d-chip hot" x="756" y="310" width="218" height="58"/>
-          <text class="d-ct k" x="772" y="335">MCP proxy</text><text class="d-sub k" x="772" y="355">adds the real token</text>
+          <text class="d-ct k" x="772" y="344">MCP proxy</text>
         </g>
 
         <path class="d-flow" d="M175 386 V466" marker-start="url(#sq)" marker-end="url(#sq)"/>
@@ -725,20 +686,16 @@
         <rect class="d-box" x="20" y="470" width="400" height="184"/>
         <image href="art/crate.png" x="352" y="478" width="52" height="52" style="image-rendering:pixelated"/>
         <text class="d-lbl" x="44" y="498">SANDBOX PROVIDER</text>
-        <text class="d-sub" x="44" y="520">E2B or Daytona in v1 · more adapters planned</text>
         <rect class="d-box harness" x="44" y="536" width="352" height="96"/>
         <image href="art/agent.png" x="338" y="548" width="44" height="54" style="image-rendering:pixelated"/>
         <text class="d-lbl c" x="64" y="562">HARNESS</text>
         <text class="d-ttl" x="64" y="588">Claude Code or Codex</text>
-        <text class="d-sub" x="64" y="612">the unmodified binary, pinned version</text>
 
         <rect class="d-box" x="480" y="470" width="220" height="184"/>
         <text class="d-lbl" x="502" y="498">OPTION: USER&#x27;S</text>
         <text class="d-lbl" x="502" y="515">LOGIN VOLUME</text>
         <text class="d-mono" x="502" y="552">~/.claude</text>
         <text class="d-mono" x="502" y="574">~/.codex</text>
-        <text class="d-sub" x="502" y="612">instead of the database</text>
-        <text class="d-sub" x="502" y="630">(cliLogin)</text>
         <path class="d-flow rev" d="M424 586 H476" marker-start="url(#sq)" marker-end="url(#sq)"/>
         <text class="d-fl" x="450" y="574" text-anchor="middle">mount</text>
 
@@ -747,22 +704,13 @@
         <text class="d-lbl" x="762" y="498">MCP SERVERS</text>
         <text class="d-ttl" x="762" y="540">Notion · Gmail</text>
         <text class="d-ttl" x="762" y="564">Heptabase · …</text>
-        <text class="d-sub" x="762" y="600">the user's own accounts,</text>
-        <text class="d-sub" x="762" y="618">connected one time</text>
 
         <path class="d-flow tom" d="M220 658 V714" marker-start="url(#sqT)" marker-end="url(#sqT)"/>
         <text class="d-fl tom" x="236" y="690">model calls, on the user's own plan</text>
         <rect class="d-box lab" x="20" y="718" width="400" height="62"/>
         <text class="d-lbl" x="44" y="744">AI LABS</text>
         <text class="d-ttl" x="44" y="768" style="font-size:15px">Anthropic · OpenAI</text>
-        <text class="d-sub" x="480" y="744">The user signs in on the lab's own page.</text>
-        <text class="d-sub" x="480" y="764">One app's login is used only by that app.</text>
       </svg>
-      </div>
-      <div class="legend">
-        <span><i style="background:var(--cobalt)"></i>byoa, inside your backend</span>
-        <span><i style="background:var(--butter)"></i>where the sandbox and the tokens are controlled</span>
-        <span><i style="background:var(--tomato)"></i>paid by the user's own plan</span>
       </div>
     </div>
   </div>
@@ -774,7 +722,6 @@
     <h2>Real tokens never go into the sandbox.</h2>
     <p class="sub">The agent in the sandbox gets a short-lived job token. The proxy in your backend adds the real MCP token to each request.</p>
     <div class="diagram">
-      <p class="swipe">Scroll sideways to see the whole diagram →</p>
       <div class="scroll">
       <svg viewBox="0 0 1040 360" role="img" aria-labelledby="tokTitle">
         <title id="tokTitle">Token flow: the harness in the sandbox sends MCP calls with a short-lived job token to the MCP proxy in your backend. The proxy checks the job token, adds the real token from your token store, and sends the request to the MCP server.</title>
@@ -791,7 +738,6 @@
         <text class="d-mono" x="42" y="158">mcp.json → your proxy</text>
         <rect x="42" y="170" width="246" height="38" fill="#fff4d6" stroke="#d99a00"/>
         <text class="d-mono" x="58" y="194" style="fill:#8a5f00;font-weight:600">job token</text>
-        <text class="d-sub" x="146" y="194">1 job · 1 user</text>
         <text class="d-ok" x="42" y="236">✓ no real MCP token here</text>
 
         <path class="d-flow but" d="M314 120 H384" marker-start="url(#sqB)" marker-end="url(#sqB)"/>
@@ -814,34 +760,22 @@
         <image href="art/plug.png" x="944" y="30" width="62" height="40" style="image-rendering:pixelated"/>
         <text class="d-lbl" x="762" y="48">MCP SERVER</text>
         <text class="d-ttl" x="762" y="84">Notion · Gmail · …</text>
-        <text class="d-sub" x="762" y="116">gets the real token from</text>
-        <text class="d-sub" x="762" y="136">your backend only</text>
-        <text class="d-sub" x="762" y="176">OAuth 2.1 with PKCE</text>
-        <text class="d-sub" x="762" y="196">or a pasted bearer token</text>
 
         <path class="d-flow min" d="M525 290 V254" marker-start="url(#sqM)" marker-end="url(#sqM)"/>
         <rect class="d-box store" x="390" y="294" width="270" height="56"/>
         <image href="art/store.png" x="402" y="300" width="40" height="44" style="image-rendering:pixelated"/>
         <text class="d-ttl" x="452" y="327" style="font-size:15px">Token store</text>
-        <text class="d-sub" x="548" y="327">your DB, your key</text>
       </svg>
       </div>
     </div>
-    <div class="cells">
-      <div><span class="tag">R2.3</span><h3>One refresh owner</h3><p>Your backend owns each grant's refresh. Two jobs that need a refresh at the same time cause one refresh request.</p></div>
-      <div><span class="tag">R2.4</span><h3>Your database</h3><p>byoa stores grants through a store adapter, encrypted with a key that your app gives.</p></div>
-      <div><span class="tag">R1.4</span><h3>Your user's login</h3><p>By default, byoa keeps the AI login encrypted in your database, and each job gets a copy. A volume that belongs to that one user is an option. Check the labs&#x27; terms for your app.</p></div>
-    </div>
 
     <div class="life">
-      <div class="kick">Lifecycle</div>
       <h3 style="font-size:34px">Every job gets a fresh sandbox.</h3>
-      <p class="sub" style="margin-bottom:28px">The sandbox is disposable. The user's setup stays, so the next job needs no new sign-in.</p>
       <ol class="steps">
-        <li><div class="art"><img class="px" src="art/crate.png" alt=""></div><span class="n">01</span><b>Create</b><span>byoa starts a sandbox at your provider.</span></li>
-        <li><div class="art"><img class="px" src="art/plug.png" alt="" style="max-height:60px"></div><span class="n">02</span><b>Load the setup</b><span>Pinned harness, skills, AGENTS.md and MCP config.</span></li>
-        <li><div class="art"><img class="px" src="art/crate-open.png" alt=""></div><span class="n">03</span><b>Run the job</b><span>Text, tool calls and permission requests stream back as events.</span></li>
-        <li><div class="art"><img class="px" src="art/poof.png" alt=""></div><span class="n">04</span><b>Destroy</b><span>byoa destroys the sandbox at the provider.</span></li>
+        <li><div class="art"><img class="px" src="art/crate.png" alt=""></div><span class="n">01</span><b>Create</b></li>
+        <li><div class="art"><img class="px" src="art/plug.png" alt="" style="max-height:60px"></div><span class="n">02</span><b>Load the setup</b></li>
+        <li><div class="art"><img class="px" src="art/crate-open.png" alt=""></div><span class="n">03</span><b>Run the job</b></li>
+        <li><div class="art"><img class="px" src="art/poof.png" alt=""></div><span class="n">04</span><b>Destroy</b></li>
       </ol>
       <div class="persist"><b>STAYS BETWEEN JOBS</b><img class="px" src="art/key.png" alt=""><span>the user's AI login</span><img class="px" src="art/store.png" alt=""><span>the user's MCP grants</span></div>
     </div>
@@ -857,16 +791,15 @@
         <p class="sub" style="margin-bottom:0">The goal for v1: a new app reaches its first agent run in under 50 lines of its own code.</p>
       </div>
       <ul class="bul">
-        <li><i>1</i><b>Sign-in is data</b><span>byoa gives you the sign-in URL and code, so you can show them on any device, also a phone.</span></li>
-        <li><i>2</i><b>One event stream</b><span>Claude Code and Codex stream events in one schema. Your UI handles one format.</span></li>
-        <li><i>3</i><b>Test without a plan</b><span>A fake harness lets you test with no AI plan and no sandbox.</span></li>
+        <li><i>1</i><b>Sign-in is data</b></li>
+        <li><i>2</i><b>One event stream</b></li>
+        <li><i>3</i><b>Test without a plan</b></li>
       </ul>
     </div>
     <div class="codepanel">
       <div class="win">
         <div class="bar"><img class="px" src="art/agent.png" alt="">your-backend/agents.ts</div>
-        <div class="body"><p>This is the API in this repository today. It can change before version 1.</p>
-<pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> createAgents</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">byoa</span><span style="color:#C98A7D77">'</span></span>
+        <div class="body"><pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> createAgents</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">byoa</span><span style="color:#C98A7D77">'</span></span>
 <span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> e2b</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">byoa/sandbox/e2b</span><span style="color:#C98A7D77">'</span></span>
 <span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> postgresStore</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">byoa/store/postgres</span><span style="color:#C98A7D77">'</span></span>
 <span class="line"></span>
@@ -889,49 +822,7 @@
 <span class="line"></span>
 <span class="line"><span style="color:#4D9375">for</span><span style="color:#4D9375"> await</span><span style="color:#666666"> (</span><span style="color:#CB7676">const </span><span style="color:#BD976A">event</span><span style="color:#CB7676"> of</span><span style="color:#BD976A"> agents</span><span style="color:#666666">.</span><span style="color:#80A665">run</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#666666"> { </span><span style="color:#B8A965">harness</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">claude</span><span style="color:#C98A7D77">'</span><span style="color:#666666">, </span><span style="color:#BD976A">task</span><span style="color:#666666">, </span><span style="color:#B8A965">mcp</span><span style="color:#666666">: [</span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">notion</span><span style="color:#C98A7D77">'</span><span style="color:#666666">], </span><span style="color:#B8A965">setup</span><span style="color:#666666">: { </span><span style="color:#BD976A">agentsMd</span><span style="color:#666666">, </span><span style="color:#BD976A">skills</span><span style="color:#666666"> } }))</span><span style="color:#666666"> {</span></span>
 <span class="line"><span style="color:#758575DD">  // start, text, tool_call, tool_result, permission, error, end: the same events for Claude Code and Codex</span></span>
-<span class="line"><span style="color:#666666">}</span></span></code></pre><p>An app that runs its own program around the unmodified harness (for example its own server, which starts <code>claude</code> or <code>codex</code> itself) opens the job with <code>agents.session</code> instead. It gets the same sandbox, login, pinned harness and job token, and runs its own command:</p>
-<pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">s</span><span style="color:#666666"> =</span><span style="color:#4D9375"> await</span><span style="color:#BD976A"> agents</span><span style="color:#666666">.</span><span style="color:#80A665">session</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#666666"> { </span><span style="color:#B8A965">harness</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">claude</span><span style="color:#C98A7D77">'</span><span style="color:#666666">, </span><span style="color:#B8A965">mcp</span><span style="color:#666666">: [</span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">notion</span><span style="color:#C98A7D77">'</span><span style="color:#666666">] })</span></span>
-<span class="line"><span style="color:#4D9375">try</span><span style="color:#666666"> {</span></span>
-<span class="line"><span style="color:#758575DD">  // s.bin: the pinned claude binary; s.env: its login folder and the job token; s.mcp: [{ name, url }] at the proxy</span></span>
-<span class="line"><span style="color:#4D9375">  await</span><span style="color:#BD976A"> s</span><span style="color:#666666">.</span><span style="color:#BD976A">sandbox</span><span style="color:#666666">.</span><span style="color:#80A665">run</span><span style="color:#666666">(</span><span style="color:#C98A7D77">`</span><span style="color:#C98A7D">my-server --claude </span><span style="color:#4D9375">${</span><span style="color:#C98A7D">s</span><span style="color:#666666">.</span><span style="color:#C98A7D">bin</span><span style="color:#4D9375">}</span><span style="color:#C98A7D77">`</span><span style="color:#666666">,</span><span style="color:#666666"> { </span><span style="color:#B8A965">env</span><span style="color:#666666">: </span><span style="color:#BD976A">s</span><span style="color:#666666">.</span><span style="color:#BD976A">env</span><span style="color:#666666"> })</span></span>
-<span class="line"><span style="color:#666666">}</span><span style="color:#4D9375"> finally</span><span style="color:#666666"> {</span><span style="color:#4D9375"> await</span><span style="color:#BD976A"> s</span><span style="color:#666666">.</span><span style="color:#80A665">close</span><span style="color:#666666">()</span><span style="color:#666666"> }</span><span style="color:#758575DD">  // ends the job token and destroys the sandbox</span></span></code></pre><p>A program outside byoa&#39;s sandboxes, such as a harness on the user&#39;s own computer, gets a job token with no sandbox: <code>const t = await agents.jobToken(userId, { mcp: [&#39;notion&#39;] })</code> gives <code>t.token</code> and <code>t.mcp</code> (the proxy URLs), with the same rules as a job&#39;s token, until <code>t.close()</code>.</p>
-<p>To move an MCP grant that the user already made elsewhere into byoa, call <code>agents.importMcp(userId, { name, url, oauth })</code> with the MCP SDK&#39;s state (<code>client</code>, <code>tokens</code>, <code>at</code>). Delete the old copy, so the grant keeps one refresh owner.</p>
-<p>Some MCP servers have an API next to the MCP endpoint that is not MCP, such as an export. Your backend calls it with the user&#39;s grant through <code>agents.fetchWithGrant(userId, &#39;tasks&#39;, &#39;https://mcp.example.com/export&#39;)</code>: byoa adds the current token, refreshed by the one refresh owner, and gives you the response. By default, it sends the token only to the origin of that grant&#39;s MCP server. It does not follow redirects, and never gives you the token.</p>
-<p>When the service&#39;s API is on another origin than its MCP server, name that origin in your own configuration, for the MCP server&#39;s origin. Only grants of that MCP server can go there, and only to that exact origin:</p>
-<pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">agents</span><span style="color:#666666"> =</span><span style="color:#80A665"> createAgents</span><span style="color:#666666">({</span></span>
-<span class="line"><span style="color:#666666">  ...</span><span style="color:#BD976A">options</span><span style="color:#666666">,</span></span>
-<span class="line"><span style="color:#758575DD">  // Margins' MCP server is on margin.rippling.computer; its export is on its Convex site</span></span>
-<span class="line"><span style="color:#B8A965">  grantOrigins</span><span style="color:#666666">: { </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">https://margin.rippling.computer</span><span style="color:#C98A7D77">'</span><span style="color:#666666">: [</span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">https://helpful-tern-930.convex.site</span><span style="color:#C98A7D77">'</span><span style="color:#666666">] },</span></span>
-<span class="line"><span style="color:#666666">})</span></span>
-<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">r</span><span style="color:#666666"> =</span><span style="color:#4D9375"> await</span><span style="color:#BD976A"> agents</span><span style="color:#666666">.</span><span style="color:#80A665">fetchWithGrant</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">margins</span><span style="color:#C98A7D77">'</span><span style="color:#666666">,</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">https://helpful-tern-930.convex.site/ext/export</span><span style="color:#C98A7D77">'</span><span style="color:#666666">)</span></span></code></pre><p>Each job runs in a new sandbox, and byoa destroys the sandbox after the job. By default, the user&#39;s AI login stays encrypted in your database, and each job gets a copy (see AI login below). The MCP config in the sandbox points to <code>agents.proxy</code>, with a token for that one job. The real MCP tokens stay in your database.</p>
-<p>To change the provider, change <code>e2b(...)</code> to another adapter. An adapter implements one interface (<a href="https://github.com/madeyexz/byoa/blob/main/src/sandbox/types.ts">src/sandbox/types.ts</a>): create (with volumes), resume, run a command, write a file, destroy.</p>
-<p>For Daytona, use <code>daytona({ apiKey })</code> from <code>byoa/sandbox/daytona</code> (it needs <code>@daytona/sdk</code>). Daytona allows 100 volumes per organization, so with <code>cliLogin</code> the adapter keeps every user&#39;s AI login in its own subpath of one shared volume (<code>byoa</code> by default). A sandbox mounts only that user&#39;s subpath. On Daytona Tier 1 and Tier 2, a sandbox can reach only <a href="https://www.daytona.io/docs/en/network-limits">allowed domains</a>, so serve <code>agents.proxy</code> on one of them (for example <code>*.convex.site</code> or <code>*.workers.dev</code>), or use Tier 3 or higher.</p>
-<h3>AI login</h3>
-<p>By default, byoa keeps each user&#39;s Claude or ChatGPT plan login in your own database, encrypted with your <code>encryptionKey</code>, through the store adapter. The sign-in is the unmodified CLI, on the lab&#39;s own page. When it ends, byoa keeps the CLI&#39;s own login files. Each job writes them into its new sandbox, and saves them back when the CLI refreshed them. One job of a user and harness holds the login at a time; another job waits for it. byoa never calls the labs&#39; token endpoints itself. So the sandbox provider needs no volumes.</p>
-<p>The labs&#39; published terms restrict where these tokens may be stored: Anthropic&#39;s say developers may not &quot;collect, store, or intermediate Claude.ai credentials or session tokens&quot;, and OpenAI&#39;s say stored tokens must be &quot;local and under the user&#39;s control, not in a remote or managed environment&quot; (see <a href="https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules">SPEC.md</a>). Check them for your app.</p>
-<p>To keep the logins in a table of their own, with a key of their own, so you can give them their own access rules and backups:</p>
-<pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> createAgents</span><span style="color:#666666">,</span><span style="color:#BD976A"> storedLogin</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">byoa</span><span style="color:#C98A7D77">'</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#758575DD">// Convex: convex/schema.ts has  byoaLogin: convexTable(),  and convex/byoaLogin.ts has</span></span>
-<span class="line"><span style="color:#758575DD">//   export const { get, put, remove, cas } = convexFunctions('byoaLogin')</span></span>
-<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">loginStore</span><span style="color:#666666"> =</span><span style="color:#80A665"> convexStore</span><span style="color:#666666">(</span><span style="color:#BD976A">ctx</span><span style="color:#666666">,</span><span style="color:#BD976A"> internal</span><span style="color:#666666">.</span><span style="color:#BD976A">byoaLogin</span><span style="color:#666666">)</span></span>
-<span class="line"><span style="color:#758575DD">// Postgres: run postgresSchema('byoa_ai_login') once</span></span>
-<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">loginStore</span><span style="color:#666666"> =</span><span style="color:#80A665"> postgresStore</span><span style="color:#666666">({ </span><span style="color:#BD976A">query</span><span style="color:#666666">, </span><span style="color:#B8A965">table</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">byoa_ai_login</span><span style="color:#C98A7D77">'</span><span style="color:#666666"> })</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">agents</span><span style="color:#666666"> =</span><span style="color:#80A665"> createAgents</span><span style="color:#666666">({ ...</span><span style="color:#BD976A">options</span><span style="color:#666666">, </span><span style="color:#B8A965">login</span><span style="color:#666666">: </span><span style="color:#80A665">storedLogin</span><span style="color:#666666">({ </span><span style="color:#B8A965">store</span><span style="color:#666666">: </span><span style="color:#BD976A">loginStore</span><span style="color:#666666">, </span><span style="color:#B8A965">encryptionKey</span><span style="color:#666666">: </span><span style="color:#BD976A">loginKey</span><span style="color:#666666"> }) })</span></span></code></pre><p>To keep each login in a volume of that user and app instead, behind the sandbox adapter, pass <code>login: cliLogin</code> (from <code>byoa</code>). Your database then never holds the login. This needs a provider with volumes; on E2B, volumes must be turned on for your team.</p>
-<h3>Convex</h3>
-<p>In a Convex app, byoa&#39;s state is one table and four internal functions in your deployment (<code>byoa/store/convex</code>). Call byoa from actions and HTTP actions, which can make network calls; serve <code>agents.proxy</code> from an HTTP action.</p>
-<pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#758575DD">// convex/schema.ts</span></span>
-<span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> convexTable</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">byoa/store/convex</span><span style="color:#C98A7D77">'</span></span>
-<span class="line"><span style="color:#4D9375">export</span><span style="color:#4D9375"> default</span><span style="color:#80A665"> defineSchema</span><span style="color:#666666">({ ...</span><span style="color:#BD976A">yourTables</span><span style="color:#666666">, </span><span style="color:#B8A965">byoa</span><span style="color:#666666">: </span><span style="color:#80A665">convexTable</span><span style="color:#666666">() })</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#758575DD">// convex/byoa.ts</span></span>
-<span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> convexFunctions</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">byoa/store/convex</span><span style="color:#C98A7D77">'</span></span>
-<span class="line"><span style="color:#4D9375">export</span><span style="color:#CB7676"> const </span><span style="color:#666666">{</span><span style="color:#BD976A"> get</span><span style="color:#666666">,</span><span style="color:#BD976A"> put</span><span style="color:#666666">,</span><span style="color:#BD976A"> remove</span><span style="color:#666666">,</span><span style="color:#BD976A"> cas</span><span style="color:#666666"> }</span><span style="color:#666666"> =</span><span style="color:#80A665"> convexFunctions</span><span style="color:#666666">()</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#758575DD">// in an action or HTTP action</span></span>
-<span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> convexStore</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">byoa/store/convex</span><span style="color:#C98A7D77">'</span></span>
-<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">agents</span><span style="color:#666666"> =</span><span style="color:#80A665"> createAgents</span><span style="color:#666666">({ ...</span><span style="color:#BD976A">options</span><span style="color:#666666">, </span><span style="color:#B8A965">store</span><span style="color:#666666">: </span><span style="color:#80A665">convexStore</span><span style="color:#666666">(</span><span style="color:#BD976A">ctx</span><span style="color:#666666">, </span><span style="color:#BD976A">internal</span><span style="color:#666666">.</span><span style="color:#BD976A">byoa</span><span style="color:#666666">) })</span></span></code></pre></div>
+<span class="line"><span style="color:#666666">}</span></span></code></pre></div>
       </div>
     </div>
   </div>
@@ -943,10 +834,6 @@
     <h2>What version 1 covers.</h2>
     <p class="sub">These are the targets in SPEC.md. Claude Code and Codex are both in the first version. Other agents can come later.</p>
     <div class="scope">
-      <div class="head">
-        <span>Now: Core library in progress, not on npm yet.</span>
-        <div class="keys"><span><span class="badge v1">V1</span>v1 target</span><span><span class="badge plan">PLANNED</span>planned</span><span><span class="badge maybe">MAYBE LATER</span>not promised</span></div>
-      </div>
       <div class="row"><div class="k"><img class="px" src="art/agent.png" alt="">Agents</div><div class="v">
         <span class="it">Claude Code <span class="badge v1">V1</span></span><span class="it">Codex <span class="badge v1">V1</span></span><span class="it dash">Gemini / Antigravity <span class="badge maybe">MAYBE LATER</span></span>
       </div></div>
@@ -1019,7 +906,7 @@
 <section class="band end">
   <div class="frame">
     <h2>Bring your own agent.</h2>
-    <p>byoa is open source. Core library in progress, not on npm yet. Read the spec, watch the repository, or tell us what your app needs.</p>
+    <p>byoa is open source. Read the spec, watch the repository, or tell us what your app needs.</p>
     <div class="cta">
       <a class="btn dark" href="https://github.com/madeyexz/byoa">GitHub <span class="chev"></span></a>
       <a class="btn" href="https://github.com/madeyexz/byoa/blob/main/SPEC.md">Read the spec <span class="chev"></span></a>

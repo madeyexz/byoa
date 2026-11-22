@@ -7,8 +7,6 @@
 
 <div align="center">
 
-**Status: core library in progress, not on npm yet.**
-
 [Website](https://byoa.rippling.computer) · [Spec](SPEC.md) · [Example app](examples/todo) · [Contributing](CONTRIBUTING.md)
 
 [![CI](https://github.com/madeyexz/byoa/actions/workflows/ci.yml/badge.svg)](https://github.com/madeyexz/byoa/actions/workflows/ci.yml)
@@ -105,27 +103,23 @@ byoa is that layer, as a library, so you do not build it again for each app.
 <tr>
 <td width="50%" valign="top">
 <img alt="" src=".github/readme/why-plan.png">
-<br><sub><code>R1 · AI LOGIN</code></sub>
 <h3>The user's plan pays.</h3>
-Each user signs in with their own Claude or ChatGPT plan, on Anthropic's or OpenAI's own sign-in page. The agent work runs on that plan, not on your API bill. byoa gives you the sign-in URL and code as data, so you can show them on any device, also a phone.
+Each user signs in with their own Claude or ChatGPT plan, on Anthropic's or OpenAI's own sign-in page. The agent work runs on that plan, not on your API bill.
 </td>
 <td width="50%" valign="top">
 <img alt="" src=".github/readme/why-agents.png">
-<br><sub><code>R5 · HARNESS AND SANDBOX</code></sub>
 <h3>The real agents.</h3>
-Your app runs the real, unmodified Claude Code and Codex. Users get the full harness, with their tools and skills. Both harnesses stream events in one schema, so your UI handles one format.
+Your app runs the real, unmodified Claude Code and Codex. Users get the full harness, with their tools and skills.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
 <img alt="" src=".github/readme/why-sandbox.png">
-<br><sub><code>R5.3 · ONE ADAPTER</code></sub>
 <h3>Any sandbox.</h3>
 Each sandbox provider is one adapter with one interface. E2B and Daytona come first. To change the provider, you change one line.
 </td>
 <td width="50%" valign="top">
 <img alt="" src=".github/readme/why-connect.png">
-<br><sub><code>R2 · R3 · MCP</code></sub>
 <h3>Connect once.</h3>
 The user connects each MCP tool one time. Every agent run has it. The real tokens never go into the sandbox.
 </td>
@@ -150,13 +144,7 @@ The agent in the sandbox gets a short-lived job token. The proxy in your backend
   <img alt="Token flow: the harness in the sandbox has an mcp.json that points to your proxy, with a job token for one job and one user, and no real MCP token. The MCP proxy in your backend checks the job token, adds the real token from the token store (your database, your key), sends the request on to the MCP server, and refuses the job token after the job ends." src=".github/readme/tokens-light.png">
 </picture>
 
-- **One refresh owner** (R2.3). Your backend owns each grant's refresh. Two jobs that need a refresh at the same time cause one refresh request.
-- **Your database** (R2.4). byoa stores grants through a store adapter, encrypted with a key that your app gives.
-- **Your user's login** (R1.4). By default, byoa keeps the AI login encrypted in your database, and each job gets a copy. A volume that belongs to that one user is an option. Check the labs' terms for your app.
-
 ### Every job gets a fresh sandbox
-
-The sandbox is disposable. The user's setup stays, so the next job needs no new sign-in.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/lifecycle-dark.png">

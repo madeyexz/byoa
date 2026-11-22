@@ -18,11 +18,11 @@ ab() { agent-browser "$@" >/dev/null; }
 # For the README: no animation, no nav or buttons, no section headings (the README has its own), a shorter hero.
 README_CSS='
   *, *::before, *::after { animation: none !important; transition: none !important; }
-  nav.top, .hero .cta, .hero .note, .swipe, .end .cta, .end p { display: none !important; }
+  nav.top, .hero .cta, .end .cta, .end p { display: none !important; }
   .hero .frame { min-height: 0; padding: 84px 24px 176px; }
   #who .ascii-wrap { padding: 36px 28px 40px; }
   .life { margin-top: 0; }
-  .life > .kick, .life > h3, .life > .sub { display: none; }
+  .life > h3 { display: none; }
   body { background: var(--paper); }
 '
 # The dark version: the page's palette on the navy of its closing band.
