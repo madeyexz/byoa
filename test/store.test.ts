@@ -38,6 +38,10 @@ for (const [name, make] of [['memory', async () => memoryStore()], ['postgres', 
     assert.equal((await s.get('k'))!.value, 'second')
     await s.delete('k')
     assert.equal(await s.cas('k', e.version, 'gone'), false, 'a deleted entry has no version')
+    // deleted and written again: a version read before the delete must not match the new entry (no ABA)
+    await s.put('k', 'new')
+    assert.equal(await s.cas('k', e.version, 'stale'), false, 'an entry written again has a new version')
+    assert.equal((await s.get('k'))!.value, 'new')
   })
 
   test(`store ${name}: of many writers with one version, exactly one wins`, async () => {
