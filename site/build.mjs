@@ -1,6 +1,6 @@
 // Builds the byoa.rippling.computer page from README.md, so the page and the README stay the same.
-// Run from site/: npm install && node build.mjs   → writes index.html and worker.js
-// worker.js is the Cloudflare Worker "byoa-site" that serves the page on byoa.rippling.computer.
+// Run from site/: npm install && node build.mjs   → writes index.html
+// worker.js (the Cloudflare Worker "byoa-site") serves that file from the main branch.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { marked } from 'marked'
 
@@ -44,6 +44,4 @@ ${body}
 `
 
 writeFileSync(new URL('./index.html', import.meta.url), html)
-writeFileSync(new URL('./worker.js', import.meta.url),
-  `const HTML = ${JSON.stringify(html)};\nexport default { fetch: () => new Response(HTML, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300' } }) };\n`)
-console.log(`index.html and worker.js: ${html.length} bytes`)
+console.log(`index.html: ${html.length} bytes`)

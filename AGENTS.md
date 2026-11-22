@@ -6,4 +6,4 @@ An open-source library that lets an app run its users' own Claude Code or Codex 
 - Keep `README.md` and `SPEC.md` true. When behavior changes, update both in the same commit.
 - Follow the "Lab rules" in `SPEC.md`: only unmodified `claude` and `codex` binaries, the lab's own sign-in page, no client spoofing.
 - Bookish (`madeyexz/ai-native-book-reader`) is the first app. Its `site/agent/` and `src/core/connectors.ts` hold the code this library replaces.
-- The page at https://byoa.rippling.computer is built from `README.md`. After a README change, run `cd site && npm install && node build.mjs`, commit `site/index.html` and `site/worker.js`, and redeploy the Cloudflare Worker `byoa-site` (custom domain `byoa.rippling.computer`, zone `rippling.computer`).
+- The page at https://byoa.rippling.computer is built from `README.md`. After a README change, run `cd site && npm install && node build.mjs`, and push `site/index.html`. The Cloudflare Worker `byoa-site` (`site/worker.js`, custom domain `byoa.rippling.computer`) serves that file from `main`, so it needs no redeploy unless `site/worker.js` changes.
