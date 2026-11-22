@@ -105,7 +105,7 @@ Version 1 is done when every check below passes. Each check names the requiremen
 | # | Check | How | Proves |
 |---|---|---|---|
 | V1 | Bookish uses byoa | Replace `site/agent/login.ts`, `site/agent/sandbox.ts` and `src/core/connectors.ts` in Bookish with byoa. Bookish's existing e2e tests pass. | R1, R2, R5 |
-| V2 | A second app uses byoa | Margins or the mail app runs its first agent job with byoa and no code copied from Bookish. Count the app's own lines. | R7.1 |
+| V2 | A second app uses byoa | A second app (the to-do example in `examples/todo`, Margins, or the mail app) runs its first agent job with byoa, on a real sandbox provider and a real plan, with no code copied from Bookish. Count the app's own lines. | R7.1 |
 | V3 | Both harnesses | One test user runs the same task with Claude Code and with Codex. Both runs use that user's own plan. | R1.1, R1.2, R5.5 |
 | V4 | Both providers | The same user runs a job on E2B, then on Daytona. The second job uses the same MCP grants and skills with no new MCP sign-in. | R5.3, R2 |
 | V5 | Tokens stay out | After a job with an MCP call, a test searches the sandbox's environment, every file, and `/proc/*/cmdline` and `/proc/*/environ` for each real token. It finds none. | R3.3 |
@@ -116,7 +116,7 @@ Version 1 is done when every check below passes. Each check names the requiremen
 | V10 | Config formats | For a sample plugin, the files byoa writes match the expected files for each harness, byte for byte. | R4 |
 | V11 | Unmodified binaries | The test checks the hash of the installed `claude` and `codex` binaries against the published packages. | Lab rules |
 
-V1 to V9 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11 and the fake-harness tests run on every commit. In this repository: `npm test` runs V10 and the fake-harness tests, and `npm run test:v11` runs V11 (`.github/workflows/ci.yml`). With `E2B_API_KEY` and `DAYTONA_API_KEY` set, `npm test` also runs V4 (`test/v4.test.ts`).
+V1 to V9 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11 and the fake-harness tests run on every commit. In this repository: `npm test` runs V10 and the fake-harness tests, `npm run test:v11` runs V11, and the job `example-todo` runs the to-do example's fake-harness tests (`.github/workflows/ci.yml`). With `E2B_API_KEY` and `DAYTONA_API_KEY` set, `npm test` also runs V4 (`test/v4.test.ts`).
 
 ## Open questions
 

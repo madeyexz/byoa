@@ -1,0 +1,27 @@
+{
+  "name": "byoa-example-todo",
+  "private": true,
+  "description": "An AI-native to-do list on byoa: the user's own Claude Code or Codex manages their to-dos.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node main.ts",
+    "test": "node --test todo.test.ts",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "byoa": "file:../..",
+    "zod": "^4.0.0"
+  },
+  "optionalDependencies": {
+    "@daytona/sdk": "^2.1.0",
+    "e2b": "^2.64.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}

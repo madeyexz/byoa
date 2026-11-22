@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI to-do list · byoa example</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 680px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { font-size: 1.4rem; margin-bottom: .2rem } h2 { font-size: 1rem; margin: 1.6rem 0 .4rem }
+  .muted { color: #777 } .ok { color: #187a3a } .bad { color: #b3261e } .plan { width: 5rem }
+  .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin: .35rem 0 }
+  input, select, textarea, button { font: inherit }
+  input, select, textarea { padding: .35rem .5rem; border: 1px solid #ccc; border-radius: 6px; background: #fff }
+  textarea { width: 100%; box-sizing: border-box }
+  button { padding: .35rem .8rem; border: 1px solid #222; border-radius: 6px; background: #222; color: #fff; cursor: pointer }
+  button.quiet { background: #fff; color: #222 } button:disabled { opacity: .5; cursor: default }
+  ul#todos { list-style: none; padding: 0 } ul#todos li { padding: .35rem 0; border-bottom: 1px solid #eee }
+  li.done { color: #999; text-decoration: line-through }
+  pre#log { background: #f6f6f6; padding: .6rem .8rem; border-radius: 6px; white-space: pre-wrap; font-size: 13px; max-height: 320px; overflow: auto }
+</style>
+<body>
+<h1>AI to-do list</h1>
+<p class="muted">An example app on <a href="https://github.com/madeyexz/byoa">byoa</a>: your own Claude Code or Codex, on your own plan, manages your to-dos.</p>
+<div class="row">You are <input id="user" placeholder="your name" size="14"> <span class="muted">(a stand-in for the app's own sign-in)</span></div>
+
+<h2>1. Sign in to your own plan</h2>
+<div id="plans"></div>
+<div id="signin"></div>
+
+<h2>2. Connect your tools, one time</h2>
+<div class="row"><button id="connect">Connect my to-dos</button><span id="mcp" class="muted"></span></div>
+<div class="row"><input id="mcpurl" placeholder="https://mcp.notion.com/mcp" size="26"><input id="mcpname" placeholder="notion" size="8"><button class="quiet" id="other">Connect another MCP server</button></div>
+
+<h2>3. Ask the agent</h2>
+<textarea id="task" rows="4" placeholder="Add 'buy milk' and 'call mom', then mark the oldest to-do done"></textarea>
+<div class="row"><select id="harness"></select><button id="ask">Ask</button></div>
+<pre id="log" hidden></pre>
+
+<h2>Your to-dos</h2>
+<ul id="todos"></ul>
+
+<script>
+const $ = (id) => document.getElementById(id)
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
+const PLANS = { claude: 'Claude', codex: 'ChatGPT' }
+const HARNESSES = { claude: 'Claude Code', codex: 'Codex', fake: 'Fake harness (no model)' }
+const user = $('user')
+user.value = localStorage.user ?? ''
+user.onchange = () => { localStorage.user = user.value.trim(); refresh() }
+
+async function call(method, path, body) {
+  const r = await fetch(path, { method, headers: { 'x-user': user.value.trim(), 'content-type': 'application/json' }, body: body && JSON.stringify(body) })
+  if (!r.ok) throw new Error((await r.json()).error)
+  return r
+}
+const api = async (method, path, body) => (await call(method, path, body)).json()
+const fail = (e) => { $('signin').innerHTML = `<p class="bad">${esc(e.message)}</p>` }
+
+async function refresh() {
+  if (!user.value.trim()) return
+  const s = await api('GET', '/api/state')
+  $('plans').innerHTML = Object.entries(s.login).map(([h, st]) => `<div class="row"><b class="plan">${PLANS[h]}</b>
+    <span class="${st === 'signed-in' ? 'ok' : 'bad'}">${st}</span>
+    <button class="quiet" data-login="${h}">${st === 'signed-in' ? 'Sign in again' : 'Sign in'}</button></div>`).join('')
+  $('mcp').textContent = s.mcp.length ? `Connected: ${s.mcp.map((m) => m.name).join(', ')}` : 'Nothing connected yet'
+  const pick = $('harness').value
+  $('harness').innerHTML = s.harnesses.map((h) => `<option value="${h}">${HARNESSES[h]}</option>`).join('')
+  if (pick) $('harness').value = pick
+  $('todos').innerHTML = s.todos.map((t) => `<li class="${t.done ? 'done' : ''}">${esc(t.title)}</li>`).join('')
+    || '<li class="muted">No to-dos yet. Ask the agent to add some.</li>'
+}
+
+const finished = (r) => { $('signin').innerHTML = r.error ? `<p class="bad">${esc(r.error)}</p>` : ''; refresh() }
+$('plans').onclick = async (e) => {
+  const h = e.target.dataset.login
+  if (!h) return
+  e.target.disabled = true
+  $('signin').innerHTML = '<p class="muted">Starting the sign-in…</p>'
+  try {
+    const s = await api('POST', '/api/login', { harness: h })
+    if (h === 'claude') {
+      $('signin').innerHTML = `<p>Open <a href="${esc(s.url)}" target="_blank" rel="noopener">Anthropic's sign-in page</a>, sign in, and paste the code it shows:</p>
+        <div class="row"><input id="code" size="40"><button id="finish">Finish</button></div>`
+      $('finish').onclick = () => api('POST', '/api/login/finish', { harness: h, code: $('code').value }).then(finished, fail)
+    } else {
+      $('signin').innerHTML = `<p>Open <a href="${esc(s.url)}" target="_blank" rel="noopener">OpenAI's sign-in page</a> and enter the code <b>${esc(s.code)}</b>. Waiting for you…</p>`
+      let r
+      do r = await api('POST', '/api/login/finish', { harness: h }); while (r.state === 'pending')
+      finished(r)
+    }
+  } catch (err) { fail(err) }
+}
+
+$('connect').onclick = () => api('POST', '/api/connect', {}).then(refresh, fail)
+$('other').onclick = () => api('POST', '/api/connect', { url: $('mcpurl').value, name: $('mcpname').value })
+  .then((r) => r.connected ? refresh() : (location.href = r.signInUrl), fail)
+
+const say = (e) => ({
+  start: `▶ ${HARNESSES[e.harness]} (${e.version}), in a new ${e.sandbox} sandbox`,
+  text: e.text,
+  tool_call: `→ ${e.server ? e.server + '.' : ''}${e.name} ${JSON.stringify(e.input)}`,
+  tool_result: `${e.ok ? '✓' : '✗'} ${e.output}`,
+  permission: `denied: ${e.tool}`,
+  error: `error (${e.code}): ${e.message}`,
+  end: e.ok ? `■ done${e.result ? ': ' + e.result : ''}` : '■ the job failed',
+})[e.type]
+
+$('ask').onclick = async () => {
+  const log = $('log')
+  log.hidden = false
+  log.textContent = ''
+  $('ask').disabled = true
+  try {
+    const r = await call('POST', '/api/ask', { harness: $('harness').value, task: $('task').value })
+    const reader = r.body.pipeThrough(new TextDecoderStream()).getReader()
+    let buf = ''
+    for (;;) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buf += value
+      for (let k; (k = buf.indexOf('\n')) >= 0; buf = buf.slice(k + 1)) {
+        const e = JSON.parse(buf.slice(0, k))
+        log.textContent += say(e) + '\n'
+        if (e.type === 'tool_result') refresh()
+      }
+    }
+  } catch (err) { log.textContent += err.message }
+  $('ask').disabled = false
+  refresh()
+}
+refresh().catch(fail)
+</script>

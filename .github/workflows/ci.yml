@@ -1,5 +1,5 @@
-# On every commit: the typecheck, V10, the fake-harness tests and the other unit tests, and V11 (SPEC.md,
-# Verification). V1 to V9 use real providers and plans, so they run before a release, not here.
+# On every commit: the typecheck, V10, the fake-harness tests and the other unit tests, V11, and the to-do example's
+# fake-harness tests (SPEC.md, Verification). V1 to V9 use real providers and plans, so they run before a release, not here.
 name: ci
 on:
   push:
@@ -31,3 +31,23 @@ jobs:
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npm run test:v11
+
+  # The to-do example (examples/todo) with byoa's fake harness and the local sandbox: no plan, no provider
+  example-todo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            examples/todo/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: examples/todo
+      - run: npm run typecheck
+        working-directory: examples/todo
+      - run: npm test
+        working-directory: examples/todo
