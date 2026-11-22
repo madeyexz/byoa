@@ -5,7 +5,7 @@
 # Each image is captured at 2x, in light (the page) and dark (the same page on navy) where GitHub shows both.
 set -euo pipefail
 cd "$(dirname "$0")"
-OUT=../.github/readme
+OUT="$PWD/../.github/readme"
 PORT=8765
 mkdir -p "$OUT"
 python3 -m http.server "$PORT" --bind 127.0.0.1 >/dev/null 2>&1 &
