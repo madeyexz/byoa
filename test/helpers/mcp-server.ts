@@ -20,12 +20,14 @@ export interface FakeMcp {
   clientIds: string[]
   /** Makes every access token issued so far stop working, as if it ran out early. */
   expireAccess(): void
+  /** Whether the server takes this access token now. */
+  accepts(token: string): boolean
   close(): Promise<void>
 }
 
 export async function fakeMcp(opts: { cimd?: boolean; expiresIn?: number; tokenDelayMs?: number } = {}): Promise<FakeMcp> {
   const access = new Set<string>(), refresh = new Map<string, string>(), codes = new Map<string, { challenge: string; client: string }>()
-  const s: FakeMcp = { base: '', url: '', refreshes: 0, refused: 0, registrations: 0, seen: [], issued: [], clientIds: [], expireAccess: () => access.clear(), close: async () => {} }
+  const s: FakeMcp = { base: '', url: '', refreshes: 0, refused: 0, registrations: 0, seen: [], issued: [], clientIds: [], expireAccess: () => access.clear(), accepts: (t) => access.has(t), close: async () => {} }
   const tok = (p: string) => { const t = `${p}_${randomBytes(18).toString('base64url')}`; s.issued.push(t); return t }
   const tokens = (client: string) => {
     const a = tok('real_access'), r = tok('real_refresh')
@@ -108,4 +110,31 @@ export async function signInAsUser(signInUrl: string): Promise<{ code: string; s
   const r = await fetch(signInUrl, { redirect: 'manual' })
   const back = new URL(r.headers.get('location')!)
   return { code: back.searchParams.get('code')!, state: back.searchParams.get('state')! }
+}
+
+export interface FakeApi {
+  /** http://127.0.0.1:<port>. The same server also answers at http://localhost:<port>, which is another origin. */
+  origin: string
+  /** Every request it got: the Host header, the path and the Authorization header. */
+  seen: { host: string; path: string; auth?: string }[]
+  close(): Promise<void>
+}
+
+/** A service's API on another origin than its MCP server (as Margins' export is), which takes the MCP server's access
+ *  tokens. `/ext/export` answers with highlights; `/moved?to=<url>` redirects to that URL. */
+export async function fakeApi(mcp: FakeMcp): Promise<FakeApi> {
+  const s: FakeApi = { origin: '', seen: [], close: async () => {} }
+  const server = createServer((req, res) => {
+    const u = new URL(req.url!, s.origin)
+    s.seen.push({ host: req.headers.host!, path: u.pathname, auth: req.headers.authorization })
+    if (u.pathname === '/moved') { res.writeHead(302, { location: u.searchParams.get('to')! }); return res.end() }
+    if (u.pathname !== '/ext/export') { res.writeHead(404); return res.end() }
+    const t = /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1]
+    res.writeHead(t && mcp.accepts(t) ? 200 : 401, { 'content-type': 'application/json' })
+    res.end(JSON.stringify(t && mcp.accepts(t) ? { highlights: ['web'] } : { error: 'unauthorized' }))
+  })
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+  s.origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+  s.close = () => new Promise((r) => { server.closeAllConnections(); server.close(() => r()) })
+  return s
 }

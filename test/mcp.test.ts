@@ -5,16 +5,16 @@ import { after, test } from 'node:test'
 import { createAgents, memoryStore, type Store } from '../src/index.ts'
 import { JobTokens } from '../src/mcp/proxy.ts'
 import { localSandbox } from '../src/sandbox/local.ts'
-import { fakeMcp, signInAsUser, type FakeMcp } from './helpers/mcp-server.ts'
+import { fakeApi, fakeMcp, signInAsUser, type FakeApi, type FakeMcp } from './helpers/mcp-server.ts'
 
 const KEY = randomBytes(32).toString('base64')
 const PROXY = 'http://127.0.0.1:1/byoa/mcp'
-const servers: FakeMcp[] = []
+const servers: (FakeMcp | FakeApi)[] = []
 after(() => Promise.all(servers.map((s) => s.close())))
 
-const agentsOn = (store: Store, extra: { clientMetadataUrl?: string } = {}) => createAgents({
-  app: 'testapp', sandbox: localSandbox(), store, encryptionKey: KEY, proxyUrl: PROXY,
-  oauth: { redirectUrl: 'http://127.0.0.1:9/callback', clientName: 'Test app', ...extra },
+const agentsOn = (store: Store, extra: { clientMetadataUrl?: string; grantOrigins?: Record<string, string[]> } = {}) => createAgents({
+  app: 'testapp', sandbox: localSandbox(), store, encryptionKey: KEY, proxyUrl: PROXY, grantOrigins: extra.grantOrigins,
+  oauth: { redirectUrl: 'http://127.0.0.1:9/callback', clientName: 'Test app', clientMetadataUrl: extra.clientMetadataUrl },
 })
 
 async function connected(opts: Parameters<typeof fakeMcp>[0] = {}, extra: { clientMetadataUrl?: string } = {}) {
@@ -135,6 +135,45 @@ test('R2.6: fetchWithGrant sends the grant only to its server\'s origin, and ref
   assert.equal(e.status, 200)
   assert.equal(m.status, 200)
   assert.equal(mcp.refreshes, 1)
+})
+
+test('R2.6: fetchWithGrant sends the grant to another origin only when the app gave it for that MCP server', async () => {
+  const { mcp, store, agents } = await connected()
+  const api = await fakeApi(mcp)
+  servers.push(api)
+  const exportUrl = `${api.origin}/ext/export`
+  // no grantOrigins: the token stays at the MCP server's origin, and the API gets no request at all
+  await assert.rejects(agents.fetchWithGrant('alice', 'notes', exportUrl), /goes only to/)
+  // grantOrigins for another MCP server's origin do not reach this grant
+  const elsewhere = agentsOn(store, { grantOrigins: { 'https://other.example.com': [api.origin] } })
+  await assert.rejects(elsewhere.fetchWithGrant('alice', 'notes', exportUrl), /goes only to/)
+  assert.equal(api.seen.length, 0)
+
+  const withApi = agentsOn(store, { grantOrigins: { [mcp.base]: [api.origin] } })
+  const r = await withApi.fetchWithGrant('alice', 'notes', exportUrl)
+  assert.equal(r.status, 200)
+  assert.deepEqual(await r.json(), { highlights: ['web'] })
+  // a refused token is refreshed by the one owner, then sent again to the same allowed origin
+  mcp.expireAccess()
+  assert.equal((await withApi.fetchWithGrant('alice', 'notes', exportUrl)).status, 200)
+  assert.equal(mcp.refreshes, 1)
+  assert.ok(api.seen.every((x) => x.host === new URL(api.origin).host && x.auth?.startsWith('Bearer real_access_')), JSON.stringify(api.seen))
+
+  // still only that exact origin: the same server under another host name gets nothing
+  const before = api.seen.length
+  await assert.rejects(withApi.fetchWithGrant('alice', 'notes', `http://localhost:${new URL(api.origin).port}/ext/export`), /goes only to/)
+  // a redirect from the allowed origin comes back to the app, and is not followed
+  const moved = await withApi.fetchWithGrant('alice', 'notes', `${api.origin}/moved?to=${encodeURIComponent(`http://localhost:${new URL(api.origin).port}/ext/export`)}`)
+  assert.equal(moved.status, 302)
+  assert.deepEqual(api.seen.slice(before).map((x) => x.path), ['/moved'])
+})
+
+test('R2.6: grantOrigins takes only exact origins', () => {
+  const mcpOrigin = 'https://margin.example.com'
+  for (const bad of ['https://api.example.com/ext', 'https://*.convex.site', 'http://api.example.com', 'api.example.com', 'https://API.example.com', 'https://api.example.com/'])
+    assert.throws(() => agentsOn(memoryStore(), { grantOrigins: { [mcpOrigin]: [bad] } }), /grantOrigins/, bad)
+  assert.throws(() => agentsOn(memoryStore(), { grantOrigins: { 'https://margin.example.com/mcp': ['https://api.example.com'] } }), /grantOrigins/)
+  agentsOn(memoryStore(), { grantOrigins: { [mcpOrigin]: ['https://helpful-tern-930.convex.site', 'http://127.0.0.1:8080'] } })
 })
 
 test('R2: importMcp moves an existing grant into byoa; the proxy uses it and refreshes it', async () => {

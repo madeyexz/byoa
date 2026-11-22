@@ -112,7 +112,18 @@ A program outside byoa's sandboxes, such as a harness on the user's own computer
 
 To move an MCP grant that the user already made elsewhere into byoa, call `agents.importMcp(userId, { name, url, oauth })` with the MCP SDK's state (`client`, `tokens`, `at`). Delete the old copy, so the grant keeps one refresh owner.
 
-Some MCP servers have an API next to the MCP endpoint that is not MCP, such as an export. Your backend calls it with the user's grant through `agents.fetchWithGrant(userId, 'margins', 'https://margin.example.com/ext/export')`: byoa adds the current token, refreshed by the one refresh owner, and gives you the response. It sends the token only to the origin of that grant's MCP server, does not follow redirects, and never gives you the token.
+Some MCP servers have an API next to the MCP endpoint that is not MCP, such as an export. Your backend calls it with the user's grant through `agents.fetchWithGrant(userId, 'tasks', 'https://mcp.example.com/export')`: byoa adds the current token, refreshed by the one refresh owner, and gives you the response. By default, it sends the token only to the origin of that grant's MCP server. It does not follow redirects, and never gives you the token.
+
+When the service's API is on another origin than its MCP server, name that origin in your own configuration, for the MCP server's origin. Only grants of that MCP server can go there, and only to that exact origin:
+
+```ts
+const agents = createAgents({
+  ...options,
+  // Margins' MCP server is on margin.rippling.computer; its export is on its Convex site
+  grantOrigins: { 'https://margin.rippling.computer': ['https://helpful-tern-930.convex.site'] },
+})
+const r = await agents.fetchWithGrant(userId, 'margins', 'https://helpful-tern-930.convex.site/ext/export')
+```
 
 Each job runs in a new sandbox, and byoa destroys the sandbox after the job. By default, the user's AI login stays encrypted in your database, and each job gets a copy (see AI login below). The MCP config in the sandbox points to `agents.proxy`, with a token for that one job. The real MCP tokens stay in your database.
 

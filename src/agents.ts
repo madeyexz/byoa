@@ -38,6 +38,11 @@ export interface AgentsOptions {
   login?: (deps: LoginDeps) => LoginDriver
   /** The most one job may take. Default 30 minutes. */
   jobTimeoutMs?: number
+  /** More origins that fetchWithGrant may send a grant's token to (R2.6), by the origin of the grant's MCP server:
+   *  `{ 'https://margin.rippling.computer': ['https://helpful-tern-930.convex.site'] }`. Only for an API of that same
+   *  service that takes the same token. Each key and value is an exact origin (https, or http on localhost): no path,
+   *  no wildcard. */
+  grantOrigins?: Record<string, string[]>
 }
 
 export type RunHarness = HarnessName | 'fake'
@@ -101,6 +106,15 @@ export type ConnectResult = { name: string; connected: true } | { name: string; 
 
 const FLOW_MS = 15 * 60_000
 const flowKey = (state: string) => `mcpflow/${state}`
+const secure = (u: URL) => u.protocol === 'https:' || (u.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(u.hostname))
+
+/** `s` when it is an exact origin that may get a token, such as https://api.example.com. */
+function exactOrigin(s: string): string {
+  let u: URL | undefined
+  try { u = new URL(s) } catch {}
+  if (!u || u.origin !== s || !secure(u) || u.hostname.includes('*')) throw new Error(`byoa: grantOrigins: ${JSON.stringify(s)} is not an origin such as https://api.example.com`)
+  return s
+}
 
 export function createAgents(o: AgentsOptions) {
   if (!/^[a-z0-9][a-z0-9-]{0,23}$/.test(o.app)) throw new Error('byoa: app: lower-case letters, digits and -, at most 24')
@@ -112,6 +126,7 @@ export function createAgents(o: AgentsOptions) {
   const jobs = new JobTokens(o.store)
   const login = (o.login ?? storedLogin())({ sandbox: o.sandbox, store: o.store, app: o.app, pins, encryptionKey: o.encryptionKey, jobTimeoutMs: o.jobTimeoutMs })
   const timeout = o.jobTimeoutMs ?? 30 * 60_000
+  const grantOrigins = new Map(Object.entries(o.grantOrigins ?? {}).map(([mcp, extra]) => [exactOrigin(mcp), extra.map(exactOrigin)]))
 
   /** One MCP `initialize`, to see whether the server answers and whether it wants a token. */
   async function probe(url: string, token?: string): Promise<'ok' | 'unauthorized' | string> {
@@ -135,7 +150,7 @@ export function createAgents(o: AgentsOptions) {
     const name = opts.name
     if (!SERVER_NAME.test(name)) throw new Error('byoa: name: lower-case letters, digits and -, at most 32')
     const u = new URL(url)
-    if (u.protocol !== 'https:' && !(u.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(u.hostname))) throw new Error('byoa: an MCP server URL must start with https://')
+    if (!secure(u)) throw new Error('byoa: an MCP server URL must start with https://')
     if (opts.bearer !== undefined) {
       const bearer = opts.bearer.trim()
       if (!bearer || /\s/.test(bearer)) throw new Error('byoa: the token must be one word')
@@ -181,7 +196,7 @@ export function createAgents(o: AgentsOptions) {
   async function importMcp(user: string, g: { name: string; url: string; oauth: Provider['s'] }): Promise<{ name: string }> {
     if (!SERVER_NAME.test(g.name)) throw new Error('byoa: name: lower-case letters, digits and -, at most 32')
     const u = new URL(g.url)
-    if (u.protocol !== 'https:' && !(u.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(u.hostname))) throw new Error('byoa: an MCP server URL must start with https://')
+    if (!secure(u)) throw new Error('byoa: an MCP server URL must start with https://')
     if (typeof g.oauth?.tokens?.access_token !== 'string' || !g.oauth.client?.client_id) throw new Error('byoa: importMcp needs the grant\'s client and tokens')
     const { client, tokens, at, discovery } = g.oauth
     await grants.save(user, { name: g.name, url: u.href, oauth: { client, tokens, at: at ?? Date.now(), ...(discovery ? { discovery } : {}) } })
@@ -190,14 +205,15 @@ export function createAgents(o: AgentsOptions) {
 
   /** A request from the app's backend with the user's grant (R2.6), for an API next to the MCP endpoint that is not
    *  MCP, such as an export. byoa adds the current token, refreshed by the one refresh owner (R2.3), and sends it only
-   *  to the origin of the grant's MCP server, which has the token already. It does not follow redirects. The app gets
-   *  the response, never the token. */
+   *  to the origin of the grant's MCP server, which has the token already, and to the origins that `grantOrigins`
+   *  gives for that origin. It does not follow redirects. The app gets the response, never the token. */
   async function fetchWithGrant(user: string, name: string, url: string | URL, init: RequestInit = {}): Promise<Response> {
     const g = (await grants.list(user)).find((x) => x.name === name)
     if (!g) throw new GrantError('not-connected', `${name} is not connected`)
     const req = new Request(url, init)
     const origin = new URL(g.url).origin
-    if (new URL(req.url).origin !== origin) throw new Error(`byoa: fetchWithGrant: the ${name} grant goes only to ${origin}`)
+    const allowed = [origin, ...(grantOrigins.get(origin) ?? [])]
+    if (!allowed.includes(new URL(req.url).origin)) throw new Error(`byoa: fetchWithGrant: the ${name} grant goes only to ${allowed.join(', ')}`)
     const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer()
     const send = (token: string) => {
       const h = new Headers(req.headers)
