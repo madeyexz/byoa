@@ -47,6 +47,7 @@ Out of scope for version 1:
 - **R2.3** Each grant MUST have exactly one refresh owner: the app's backend. Two jobs that need a refresh at the same time MUST cause one refresh request.
 - **R2.4** byoa MUST store grants through the store adapter (R6), in the app's own database, encrypted with a key that the app gives.
 - **R2.5** byoa MUST let the app choose which MCP servers each job gets. (Bookish gives MCP servers only to jobs that the user asked for.)
+- **R2.6** byoa MUST let the app's backend send a request with a user's grant to the MCP server's own origin, for an API next to the MCP endpoint that is not MCP (for example an export). byoa MUST add the token only for that origin, MUST NOT follow redirects, and MUST NOT give the token to the app.
 
 ### R3. MCP proxy: real tokens stay outside the sandbox
 

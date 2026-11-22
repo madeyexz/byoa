@@ -97,7 +97,7 @@ test('session: a harness with no login throws LoginError, leaves no sandbox, and
 })
 
 test('jobToken: a token with no sandbox reaches only its user\'s named servers, and stops after close and after its time', async () => {
-  const { agents, mcp } = await setup()
+  const { agents, mcp, store } = await setup()
   const init = (url: string, token: string) => fetch(url, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } } }) }).then(async (r) => { await r.body?.cancel(); return r.status })
   const t = await agents.jobToken('alice', { mcp: ['notes', 'gmail'] })
   assert.deepEqual(t.mcp.map((m) => m.name), ['notes'])
@@ -117,4 +117,5 @@ test('jobToken: a token with no sandbox reaches only its user\'s named servers, 
   assert.equal(await init(url, short.token), 200)
   await new Promise((r) => setTimeout(r, 400))
   assert.equal(await init(url, short.token), 401, 'refused after its time')
+  assert.equal(await store.get(`jobid/${short.job}`), null, 'and removed from the store')
 })

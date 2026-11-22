@@ -75,6 +75,11 @@ export async function fakeMcp(opts: { cimd?: boolean; expiresIn?: number; tokenD
       }
       return json(400, { error: 'unsupported_grant_type' })
     }
+    if (u.pathname === '/export') {
+      // an API next to the MCP endpoint that is not MCP, with the same token (fetchWithGrant)
+      const t = /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1]
+      return t && access.has(t) ? json(200, { highlights: ['one'], q: u.searchParams.get('q') }) : json(401, { error: 'invalid_token' })
+    }
     if (u.pathname === '/mcp') {
       const auth = req.headers.authorization ?? ''
       s.seen.push(auth)

@@ -112,6 +112,8 @@ A program outside byoa's sandboxes, such as a harness on the user's own computer
 
 To move an MCP grant that the user already made elsewhere into byoa, call `agents.importMcp(userId, { name, url, oauth })` with the MCP SDK's state (`client`, `tokens`, `at`). Delete the old copy, so the grant keeps one refresh owner.
 
+Some MCP servers have an API next to the MCP endpoint that is not MCP, such as an export. Your backend calls it with the user's grant through `agents.fetchWithGrant(userId, 'margins', 'https://margin.example.com/ext/export')`: byoa adds the current token, refreshed by the one refresh owner, and gives you the response. It sends the token only to the origin of that grant's MCP server, does not follow redirects, and never gives you the token.
+
 Each job runs in a new sandbox, and byoa destroys the sandbox after the job. By default, the user's AI login stays encrypted in your database, and each job gets a copy (see AI login below). The MCP config in the sandbox points to `agents.proxy`, with a token for that one job. The real MCP tokens stay in your database.
 
 To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, destroy.

@@ -188,6 +188,33 @@ export function createAgents(o: AgentsOptions) {
     return { name: g.name }
   }
 
+  /** A request from the app's backend with the user's grant (R2.6), for an API next to the MCP endpoint that is not
+   *  MCP, such as an export. byoa adds the current token, refreshed by the one refresh owner (R2.3), and sends it only
+   *  to the origin of the grant's MCP server, which has the token already. It does not follow redirects. The app gets
+   *  the response, never the token. */
+  async function fetchWithGrant(user: string, name: string, url: string | URL, init: RequestInit = {}): Promise<Response> {
+    const g = (await grants.list(user)).find((x) => x.name === name)
+    if (!g) throw new GrantError('not-connected', `${name} is not connected`)
+    const req = new Request(url, init)
+    const origin = new URL(g.url).origin
+    if (new URL(req.url).origin !== origin) throw new Error(`byoa: fetchWithGrant: the ${name} grant goes only to ${origin}`)
+    const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer()
+    const send = (token: string) => {
+      const h = new Headers(req.headers)
+      h.set('authorization', `Bearer ${token}`)
+      return fetch(req.url, { method: req.method, headers: h, body, redirect: 'manual', signal: req.signal })
+    }
+    let t = await grants.accessToken(user, name)
+    let res = await send(t.token)
+    if (res.status === 401 && t.oauth) {
+      // the server refused the token before it ran out: one refresh (shared with the proxy's), then once more
+      await res.body?.cancel()
+      t = await grants.accessToken(user, name, t.token)
+      res = await send(t.token)
+    }
+    return res
+  }
+
   /** A job token with no sandbox (R3), for an app's own program that runs a harness somewhere else, such as on the
    *  user's own computer. The same rules as a job's token: one user, only the servers named that this user has
    *  connected, refused after `close` (R3.4) and after `ttlMs` (default: the job timeout and 5 minutes). */
@@ -319,6 +346,7 @@ export function createAgents(o: AgentsOptions) {
     connectMcp,
     importMcp,
     finishMcp,
+    fetchWithGrant,
     listMcp: (user: string) => grants.list(user),
     removeMcp: (user: string, name: string) => grants.remove(user, name),
     run,

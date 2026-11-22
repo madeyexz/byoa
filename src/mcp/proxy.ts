@@ -28,7 +28,10 @@ export class JobTokens {
     const e = await this.store.get(tokenKey(await sha256(token)))
     if (!e) return null
     const r = JSON.parse(e.value) as JobRecord
-    return r.until > Date.now() ? r : null
+    if (r.until > Date.now()) return r
+    // its time ran out (a TTL, or a job that crashed before close): remove it, so the store does not keep it forever
+    await this.end(r.job)
+    return null
   }
 
   async end(job: string) {

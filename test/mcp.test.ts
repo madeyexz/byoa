@@ -120,6 +120,23 @@ test('R2: a refresh token the server no longer takes asks the user to connect ag
   assert.equal((await grants.read('alice', 'notes'))!.grant.needsSignIn, true)
 })
 
+test('R2.6: fetchWithGrant sends the grant only to its server\'s origin, and refreshes it through the one owner', async () => {
+  const { mcp, store, agents } = await connected()
+  const r = await agents.fetchWithGrant('alice', 'notes', `${mcp.base}/export?q=x`)
+  assert.equal(r.status, 200)
+  assert.deepEqual(await r.json(), { highlights: ['one'], q: 'x' })
+  const other = `http://localhost:${new URL(mcp.base).port}/export` // the same server, but another origin
+  await assert.rejects(agents.fetchWithGrant('alice', 'notes', other), /goes only to/)
+  await assert.rejects(agents.fetchWithGrant('alice', 'gmail', `${mcp.base}/export`), /not connected/)
+  // the server refuses the token: a backend request and a job's MCP call at once cause one refresh
+  mcp.expireAccess()
+  const { token } = await new JobTokens(store).issue('alice', ['notes'], 60_000)
+  const [e, m] = await Promise.all([agents.fetchWithGrant('alice', 'notes', `${mcp.base}/export`), call(agents.proxy, token)])
+  assert.equal(e.status, 200)
+  assert.equal(m.status, 200)
+  assert.equal(mcp.refreshes, 1)
+})
+
 test('R2: importMcp moves an existing grant into byoa; the proxy uses it and refreshes it', async () => {
   const { mcp, store: oldStore } = await connected()
   const g = await import('../src/mcp/grants.ts')
