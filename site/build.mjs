@@ -1,47 +1,56 @@
-// Builds the byoa.rippling.computer page from README.md, so the page and the README stay the same.
+// Builds the byoa.rippling.computer page: the design in template.html, with these parts taken from README.md
+// so the page and the README stay the same: the status line, "The problem", "How it will look",
+// "How we will verify it" and "Rules we follow".
 // Run from site/: npm install && node build.mjs   → writes index.html
 // worker.js (the Cloudflare Worker "byoa-site") serves that file from the main branch.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { marked } from 'marked'
+import { createHighlighter } from 'shiki'
 
 const REPO = 'https://github.com/madeyexz/byoa'
 const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8')
-// relative links (SPEC.md#verification, LICENSE) point at the repository on GitHub
-const md = readme.replace(/\]\((?!https?:|#)([^)]+)\)/g, `](${REPO}/blob/main/$1)`)
-const body = marked.parse(md)
+  // relative links (SPEC.md#verification, LICENSE) point at the repository on GitHub
+  .replace(/\]\((?!https?:|#)([^)]+)\)/g, `](${REPO}/blob/main/$1)`)
+let html = readFileSync(new URL('./template.html', import.meta.url), 'utf8')
 
-const html = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>byoa: bring your own agent</title>
-<meta name="description" content="An open-source library that runs your users' own Claude Code or Codex in any sandbox, with their MCPs and skills.">
-<style>
-  :root { color-scheme: light dark; --fg: #1d1d1f; --muted: #5f6368; --bg: #fbfbf8; --code: #f0efe9; --line: #e2e0d8; --accent: #b4441f; }
-  @media (prefers-color-scheme: dark) { :root { --fg: #ecebe6; --muted: #a3a29c; --bg: #151513; --code: #1f1f1c; --line: #33322d; --accent: #f08a5d; } }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
-  main { max-width: 820px; margin: 0 auto; padding: 56px 24px 96px; }
-  h1 { font-size: 2.4rem; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.02em; }
-  h2 { font-size: 1.35rem; margin: 48px 0 12px; padding-top: 16px; border-top: 1px solid var(--line); }
-  p, li { color: var(--fg); }
-  strong { font-weight: 650; }
-  a { color: var(--accent); }
-  code { font: 0.88em/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--code); padding: 1px 5px; border-radius: 4px; }
-  pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 16px; overflow-x: auto; }
-  pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.35; font-family: Menlo, "DejaVu Sans Mono", Consolas, ui-monospace, monospace; }
-  footer { margin-top: 64px; color: var(--muted); font-size: 14px; }
-</style>
-</head>
-<body>
-<main>
-${body}
-<footer><a href="${REPO}">${REPO.replace('https://', '')}</a> · built from README.md</footer>
-</main>
-</body>
-</html>
-`
+const highlighter = await createHighlighter({ themes: ['vesper'], langs: ['ts', 'text'] })
+marked.use({
+  renderer: {
+    code({ text, lang }) {
+      return highlighter.codeToHtml(text, { lang: lang || 'text', theme: 'vesper' })
+    },
+  },
+})
+
+// README sections by their "## " heading
+const sections = Object.fromEntries(
+  readme.split(/^## /m).slice(1).map((s) => {
+    const i = s.indexOf('\n')
+    return [s.slice(0, i).trim(), s.slice(i + 1).trim()]
+  }),
+)
+const section = (name) => {
+  if (!(name in sections)) throw new Error(`README.md has no "## ${name}" section`)
+  return marked.parse(sections[name])
+}
+const status = readme.match(/\*\*Status:\s*(.+?)\*\*/)
+if (!status) throw new Error('README.md has no **Status: ...** line')
+
+const slots = {
+  status: status[1].trim().replace(/^./, (c) => c.toUpperCase()),
+  problem: section('The problem'),
+  code: section('How it will look'),
+  verify: section('How we will verify it'),
+  rules: section('Rules we follow'),
+  repo: REPO,
+}
+for (const [name, value] of Object.entries(slots)) {
+  const marker = `{{${name}}}`
+  if (!html.includes(marker)) throw new Error(`template.html has no ${marker}`)
+  html = html.replaceAll(marker, value)
+}
+const left = html.match(/\{\{\w+\}\}/)
+if (left) throw new Error(`template.html has an unknown slot ${left[0]}`)
 
 writeFileSync(new URL('./index.html', import.meta.url), html)
 console.log(`index.html: ${html.length} bytes`)
