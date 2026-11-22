@@ -113,7 +113,7 @@ Version 1 is done when every check below passes. Each check names the requiremen
 | V10 | Config formats | For a sample plugin, the files byoa writes match the expected files for each harness, byte for byte. | R4 |
 | V11 | Unmodified binaries | The test checks the hash of the installed `claude` and `codex` binaries against the published packages. | Lab rules |
 
-V1 to V9 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11 and the fake-harness tests run on every commit. In this repository: `npm test` runs V10 and the fake-harness tests, and `npm run test:v11` runs V11 (`.github/workflows/ci.yml`).
+V1 to V9 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11 and the fake-harness tests run on every commit. In this repository: `npm test` runs V10 and the fake-harness tests, and `npm run test:v11` runs V11 (`.github/workflows/ci.yml`). With `E2B_API_KEY` and `DAYTONA_API_KEY` set, `npm test` also runs V4 (`test/v4.test.ts`).
 
 ## Open questions
 

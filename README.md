@@ -89,13 +89,15 @@ for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['n
 
 Each job runs in a new sandbox, and byoa destroys the sandbox after the job. The user's AI login stays in a volume of that user and app. The MCP config in the sandbox points to `agents.proxy`, with a token for that one job. The real MCP tokens stay in your database.
 
-To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, destroy. The Daytona adapter and the Convex store adapter are not written yet.
+To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, destroy. The Convex store adapter is not written yet.
+
+For Daytona, use `daytona({ apiKey })` from `byoa/sandbox/daytona` (it needs `@daytona/sdk`). Daytona allows 100 volumes per organization, so the adapter keeps every user's AI login in its own subpath of one shared volume (`byoa` by default). A sandbox mounts only that user's subpath. On Daytona Tier 1 and Tier 2, a sandbox can reach only [allowed domains](https://www.daytona.io/docs/en/network-limits), so serve `agents.proxy` on one of them (for example `*.convex.site` or `*.workers.dev`), or use Tier 3 or higher.
 
 ## Test your app without a plan or a sandbox
 
 Use `harness: 'fake'`, `localSandbox()` from `byoa/sandbox/local` and `memoryStore()`. The fake harness runs no model. It calls MCP tools through the real proxy: each task line `call <server>.<tool> <json>` is one call.
 
-To test byoa itself: `npm test` (V10, the fake-harness tests and the unit tests), and `npm run test:v11` (V11; it downloads about 600 MB). CI runs both on every commit.
+To test byoa itself: `npm test` (V10, the fake-harness tests and the unit tests), and `npm run test:v11` (V11; it downloads about 600 MB). CI runs both on every commit. With `E2B_API_KEY` and `DAYTONA_API_KEY` set, `npm test` also checks each adapter against its provider and runs V4 ([test/v4.test.ts](test/v4.test.ts)), which needs `cloudflared` to give the proxy a public URL.
 
 ## How we will verify it
 

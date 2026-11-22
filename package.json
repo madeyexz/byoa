@@ -14,6 +14,7 @@
   "exports": {
     ".": "./dist/index.js",
     "./sandbox/e2b": "./dist/sandbox/e2b.js",
+    "./sandbox/daytona": "./dist/sandbox/daytona.js",
     "./sandbox/local": "./dist/sandbox/local.js",
     "./store/postgres": "./dist/store/postgres.js",
     "./verify": "./dist/verify.js",
@@ -33,14 +34,19 @@
     "@modelcontextprotocol/sdk": "^1.32.2"
   },
   "peerDependencies": {
+    "@daytona/sdk": "^2.1.0",
     "e2b": "^2.64.0"
   },
   "peerDependenciesMeta": {
+    "@daytona/sdk": {
+      "optional": true
+    },
     "e2b": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@daytona/sdk": "^2.1.0",
     "@electric-sql/pglite": "^0.5.17",
     "@types/node": "^24.0.0",
     "e2b": "^2.64.0",
