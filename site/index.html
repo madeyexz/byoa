@@ -37,7 +37,7 @@
 <li>the harness install and its updates;</li>
 <li>the code that connects all of this to one sandbox provider.</li>
 </ul>
-<p>We built this layer for <a href="https://github.com/madeyexz/ai-native-book-reader">Bookish</a>. Margins and an AI-native mail app need the same layer. byoa is that layer, as a library.</p>
+<p>byoa is that layer, as a library, so you do not build it again for each app.</p>
 <h2>What byoa is, and what it is not</h2>
 <ul>
 <li>byoa <strong>is</strong> a library. It runs inside your app&#39;s own backend (Node, Convex, or Cloudflare Workers).</li>
@@ -63,7 +63,7 @@
  ┌──────▼─────────────────────┐ ┌──────▼──────────────┐ ┌──────▼─────────┐
  │ ANY SANDBOX PROVIDER       │ │ MCP SERVER OWNERS   │ │ USER-OWNED     │
  │ E2B · Daytona · Modal ·    │ │ Notion · Gmail ·    │ │ LOGIN VOLUME   │
- │ Vercel · Cloudflare · ...  │ │ Heptabase · Margins │ │ ~/.claude      │
+ │ Vercel · Cloudflare · ...  │ │ Heptabase · ...     │ │ ~/.claude      │
  │ ┌────────────────────────┐ │ └─────────────────────┘ │ ~/.codex       │
  │ │ HARNESS in the sandbox │ │                         └────────────────┘
  │ │ Claude Code / Codex    │─┼──── model calls on the user&#39;s plan ───┐
@@ -91,7 +91,7 @@ const run = await agents.run(userId, { harness: &#39;claude&#39;, task, skills: 
 <h2>How we will verify it</h2>
 <p>We call version 1 done only when all of these checks pass. The full list is in <a href="https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification">SPEC.md</a>.</p>
 <ol>
-<li><strong>Two apps use it.</strong> Bookish moves its login, connector and sandbox code to byoa. A second app (Margins or the mail app) uses byoa with no copied code.</li>
+<li><strong>Two apps use it.</strong> An existing app moves its own login, connector and sandbox code to byoa. A second app uses byoa with no copied code.</li>
 <li><strong>Two harnesses work.</strong> One user runs the same task with Claude Code and with Codex, each on that user&#39;s own plan.</li>
 <li><strong>Two providers work.</strong> The same user, with the same MCP grants and skills, runs a job on E2B and then on Daytona. Only the adapter changes.</li>
 <li><strong>Tokens stay out of the sandbox.</strong> A test searches the sandbox&#39;s environment, files and process list for each real MCP token after a job. It must find none.</li>

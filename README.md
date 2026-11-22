@@ -16,7 +16,7 @@ To make an app AI-native, you run a big lab's harness (Claude Code or Codex) in 
 - the harness install and its updates;
 - the code that connects all of this to one sandbox provider.
 
-We built this layer for [Bookish](https://github.com/madeyexz/ai-native-book-reader). Margins and an AI-native mail app need the same layer. byoa is that layer, as a library.
+byoa is that layer, as a library, so you do not build it again for each app.
 
 ## What byoa is, and what it is not
 
@@ -44,7 +44,7 @@ We built this layer for [Bookish](https://github.com/madeyexz/ai-native-book-rea
  ┌──────▼─────────────────────┐ ┌──────▼──────────────┐ ┌──────▼─────────┐
  │ ANY SANDBOX PROVIDER       │ │ MCP SERVER OWNERS   │ │ USER-OWNED     │
  │ E2B · Daytona · Modal ·    │ │ Notion · Gmail ·    │ │ LOGIN VOLUME   │
- │ Vercel · Cloudflare · ...  │ │ Heptabase · Margins │ │ ~/.claude      │
+ │ Vercel · Cloudflare · ...  │ │ Heptabase · ...     │ │ ~/.claude      │
  │ ┌────────────────────────┐ │ └─────────────────────┘ │ ~/.codex       │
  │ │ HARNESS in the sandbox │ │                         └────────────────┘
  │ │ Claude Code / Codex    │─┼──── model calls on the user's plan ───┐
@@ -79,7 +79,7 @@ To change the provider, change `e2b(...)` to `daytona(...)`.
 
 We call version 1 done only when all of these checks pass. The full list is in [SPEC.md](SPEC.md#verification).
 
-1. **Two apps use it.** Bookish moves its login, connector and sandbox code to byoa. A second app (Margins or the mail app) uses byoa with no copied code.
+1. **Two apps use it.** An existing app moves its own login, connector and sandbox code to byoa. A second app uses byoa with no copied code.
 2. **Two harnesses work.** One user runs the same task with Claude Code and with Codex, each on that user's own plan.
 3. **Two providers work.** The same user, with the same MCP grants and skills, runs a job on E2B and then on Daytona. Only the adapter changes.
 4. **Tokens stay out of the sandbox.** A test searches the sandbox's environment, files and process list for each real MCP token after a job. It must find none.
