@@ -83,8 +83,6 @@ document.head.append(Object.assign(document.createElement('style'), { textConten
   .hero .lead { font-size: 25px; max-width: 760px; margin-bottom: 0; }
   #readme-banner .targets { display: none; }
 ` }))
-// the page's og:description: shorter than its lead
-document.querySelector('.hero .lead').textContent = document.querySelector('meta[property="og:description"]').content
 JS
 ab eval "scrollTo({ top: 0, behavior: 'instant' })"
 ab wait 500
