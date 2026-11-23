@@ -4,6 +4,10 @@
 // plan. A real sandbox must reach the proxy, so the test serves it through a Cloudflare quick tunnel (`cloudflared`
 // on PATH, or BYOA_CLOUDFLARED). Needs E2B_API_KEY and DAYTONA_API_KEY, and costs a little, so it runs before a
 // release, not on every commit. BYOA_E2B_TEMPLATE: any template with Node (default: E2B's `base`).
+// A Daytona org on Tier 1 or 2 lets its sandboxes reach only allowed domains, and the quick tunnel is not one. There,
+// set BYOA_V4_RELAY to a relay on an allowed domain (such as a Convex HTTP action on *.convex.site) that sends
+// `<relay>/<name>/...` to `https://<name>.trycloudflare.com/<name>/...`, path unchanged; test/relay is one. Both jobs
+// then use it.
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
@@ -78,7 +82,8 @@ test('V4: a job on E2B, then on Daytona, with the same MCP grant and skills and 
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
   const t = await tunnel((server.address() as AddressInfo).port)
   try {
-    const proxyUrl = `${t.url}/byoa/mcp`
+    const relay = process.env.BYOA_V4_RELAY?.replace(/\/+$/, '')
+    const proxyUrl = relay ? `${relay}/${new URL(t.url).hostname.split('.')[0]}/byoa/mcp` : `${t.url}/byoa/mcp`
     let hosts = ''
 
     const store = memoryStore()
@@ -93,10 +98,10 @@ test('V4: a job on E2B, then on Daytona, with the same MCP grant and skills and 
     for (let i = 0; ; i++) {
       const r = await fetch(`${proxyUrl}/notes`, { method: 'POST' }).catch(() => undefined)
       if (r?.status === 401) break
-      if (i === 60) throw new Error(`the tunnel does not reach the proxy (${r?.status})`)
+      if (i === 60) throw new Error(`${proxyUrl} does not reach the proxy (${r?.status})`)
       await new Promise((r) => setTimeout(r, 2000))
     }
-    const host = new URL(t.url).hostname
+    const host = new URL(proxyUrl).hostname
     for (let i = 0; !hosts; i++) {
       try { hosts = `${(await lookup(host, { family: 4 })).address} ${host}` } catch (e) { if (i === 30) throw e; await new Promise((r) => setTimeout(r, 2000)) }
     }

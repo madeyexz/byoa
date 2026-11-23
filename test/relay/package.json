@@ -1,0 +1,8 @@
+{
+  "name": "byoa-v4-relay",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "convex": "^1.51.0"
+  }
+}
