@@ -4,7 +4,6 @@
 // and a sandbox sees only the subpaths it mounts. Uses Daytona v0, Daytona's current platform, through the
 // `@daytona/sdk` package (a peer dependency).
 import { randomUUID } from 'node:crypto'
-import { posix } from 'node:path'
 import { Daytona, DaytonaNotFoundError, type DaytonaV0Client } from '@daytona/sdk'
 import type { Sandbox as DaytonaSandbox, VolumeMount } from '@daytona/sdk/v0'
 import { q } from '../sh.ts'
@@ -115,7 +114,7 @@ export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
       }
     },
     async writeFile(path, data) {
-      await s.fs.createFolder(posix.dirname(path), '755')
+      // the upload makes the missing parent folders itself (755, as createFolder did)
       await s.fs.uploadFile(Buffer.from(data), path)
     },
     async pause() {
