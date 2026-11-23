@@ -38,12 +38,12 @@ export interface AgentsOptions {
   login?: (deps: LoginDeps) => LoginDriver
   /** The most one job may take. Default 30 minutes. */
   jobTimeoutMs?: number
-  /** Where jobs run (R5.4). `user` (the default): each user has one sandbox of this app for each harness, which byoa
-   *  pauses after each job and resumes for the next one; one job of a user and harness runs at a time, and another
-   *  waits. `job`: a new sandbox for each job, destroyed after it. */
+  /** Where jobs run (R5.4). `user` (the default): byoa keeps the user's sandbox, pauses it after each job and resumes
+   *  it for the next one. Each user has one for each harness, or one for each `sandboxKey` that a job names (such as a
+   *  project or a conversation); one job of a sandbox runs at a time, and another waits. `job`: a new sandbox for each
+   *  job, destroyed after it. */
   sandboxPer?: 'user' | 'job'
-  /** With `sandboxPer: 'user'`: how long a job waits for another job of the same user and harness to end. Default 10
-   *  minutes. */
+  /** With `sandboxPer: 'user'`: how long a job waits for another job of the same sandbox to end. Default 10 minutes. */
   waitMs?: number
   /** More origins that fetchWithGrant may send a grant's token to (R2.6), by the origin of the grant's MCP server:
    *  `{ 'https://margin.rippling.computer': ['https://helpful-tern-930.convex.site'] }`. Only for an API of that same
@@ -62,6 +62,10 @@ export interface RunOptions {
   /** The MCP servers (names given to connectMcp) this job gets (R2.5). Default: none. A plugin's servers are added. */
   mcp?: string[]
   model?: string
+  /** With `sandboxPer: 'user'`: which of the user's kept sandboxes the job runs in, such as a project or conversation
+   *  id. Jobs with the same key (and harness) share one sandbox, paused between them. Default: the user's one sandbox
+   *  for the harness. */
+  sandboxKey?: string
 }
 
 export interface SessionOptions {
@@ -70,6 +74,8 @@ export interface SessionOptions {
   plugins?: Plugin[]
   /** The MCP servers this job gets (R2.5). Default: none. A plugin's servers are added. */
   mcp?: string[]
+  /** As in RunOptions. */
+  sandboxKey?: string
 }
 
 export interface Session {
@@ -114,10 +120,13 @@ export type ConnectResult = { name: string; connected: true } | { name: string; 
 
 const FLOW_MS = 15 * 60_000
 const flowKey = (state: string) => `mcpflow/${state}`
-/** The user's sandbox at one provider for one harness (R5.4): its id there, and the lease of the job that uses it. */
-const slotKey = (user: string, provider: string, h: RunHarness) => `usersandbox/${encodeURIComponent(user)}/${provider}/${h}`
+/** A kept sandbox of the user at one provider, for one harness and sandbox key ('' for none) (R5.4): its id there, and
+ *  the lease of the job that uses it. The index lists the user's slots, because a store cannot list its keys. */
+const enc = encodeURIComponent
+const slotKey = (user: string, provider: string, h: RunHarness, key: string) => `usersandbox/${enc(user)}/${provider}/${h}/${enc(key)}`
+const indexKey = (user: string, provider: string) => `usersandboxes/${enc(user)}/${provider}`
 interface Slot { sandbox?: string; holder?: string; until: number }
-const HARNESSES: RunHarness[] = ['claude', 'codex', 'fake']
+type Indexed = [RunHarness, string]
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const secure = (u: URL) => u.protocol === 'https:' || (u.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(u.hostname))
 
@@ -264,35 +273,53 @@ export function createAgents(o: AgentsOptions) {
     }
   }
 
-  /** Takes the user's sandbox for this harness, with compare-and-set: a job waits while another job of the same user
-   *  and harness holds it. A lease left by a job that never ended runs out after the job timeout and 5 minutes. */
-  async function takeSlot(user: string, h: RunHarness): Promise<{ holder: string; sandbox?: string }> {
-    const k = slotKey(user, o.sandbox.name, h), holder = randomToken(12)
+  /** Changes the user's index of slots with compare-and-set. */
+  async function changeIndex(user: string, f: (list: Indexed[]) => Indexed[]) {
+    const k = indexKey(user, o.sandbox.name)
+    for (;;) {
+      const e = await o.store.get(k)
+      const now: Indexed[] = e ? JSON.parse(e.value) : []
+      const next = f(now)
+      if (JSON.stringify(next) === JSON.stringify(now)) return now
+      if (await o.store.cas(k, e?.version ?? null, JSON.stringify(next))) return now
+    }
+  }
+
+  /** Takes one of the user's kept sandboxes, with compare-and-set: a job waits while another job of the same sandbox
+   *  holds it. A lease left by a job that never ended runs out after the job timeout and 5 minutes. */
+  async function takeSlot(user: string, h: RunHarness, key: string): Promise<{ k: string; holder: string; sandbox?: string }> {
+    const k = slotKey(user, o.sandbox.name, h, key), holder = randomToken(12)
     for (const end = Date.now() + waitMs; ;) {
       const e = await o.store.get(k)
+      if (!e) await changeIndex(user, (l) => l.some(([x, y]) => x === h && y === key) ? l : [...l, [h, key]])
       const cur: Slot = e ? JSON.parse(e.value) : { until: 0 }
-      if (cur.until < Date.now() && (await o.store.cas(k, e?.version ?? null, JSON.stringify({ sandbox: cur.sandbox, holder, until: Date.now() + timeout + 5 * 60_000 })))) return { holder, sandbox: cur.sandbox }
-      if (Date.now() > end) throw new Error(`byoa: another job of this user still holds the ${h} sandbox; try again when it ends`)
+      if (cur.until < Date.now() && (await o.store.cas(k, e?.version ?? null, JSON.stringify({ sandbox: cur.sandbox, holder, until: Date.now() + timeout + 5 * 60_000 })))) return { k, holder, sandbox: cur.sandbox }
+      if (Date.now() > end) throw new Error(`byoa: another job of this user still holds the ${h} sandbox${key ? ` ${JSON.stringify(key)}` : ''}; try again when it ends`)
       await sleep(500)
     }
   }
   /** Changes the slot while `holder` holds it. False when it does not (deleteSandbox removed it meanwhile). */
-  async function setSlot(user: string, h: RunHarness, holder: string, next: Slot): Promise<boolean> {
-    const e = await o.store.get(slotKey(user, o.sandbox.name, h))
+  async function setSlot(k: string, holder: string, next: Slot): Promise<boolean> {
+    const e = await o.store.get(k)
     if (!e || (JSON.parse(e.value) as Slot).holder !== holder) return false
-    return o.store.cas(slotKey(user, o.sandbox.name, h), e.version, JSON.stringify(next))
+    return o.store.cas(k, e.version, JSON.stringify(next))
   }
 
-  /** Deletes the user's sandboxes of this app at this provider (R5.4): for one harness, or for all. For sign-out and
-   *  when the app deletes the user. A job that runs in one of them ends. The AI login and the MCP grants stay. */
-  async function deleteSandbox(user: string, h?: RunHarness) {
-    for (const x of h ? [h] : HARNESSES) {
-      const e = await o.store.get(slotKey(user, o.sandbox.name, x))
-      if (!e) continue
-      const id = (JSON.parse(e.value) as Slot).sandbox
+  /** Deletes the user's kept sandboxes of this app at this provider (R5.4): all of them, or those of one harness or one
+   *  sandbox key. For sign-out, when the app deletes the user, and when it deletes a project or conversation that had
+   *  a sandbox key. A job that runs in one of them ends. The AI login and the MCP grants stay. */
+  async function deleteSandbox(user: string, which: { harness?: RunHarness; sandboxKey?: string } = {}) {
+    const match = ([h, key]: Indexed) => (which.harness === undefined || h === which.harness) && (which.sandboxKey === undefined || key === which.sandboxKey)
+    const e = await o.store.get(indexKey(user, o.sandbox.name))
+    const list: Indexed[] = (e ? JSON.parse(e.value) as Indexed[] : []).filter(match)
+    for (const [h, key] of list) {
+      const k = slotKey(user, o.sandbox.name, h, key)
+      const s = await o.store.get(k)
+      const id = s && (JSON.parse(s.value) as Slot).sandbox
       if (id) await o.sandbox.destroy(id)
-      await o.store.delete(slotKey(user, o.sandbox.name, x))
+      await o.store.delete(k)
     }
+    await changeIndex(user, (l) => l.filter((x) => !list.some((y) => y[0] === x[0] && y[1] === x[1])))
   }
 
   /** Opens one job (R5.4) for an app that runs its own program around the unmodified harness (Bookish runs its own
@@ -302,10 +329,14 @@ export function createAgents(o: AgentsOptions) {
    *  the sandbox (or destroys it); call it in a `finally`. Throws LoginError when the harness is not signed in. */
   async function session(user: string, r: SessionOptions): Promise<Session> {
     const h = r.harness
+    if (r.sandboxKey !== undefined && (!keep || typeof r.sandboxKey !== 'string' || !r.sandboxKey || r.sandboxKey.length > 128)) {
+      throw new Error(keep ? 'byoa: sandboxKey: a string of 1 to 128 characters' : "byoa: sandboxKey needs sandboxPer: 'user'")
+    }
+    const key = r.sandboxKey ?? ''
     const plugins = r.plugins ?? []
     const t = await jobToken(user, { mcp: [...(r.mcp ?? []), ...plugins.flatMap((p) => p.mcp.map((m) => m.name))] })
     const { token, job } = t
-    let sbx: Sandbox | undefined, slot: { holder: string; sandbox?: string } | undefined, closed = false
+    let sbx: Sandbox | undefined, slot: { k: string; holder: string; sandbox?: string } | undefined, closed = false
     const close = async () => {
       if (closed) return
       closed = true
@@ -318,14 +349,14 @@ export function createAgents(o: AgentsOptions) {
         if (sbx && released) await sbx.pause()
         else if (sbx) { await sbx.destroy(); slot.sandbox = undefined }
       } finally {
-        await setSlot(user, h, slot.holder, { sandbox: slot.sandbox, until: 0 })
+        await setSlot(slot.k, slot.holder, { sandbox: slot.sandbox, until: 0 })
       }
     }
     try {
       const setup: Setup = { agentsMd: r.setup?.agentsMd, skills: [...(r.setup?.skills ?? []), ...plugins.flatMap((p) => p.setup.skills ?? [])] }
       const files = harnessFiles(h === 'codex' ? 'codex' : 'claude', setup, { proxyUrl: o.proxyUrl, servers: t.mcp.map((m) => m.name) })
       if (keep) {
-        slot = await takeSlot(user, h)
+        slot = await takeSlot(user, h, key)
         if (slot.sandbox) {
           try { sbx = await o.sandbox.resume(slot.sandbox, { timeoutMs: timeout + 60_000 }) } catch (e) {
             // deleted or expired at the provider: the user gets a new one
@@ -334,11 +365,13 @@ export function createAgents(o: AgentsOptions) {
         }
       }
       if (!sbx) {
-        const labels: Record<string, string> = slot ? { 'byoa-app': o.app, 'byoa-harness': h, 'byoa-user': (await sha256hex(user)).slice(0, 24) } : { 'byoa-app': o.app, 'byoa-job': job }
+        const labels: Record<string, string> = slot
+          ? { 'byoa-app': o.app, 'byoa-harness': h, 'byoa-user': (await sha256hex(user)).slice(0, 24), ...(key ? { 'byoa-key': (await sha256hex(key)).slice(0, 24) } : {}) }
+          : { 'byoa-app': o.app, 'byoa-job': job }
         sbx = await o.sandbox.create({ volumes: h === 'fake' ? [] : await login.volumes(user, h), labels, timeoutMs: timeout + 60_000, keep: !!slot })
         if (slot) {
           slot.sandbox = sbx.id
-          if (!(await setSlot(user, h, slot.holder, { sandbox: sbx.id, holder: slot.holder, until: Date.now() + timeout + 5 * 60_000 }))) {
+          if (!(await setSlot(slot.k, slot.holder, { sandbox: sbx.id, holder: slot.holder, until: Date.now() + timeout + 5 * 60_000 }))) {
             slot = undefined
             throw new Error('byoa: the user\'s sandbox was deleted while this job started')
           }
@@ -436,7 +469,7 @@ export function createAgents(o: AgentsOptions) {
     loginState: (user: string, h: HarnessName) => login.state(user, h),
     /** Signs the user out with the CLI, deletes the stored login (or the login volume), and deletes the user's
      *  sandbox for this harness. */
-    signOut: async (user: string, h: HarnessName) => { await deleteSandbox(user, h); await login.signOut(user, h) },
+    signOut: async (user: string, h: HarnessName) => { await deleteSandbox(user, { harness: h }); await login.signOut(user, h) },
     deleteSandbox,
     connectMcp,
     importMcp,

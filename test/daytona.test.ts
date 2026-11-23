@@ -96,3 +96,33 @@ test('Daytona adapter: login volumes', { skip: skipVolumes, timeout: 10 * 60_000
     await cleanup()
   }
 })
+
+test('V8 on Daytona: a user\'s jobs run in one kept sandbox, or in one for each sandbox key; with sandboxPer: \'job\' each job\'s sandbox is gone after it', { skip, timeout: 10 * 60_000 }, async () => {
+  const { createAgents, memoryStore } = await import('../src/index.ts')
+  const { collect } = await import('./helpers/app.ts')
+  const ids: string[] = []
+  const inner = daytona()
+  const sandbox = { ...inner, create: async (o?: Parameters<typeof inner.create>[0]) => { const s = await inner.create(o); ids.push(s.id); return s } }
+  const app = (sandboxPer: 'user' | 'job') => createAgents({
+    app: 'v8check', sandbox, store: memoryStore(), encryptionKey: randomBytes(32).toString('base64'), sandboxPer,
+    proxyUrl: 'http://127.0.0.1:9/byoa/mcp', oauth: { redirectUrl: 'http://127.0.0.1:9/callback' }, jobTimeoutMs: 3 * 60_000,
+  })
+  const job = { harness: 'fake' as const, task: 'hi' }
+  const ok = { type: 'end', ok: true, result: 'fake answer' }
+  const user = app('user')
+  const state = async (id: string) => (await new Daytona().v0.get(id)).state
+  try {
+    for (const key of [undefined, undefined, 'project-a', 'project-b', 'project-a']) assert.deepEqual((await collect(user.run('alice', { ...job, sandboxKey: key }))).at(-1), ok)
+    assert.equal(ids.length, 3, 'one sandbox with no key, and one for each key')
+    for (const id of ids) assert.equal(await state(id), 'stopped')
+    await user.deleteSandbox('alice', { sandboxKey: 'project-a' })
+    await assert.rejects(inner.resume(ids[1]!), (e: Error) => e instanceof SandboxGoneError, 'only that key\'s sandbox is gone')
+    assert.equal(await state(ids[2]!), 'stopped')
+  } finally { await user.deleteSandbox('alice') }
+  for (const id of ids) await assert.rejects(inner.resume(id), (e: Error) => e instanceof SandboxGoneError, 'deleteSandbox removes them at Daytona')
+
+  const perJob = app('job')
+  for (let i = 0; i < 2; i++) assert.deepEqual((await collect(perJob.run('alice', job))).at(-1), ok)
+  assert.equal(ids.length, 5)
+  for (const id of ids.slice(3)) await assert.rejects(inner.resume(id), (e: Error) => e instanceof SandboxGoneError, 'V8: gone at Daytona')
+})

@@ -78,7 +78,7 @@ test('E2B adapter: create, run, write, volume, destroy', { skip: skipVolumes, ti
   }
 })
 
-test('V8 on E2B: by default a user\'s jobs run in one sandbox, paused between jobs; with sandboxPer: \'job\' each job\'s sandbox is gone after it', { skip, timeout: 10 * 60_000 }, async () => {
+test('V8 on E2B: by default a user\'s jobs run in one sandbox, paused between jobs, or in one for each sandbox key; with sandboxPer: \'job\' each job\'s sandbox is gone after it', { skip, timeout: 10 * 60_000 }, async () => {
   const { createAgents, memoryStore } = await import('../src/index.ts')
   const { collect } = await import('./helpers/app.ts')
   const ids: string[] = []
@@ -98,11 +98,18 @@ test('V8 on E2B: by default a user\'s jobs run in one sandbox, paused between jo
     await inner.destroy(ids[0]!)
     assert.deepEqual((await collect(user.run('alice', job))).at(-1), { type: 'end', ok: true, result: 'fake answer' })
     assert.equal(ids.length, 2)
+    // many kept sandboxes: one for each sandbox key, each paused between its jobs
+    for (const key of ['project-a', 'project-b', 'project-a']) assert.deepEqual((await collect(user.run('alice', { ...job, sandboxKey: key }))).at(-1), { type: 'end', ok: true, result: 'fake answer' })
+    assert.equal(ids.length, 4, 'project-a\'s second job resumed its sandbox')
+    for (const id of ids.slice(1)) assert.equal((await E2BSandbox.getInfo(id)).state, 'paused')
+    await user.deleteSandbox('alice', { sandboxKey: 'project-a' })
+    await assert.rejects(inner.resume(ids[2]!), (e: Error) => e instanceof SandboxGoneError, 'only that key\'s sandbox is gone')
+    assert.equal((await E2BSandbox.getInfo(ids[3]!)).state, 'paused')
   } finally { await user.deleteSandbox('alice') }
-  await assert.rejects(inner.resume(ids[1]!), (e: Error) => e instanceof SandboxGoneError, 'deleteSandbox removes it at E2B')
+  for (const id of ids.slice(1)) await assert.rejects(inner.resume(id), (e: Error) => e instanceof SandboxGoneError, 'deleteSandbox removes them at E2B')
 
   const perJob = app('job')
   for (let i = 0; i < 2; i++) assert.deepEqual((await collect(perJob.run('alice', job))).at(-1), { type: 'end', ok: true, result: 'fake answer' })
-  assert.equal(ids.length, 4)
-  for (const id of ids.slice(2)) await assert.rejects(inner.resume(id), (e: Error) => e instanceof SandboxGoneError, 'V8: gone at E2B')
+  assert.equal(ids.length, 6)
+  for (const id of ids.slice(4)) await assert.rejects(inner.resume(id), (e: Error) => e instanceof SandboxGoneError, 'V8: gone at E2B')
 })

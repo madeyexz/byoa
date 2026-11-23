@@ -230,13 +230,16 @@ const agents = createAgents({
 const r = await agents.fetchWithGrant(userId, 'margins', 'https://helpful-tern-930.convex.site/ext/export')
 ```
 
-By default, each user has one sandbox of your app for each harness. The first job creates it. After each job, byoa pauses it (E2B pauses it; Daytona stops it), and the next job resumes it, so files that the app wrote there and the installed harness stay. Each job gets a new job folder (`s.work`) with its own setup. One job of a user and harness runs at a time; another job waits for it (`waitMs`, default 10 minutes). When the provider no longer has the sandbox, the next job creates a new one. For a new sandbox for each job, destroyed after it, set `sandboxPer: 'job'`:
+By default, each user has one sandbox of your app for each harness. The first job creates it. After each job, byoa pauses it (E2B pauses it; Daytona stops it), and the next job resumes it, so files that the app wrote there and the installed harness stay. Each job gets a new job folder (`s.work`) with its own setup. One job of a user and harness runs at a time; another job waits for it (`waitMs`, default 10 minutes). When the provider no longer has the sandbox, the next job creates a new one.
+
+An app where one user has many workspaces, such as projects or conversations, gives each job a `sandboxKey`. Each key has its own kept sandbox and its own lease, so jobs with different keys run at the same time. For a new sandbox for each job, destroyed after it, set `sandboxPer: 'job'`:
 
 ```ts
-const agents = createAgents({ ...options, sandboxPer: 'job' })  // default 'user'
+agents.run(userId, { harness: 'claude', task, sandboxKey: projectId })  // one kept sandbox for each project
+const agents = createAgents({ ...options, sandboxPer: 'job' })          // a new sandbox for each job; default 'user'
 ```
 
-Either way, the user's AI login stays encrypted in your database, and each job gets a copy, which byoa takes out of the sandbox after the job (see AI login below). The MCP config in the sandbox points to `agents.proxy`, with a token for that one job. The real MCP tokens stay in your database. `agents.signOut` deletes the user's sandbox for that harness; when you delete a user, call `agents.deleteSandbox(userId)`, which deletes all of their sandboxes of your app at that provider.
+Either way, the user's AI login stays encrypted in your database, and each job gets a copy, which byoa takes out of the sandbox after the job (see AI login below). The MCP config in the sandbox points to `agents.proxy`, with a token for that one job. The real MCP tokens stay in your database. `agents.signOut` deletes the user's sandbox for that harness; when you delete a user, call `agents.deleteSandbox(userId)`, which deletes all of their sandboxes of your app at that provider, and when you delete a project, `agents.deleteSandbox(userId, { sandboxKey: projectId })`.
 
 To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy.
 

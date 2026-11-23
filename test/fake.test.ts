@@ -62,6 +62,42 @@ test('R5.4: the user\'s sandbox is paused after each job and resumed for the nex
   assert.ok(!store.keys().some((k) => k.startsWith('usersandbox/alice')))
 })
 
+test('R5.4: with sandboxKey, a user has many kept sandboxes: one for each key, each with its own lease', async () => {
+  const { agents, sandbox, store } = await setup()
+  const a1 = await agents.session('alice', { harness: 'fake', sandboxKey: 'project-a' })
+  // another key runs at the same time, in a sandbox of its own; so does the user's sandbox with no key
+  const b1 = await agents.session('alice', { harness: 'fake', sandboxKey: 'project-b' })
+  const d1 = await agents.session('alice', { harness: 'fake' })
+  assert.equal(new Set([a1.sandbox.id, b1.sandbox.id, d1.sandbox.id]).size, 3)
+  await a1.sandbox.writeFile(`${a1.sandbox.home}/notes.txt`, 'a')
+  for (const s of [a1, b1, d1]) await s.close()
+  assert.equal(running(sandbox), 0)
+  assert.equal(sandbox.paused.size, 3)
+  // the same key resumes the same sandbox, also from run
+  const a2 = await agents.session('alice', { harness: 'fake', sandboxKey: 'project-a' })
+  assert.equal(a2.sandbox.id, a1.sandbox.id)
+  assert.equal((await a2.sandbox.run('cat ~/notes.txt')).stdout, 'a')
+  await a2.close()
+  assert.deepEqual((await collect(agents.run('alice', { harness: 'fake', task: 'hi', sandboxKey: 'project-b' }))).at(-1), { type: 'end', ok: true, result: 'fake answer' })
+  assert.equal(sandbox.created, 3)
+  // another user's key of the same name is another sandbox
+  await collect(agents.run('bob', { harness: 'fake', task: 'hi', sandboxKey: 'project-a' }))
+  assert.equal(sandbox.created, 4)
+
+  // deleteSandbox with a key deletes only that one; with no key, all of the user's
+  await agents.deleteSandbox('alice', { sandboxKey: 'project-a' })
+  assert.ok(!sandbox.live.has(a1.sandbox.id) && sandbox.live.has(b1.sandbox.id) && sandbox.live.has(d1.sandbox.id))
+  await agents.deleteSandbox('alice')
+  assert.equal(sandbox.live.size, 1, 'only bob\'s is left')
+  assert.ok(!store.keys().some((k) => k.startsWith('usersandbox/alice')))
+  assert.deepEqual(JSON.parse((await store.get('usersandboxes/alice/local'))?.value ?? '[]'), [])
+
+  // a key needs a kept sandbox
+  const perJob = (await testApp({ sandboxPer: 'job' })); closers.push(perJob.close)
+  await assert.rejects(perJob.agents.session('alice', { harness: 'fake', sandboxKey: 'x' }), /sandboxKey needs sandboxPer: 'user'/)
+  assert.equal(perJob.sandbox.created, 0)
+})
+
 test('R5.4: one job of a user and harness at a time: a second job waits for the first, in the same sandbox', async () => {
   const { agents, sandbox } = await setup()
   const s1 = await agents.session('alice', { harness: 'fake' })

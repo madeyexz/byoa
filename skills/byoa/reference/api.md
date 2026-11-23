@@ -28,8 +28,8 @@ interface AgentsOptions {
   pins?: { claude: string; codex: string }   // default PINS
   login?: (deps) => LoginDriver              // default storedLogin(); or cliLogin
   jobTimeoutMs?: number                      // default 30 minutes
-  sandboxPer?: 'user' | 'job'                // default 'user': one sandbox per user and harness, paused between jobs
-  waitMs?: number                            // sandboxPer 'user': how long a job waits for the user's other job; default 10 minutes
+  sandboxPer?: 'user' | 'job'                // default 'user': kept sandboxes, paused between jobs
+  waitMs?: number                            // sandboxPer 'user': how long a job waits for another job of its sandbox; default 10 minutes
   grantOrigins?: Record<string, string[]>    // more exact origins for fetchWithGrant, by MCP server origin
 }
 ```
@@ -37,7 +37,7 @@ interface AgentsOptions {
 - `oauth.redirectUrl`: the app's route that calls `finishMcp`.
 - `oauth.clientMetadataUrl`: an HTTPS URL where the app serves `agents.clientMetadata()` (a Client ID Metadata Document). Without it, byoa uses only Dynamic Client Registration.
 - `oauth.clientName`: the name the MCP server shows on its consent page. Default: `app`.
-- `sandboxPer`: `'user'` (the default): the first job of a user and harness creates the user's sandbox; byoa pauses it after each job (E2B pause, Daytona stop) and resumes it for the next, with a new job folder. One job of a user and harness at a time. A sandbox the provider no longer has is replaced by a new one. `'job'`: a new sandbox for each job, destroyed after it; jobs of one user can run at the same time.
+- `sandboxPer`: `'user'` (the default): the first job of a user and harness creates the user's sandbox; byoa pauses it after each job (E2B pause, Daytona stop) and resumes it for the next, with a new job folder. One job of a user and harness at a time. A job's `sandboxKey` (in `run` and `session`) gives the user one kept sandbox, with its own lease, for each key. A sandbox the provider no longer has is replaced by a new one. `'job'`: a new sandbox for each job, destroyed after it; jobs of one user can run at the same time.
 
 It returns an object with the methods below.
 
@@ -49,7 +49,7 @@ It returns an object with the methods below.
 | `finishLogin(user, h, { code?, waitMs? })` | `{ state: 'signed-in' \| 'signed-out' \| 'expired' \| 'pending', error? }`. Claude: pass `code` (the code Anthropic's page shows). Codex: no code; `waitMs` waits that long; call again while `pending`. |
 | `loginState(user, h)` | `'signed-in' \| 'signed-out' \| 'expired'` |
 | `signOut(user, h)` | `void`. Also deletes the user's sandbox for `h`. |
-| `deleteSandbox(user, h?)` | `void`. Deletes the user's sandbox of this app at this provider, for `h` or for every harness: call it when the app deletes the user. The login and grants stay. |
+| `deleteSandbox(user, { harness?, sandboxKey? }?)` | `void`. Deletes the user's kept sandboxes of this app at this provider: all of them (when the app deletes the user), or those of one harness or one sandbox key (when it deletes a project). The login and grants stay. |
 
 Login drivers:
 
@@ -86,6 +86,7 @@ interface RunOptions {
   plugins?: Plugin[]          // from readPlugin(readPluginDir(dir)); their skills and MCP servers are added
   mcp?: string[]              // the connected servers this job gets; default none
   model?: string
+  sandboxKey?: string         // sandboxPer 'user': which of the user's kept sandboxes; default the user's one for the harness
 }
 ```
 
@@ -106,7 +107,7 @@ type AgentEvent =
 
 `run` does not throw for job failures: it yields `error` events and then exactly one `end`. `signed-out` / `expired`: ask the user to sign in again (`loginState` says the same). `mcp`: a server is not connected, or its grant failed.
 
-### session(user, { harness, setup?, plugins?, mcp? }): Promise<Session>
+### session(user, { harness, setup?, plugins?, mcp?, sandboxKey? }): Promise<Session>
 
 For an app that runs its own program around the unmodified harness. Throws `LoginError` when the harness is not signed in.
 
