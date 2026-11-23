@@ -242,7 +242,8 @@ export function createAgents(o: AgentsOptions) {
     const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer()
     const send = (token: string) => {
       const h = new Headers(req.headers)
-      h.set('authorization', `Bearer ${token}`)
+      if (token) h.set('authorization', `Bearer ${token}`)
+      else h.delete('authorization')
       return fetch(req.url, { method: req.method, headers: h, body, redirect: 'manual', signal: req.signal })
     }
     let t = await grants.accessToken(user, name)

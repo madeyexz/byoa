@@ -1,6 +1,8 @@
 // R2 and R3 with a local MCP server and its own OAuth server (test/helpers/mcp-server.ts).
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { after, test } from 'node:test'
 import { createAgents, memoryStore, type Store } from '../src/index.ts'
 import { JobTokens } from '../src/mcp/proxy.ts'
@@ -56,6 +58,31 @@ test('R2.2: a pasted bearer token is checked, then used', async () => {
   await assert.rejects(agents.connectMcp('bob', mcp.url, { name: 'pasted', bearer: 'not-a-token' }), /did not accept the token/)
   const real = mcp.issued.find((t) => t.startsWith('real_access'))!
   assert.deepEqual(await agents.connectMcp('bob', mcp.url, { name: 'pasted', bearer: real }), { name: 'pasted', connected: true })
+})
+
+test('R2.1: a server with no sign-in is connected at once, and the proxy sends its requests on with no token', async () => {
+  const seen: (string | undefined)[] = []
+  const server = createServer(async (req, res) => {
+    seen.push(req.headers.authorization)
+    let b = ''
+    for await (const c of req) b += c
+    const m = JSON.parse(b)
+    const result = m.method === 'initialize' ? { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'open', version: '1' } } : { content: [{ type: 'text', text: 'an open answer' }] }
+    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', id: m.id, result }))
+  })
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+  try {
+    const store = memoryStore(), agents = agentsOn(store)
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/mcp`
+    assert.deepEqual(await agents.connectMcp('alice', url, { name: 'open' }), { name: 'open', connected: true })
+    const { token } = await new JobTokens(store).issue('alice', ['open'], 60_000)
+    const r = await call(agents.proxy, token, 'open')
+    assert.equal(r.status, 200)
+    assert.match(JSON.stringify(await r.json()), /an open answer/)
+    // connectMcp's first request and the job's call: byoa has no token for this server, and the job token stays behind
+    assert.deepEqual(seen, [undefined, undefined])
+    assert.equal((await call(agents.proxy, 'byoa_job_made_up', 'open')).status, 401, 'the proxy still checks the job token')
+  } finally { server.closeAllConnections(); server.close() }
 })
 
 test('R3: the proxy checks the job token, sends only the real token on, and refuses a job token after its job', async () => {

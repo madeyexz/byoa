@@ -74,13 +74,15 @@ export class Grants {
     }
   }
 
-  /** The token to send to the MCP server now, refreshed if it runs out soon. `stale`: a token the server refused
-   *  (401); a refresh then runs unless another one already replaced that token. */
+  /** The token to send to the MCP server now, refreshed if it runs out soon; `''` for a server with no sign-in.
+   *  `stale`: a token the server refused (401); a refresh then runs unless another one already replaced that token. */
   async accessToken(user: string, name: string, stale?: string): Promise<{ token: string; url: string; oauth: boolean }> {
     const r = await this.read(user, name)
     if (!r) throw new GrantError('not-connected', `${name} is not connected`)
     const g = r.grant
     if (g.bearer) return { token: g.bearer, url: g.url, oauth: false }
+    // a server with no sign-in (connectMcp found it open): there is no token to add
+    if (!g.oauth && !g.needsSignIn) return { token: '', url: g.url, oauth: false }
     if (g.needsSignIn || !g.oauth?.tokens) throw new GrantError('needs-sign-in', `${name}: the sign-in ran out; connect it again`)
     const access = g.oauth.tokens.access_token
     if (!fresh(g, stale)) {

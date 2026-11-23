@@ -67,7 +67,7 @@ export function mcpProxy(o: { proxyUrl: string; jobs: JobTokens; grants: Grants 
     const send = (url: string, token: string) => {
       const h = new Headers()
       for (const k of UP) { const v = req.headers.get(k); if (v !== null) h.set(k, v) }
-      h.set('authorization', `Bearer ${token}`)
+      if (token) h.set('authorization', `Bearer ${token}`)
       return fetch(url, { method: req.method, headers: h, body, redirect: 'manual', signal: req.signal })
     }
     let res: Response
