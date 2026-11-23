@@ -47,6 +47,7 @@ We will add other sandbox providers (for example Modal or Vercel) after version 
 
 - V10, V11 and the fake-harness tests run on every commit. They must pass before we merge.
 - V1 to V9 use real sandbox providers and real AI plans, so they cost money. Maintainers run them before each release. You do not have to run them, but tell us if your change can affect them.
+- `npm run bench` (`scripts/bench.ts`) times each step of a job on real E2B or Daytona: the sandbox, the harness install, the login copy, the setup, the harness and the teardown. It uses the fake harness, or the real CLIs with no model, so it needs no plan, but it costs a little at the provider. Maintainers run it before each release, next to V4. If your change can make a job slower, run it before and after, and put both tables in the pull request.
 - Use the fake harness (R7.2) for your own tests. Your tests must not need a real plan or a real sandbox.
 - Do not put real tokens, keys or logins in tests, fixtures or logs.
 
