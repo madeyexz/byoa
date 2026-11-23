@@ -138,7 +138,7 @@ export class ProxyError extends Error { readonly code = 'mcp' }
 const CHECK_JS = String.raw`
 const servers = JSON.parse(process.env.BYOA_CHECK)
 const auth = { authorization: 'Bearer ' + process.env.${JOB_TOKEN_ENV} }
-const one = async (s) => {
+const one = async (s, n = 0) => {
   try {
     const r = await fetch(s.url, {
       method: 'POST', signal: AbortSignal.timeout(70000),
@@ -155,9 +155,13 @@ const one = async (s) => {
     const sid = r.ok && r.headers.get('mcp-session-id')
     if (sid) await fetch(s.url, { method: 'DELETE', signal: AbortSignal.timeout(5000), headers: { ...auth, 'mcp-session-id': sid } }).then((d) => d.body?.cancel(), () => {})
     return { name: s.name, proxy, status: r.status, message: r.ok ? '' : message }
-  } catch (e) { return { name: s.name, proxy: false, status: 0, message: String(e?.cause?.message || e?.message || e) } }
+  } catch (e) {
+    // no answer at all (not a timeout): a name lookup or a connection can fail one time in a new sandbox, so try 3 times
+    if (n < 2 && e?.name !== 'TimeoutError') { await new Promise((r) => setTimeout(r, 1000 * (n + 1))); return one(s, n + 1) }
+    return { name: s.name, proxy: false, status: 0, message: String(e?.cause?.message || e?.message || e) }
+  }
 }
-console.log(JSON.stringify(await Promise.all(servers.map(one))))
+console.log(JSON.stringify(await Promise.all(servers.map((s) => one(s)))))
 `
 
 export type ConnectResult = { name: string; connected: true } | { name: string; connected: false; signInUrl: string }
