@@ -3,6 +3,8 @@
 # Run from site/ after `node build.mjs`:  ./readme-art.sh   → writes ../.github/readme/*.png
 # Needs agent-browser (preinstalled in Amp orbs), python3 and ImageMagick.
 # Each image is captured at 2x, in light (the page) and dark (the same page on navy) where GitHub shows both.
+# The "Why" panels (why-*.png) and the how-it-works, token and lifecycle diagrams (how-, tokens-, lifecycle-*.png)
+# are no longer on the page, so this script keeps them as they are. To capture them again, use site/ at 33d2409.
 set -euo pipefail
 cd "$(dirname "$0")"
 OUT="$PWD/../.github/readme"
@@ -21,20 +23,16 @@ README_CSS='
   nav.top, .hero .cta, .end .cta, .end p { display: none !important; }
   .hero .frame { min-height: 0; padding: 84px 24px 176px; }
   #who .ascii-wrap { padding: 36px 28px 40px; }
-  .life { margin-top: 0; }
-  .life > h3 { display: none; }
   body { background: var(--paper); }
 '
 # The dark version: the page's palette on the navy of its closing band.
 DARK_CSS='
   :root { --paper: #0f1124; --paper2: #151833; --card: #161a36; --rule: #2a2f57; --rule2: #3c4274;
     --ink: #f3f1ea; --ink2: #c9cadc; --muted: #9195b6; --dim: #6b6f90; --peri2: #232a5c; }
-  .badge.plan, .hot + text, .d-ct.k { color: #141418; fill: #141418; }
-  .kick, .steps .n, .d-lbl.c, .d-code { color: var(--peri); fill: var(--peri); }
+  .badge.plan { color: #141418; }
+  .kick { color: var(--peri); }
   .ascii .x, .ascii .o, .ascii .bn, .ascii .bs { color: var(--peri); }
-  .ascii .p, .d-fl.tom { color: var(--tomato); fill: var(--tomato); }
-  .d-box.store { fill: #12352a; }
-  .d-fl.but { fill: var(--butter); }
+  .ascii .p { color: var(--tomato); }
 '
 
 # shot <file> <selector>: one element at 2x. (agent-browser's element screenshot is blank below the first
@@ -67,16 +65,12 @@ for theme in light dark; do
   page "$theme"
   shot "banner-$theme" '#readme-banner'
   shot "who-$theme" '#who .ascii-wrap'
-  shot "how-$theme" '#how .diagram'
-  shot "tokens-$theme" '#tokens .diagram'
-  shot "lifecycle-$theme" '#tokens .life'
   shot "scope-$theme" '#scope .scope'
 done
 
-# The same in both themes: the illustrated "Why" panels and the closing band.
+# The same in both themes: the closing band.
 page light
-ab set viewport 1600 1100 2   # wider, so the panels' cards have the room they have on the page
-for row in plan agents sandbox connect; do shot "why-$row" "#why-$row .panel"; done
+ab set viewport 1600 1100 2
 shot end '.end'
 
 # The social preview: 1280 x 640 at 2x (GitHub: Settings → General → Social preview)
@@ -98,4 +92,4 @@ ab screenshot "$OUT/social-preview.png"
 echo "$OUT/social-preview.png"
 
 # Smaller files, same pixels
-for f in "$OUT"/*.png; do magick "$f" -strip -define png:compression-level=9 "$f"; done
+for f in "$OUT"/banner-*.png "$OUT"/who-*.png "$OUT"/scope-*.png "$OUT"/end.png "$OUT"/social-preview.png; do magick "$f" -strip -define png:compression-level=9 "$f"; done

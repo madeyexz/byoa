@@ -1,7 +1,7 @@
 <a href="https://byoa.rippling.computer">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/banner-dark.png">
-  <img alt="byoa: your users bring their own agent. An open-source library for AI-native apps: your app runs each user's own Claude Code or Codex in a sandbox, on the Claude or ChatGPT plan they already have. Version 1 targets: Claude Code, Codex, E2B, Daytona, Node and Convex. Cloudflare Workers is planned." src=".github/readme/banner-light.png">
+  <img alt="byoa: your users bring their own agent. byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend. Version 1 targets: Claude Code, Codex, E2B, Daytona, Node and Convex. Cloudflare Workers is planned." src=".github/readme/banner-light.png">
 </picture>
 </a>
 
@@ -18,6 +18,8 @@
 </div>
 
 # byoa: bring your own agent
+
+**byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend.**
 
 byoa is an open-source library that helps you build AI-native apps fast. Your app runs the user's own Claude Code or Codex in a sandbox. The user signs in with their own ChatGPT or Claude plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
 

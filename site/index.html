@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>byoa: bring your own agent</title>
-<meta name="description" content="An open-source library for AI-native apps. Your app runs each user's own Claude Code or Codex in a sandbox, on the user's own Claude or ChatGPT plan, with their MCP tools and skills.">
+<meta name="description" content="byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend.">
 <meta property="og:title" content="byoa: bring your own agent">
 <meta property="og:description" content="Build AI-native apps on your users' own Claude Code or Codex, in any sandbox. Open source. Never a hosted service.">
 <meta name="theme-color" content="#f8f6f0">
@@ -138,119 +138,6 @@
   .ascii .bs { color: var(--cobalt); }
   .ascii.narrow { display: none; }
 
-  /* problem */
-  .problem { display: grid; grid-template-columns: .8fr 1.2fr; gap: 56px; align-items: start; }
-  .readme p { color: var(--ink2); margin: 0 0 14px; }
-  .readme ul { list-style: none; padding: 0; margin: 18px 0 22px; border-top: 1px solid var(--rule); }
-  .readme ul li { padding: 11px 0 11px 30px; border-bottom: 1px solid var(--rule); position: relative; }
-  .readme ul li::before { content: ""; position: absolute; left: 4px; top: 19px; width: 8px; height: 8px; background: var(--tomato); }
-  .readme a { color: var(--cobalt); text-underline-offset: 3px; }
-  .stack { border: 1px solid var(--rule); background: var(--card); }
-  .stack .hd { display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--rule); font: 11px var(--pixel); letter-spacing: .1em; color: var(--muted); }
-  .stack .body { padding: 18px 16px 16px; }
-  .apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .app { display: grid; gap: 4px; align-content: end; }
-  .app .nm { font: 12px var(--mono); color: var(--muted); margin-bottom: 4px; }
-  .pb { font: 11.5px/1 var(--mono); white-space: nowrap; overflow: hidden; padding: 9px 6px; color: var(--ink); background: #ffd9cf; border-left: 6px solid var(--tomato); }
-  .pb.prod { background: var(--peri2); border-color: var(--cobalt); padding: 44px 8px; text-align: center; border-left-width: 6px; }
-  .shared { margin-top: 10px; padding: 12px 14px; background: var(--cobalt); color: #fff; display: flex; gap: 14px; align-items: center; }
-  .shared img { width: 34px; }
-  .shared b { font-weight: 600; font-size: 16px; display: block; }
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-
-  /* why: sticky list + illustrated rows */
-  .why .frame { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; }
-  .why aside { border-right: 1px solid var(--rule); padding: 40px 28px; }
-  .why aside .stick { position: sticky; top: 96px; }
-  .why aside h2 { font-size: clamp(30px, 3vw, 42px); }
-  .why aside ul { list-style: none; padding: 0; margin: 26px 0 0; border: 1px solid var(--rule); background: var(--card); }
-  .why aside li a { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; text-decoration: none; color: var(--muted); font-size: 16px; }
-  .why aside li + li a { border-top: 1px solid var(--rule); }
-  .why aside li a.on { color: var(--ink); }
-  .why aside li a .chev { opacity: 0; }
-  .why aside li a.on .chev { opacity: 1; }
-  .rowf { display: grid; grid-template-columns: .62fr 1.38fr; gap: 40px; padding: 44px 40px; border-bottom: 1px solid var(--rule); align-items: center; scroll-margin-top: 60px; }
-  .rowf:last-child { border-bottom: 0; }
-  .rowf.flip { grid-template-columns: 1.38fr .62fr; }
-  .rowf.flip .txt { order: 2; }
-  .rowf .txt p { color: var(--ink2); margin: 0 0 18px; }
-  .panel { position: relative; aspect-ratio: 5/4; background-size: cover; background-position: center; overflow: hidden; display: grid; place-items: center; }
-  .ui { position: relative; width: min(74%, 440px); background: var(--card); border: 1px solid rgba(20,20,24,.12); font-size: 14px; }
-  .ui .uh { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--rule); font-weight: 560; }
-  .ui .uh img { width: 22px; }
-  .ui .ub { padding: 14px; display: grid; gap: 8px; }
-  .ui .opt { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--rule); background: var(--paper); }
-  .ui .opt.hi { border-color: var(--ink); background: #fff; }
-  .ui .kv { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--rule); }
-  .ui .kv:last-child { border-bottom: 0; }
-  .ui .kv img { width: 26px; }
-  .ui .ok { font: 11px var(--pixel); letter-spacing: .06em; color: #fff; background: var(--mint); padding: 3px 6px 2px; }
-  .ui .wait { font: 11px var(--pixel); letter-spacing: .06em; color: var(--ink); background: var(--butter); padding: 3px 6px 2px; }
-  .ui .soon { font: 11px var(--pixel); letter-spacing: .06em; color: var(--muted); border: 1px dashed var(--rule2); padding: 2px 6px 1px; }
-  .ui.term { background: var(--navy); color: #e6e8f5; border-color: #000; font: 12.5px/1.5 var(--mono); }
-  .ui.term .uh { border-color: rgba(255,255,255,.1); font: 500 12.5px var(--mono); color: #b8bdd8; justify-content: space-between; }
-  .tabs { display: flex; gap: 0; }
-  .tabs span { padding: 3px 9px; border: 1px solid rgba(255,255,255,.16); color: #8b90b0; transition: background .2s, color .2s; }
-  .tabs span + span { border-left: 0; }
-  .tabs span.on { background: var(--peri); color: var(--navy); }
-  .ev { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 2px 0; }
-  .ev b { font-weight: 500; color: var(--peri); }
-  .ev.t b { color: var(--butter); } .ev.r b { color: var(--mint); } .ev.e b { color: var(--tomato); }
-  .panel .pspr { position: absolute; z-index: 2; height: auto; }
-  .diff { font: 13px/1.55 var(--mono); padding: 10px 12px; background: var(--paper); border: 1px solid var(--rule); }
-  .diff .m { color: #c2410c; background: #ffe9e2; display: block; margin: 0 -12px; padding: 0 12px; }
-  .diff .p { color: #15803d; background: #e3f6ea; display: block; margin: 0 -12px; padding: 0 12px; }
-
-  /* diagrams */
-  .diagram { border: 1px solid var(--rule); background: var(--card); padding: 26px; position: relative;
-    background-image: linear-gradient(var(--rule) 1px, transparent 1px), linear-gradient(90deg, var(--rule) 1px, transparent 1px);
-    background-size: 40px 40px; background-position: -1px -1px; }
-  .scroll { overflow-x: auto; }
-  .scroll svg { display: block; width: 100%; height: auto; min-width: 760px; }
-  svg text { font-family: var(--sans); }
-  .d-box { fill: var(--card); stroke: var(--ink); stroke-width: 1; }
-  .d-box.app { fill: var(--paper2); stroke: var(--rule2); }
-  .d-box.byoa { fill: var(--cobalt); stroke: var(--cobalt); }
-  .d-box.harness { fill: var(--peri2); stroke: var(--cobalt); }
-  .d-box.lab { fill: var(--card); stroke: var(--ink); stroke-dasharray: 5 5; }
-  .d-box.store { fill: #e3f6ea; stroke: var(--mint); }
-  .d-chip { fill: rgba(255,255,255,.1); stroke: rgba(255,255,255,.4); }
-  .d-chip.hot { fill: var(--butter); stroke: var(--butter); }
-  .d-lbl { font: 11px var(--pixel); letter-spacing: .1em; fill: var(--muted); }
-  .d-lbl.w { fill: #dfe6ff; } .d-lbl.c { fill: var(--cobalt); }
-  .d-ttl { font-size: 17px; font-weight: 600; letter-spacing: -.02em; fill: var(--ink); }
-  .d-ct { font-size: 14px; font-weight: 600; fill: #fff; }
-  .d-sub { font-size: 12.5px; fill: var(--muted); }
-  .d-sub.w { fill: #dfe6ff; }
-  .hot + text, .d-ct.k { fill: var(--ink); }
-  .d-sub.k { fill: #5b4a10; }
-  .d-mono { font: 12.5px var(--mono); fill: var(--ink2); }
-  .d-code { font: 600 13px var(--mono); fill: var(--cobalt); }
-  .d-flow { fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-dasharray: 6 6; animation: flow 1s linear infinite; }
-  .d-flow.tom { stroke: var(--tomato); stroke-width: 2.2; }
-  .d-flow.but { stroke: #d99a00; stroke-width: 2.2; }
-  .d-flow.min { stroke: var(--mint); stroke-width: 2.2; }
-  .d-flow.rev { animation-direction: reverse; }
-  .d-fl { font: 12px var(--mono); fill: var(--ink2); }
-  .d-fl.tom { fill: #d93d1a; } .d-fl.but { fill: #a87400; }
-  .d-ok { font-size: 13px; fill: #1e9e72; font-weight: 600; }
-  @keyframes flow { to { stroke-dashoffset: -24; } }
-
-  /* lifecycle, as ruled cells */
-  .life { margin-top: 72px; }
-  .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--rule); background: var(--card); }
-  .steps li { padding: 26px 22px 24px; border-right: 1px solid var(--rule); position: relative; }
-  .steps li:last-child { border-right: 0; }
-  .steps .art { height: 92px; display: flex; align-items: end; margin-bottom: 18px; }
-  .steps .art img { max-height: 92px; width: auto; }
-  .steps .n { font: 12px var(--pixel); color: var(--cobalt); letter-spacing: .08em; }
-  .steps b { display: block; font-size: 19px; font-weight: 600; letter-spacing: -.02em; margin: 4px 0 6px; }
-  .steps span { color: var(--ink2); font-size: 15px; display: block; }
-  .steps li:not(:last-child)::after { content: ""; position: absolute; right: -6px; top: 64px; width: 11px; height: 11px; background: var(--ink); transform: rotate(45deg); z-index: 2; }
-  .persist { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; padding: 14px 20px; border: 1px solid var(--rule); border-top: 0; background: var(--mint); color: #fff; font-size: 15.5px; }
-  .persist b { font: 12px var(--pixel); letter-spacing: .1em; }
-  .persist img { width: 26px; }
-
   /* code */
   .codegrid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 24px 56px; align-items: end; margin-bottom: 40px; }
   .bul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
@@ -279,37 +166,6 @@
   .scope .v { display: flex; flex-wrap: wrap; gap: 0; }
   .scope .it { padding: 18px 22px; border-right: 1px solid var(--rule); display: flex; align-items: center; gap: 12px; font-size: 16px; }
   .scope .it.dash { color: var(--muted); }
-  .isnot { display: grid; grid-template-columns: 1fr 1fr; margin-top: 18px; border: 1px solid var(--rule); background: var(--card); }
-  .isnot > div { padding: 24px 26px; }
-  .isnot > div + div { border-left: 1px solid var(--rule); background: var(--paper2); }
-  .isnot h3 { font: 12px var(--pixel); letter-spacing: .12em; color: var(--cobalt); margin: 0 0 6px; }
-  .isnot .no h3 { color: #d93d1a; }
-  .isnot ul { list-style: none; padding: 0; margin: 0; }
-  .isnot li { padding: 11px 0 11px 28px; border-bottom: 1px solid var(--rule); position: relative; font-size: 15.5px; }
-  .isnot li:last-child { border-bottom: 0; }
-  .isnot li::before { content: ""; position: absolute; left: 2px; top: 18px; width: 9px; height: 9px; background: var(--cobalt); }
-  .isnot .no li { color: var(--ink2); }
-  .isnot .no li::before { background: none; border: 2px solid var(--tomato); width: 9px; height: 9px; }
-
-  /* verify */
-  .verify > p { color: var(--ink2); font-size: 19px; max-width: 720px; margin: 0 0 40px; }
-  .verify > p a { color: var(--cobalt); }
-  .verify ol { list-style: none; counter-reset: v; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); background: var(--card); }
-  .verify ol li { counter-increment: v; padding: 26px 24px 28px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); color: var(--ink2); font-size: 15.5px; }
-  .verify ol li::before { content: counter(v, decimal-leading-zero); display: inline-block; font: 14px var(--pixel); color: #fff; background: var(--ink); padding: 4px 7px 3px; margin-bottom: 18px; }
-  .verify ol li:nth-child(1)::before, .verify ol li:nth-child(4)::before { background: var(--cobalt); }
-  .verify ol li:nth-child(2)::before, .verify ol li:nth-child(5)::before { background: var(--tomato); }
-  .verify ol li:nth-child(3)::before, .verify ol li:nth-child(6)::before { background: var(--mint); }
-  .verify ol li strong { display: block; font-size: 21px; color: var(--ink); font-weight: 580; letter-spacing: -.025em; margin-bottom: 8px; }
-
-  /* rules */
-  .rules { display: grid; grid-template-columns: .85fr 1.15fr; gap: 56px; align-items: start; }
-  .rules ul { list-style: none; padding: 0; margin: 0; border: 1px solid var(--rule); background: var(--card); }
-  .rules li { padding: 18px 20px 18px 64px; border-bottom: 1px solid var(--rule); position: relative; font-size: 16px; }
-  .rules li:last-child { border-bottom: 0; }
-  .rules li::before { content: ""; position: absolute; left: 18px; top: 16px; width: 30px; height: 30px; background: url(art/key.png) center/contain no-repeat; image-rendering: pixelated; }
-  .rules li a { color: var(--cobalt); }
-
   /* closing band */
   .end { background: var(--navy) url(art/night.webp) center bottom/max(100%, 1100px) auto no-repeat; color: #f1f2fb; text-align: center; border-bottom: 1px solid rgba(255,255,255,.08); }
   .end .frame { border-color: rgba(255,255,255,.1); padding: 110px 24px clamp(220px, 24vw, 360px); }
@@ -323,20 +179,11 @@
   footer a { color: #b8bdd8; text-decoration: none; }
 
   @media (max-width: 1080px) {
+    .codegrid { grid-template-columns: 1fr; }
     nav.top .opt { display: none; }
-    .problem, .rules, .codegrid { grid-template-columns: 1fr; }
-    .why .frame { grid-template-columns: 1fr; }
-    .why aside { border-right: 0; border-bottom: 1px solid var(--rule); }
-    .why aside ul { display: none; }
-    .rowf, .rowf.flip { grid-template-columns: 1fr; padding: 36px 24px; }
-    .rowf.flip .txt { order: 0; }
     .targets .frame { grid-template-columns: repeat(3, 1fr); }
     .targets .cell:nth-child(3) { border-right: 0; }
     .targets .cell:nth-child(-n+3) { border-bottom: 1px solid var(--rule); }
-    .verify ol { grid-template-columns: 1fr 1fr; }
-    .steps { grid-template-columns: 1fr 1fr; }
-    .steps li:nth-child(2) { border-right: 0; } .steps li:nth-child(-n+2) { border-bottom: 1px solid var(--rule); }
-    .steps li:nth-child(2)::after { display: none; }
   }
   @media (max-width: 720px) {
     .ascii.wide { display: none; } .ascii.narrow { display: block; }
@@ -345,20 +192,13 @@
     .frame.pad { padding: 72px 18px; }
     .hero .frame { padding: 72px 12px 170px; }
     .hero .s-plug, .hero .d1, .hero .s-store, .hero .b-r2, .hero .b-l2, .hero .s-agent { display: none; }
-    .two, .isnot, .verify ol, .steps { grid-template-columns: 1fr; }
-    .steps li { border-right: 0; border-bottom: 1px solid var(--rule); }
-    .isnot > div + div { border-left: 0; border-top: 1px solid var(--rule); }
-    .steps li::after { display: none; }
     .scope .row { grid-template-columns: 1fr; }
     .scope .k { border-right: 0; border-bottom: 1px solid var(--rule); }
-    .diagram { padding: 14px; }
-    .ui { width: 88%; font-size: 13px; }
-    .panel { aspect-ratio: auto; padding: 44px 0; }
     .targets .frame { grid-template-columns: 1fr 1fr; }
     .targets .cell { border-bottom: 1px solid var(--rule); }
     .targets .cell:nth-child(2n) { border-right: 0; }
   }
-  @media (prefers-reduced-motion: reduce) { .d-flow, h1 .spr, .hero .s-agent { animation: none; } html { scroll-behavior: auto; } }
+  @media (prefers-reduced-motion: reduce) { h1 .spr, .hero .s-agent { animation: none; } html { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
@@ -367,8 +207,6 @@
   <div class="row">
     <a class="brand" href="#"><img class="px" src="art/agent.png" alt="">byoa</a>
     <a class="opt" href="#who">Who brings what</a>
-    <a class="opt" href="#why">Why</a>
-    <a class="opt" href="#how">How it works</a>
     <a class="opt" href="#code">API</a>
     <a class="opt" href="#scope">v1 scope</a>
     <span class="sp"></span>
@@ -392,9 +230,9 @@
     <div>
       <span class="eyebrow"><i></i>OPEN SOURCE · APACHE 2.0 · A LIBRARY, NOT A SERVICE</span>
       <h1>Your users bring<br>their own <img class="spr px" src="art/agent.png" alt="">agent.</h1>
-      <p class="lead">byoa is an open-source library for AI-native apps. Your app runs each user's own <b>Claude Code</b> or <b>Codex</b> in a sandbox. The user signs in with the <b>Claude or ChatGPT plan they already have</b>, so their plan pays for the agent work.</p>
+      <p class="lead">byoa lets your app run each user's own <b>Claude Code</b> or <b>Codex</b>, on their plan and with their tools, in any sandbox, from inside your own backend.</p>
       <div class="cta">
-        <a class="btn dark" href="#how"><span class="ico"><img class="px" src="art/crate.png" alt=""></span>See how it works <span class="chev"></span></a>
+        <a class="btn dark" href="#who"><span class="ico"><img class="px" src="art/crate.png" alt=""></span>See how it works <span class="chev"></span></a>
         <a class="btn" href="https://github.com/madeyexz/byoa/blob/main/SPEC.md">Read the spec <span class="chev"></span></a>
       </div>
     </div>
@@ -500,288 +338,6 @@
   </div>
 </section>
 
-<section id="problem" class="band">
-  <div class="frame pad">
-    <div class="kick">The problem</div>
-    <h2>Every AI-native app builds the same layer again.</h2>
-    <div class="problem" style="margin-top:40px">
-      <div class="readme"><p>To make an app AI-native, you run a big lab&#39;s harness (Claude Code or Codex) in a sandbox, with the user&#39;s own AI plan. For each app, you must build the same connection layer again:</p>
-<ul>
-<li>the user&#39;s AI login, through the real CLI;</li>
-<li>the user&#39;s MCP connections and their OAuth tokens, with one refresh owner;</li>
-<li>the user&#39;s skills and AGENTS.md;</li>
-<li>the harness install and its updates;</li>
-<li>the code that connects all of this to one sandbox provider.</li>
-</ul>
-<p>byoa is that layer, as a library, so you do not build it again for each app.</p>
-</div>
-      <div class="two" aria-label="Before and after byoa">
-        <div class="stack">
-          <div class="hd"><span>WITHOUT BYOA</span></div>
-          <div class="body">
-            <div class="apps">
-              <div class="app"><span class="nm">app 1</span><span class="pb">AI login</span><span class="pb">MCP OAuth</span><span class="pb">skills</span><span class="pb">harness</span><span class="pb">sandbox</span></div>
-              <div class="app"><span class="nm">app 2</span><span class="pb">AI login</span><span class="pb">MCP OAuth</span><span class="pb">skills</span><span class="pb">harness</span><span class="pb">sandbox</span></div>
-              <div class="app"><span class="nm">app 3</span><span class="pb">AI login</span><span class="pb">MCP OAuth</span><span class="pb">skills</span><span class="pb">harness</span><span class="pb">sandbox</span></div>
-            </div>
-          </div>
-        </div>
-        <div class="stack">
-          <div class="hd"><span>WITH BYOA</span></div>
-          <div class="body">
-            <div class="apps">
-              <div class="app"><span class="nm">app 1</span><span class="pb prod">your product</span></div>
-              <div class="app"><span class="nm">app 2</span><span class="pb prod">your product</span></div>
-              <div class="app"><span class="nm">app 3</span><span class="pb prod">your product</span></div>
-            </div>
-            <div class="shared"><img class="px" src="art/agent.png" alt=""><div><b>byoa</b></div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="why" class="band why">
-  <div class="frame">
-    <aside>
-      <div class="stick">
-        <div class="kick">Why byoa</div>
-        <h2>Any AI-native software, on your users' own plans.</h2>
-        <ul>
-          <li><a href="#why-plan" class="on" data-row="why-plan">The user's plan pays <span class="chev"></span></a></li>
-          <li><a href="#why-agents" data-row="why-agents">The real agents <span class="chev"></span></a></li>
-          <li><a href="#why-sandbox" data-row="why-sandbox">Any sandbox <span class="chev"></span></a></li>
-          <li><a href="#why-connect" data-row="why-connect">Connect once <span class="chev"></span></a></li>
-        </ul>
-      </div>
-    </aside>
-    <div>
-      <div class="rowf" id="why-plan">
-        <div class="txt">
-          <h3>The user's plan pays.</h3>
-          <p>Each user signs in with their own Claude or ChatGPT plan, on Anthropic's or OpenAI's own sign-in page. The agent work runs on that plan, not on your API bill.</p>
-        </div>
-        <div class="panel" style="background-image:url(art/panel-plan.webp)">
-          <div class="ui" role="img" aria-label="Example sign-in sheet in an app">
-            <div class="uh"><img class="px" src="art/agent.png" alt="">Connect your agent</div>
-            <div class="ub">
-              <div class="opt hi"><span>Use my Claude plan</span><span class="chev"></span></div>
-              <div class="opt"><span>Use my ChatGPT plan</span><span class="chev"></span></div>
-            </div>
-          </div>
-          <img class="pspr px" src="art/key.png" alt="" style="width:64px;right:9%;top:12%">
-        </div>
-      </div>
-
-      <div class="rowf flip" id="why-agents">
-        <div class="txt">
-          <h3>The real agents.</h3>
-          <p>Your app runs the real, unmodified Claude Code and Codex. Users get the full harness, with their tools and skills.</p>
-        </div>
-        <div class="panel" style="background-image:url(art/panel-agents.webp)">
-          <div class="ui term" role="img" aria-label="The same event stream from Claude Code and from Codex">
-            <div class="uh"><span>agents.run(userId, task)</span><span class="tabs"><span class="on" data-h="claude">claude</span><span data-h="codex">codex</span></span></div>
-            <div class="ub" style="gap:0">
-              <div class="ev"><b>start</b><span>harness: <span class="hname">claude</span></span></div>
-              <div class="ev"><b>text</b><span>Looking in your Notion…</span></div>
-              <div class="ev t"><b>tool_call</b><span>notion.search</span></div>
-              <div class="ev r"><b>tool_result</b><span>3 pages</span></div>
-              <div class="ev"><b>text</b><span>Here is the summary.</span></div>
-              <div class="ev e"><b>end</b><span>sandbox destroyed</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="rowf" id="why-sandbox">
-        <div class="txt">
-          <h3>Any sandbox.</h3>
-          <p>Each sandbox provider is one adapter with one interface. E2B and Daytona come first. To change the provider, you change one line.</p>
-        </div>
-        <div class="panel" style="background-image:url(art/panel-sandbox.webp)">
-          <div class="ui" role="img" aria-label="Changing the sandbox provider is a one-line change">
-            <div class="uh"><img class="px" src="art/crate.png" alt="">createAgents({ sandbox })</div>
-            <div class="ub">
-              <div class="diff"><span class="m">- sandbox: e2b({ apiKey }),</span><span class="p">+ sandbox: daytona({ apiKey }),</span></div>
-              <div class="kv"><img class="px" src="art/crate.png" alt=""><span>E2B</span><span class="ok">V1</span></div>
-              <div class="kv"><img class="px" src="art/crate.png" alt=""><span>Daytona</span><span class="ok">V1</span></div>
-              <div class="kv"><img class="px" src="art/crate.png" alt="" style="opacity:.45"><span>Other providers</span><span class="soon">PLANNED</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="rowf flip" id="why-connect">
-        <div class="txt">
-          <h3>Connect once.</h3>
-          <p>The user connects each MCP tool one time. Every agent run has it. The real tokens never go into the sandbox.</p>
-        </div>
-        <div class="panel" style="background-image:url(art/panel-connect.webp)">
-          <div class="ui" role="img" aria-label="Example list of one user's MCP connections">
-            <div class="uh"><img class="px" src="art/plug.png" alt="">Your tools</div>
-            <div class="ub" style="gap:0">
-              <div class="kv"><img class="px" src="art/plug.png" alt=""><span>Notion</span><span class="ok">CONNECTED</span></div>
-              <div class="kv"><img class="px" src="art/plug.png" alt=""><span>Gmail</span><span class="ok">CONNECTED</span></div>
-              <div class="kv"><img class="px" src="art/plug.png" alt=""><span>Heptabase</span><span class="ok">CONNECTED</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="how" class="band">
-  <div class="frame pad">
-    <div class="kick">How it works</div>
-    <h2>byoa sits in your backend, between your users and their agents.</h2>
-    <p class="sub">Your app calls <code>agents.run(userId, task)</code>. byoa starts a sandbox, loads the user's setup, and runs the user's own harness on the user's own plan.</p>
-    <div class="diagram">
-      <div class="scroll">
-      <svg viewBox="0 0 1040 790" role="img" aria-labelledby="archTitle">
-        <title id="archTitle">Architecture: the end user uses your app. byoa runs inside your app's backend. It controls a sandbox that runs Claude Code or Codex, writes the user's AI login into it, and sends MCP calls through its proxy to MCP servers. The harness calls the AI labs on the user's plan.</title>
-        <defs>
-          <marker id="sq" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5"><rect width="10" height="10" fill="#141418"/></marker>
-          <marker id="sqT" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5"><rect width="10" height="10" fill="#ff5a36"/></marker>
-        </defs>
-        <rect class="d-box" x="330" y="14" width="380" height="88"/>
-        <image href="art/key.png" x="648" y="30" width="44" height="44" style="image-rendering:pixelated"/>
-        <text class="d-lbl" x="352" y="40">END USER</text>
-        <text class="d-ttl" x="352" y="65">Claude or ChatGPT plan</text>
-
-        <path class="d-flow" d="M520 104 V146" marker-start="url(#sq)" marker-end="url(#sq)"/>
-        <text class="d-fl" x="534" y="131">uses the app</text>
-
-        <rect class="d-box app" x="20" y="150" width="1000" height="252"/>
-        <text class="d-lbl" x="44" y="179">YOUR APP · ITS OWN BACKEND</text>
-        <text class="d-code" x="996" y="179" text-anchor="end">agents.run(userId, task)</text>
-        <rect class="d-box byoa" x="44" y="196" width="952" height="186"/>
-        <image href="art/agent.png" x="66" y="204" width="26" height="30" style="image-rendering:pixelated"/>
-        <text x="100" y="226"><tspan class="d-ttl" style="fill:#fff;font-weight:650">byoa</tspan><tspan class="d-sub w" dx="10">open source · runs inside your backend</tspan></text>
-        <g>
-          <rect class="d-chip hot" x="66" y="242" width="218" height="58"/>
-          <text class="d-ct k" x="82" y="276">Sandbox adapters</text>
-          <rect class="d-chip" x="296" y="242" width="218" height="58"/>
-          <text class="d-ct" x="312" y="276">AI login flow</text>
-          <rect class="d-chip" x="526" y="242" width="218" height="58"/>
-          <text class="d-ct" x="542" y="276">Harness installer</text>
-          <rect class="d-chip" x="756" y="242" width="218" height="58"/>
-          <text class="d-ct" x="772" y="276">MCP OAuth</text>
-          <rect class="d-chip" x="66" y="310" width="218" height="58"/>
-          <text class="d-ct" x="82" y="344">Skills and config</text>
-          <rect class="d-chip" x="296" y="310" width="218" height="58"/>
-          <text class="d-ct" x="312" y="344">Event stream</text>
-          <rect class="d-chip" x="526" y="310" width="218" height="58"/>
-          <text class="d-ct" x="542" y="344">Token store</text>
-          <rect class="d-chip hot" x="756" y="310" width="218" height="58"/>
-          <text class="d-ct k" x="772" y="344">MCP proxy</text>
-        </g>
-
-        <path class="d-flow" d="M175 386 V466" marker-start="url(#sq)" marker-end="url(#sq)"/>
-        <text class="d-fl" x="190" y="430">create · run · destroy</text>
-        <path class="d-flow" d="M865 386 V466" marker-start="url(#sq)" marker-end="url(#sq)"/>
-        <text class="d-fl" x="880" y="430">MCP calls via proxy</text>
-
-        <rect class="d-box" x="20" y="470" width="400" height="184"/>
-        <image href="art/crate.png" x="352" y="478" width="52" height="52" style="image-rendering:pixelated"/>
-        <text class="d-lbl" x="44" y="498">SANDBOX PROVIDER</text>
-        <rect class="d-box harness" x="44" y="536" width="352" height="96"/>
-        <image href="art/agent.png" x="338" y="548" width="44" height="54" style="image-rendering:pixelated"/>
-        <text class="d-lbl c" x="64" y="562">HARNESS</text>
-        <text class="d-ttl" x="64" y="588">Claude Code or Codex</text>
-
-        <rect class="d-box" x="480" y="470" width="220" height="184"/>
-        <text class="d-lbl" x="502" y="498">OPTION: USER&#x27;S</text>
-        <text class="d-lbl" x="502" y="515">LOGIN VOLUME</text>
-        <text class="d-mono" x="502" y="552">~/.claude</text>
-        <text class="d-mono" x="502" y="574">~/.codex</text>
-        <path class="d-flow rev" d="M424 586 H476" marker-start="url(#sq)" marker-end="url(#sq)"/>
-        <text class="d-fl" x="450" y="574" text-anchor="middle">mount</text>
-
-        <rect class="d-box" x="740" y="470" width="280" height="184"/>
-        <image href="art/plug.png" x="944" y="480" width="62" height="40" style="image-rendering:pixelated"/>
-        <text class="d-lbl" x="762" y="498">MCP SERVERS</text>
-        <text class="d-ttl" x="762" y="540">Notion · Gmail</text>
-        <text class="d-ttl" x="762" y="564">Heptabase · …</text>
-
-        <path class="d-flow tom" d="M220 658 V714" marker-start="url(#sqT)" marker-end="url(#sqT)"/>
-        <text class="d-fl tom" x="236" y="690">model calls, on the user's own plan</text>
-        <rect class="d-box lab" x="20" y="718" width="400" height="62"/>
-        <text class="d-lbl" x="44" y="744">AI LABS</text>
-        <text class="d-ttl" x="44" y="768" style="font-size:15px">Anthropic · OpenAI</text>
-      </svg>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="tokens" class="band">
-  <div class="frame pad">
-    <div class="kick">Safe by design</div>
-    <h2>Real tokens never go into the sandbox.</h2>
-    <p class="sub">The agent in the sandbox gets a short-lived job token. The proxy in your backend adds the real MCP token to each request.</p>
-    <div class="diagram">
-      <div class="scroll">
-      <svg viewBox="0 0 1040 360" role="img" aria-labelledby="tokTitle">
-        <title id="tokTitle">Token flow: the harness in the sandbox sends MCP calls with a short-lived job token to the MCP proxy in your backend. The proxy checks the job token, adds the real token from your token store, and sends the request to the MCP server.</title>
-        <defs>
-          <marker id="sqB" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5"><rect width="10" height="10" fill="#d99a00"/></marker>
-          <marker id="sqT2" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5"><rect width="10" height="10" fill="#ff5a36"/></marker>
-          <marker id="sqM" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5"><rect width="10" height="10" fill="#2fbf8a"/></marker>
-        </defs>
-        <rect class="d-box" x="20" y="20" width="290" height="230"/>
-        <image href="art/crate.png" x="244" y="26" width="54" height="54" style="image-rendering:pixelated"/>
-        <text class="d-lbl" x="42" y="48">SANDBOX</text>
-        <rect class="d-box harness" x="42" y="84" width="246" height="46"/>
-        <text class="d-ttl" x="58" y="113" style="font-size:15px">Claude Code or Codex</text>
-        <text class="d-mono" x="42" y="158">mcp.json → your proxy</text>
-        <rect x="42" y="170" width="246" height="38" fill="#fff4d6" stroke="#d99a00"/>
-        <text class="d-mono" x="58" y="194" style="fill:#8a5f00;font-weight:600">job token</text>
-        <text class="d-ok" x="42" y="236">✓ no real MCP token here</text>
-
-        <path class="d-flow but" d="M314 120 H384" marker-start="url(#sqB)" marker-end="url(#sqB)"/>
-        <text class="d-fl but" x="349" y="106" text-anchor="middle">job token</text>
-
-        <rect class="d-box byoa" x="390" y="20" width="270" height="230"/>
-        <text class="d-lbl w" x="412" y="48">YOUR BACKEND · BYOA</text>
-        <text class="d-ttl" x="412" y="80" style="fill:#fff">MCP proxy</text>
-        <text class="d-sub w" x="412" y="116">1. checks the job token</text>
-        <text class="d-sub w" x="412" y="142">2. adds the real token</text>
-        <text class="d-sub w" x="412" y="168">3. sends the request on</text>
-        <text class="d-sub w" x="412" y="194">4. refuses the job token</text>
-        <text class="d-sub w" x="426" y="212">after the job ends</text>
-
-        <path class="d-flow tom" d="M664 120 H734" marker-start="url(#sqT2)" marker-end="url(#sqT2)"/>
-        <text class="d-fl tom" x="699" y="106" text-anchor="middle">real token</text>
-        <image href="art/key.png" x="676" y="136" width="44" height="44" style="image-rendering:pixelated"/>
-
-        <rect class="d-box" x="740" y="20" width="280" height="230"/>
-        <image href="art/plug.png" x="944" y="30" width="62" height="40" style="image-rendering:pixelated"/>
-        <text class="d-lbl" x="762" y="48">MCP SERVER</text>
-        <text class="d-ttl" x="762" y="84">Notion · Gmail · …</text>
-
-        <path class="d-flow min" d="M525 290 V254" marker-start="url(#sqM)" marker-end="url(#sqM)"/>
-        <rect class="d-box store" x="390" y="294" width="270" height="56"/>
-        <image href="art/store.png" x="402" y="300" width="40" height="44" style="image-rendering:pixelated"/>
-        <text class="d-ttl" x="452" y="327" style="font-size:15px">Token store</text>
-      </svg>
-      </div>
-    </div>
-
-    <div class="life">
-      <h3 style="font-size:34px">Every job gets a fresh sandbox.</h3>
-      <ol class="steps">
-        <li><div class="art"><img class="px" src="art/crate.png" alt=""></div><span class="n">01</span><b>Create</b></li>
-        <li><div class="art"><img class="px" src="art/plug.png" alt="" style="max-height:60px"></div><span class="n">02</span><b>Load the setup</b></li>
-        <li><div class="art"><img class="px" src="art/crate-open.png" alt=""></div><span class="n">03</span><b>Run the job</b></li>
-        <li><div class="art"><img class="px" src="art/poof.png" alt=""></div><span class="n">04</span><b>Destroy</b></li>
-      </ol>
-      <div class="persist"><b>STAYS BETWEEN JOBS</b><img class="px" src="art/key.png" alt=""><span>the user's AI login</span><img class="px" src="art/store.png" alt=""><span>the user's MCP grants</span></div>
-    </div>
-  </div>
-</section>
-
 <section id="code" class="band">
   <div class="frame pad">
     <div class="codegrid">
@@ -850,56 +406,6 @@
         <span class="it">Convex <span class="badge v1">V1</span></span><span class="it">Postgres <span class="badge v1">V1</span></span><span class="it">Your own: get · put · delete · compare-and-set <span class="badge v1">V1</span></span>
       </div></div>
     </div>
-    <div class="isnot">
-      <div><h3>BYOA IS</h3><ul>
-        <li>A library that runs inside your app's own backend</li>
-        <li>Open source, under the Apache 2.0 license</li>
-        <li>A way to store tokens in your own database</li>
-        <li>A runner for the real, unmodified claude and codex binaries</li>
-      </ul></div>
-      <div class="no"><h3>BYOA IS NOT</h3><ul>
-        <li>A hosted service. We run no server and never see your users' tokens</li>
-        <li>A way to share one user's AI login between apps</li>
-        <li>A modified client, or a client that pretends to be another</li>
-        <li>A UI kit. byoa gives data and events; your app draws its own UI</li>
-      </ul></div>
-    </div>
-  </div>
-</section>
-
-<section id="verify" class="band">
-  <div class="frame pad verify">
-    <div class="kick">How we will verify it</div>
-    <h2>v1 is done only when these checks pass.</h2>
-    <p>We call version 1 done only when all of these checks pass. The full list is in <a href="https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification">SPEC.md</a>.</p>
-<ol>
-<li><strong>Two apps use it.</strong> An existing app moves its own login, connector and sandbox code to byoa. A second app uses byoa with no copied code.</li>
-<li><strong>Two harnesses work.</strong> One user runs the same task with Claude Code and with Codex, each on that user&#39;s own plan.</li>
-<li><strong>Two providers work.</strong> The same user, with the same MCP grants and skills, runs a job on E2B and then on Daytona. Only the adapter changes.</li>
-<li><strong>Tokens stay out of the sandbox.</strong> A test searches the sandbox&#39;s environment, files and process list for each real MCP token after a job. It must find none.</li>
-<li><strong>One refresh owner.</strong> Two jobs run at the same time and both need a token refresh. The provider sees one refresh request, and no grant is revoked.</li>
-<li><strong>Sandboxes are disposable.</strong> The library destroys the sandbox after a job. The next job starts in a new sandbox, and the user does not sign in to an MCP server again.</li>
-</ol>
-
-  </div>
-</section>
-
-<section id="rules" class="band">
-  <div class="frame pad">
-    <div class="rules">
-      <div>
-        <div class="kick">Lab rules</div>
-        <h2>We follow the labs' rules.</h2>
-        <p class="sub">byoa uses each user's plan the way Anthropic and OpenAI allow: the real binaries, the labs' own sign-in pages, and one app per login.</p>
-      </div>
-      <div><ul>
-<li>We run the real, unmodified <code>claude</code> and <code>codex</code> binaries. We never pretend to be another client.</li>
-<li>The user signs in through Anthropic&#39;s or OpenAI&#39;s own sign-in page.</li>
-<li>One app&#39;s AI login is used only by that app.</li>
-<li>The labs&#39; terms restrict where an AI login may be stored. byoa keeps it in your database by default, so each app checks those terms and signs its own agreements with the labs. See <a href="https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules">SPEC.md</a>.</li>
-</ul>
-</div>
-    </div>
   </div>
 </section>
 
@@ -920,26 +426,5 @@
   </div>
 </footer>
 
-<script>
-(() => {
-  // the sticky "Why" list follows the row in view
-  const links = [...document.querySelectorAll('.why aside a[data-row]')]
-  const io = new IntersectionObserver((entries) => {
-    for (const e of entries) if (e.isIntersecting) links.forEach((a) => a.classList.toggle('on', a.dataset.row === e.target.id))
-  }, { rootMargin: '-45% 0px -50% 0px' })
-  links.forEach((a) => io.observe(document.getElementById(a.dataset.row)))
-
-  // the event stream card: the same events for claude and codex
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
-  const tabs = document.querySelectorAll('.tabs span'), names = document.querySelectorAll('.hname')
-  let i = 0
-  setInterval(() => {
-    i = 1 - i
-    const h = i ? 'codex' : 'claude'
-    tabs.forEach((t) => t.classList.toggle('on', t.dataset.h === h))
-    names.forEach((n) => (n.textContent = h))
-  }, 2400)
-})()
-</script>
 </body>
 </html>

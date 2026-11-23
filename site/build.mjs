@@ -1,6 +1,5 @@
-// Builds the byoa.rippling.computer page: the design in template.html, with these parts taken from README.md
-// so the page and the README stay the same: "The problem", the first code block of "How it will look",
-// "How we will verify it" and "Rules we follow".
+// Builds the byoa.rippling.computer page: the design in template.html, with the first code block of the
+// README's "How it will look" section, so the page and the README show the same code.
 // Run from site/: npm install && node build.mjs   → writes index.html
 // worker.js (the Cloudflare Worker "byoa-site") serves that file, art/ and fonts/ from the main branch.
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -9,8 +8,6 @@ import { createHighlighter } from 'shiki'
 
 const REPO = 'https://github.com/madeyexz/byoa'
 const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8')
-  // relative links (SPEC.md#verification, LICENSE) point at the repository on GitHub
-  .replace(/\]\((?!https?:|#)([^)]+)\)/g, `](${REPO}/blob/main/$1)`)
 let html = readFileSync(new URL('./template.html', import.meta.url), 'utf8')
 
 const highlighter = await createHighlighter({ themes: ['vitesse-dark'], langs: ['ts', 'text'] })
@@ -37,11 +34,8 @@ const section = (name, pick = (md) => md) => {
 }
 
 const slots = {
-  problem: section('The problem'),
   // only the main example; the README has the notes and the other examples
   code: section('How it will look', (md) => md.match(/^```[\s\S]*?^```$/m)?.[0]),
-  verify: section('How we will verify it'),
-  rules: section('Rules we follow'),
   repo: REPO,
 }
 for (const [name, value] of Object.entries(slots)) {
