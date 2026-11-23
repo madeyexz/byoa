@@ -29,26 +29,31 @@ const HOME = '/home/daytona'
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** Daytona's command logs are lines: it ends a last line that has no newline with one. So each command prints this
- *  after its output, on stdout and on stderr, and what comes after it is Daytona's. */
-const END = '\x1ebyoa-end\x1e'
+ *  marker, with its exit code, after its output, on stdout and on stderr, and what comes after it is Daytona's. */
+const END = /\x1ebyoa-end:(\d+)\x1e/
+const END_START = '\x1ebyoa-end:'
 
-/** Passes a stream's chunks on up to END. It holds back only a tail that could be the start of END. */
+/** Passes a stream's chunks on up to the end marker, and keeps the exit code in it. It holds back only a tail that
+ *  could be the start of a marker. */
 function untilEnd(out: (c: string) => void) {
-  let held = '', ended = false
-  return {
+  let held = ''
+  const u = {
+    code: undefined as number | undefined,
     push(c: string) {
-      if (ended) return
+      if (u.code !== undefined) return
       held += c
-      const i = held.indexOf(END)
-      if (i >= 0) { ended = true; if (i) out(held.slice(0, i)); held = ''; return }
-      let k = Math.min(held.length, END.length - 1)
-      while (k > 0 && !END.startsWith(held.slice(-k))) k--
-      if (held.length > k) out(held.slice(0, held.length - k))
-      held = held.slice(held.length - k)
+      const m = END.exec(held)
+      if (m) { u.code = Number(m[1]); if (m.index) out(held.slice(0, m.index)); held = ''; return }
+      const k = held.lastIndexOf('\x1e'), tail = k < 0 ? '' : held.slice(k)
+      const start = tail !== '' && (tail.length <= END_START.length ? END_START.startsWith(tail) : tail.startsWith(END_START) && /^\d*$/.test(tail.slice(END_START.length)))
+      const keep = start ? tail.length : 0
+      if (held.length > keep) out(held.slice(0, held.length - keep))
+      held = held.slice(held.length - keep)
     },
-    /** The command printed no END (it was killed with its shell): keep all of it. */
-    end() { if (!ended && held) out(held); held = '' },
+    /** The command printed no marker (it was killed with its shell): keep all of it. */
+    end() { if (u.code === undefined && held) out(held); held = '' },
   }
+  return u
 }
 
 export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
@@ -68,17 +73,34 @@ export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
         return `${k}=${q(v)} `
       }).join('')
       const limit = o.timeoutMs ? `timeout -s KILL ${Math.ceil(o.timeoutMs / 1000)} ` : ''
-      const command = `(cd ${q(o.cwd ?? HOME)} && ${env}${limit}bash -c ${q(cmd)} < /dev/null); e=$?; printf '\\036byoa-end\\036'; printf '\\036byoa-end\\036' >&2; (exit $e)`
+      const command = `(cd ${q(o.cwd ?? HOME)} && ${env}${limit}bash -c ${q(cmd)} < /dev/null); e=$?; printf '\\036byoa-end:%d\\036' $e; printf '\\036byoa-end:%d\\036' $e >&2; (exit $e)`
       const session = `byoa-${randomUUID()}`
       await s.process.createSession(session)
-      const { cmdId } = await s.process.executeSessionCommand(session, { command, runAsync: true })
-      if (!cmdId) throw new Error('byoa daytona: the sandbox did not start the command')
-      if (o.background) return { exitCode: 0, stdout: '', stderr: '' }
+      if (o.background) {
+        const { cmdId } = await s.process.executeSessionCommand(session, { command, runAsync: true })
+        if (!cmdId) throw new Error('byoa daytona: the sandbox did not start the command')
+        return { exitCode: 0, stdout: '', stderr: '' }
+      }
+      let stdout = '', stderr = ''
+      const out = untilEnd((c) => { stdout += c; o.onStdout?.(c) })
+      const err = untilEnd((c) => { stderr += c; o.onStderr?.(c) })
       try {
-        let stdout = '', stderr = ''
-        const out = untilEnd((c) => { stdout += c; o.onStdout?.(c) })
-        const err = untilEnd((c) => { stderr += c; o.onStderr?.(c) })
-        await s.process.getSessionCommandLogs(session, cmdId, out.push, err.push)
+        if (!o.onStdout && !o.onStderr) {
+          // nothing to stream: one request, which answers when the command ends
+          const r = await s.process.executeSessionCommand(session, { command, runAsync: false }, o.timeoutMs ? Math.ceil(o.timeoutMs / 1000) + 60 : undefined)
+          out.push(r.stdout ?? ''); err.push(r.stderr ?? ''); out.end(); err.end()
+          const exitCode = out.code ?? r.exitCode
+          if (typeof exitCode !== 'number') throw new Error('byoa daytona: the command ended with no exit code')
+          return { exitCode, stdout, stderr }
+        }
+        const { cmdId } = await s.process.executeSessionCommand(session, { command, runAsync: true })
+        if (!cmdId) throw new Error('byoa daytona: the sandbox did not start the command')
+        // Daytona closes the log stream about a second after the command ends, so the command ends at its markers
+        let ended!: () => void
+        const markers = new Promise<void>((r) => { ended = r })
+        const both = () => { if (out.code !== undefined && err.code !== undefined) ended() }
+        await Promise.race([markers, s.process.getSessionCommandLogs(session, cmdId, (c) => { out.push(c); both() }, (c) => { err.push(c); both() })])
+        if (out.code !== undefined) return { exitCode: out.code, stdout, stderr }
         out.end(); err.end()
         // the log stream can end just before the command's exit code is recorded
         for (let i = 0; ; i++) {
@@ -88,7 +110,8 @@ export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
           await sleep(100)
         }
       } finally {
-        await s.process.deleteSession(session).catch(() => {})
+        // the session ran only this command; it goes without the command waiting for it
+        s.process.deleteSession(session).catch(() => {})
       }
     },
     async writeFile(path, data) {

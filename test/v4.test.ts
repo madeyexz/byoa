@@ -9,9 +9,7 @@
 // `<relay>/<name>/...` to `https://<name>.trycloudflare.com/<name>/...`, path unchanged; test/relay is one. Both jobs
 // then use it.
 import assert from 'node:assert/strict'
-import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { lookup } from 'node:dns/promises'
 import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -24,6 +22,7 @@ import { daytona } from '../src/sandbox/daytona.ts'
 import { e2b } from '../src/sandbox/e2b.ts'
 import { collect } from './helpers/app.ts'
 import { fakeMcp, signInAsUser } from './helpers/mcp-server.ts'
+import { reachProxy, tunnel } from './helpers/tunnel.ts'
 
 const skip = (!process.env.E2B_API_KEY || !process.env.DAYTONA_API_KEY) && 'set E2B_API_KEY and DAYTONA_API_KEY to run V4'
 const FIXTURES = join(import.meta.dirname, 'fixtures')
@@ -63,22 +62,6 @@ function kept(p: SandboxProvider, hosts?: () => string) {
   return { provider, ...k }
 }
 
-/** A Cloudflare quick tunnel to the local port: its public https URL. */
-async function tunnel(port: number) {
-  const p = spawn(process.env.BYOA_CLOUDFLARED ?? 'cloudflared', ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${port}`], { stdio: ['ignore', 'ignore', 'pipe'] })
-  const url = await new Promise<string>((res, rej) => {
-    let log = ''
-    const t = setTimeout(() => rej(new Error(`cloudflared gave no URL: ${log.slice(-500)}`)), 60_000)
-    p.on('error', (e) => { clearTimeout(t); rej(e) })
-    p.stderr.setEncoding('utf8').on('data', (d: string) => {
-      log += d
-      const m = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/.exec(log)
-      if (m) { clearTimeout(t); res(m[0]) }
-    })
-  })
-  return { url, close: () => { p.kill() } }
-}
-
 test('V4: a job on E2B, then on Daytona, with the same MCP grant and skills and no new MCP sign-in', { skip, timeout: 20 * 60_000 }, async () => {
   const mcp = await fakeMcp()
   let handler: (r: Request) => Promise<Response> = async () => new Response(null, { status: 503 })
@@ -102,17 +85,8 @@ test('V4: a job on E2B, then on Daytona, with the same MCP grant and skills and 
     cleanup = () => Promise.all([agentsE2B, agentsDaytona].map((a) => a.deleteSandbox('alice'))).then(() => {})
     // the proxy keeps its state in the store, so one served proxy is the same for both
     handler = agentsE2B.proxy
-    // the tunnel's name needs a moment to resolve; the proxy refuses a request with no job token
-    for (let i = 0; ; i++) {
-      const r = await fetch(`${proxyUrl}/notes`, { method: 'POST' }).catch(() => undefined)
-      if (r?.status === 401) break
-      if (i === 60) throw new Error(`${proxyUrl} does not reach the proxy (${r?.status})`)
-      await new Promise((r) => setTimeout(r, 2000))
-    }
-    const host = new URL(proxyUrl).hostname
-    for (let i = 0; !hosts; i++) {
-      try { hosts = `${(await lookup(host, { family: 4 })).address} ${host}` } catch (e) { if (i === 30) throw e; await new Promise((r) => setTimeout(r, 2000)) }
-    }
+    // the tunnel's name needs a moment to resolve; the proxy must be served first
+    hosts = await reachProxy(proxyUrl)
 
     const c = await agentsE2B.connectMcp('alice', mcp.url, { name: 'notes' })
     assert.equal(c.connected, false)
