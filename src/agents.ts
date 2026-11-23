@@ -2,7 +2,7 @@
 // driver (R1), the MCP grants and their one refresh owner (R2), the proxy (R3), the config writers (R4) and the
 // harness installer (R5.1).
 import { auth } from '@modelcontextprotocol/sdk/client/auth.js'
-import { CLAUDE_MCP_CONFIG, JOB_TOKEN_ENV, SERVER_NAME, harnessFiles, serverUrl, type Plugin, type Setup } from './config.ts'
+import { ACCESS, CLAUDE_MCP_CONFIG, JOB_TOKEN_ENV, SERVER_NAME, harnessFiles, serverUrl, type Access, type Plugin, type Setup } from './config.ts'
 import { importKey, open, randomToken, seal, sha256hex } from './crypto.ts'
 import { claudeArgs, claudeReader } from './harness/claude.ts'
 import { codexArgs, codexReader } from './harness/codex.ts'
@@ -14,7 +14,8 @@ import { storedLogin } from './login-stored.ts'
 import type { LoginDeps, LoginDriver } from './login.ts'
 import { GrantError, Grants, type Grant } from './mcp/grants.ts'
 import { Provider, clientMetadataDocument, type OAuthConfig } from './mcp/oauth.ts'
-import { JobTokens, mcpProxy } from './mcp/proxy.ts'
+import { JobTokens, PROXY_HEADER, mcpProxy } from './mcp/proxy.ts'
+import { checkTools, type AppTools } from './mcp/tools.ts'
 import { SandboxGoneError, type Sandbox, type SandboxProvider } from './sandbox/types.ts'
 import { q } from './sh.ts'
 import type { Store } from './store.ts'
@@ -50,6 +51,10 @@ export interface AgentsOptions {
    *  service that takes the same token. Each key and value is an exact origin (https, or http on localhost): no path,
    *  no wildcard. */
   grantOrigins?: Record<string, string[]>
+  /** The app's own tools (R2.7), as functions in this backend: MCP server name → tool name → tool. A job gets a group
+   *  by its name in `mcp`. The proxy serves them at `<proxyUrl>/<name>` and gives `run` the user of the job, so the
+   *  app writes no MCP server and connects nothing for each user. */
+  tools?: AppTools
 }
 
 export type RunHarness = HarnessName | 'fake'
@@ -66,6 +71,9 @@ export interface RunOptions {
    *  id. Jobs with the same key (and harness) share one sandbox, paused between them. Default: the user's one sandbox
    *  for the harness. */
   sandboxKey?: string
+  /** What the agent may do (R5.6). Default `full`: every tool of the harness, with no approval. `read-only`: the
+   *  job's MCP tools, and reading files; no change to a file, and no network but the job's MCP servers. */
+  access?: Access
 }
 
 export interface SessionOptions {
@@ -76,6 +84,9 @@ export interface SessionOptions {
   mcp?: string[]
   /** As in RunOptions. */
   sandboxKey?: string
+  /** As in RunOptions. Here it changes only the files byoa writes (Codex's MCP config): the app starts the harness
+   *  itself, with its own flags. */
+  access?: Access
 }
 
 export interface Session {
@@ -94,6 +105,9 @@ export interface Session {
   mcp: { name: string; url: string }[]
   /** Servers asked for that this user has not connected; the job runs without them. */
   missing: string[]
+  /** Servers of this job that did not answer one MCP `initialize` from the sandbox through the proxy (R3.5), each
+   *  with the reason. The harness may not have their tools. */
+  failing: { name: string; message: string }[]
   /** What the harness showed of its login: `expired` when it refused it, `signed-in` when a job worked (R1.6). */
   reportLogin(state: 'signed-in' | 'expired'): Promise<void>
   /** Ends the job token (R3.4), saves the login the CLI refreshed and removes it from the sandbox (R1.4), and pauses
@@ -115,6 +129,36 @@ export interface JobToken {
 
 /** The harness has no login for this user. */
 export class LoginError extends Error { readonly code = 'signed-out' }
+
+/** The job's sandbox cannot reach the MCP proxy at `proxyUrl` (R3.5), so no MCP tool of the job can work. */
+export class ProxyError extends Error { readonly code = 'mcp' }
+
+/** Runs with node in the job's sandbox, before the harness: one MCP `initialize` to each of the job's servers at the
+ *  proxy, with the job token. It prints, for each server, whether the proxy answered and with which status. */
+const CHECK_JS = String.raw`
+const servers = JSON.parse(process.env.BYOA_CHECK)
+const auth = { authorization: 'Bearer ' + process.env.${JOB_TOKEN_ENV} }
+const one = async (s) => {
+  try {
+    const r = await fetch(s.url, {
+      method: 'POST', signal: AbortSignal.timeout(70000),
+      headers: { ...auth, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'byoa-check', version: '1' } } }),
+    })
+    // the proxy's own header; or, behind a relay that drops headers, an MCP answer (JSON-RPC, or a stream of them)
+    let proxy = r.headers.get('${PROXY_HEADER}') === '1', message = ''
+    if ((r.headers.get('content-type') || '').includes('text/event-stream')) { proxy = true; await r.body?.cancel() }
+    else {
+      const text = await r.text()
+      try { const m = JSON.parse(text); if (m?.jsonrpc === '2.0') proxy = true; message = m?.error?.message || '' } catch {}
+    }
+    const sid = r.ok && r.headers.get('mcp-session-id')
+    if (sid) await fetch(s.url, { method: 'DELETE', signal: AbortSignal.timeout(5000), headers: { ...auth, 'mcp-session-id': sid } }).then((d) => d.body?.cancel(), () => {})
+    return { name: s.name, proxy, status: r.status, message: r.ok ? '' : message }
+  } catch (e) { return { name: s.name, proxy: false, status: 0, message: String(e?.cause?.message || e?.message || e) } }
+}
+console.log(JSON.stringify(await Promise.all(servers.map(one))))
+`
 
 export type ConnectResult = { name: string; connected: true } | { name: string; connected: false; signInUrl: string }
 
@@ -152,6 +196,14 @@ export function createAgents(o: AgentsOptions) {
   if (!['user', 'job'].includes(o.sandboxPer ?? 'user')) throw new Error("byoa: sandboxPer: 'user' or 'job'")
   const waitMs = o.waitMs ?? 10 * 60_000
   const grantOrigins = new Map(Object.entries(o.grantOrigins ?? {}).map(([mcp, extra]) => [exactOrigin(mcp), extra.map(exactOrigin)]))
+  const tools: AppTools = o.tools ?? {}
+  for (const [name, group] of Object.entries(tools)) {
+    if (!SERVER_NAME.test(name)) throw new Error(`byoa: tools: server name ${JSON.stringify(name)}: lower-case letters, digits and -, at most 32`)
+    checkTools(name, group)
+  }
+  const isTools = (name: string) => Object.prototype.hasOwnProperty.call(tools, name)
+  /** The names a job can ask for in `mcp`: the user's connected servers, and the app's own tools. */
+  const serversOf = async (user: string) => new Set([...(await grants.list(user)).map((g) => g.name), ...Object.keys(tools)])
 
   /** One MCP `initialize`, to see whether the server answers and whether it wants a token. */
   async function probe(url: string, token?: string): Promise<'ok' | 'unauthorized' | string> {
@@ -174,6 +226,7 @@ export function createAgents(o: AgentsOptions) {
   async function connectMcp(user: string, url: string, opts: { name: string; bearer?: string }): Promise<ConnectResult> {
     const name = opts.name
     if (!SERVER_NAME.test(name)) throw new Error('byoa: name: lower-case letters, digits and -, at most 32')
+    if (isTools(name)) throw new Error(`byoa: ${name} is the name of the app's own tools; connect the server with another name`)
     const u = new URL(url)
     if (!secure(u)) throw new Error('byoa: an MCP server URL must start with https://')
     if (opts.bearer !== undefined) {
@@ -220,6 +273,7 @@ export function createAgents(o: AgentsOptions) {
    *  owner (R2.3). */
   async function importMcp(user: string, g: { name: string; url: string; oauth: Provider['s'] }): Promise<{ name: string }> {
     if (!SERVER_NAME.test(g.name)) throw new Error('byoa: name: lower-case letters, digits and -, at most 32')
+    if (isTools(g.name)) throw new Error(`byoa: ${g.name} is the name of the app's own tools; import the grant with another name`)
     const u = new URL(g.url)
     if (!secure(u)) throw new Error('byoa: an MCP server URL must start with https://')
     if (typeof g.oauth?.tokens?.access_token !== 'string' || !g.oauth.client?.client_id) throw new Error('byoa: importMcp needs the grant\'s client and tokens')
@@ -262,7 +316,7 @@ export function createAgents(o: AgentsOptions) {
    *  connected, refused after `close` (R3.4) and after `ttlMs` (default: the job timeout and 5 minutes). */
   async function jobToken(user: string, r: { mcp?: string[]; ttlMs?: number } = {}): Promise<JobToken> {
     const want = [...new Set(r.mcp ?? [])]
-    const have = new Set((await grants.list(user)).map((g) => g.name))
+    const have = await serversOf(user)
     const servers = want.filter((s) => have.has(s))
     const { token, job } = await jobs.issue(user, servers, r.ttlMs ?? timeout + 5 * 60_000)
     let closed = false
@@ -333,6 +387,7 @@ export function createAgents(o: AgentsOptions) {
     if (r.sandboxKey !== undefined && (!keep || typeof r.sandboxKey !== 'string' || !r.sandboxKey || r.sandboxKey.length > 128)) {
       throw new Error(keep ? 'byoa: sandboxKey: a string of 1 to 128 characters' : "byoa: sandboxKey needs sandboxPer: 'user'")
     }
+    if (r.access !== undefined && !ACCESS.includes(r.access)) throw new Error("byoa: access: 'full' or 'read-only'")
     const key = r.sandboxKey ?? ''
     const plugins = r.plugins ?? []
     const t = await jobToken(user, { mcp: [...(r.mcp ?? []), ...plugins.flatMap((p) => p.mcp.map((m) => m.name))] })
@@ -355,7 +410,7 @@ export function createAgents(o: AgentsOptions) {
     }
     try {
       const setup: Setup = { agentsMd: r.setup?.agentsMd, skills: [...(r.setup?.skills ?? []), ...plugins.flatMap((p) => p.setup.skills ?? [])] }
-      const files = harnessFiles(h === 'codex' ? 'codex' : 'claude', setup, { proxyUrl: o.proxyUrl, servers: t.mcp.map((m) => m.name) })
+      const files = harnessFiles(h === 'codex' ? 'codex' : 'claude', setup, { proxyUrl: o.proxyUrl, servers: t.mcp.map((m) => m.name), access: r.access })
       if (keep) {
         slot = await takeSlot(user, h, key)
         if (slot.sandbox) {
@@ -382,15 +437,17 @@ export function createAgents(o: AgentsOptions) {
       // each job's folder is new, also in a kept sandbox: no skills, MCP config or task of an earlier job
       if (slot) await sbx.run(`rm -rf ${q(work)} && mkdir -p ${q(work)}`)
       let bin: string, version: string, env: Record<string, string> = {}
+      if (h !== 'fake' && !(await login.present(sbx, user, h))) {
+        await login.setState(user, h, 'signed-out')
+        throw new LoginError(`${h} is not signed in for this user; call connectLogin first`)
+      }
+      // before the harness and the login: a job whose sandbox cannot reach the proxy must not start (R3.5)
+      const failing = await checkServers(sbx, t)
       if (h === 'fake') {
         bin = `${sbx.home}/.byoa/fake.mjs`
         await sbx.writeFile(bin, FAKE_JS)
         version = 'fake'
       } else {
-        if (!(await login.present(sbx, user, h))) {
-          await login.setState(user, h, 'signed-out')
-          throw new LoginError(`${h} is not signed in for this user; call connectLogin first`)
-        }
         const inst = await ensureHarness(sbx, h, pins)
         bin = inst.bin
         version = inst.version
@@ -403,6 +460,7 @@ export function createAgents(o: AgentsOptions) {
         env: { ...env, [JOB_TOKEN_ENV]: token },
         mcp: t.mcp,
         missing: t.missing,
+        failing,
         close,
         async reportLogin(state) {
           if (h === 'fake') return
@@ -415,6 +473,25 @@ export function createAgents(o: AgentsOptions) {
     }
   }
 
+  /** One MCP `initialize` from the job's sandbox to each of the job's servers, through the proxy (R3.5). A harness
+   *  that cannot reach a server only leaves its tools out and still ends well (checked with Codex 0.171.0), so byoa
+   *  finds out first. Throws ProxyError when no request reached the proxy; returns the servers that did not answer. */
+  async function checkServers(sbx: Sandbox, t: JobToken): Promise<Session['failing']> {
+    if (!t.mcp.length) return []
+    const file = `${sbx.home}/.byoa/check.mjs`
+    await sbx.writeFile(file, CHECK_JS)
+    const r = await sbx.run(`node ${q(file)}`, { env: { BYOA_CHECK: JSON.stringify(t.mcp), [JOB_TOKEN_ENV]: t.token }, timeoutMs: 90_000 })
+    let res: { name: string; proxy: boolean; status: number; message: string }[]
+    // a sandbox that cannot run the check (no node on its PATH) is not a reason to stop a job
+    try { res = JSON.parse(r.stdout.trim().split('\n').pop() ?? '') } catch { return [] }
+    const bad = res.filter((x) => !x.proxy || x.status < 200 || x.status >= 300)
+    if (res.every((x) => !x.proxy)) {
+      const x = res[0]!
+      throw new ProxyError(`byoa: the sandbox cannot reach the MCP proxy at ${o.proxyUrl} (${x.message || `an answer with status ${x.status} that is not the proxy's`}); the job did not start. Serve agents.proxy at proxyUrl, at an address the sandbox can reach`)
+    }
+    return bad.map((x) => ({ name: x.name, message: x.proxy ? x.message || `the proxy answered ${x.status}` : `no answer from the proxy (${x.message || x.status})` }))
+  }
+
   /** Runs one job (R5.4): a session, the harness with the task, then close (the sandbox pauses, or goes). Events in one schema for every harness
    *  (R5.5). */
   async function* run(user: string, r: RunOptions): AsyncGenerator<AgentEvent> {
@@ -425,10 +502,11 @@ export function createAgents(o: AgentsOptions) {
       for (const m of await missingOf(user, r)) yield { type: 'error', code: 'mcp', message: `${m} is not connected for this user; the job runs without it` }
       try {
         s = await session(user, r)
+        for (const f of s.failing) yield { type: 'error', code: 'mcp', message: `${f.name} does not answer through the proxy (${f.message}); the job may not have its tools` }
         let cmd: string, reader: EventReader
         if (h === 'fake') { cmd = `node ${q(s.bin)}`; reader = fakeReader() }
         else {
-          const args = h === 'claude' ? claudeArgs({ mcpConfig: CLAUDE_MCP_CONFIG, model: r.model }) : codexArgs({ work: s.work, model: r.model })
+          const args = h === 'claude' ? claudeArgs({ mcpConfig: CLAUDE_MCP_CONFIG, model: r.model, access: r.access, servers: s.mcp.map((m) => m.name) }) : codexArgs({ work: s.work, model: r.model, access: r.access })
           cmd = [s.bin, ...args].map(q).join(' ')
           reader = h === 'claude' ? claudeReader() : codexReader()
         }
@@ -443,7 +521,7 @@ export function createAgents(o: AgentsOptions) {
         if (end.type === 'end' && end.ok) await s.reportLogin('signed-in')
       } catch (e) {
         if (e instanceof LoginError) yield { type: 'error', code: 'signed-out', message: e.message }
-        else yield { type: 'error', code: e instanceof GrantError ? 'mcp' : 'sandbox', message: (e as Error).message }
+        else yield { type: 'error', code: e instanceof GrantError || e instanceof ProxyError ? 'mcp' : 'sandbox', message: (e as Error).message }
       }
       if (s) {
         const failed = await s.close().then(() => undefined, (e) => `the sandbox was not ${keep ? 'paused' : 'destroyed'}: ${(e as Error).message}`)
@@ -457,7 +535,7 @@ export function createAgents(o: AgentsOptions) {
 
   async function missingOf(user: string, r: SessionOptions) {
     const want = [...new Set([...(r.mcp ?? []), ...(r.plugins ?? []).flatMap((p) => p.mcp.map((m) => m.name))])]
-    const have = new Set((await grants.list(user)).map((g) => g.name))
+    const have = await serversOf(user)
     return want.filter((s) => !have.has(s))
   }
 
@@ -482,7 +560,7 @@ export function createAgents(o: AgentsOptions) {
     session,
     jobToken,
     /** The MCP proxy, a fetch handler (Request → Response). Serve it at `proxyUrl` and below. */
-    proxy: mcpProxy({ proxyUrl: o.proxyUrl, jobs, grants }),
+    proxy: mcpProxy({ proxyUrl: o.proxyUrl, jobs, grants, tools }),
     /** The Client ID Metadata Document to serve at `oauth.clientMetadataUrl`. */
     clientMetadata: () => clientMetadataDocument(oauth),
   }

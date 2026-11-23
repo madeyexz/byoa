@@ -7,7 +7,7 @@ description: Adds byoa to an app, so the app runs each user's own Claude Code or
 
 byoa is a library. It runs inside the app's own backend (Node, Bun or Convex actions). It is not a hosted service. The app gives it a sandbox adapter and a store adapter. byoa then signs each user in to their own plan, keeps their MCP grants, and runs each job in that user's sandbox (or, as an option, a new sandbox for each job).
 
-The reference app is the to-do example: https://github.com/madeyexz/byoa/tree/main/examples/todo. Its `app.ts` holds all of its byoa code. Read it before you write the app's code, and copy its patterns.
+The reference app is the to-do example: https://github.com/madeyexz/byoa/tree/main/examples/todo. Its `app.ts` holds all of its byoa code. Read it before you write the app's code, and copy its patterns. One pattern is older than byoa's `tools` option: the example runs its own MCP server for its to-dos and connects it for each user with a bearer token. In a new app, give the app's own tools to `createAgents` as `tools` (section 5).
 
 The full API, with every option and event, is in [reference/api.md](reference/api.md). The rules every app must follow are in "Lab rules" below. Do not skip them.
 
@@ -38,6 +38,7 @@ const agents = createAgents({
   encryptionKey: process.env.BYOA_KEY!,             // openssl rand -base64 32; keep it the same between restarts
   proxyUrl: 'https://myapp.example.com/byoa/mcp',   // public HTTPS; serve agents.proxy here and below
   oauth: { redirectUrl: 'https://myapp.example.com/byoa/callback' },
+  tools: { todos: todoTools },                      // the app's own tools, as functions: see section 5
 })
 ```
 
@@ -107,6 +108,25 @@ await agents.removeMcp(userId, 'notion')
 - A sign-in that is not finished in 15 minutes runs out; call `connectMcp` again.
 - byoa refreshes each grant itself, with one refresh owner. Do not refresh or read the tokens in app code. To call a non-MCP API of the same service (for example an export), use `agents.fetchWithGrant(userId, name, url)`.
 
+**The app's own tools.** Do not write an MCP server for the app's own data. Give the tools to `createAgents` as functions, and name the group in the job's `mcp`:
+
+```ts
+const todoTools = {
+  add_todo: {
+    description: 'Add one to-do.',
+    input: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] },  // JSON Schema of the arguments
+    run: ({ title }, { user }) => db.addTodo(user, String(title)),                             // in the backend, for the job's user
+  },
+  list_todos: { description: "List the user's to-dos.", run: (_args, { user }) => db.todos(user) },
+}
+const agents = createAgents({ ...options, tools: { todos: todoTools } })
+agents.run(userId, { harness, task, mcp: ['todos'] })
+```
+
+- `agents.proxy` serves them at `<proxyUrl>/todos` and checks the job token. `user` is the user of the job; never take the user from the arguments.
+- What `run` returns goes to the agent: a string as it is, other values as JSON. When it throws, the agent gets the message as a failed call. byoa does not check the arguments against `input`: check them in `run`.
+- No user connects anything for them, and `listMcp` does not list them. `connectMcp` refuses their names.
+
 ## 6. Run a job and stream its events
 
 ```ts
@@ -115,6 +135,7 @@ for await (const ev of agents.run(userId, {
   task,                                // the user's request
   mcp: ['notion'],                     // the servers this job gets; default none
   setup: { agentsMd, skills },         // AGENTS.md (and CLAUDE.md for Claude Code); skills: [{ name, files: { 'SKILL.md': '...' } }]
+  access: 'read-only',                 // what the agent may do; default 'full'
 })) {
   // ev.type: 'start' | 'text' | 'tool_call' | 'tool_result' | 'permission' | 'error' | 'end'
 }
@@ -123,7 +144,9 @@ for await (const ev of agents.run(userId, {
 - The events are the same for Claude Code and Codex. The full schema is in reference/api.md.
 - `run` never throws for job failures. It yields `error` events (`code`: `signed-out`, `expired`, `harness`, `sandbox` or `mcp`) and always ends with one `end` event (`ok`, `result`, `usage`). On `signed-out` or `expired`, show the sign-in again.
 - A server in `mcp` that the user has not connected gives an `error` with code `mcp`, and the job runs without it.
-- **The sandbox.** By default (`sandboxPer: 'user'`), each user has one sandbox of the app for each harness: the first job creates it, byoa pauses it after each job and resumes it for the next, with a new job folder. One job of a user and harness runs at a time; another waits up to `waitMs` (default 10 minutes; set it shorter on short-lived backends such as Convex actions). A sandbox the provider lost is replaced by a new one. When one user has many workspaces (projects, conversations), pass `sandboxKey` in `run` or `session`: each key gets its own kept sandbox and lease. `sandboxPer: 'job'` gives each job a new sandbox and destroys it after the job; use it when nothing may stay between jobs. With the default stored login, a user's Claude Code or Codex jobs run one after the other in every mode, also with different sandbox keys: one job of a user and harness holds the AI login at a time, and another waits for it. Only fake-harness jobs run at the same time. Ask the developer which they want.
+- **The proxy check.** Before the harness starts, byoa checks from the sandbox that each of the job's servers answers through the proxy. When the sandbox cannot reach the proxy, the job does not start: an `error` with code `mcp`, then `end` with `ok: false` (`session` throws `ProxyError`). A server that does not answer gives an `error` with code `mcp`, and the job runs. Show these errors: they mean a wrong `proxyUrl`, a tunnel that ended, or a server that is down.
+- **What the agent may do (`access`).** With `'full'` (the default), the agent has every tool of its harness with no approval: a shell, file changes and the network. That is for coding agents in a sandbox that is the job's alone. With `'read-only'`, the agent calls the job's MCP tools and reads files (the harness reads its skills this way: do not forbid the shell in AGENTS.md, because Codex reads a skill with `cat`); it cannot change a file or reach the network by itself. Use `'read-only'` when the agent needs only its MCP tools (a to-do list, a mail client), and always with `localSandbox()` on a user's own computer. It does not hide files: the agent can read each file its user can read. Ask the developer which one each kind of job needs.
+- **The sandbox.** By default (`sandboxPer: 'user'`), each user has one sandbox of the app for each harness: the first job creates it, byoa pauses it after each job and resumes it for the next, with a new job folder. One job of a user and harness runs at a time; another waits up to `waitMs` (default 10 minutes; set it shorter on short-lived backends such as Convex actions). A sandbox the provider lost is replaced by a new one. When one user has many workspaces (projects, conversations), pass `sandboxKey` in `run` or `session`: each key gets its own kept sandbox and lease. `sandboxPer: 'job'` gives each job a new sandbox and destroys it after the job; use it when nothing may stay between jobs. With the default stored login, a user's Claude Code or Codex jobs run one after the other in every mode, also with different sandbox keys: one job of a user and harness holds the AI login at a time, and another waits for it. For many Codex agents of one user at the same time (a fleet), pass `login: storedLogin({ parallel: true })` and give each agent a `sandboxKey`: the jobs then share the login while it is not due for a refresh. Tell the developer the risk that stays (reference/api.md, `storedLogin`), and let them choose. Ask the developer which they want.
 - `agents.signOut` deletes the user's sandbox for that harness. When the app deletes a user, call `agents.deleteSandbox(userId)` too; when it deletes a project that had a key, `agents.deleteSandbox(userId, { sandboxKey })`.
 - If the client goes away, stop the loop (or call `return()` on the generator): byoa then closes the job token and pauses (or destroys) the sandbox. The example's `ndjson()` in `app.ts` streams the events as JSON lines and does this on `cancel`.
 - To run the app's own program around the unmodified harness, use `agents.session(userId, { harness, mcp })` and call `s.close()` in a `finally`. See reference/api.md.

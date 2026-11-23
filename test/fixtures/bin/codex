@@ -17,7 +17,10 @@ case "$1" in
       echo
       sleep 1 # the user enters the code on OpenAI's page
       mkdir -p "$CODEX_HOME"
-      echo '{"tokens":{"access_token":"lab-secret-codex"}}' > "$CODEX_HOME/auth.json"
+      t=lab-secret-codex
+      # FAKE_CODEX_EXP: the access token is a JWT that ends then (seconds since 1970), as the real one does
+      [ -n "$FAKE_CODEX_EXP" ] && t="h.$(printf '{"exp":%s}' "$FAKE_CODEX_EXP" | base64 | tr -d '=\n' | tr '+/' '-_').lab-secret-codex"
+      echo "{\"tokens\":{\"access_token\":\"$t\"}}" > "$CODEX_HOME/auth.json"
       echo "Successfully logged in"
     fi ;;
   logout) rm -f "$CODEX_HOME/auth.json" ;;
@@ -27,6 +30,14 @@ case "$1" in
       t=$(sed -E 's/.*"access_token":"([^"]*)".*/\1/' "$CODEX_HOME/auth.json" 2>/dev/null)
       [ -n "$t" ] && echo "{\"tokens\":{\"access_token\":\"${t}x\"}}" > "$CODEX_HOME/auth.json"
       echo "{\"type\":\"item.completed\",\"item\":{\"id\":\"m\",\"type\":\"agent_message\",\"text\":\"cred: ${t:-none}\"}}"
+      echo '{"type":"turn.completed","usage":{}}'
+      exit 0
+    fi
+    if [[ "$task" == *together* ]]; then
+      # how many jobs run now: each one leaves a file in FAKE_CODEX_DIR while it runs
+      mkdir -p "$FAKE_CODEX_DIR"; touch "$FAKE_CODEX_DIR/$$"; sleep 1
+      n=$(ls "$FAKE_CODEX_DIR" | wc -l | tr -d ' '); rm -f "$FAKE_CODEX_DIR/$$"
+      echo "{\"type\":\"item.completed\",\"item\":{\"id\":\"m\",\"type\":\"agent_message\",\"text\":\"together: $n\"}}"
       echo '{"type":"turn.completed","usage":{}}'
       exit 0
     fi

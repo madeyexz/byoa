@@ -35,8 +35,15 @@ export function serverUrl(proxyUrl: string, server: string) {
   return `${proxyUrl.replace(/\/+$/, '')}/${server}`
 }
 
+/** What the agent of a job may do (R5.6). `full` (the default): every tool of the harness, with no approval, so the
+ *  sandbox is the only limit; for a sandbox that is the job's alone. `read-only`: the job's MCP tools, and reading
+ *  files (so the harness can read its skills and AGENTS.md); it cannot change a file or reach the network by itself.
+ *  byoa only sets each CLI's own flags for this (harness/codex.ts, harness/claude.ts). */
+export type Access = 'full' | 'read-only'
+export const ACCESS: Access[] = ['full', 'read-only']
+
 /** Paths relative to the job's folder → contents. `servers`: the MCP server names this job gets (R2.5). */
-export function harnessFiles(harness: HarnessName, setup: Setup, o: { proxyUrl: string; servers: string[] }): Record<string, string> {
+export function harnessFiles(harness: HarnessName, setup: Setup, o: { proxyUrl: string; servers: string[]; access?: Access }): Record<string, string> {
   const files: Record<string, string> = {}
   const servers = [...o.servers].sort()
   for (const s of servers) if (!SERVER_NAME.test(s)) throw new Error(`byoa: MCP server name ${JSON.stringify(s)}: lower-case letters, digits and -, at most 32`)
@@ -64,8 +71,12 @@ export function harnessFiles(harness: HarnessName, setup: Setup, o: { proxyUrl: 
     }]))
     files[CLAUDE_MCP_CONFIG] = JSON.stringify({ mcpServers }, null, 2) + '\n'
   } else if (servers.length) {
+    // with its sandbox on, Codex asks before each MCP tool call, and `codex exec` has nobody to ask: it refuses the
+    // call. The job's servers are the ones the app chose for it (R2.5), so their tools need no approval.
+    // Checked with codex-cli 0.171.0.
+    const approve = o.access === 'read-only' ? 'default_tools_approval_mode = "approve"\n' : ''
     files['.codex/config.toml'] = 'mcp_optional_startup_grace_ms = 0\n\n' + servers.map((s) =>
-      `[mcp_servers.${s}]\nurl = ${tomlString(serverUrl(o.proxyUrl, s))}\nbearer_token_env_var = "${JOB_TOKEN_ENV}"\nstartup_timeout_sec = ${CODEX_MCP_STARTUP_SEC}\n`).join('\n')
+      `[mcp_servers.${s}]\nurl = ${tomlString(serverUrl(o.proxyUrl, s))}\nbearer_token_env_var = "${JOB_TOKEN_ENV}"\nstartup_timeout_sec = ${CODEX_MCP_STARTUP_SEC}\n${approve}`).join('\n')
   }
   return files
 }

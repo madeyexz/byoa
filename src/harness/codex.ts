@@ -1,6 +1,7 @@
 // Codex: `codex exec --json`. Flags checked against `codex exec --help` of codex-cli 0.171.0.
 // Events: thread.started, turn.started, item.started / item.completed (agent_message, mcp_tool_call,
 // command_execution, ...), turn.completed (usage), turn.failed, error.
+import type { Access } from '../config.ts'
 import { AUTH_FAILED, clip, type AgentEvent, type EventReader } from './events.ts'
 
 /** The Codex login (`auth.json`) lives here, the user's login volume (R1.4); CODEX_HOME's default. */
@@ -9,11 +10,17 @@ export const CODEX_DIR = '.codex'
 /** `work`: the job's folder. Codex reads the job's `.codex/config.toml` only in a trusted project; this marks the job's
  *  folder trusted for this run only (checked with 0.171.0: a dotted `projects."<dir>".trust_level` is not applied,
  *  the inline table is). */
-export function codexArgs(o: { work: string; model?: string }): string[] {
+export function codexArgs(o: { work: string; model?: string; access?: Access }): string[] {
   return [
     'exec', '--json', '--skip-git-repo-check', '--ephemeral',
-    // the sandbox is the job's alone, has no real tokens (R3.3), and is destroyed after the job (R5.4)
-    '--dangerously-bypass-approvals-and-sandbox',
+    ...(o.access === 'read-only'
+      // R5.6: Codex's own sandbox. Its shell stays, because Codex reads a skill with `cat`, but a command cannot
+      // change a file or reach the network. `codex exec` never asks for approval; the job's MCP tools are approved
+      // in config.toml (config.ts). Checked with 0.171.0 on E2B: the skill was read, the MCP call went through, and
+      // `echo x > file` and `curl` failed.
+      ? ['--sandbox', 'read-only']
+      // the sandbox is the job's alone, has no real tokens (R3.3), and is destroyed after the job (R5.4)
+      : ['--dangerously-bypass-approvals-and-sandbox']),
     '-c', `projects={${JSON.stringify(o.work)}={trust_level="trusted"}}`,
     ...(o.model ? ['-m', o.model] : []),
     '-',

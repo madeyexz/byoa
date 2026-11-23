@@ -1,18 +1,28 @@
 // Claude Code: `claude -p` with stream-json output. Flags checked against `claude --help` of 2.1.330.
 // Events: system/init, assistant (text, tool_use), user (tool_result), result (subtype, is_error, result, usage,
 // permission_denials).
+import type { Access } from '../config.ts'
 import { AUTH_FAILED, clip, type AgentEvent, type EventReader } from './events.ts'
 
 /** The Claude Code login lives in this folder, which is the user's login volume (R1.4). With CLAUDE_CONFIG_DIR set,
  *  Claude Code keeps both `.credentials.json` and `.claude.json` there. */
 export const CLAUDE_DIR = '.claude'
 
-export function claudeArgs(o: { mcpConfig: string; model?: string }): string[] {
+/** The built-in tools of a `read-only` job (R5.6): they read files, and Skill loads the job's skills. */
+const CLAUDE_READ_TOOLS = ['Read', 'Glob', 'Grep', 'Skill']
+
+/** `servers`: the job's MCP servers, whose tools a `read-only` job may call. */
+export function claudeArgs(o: { mcpConfig: string; model?: string; access?: Access; servers?: string[] }): string[] {
   return [
     '-p', '--output-format', 'stream-json', '--verbose',
     '--mcp-config', o.mcpConfig, '--strict-mcp-config',
-    // the sandbox is the job's alone, has no real tokens (R3.3), and is destroyed after the job (R5.4)
-    '--permission-mode', 'bypassPermissions',
+    ...(o.access === 'read-only'
+      // R5.6: only the tools that read, and the job's MCP tools; `dontAsk` refuses every other tool, and Claude Code
+      // reports each refusal (a `permission` event). Not `--restricted`: it leaves out the job's own skills.
+      // Checked with 2.1.330: its `init` event lists these tools and the job's skill, and no Bash, Edit or Write.
+      ? ['--permission-mode', 'dontAsk', '--tools', CLAUDE_READ_TOOLS.join(','), '--allowedTools', [...CLAUDE_READ_TOOLS, ...(o.servers ?? []).map((s) => `mcp__${s}`)].join(',')]
+      // the sandbox is the job's alone, has no real tokens (R3.3), and is destroyed after the job (R5.4)
+      : ['--permission-mode', 'bypassPermissions']),
     '--no-session-persistence',
     ...(o.model ? ['--model', o.model] : []),
   ]

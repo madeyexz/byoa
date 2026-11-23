@@ -6,7 +6,7 @@ byoa is at an early stage. The requirements are in [SPEC.md](SPEC.md). The libra
 
 ## Before you start
 
-1. Read [SPEC.md](SPEC.md). It says what version 1 must do (R1 to R7) and how we check it (V1 to V11).
+1. Read [SPEC.md](SPEC.md). It says what version 1 must do (R1 to R7) and how we check it (V1 to V16).
 2. Read the [lab rules](SPEC.md#lab-rules). We cannot accept a change that breaks them.
 3. For a large change, open an issue first. Tell us the problem and the requirement it is about. This prevents work that we cannot accept.
 

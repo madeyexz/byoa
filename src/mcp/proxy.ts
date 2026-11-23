@@ -6,6 +6,7 @@ import { randomToken, sha256 } from '../crypto.ts'
 import { SERVER_NAME } from '../config.ts'
 import type { Store } from '../store.ts'
 import { GrantError, type Grants } from './grants.ts'
+import { serveTools, type AppTools } from './tools.ts'
 
 export interface JobRecord { user: string; job: string; servers: string[]; until: number }
 
@@ -48,11 +49,14 @@ const UP = ['accept', 'content-type', 'mcp-session-id', 'mcp-protocol-version', 
  *  that followed it would get a real token of its own into the sandbox. */
 const DOWN = ['content-type', 'mcp-session-id', 'cache-control']
 
+/** On every answer of the proxy. A job's check from its sandbox (agents.ts) knows from it that the request reached
+ *  the proxy, and not something else at that address, such as the error page of a tunnel that ended. */
+export const PROXY_HEADER = 'x-byoa-proxy'
 const fail = (status: number, message: string) =>
-  new Response(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32001, message } }), { status, headers: { 'content-type': 'application/json' } })
+  new Response(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32001, message } }), { status, headers: { 'content-type': 'application/json', [PROXY_HEADER]: '1' } })
 
 /** A fetch handler for requests to `<proxyUrl>/<server>`. */
-export function mcpProxy(o: { proxyUrl: string; jobs: JobTokens; grants: Grants }): (req: Request) => Promise<Response> {
+export function mcpProxy(o: { proxyUrl: string; jobs: JobTokens; grants: Grants; tools?: AppTools }): (req: Request) => Promise<Response> {
   const base = new URL(o.proxyUrl).pathname.replace(/\/+$/, '')
   return async (req) => {
     const path = new URL(req.url).pathname
@@ -62,6 +66,13 @@ export function mcpProxy(o: { proxyUrl: string; jobs: JobTokens; grants: Grants 
     const job = m ? await o.jobs.check(m[1]!) : null
     if (!job) return fail(401, 'the job token is not valid (the job ended, or it is not a job token)')
     if (!job.servers.includes(name)) return fail(403, `this job does not have the MCP server ${name}`)
+    // the app's own tools (tools.ts): they run here, for the job's user, with no token and no other server
+    const tools = o.tools && Object.prototype.hasOwnProperty.call(o.tools, name) ? o.tools[name] : undefined
+    if (tools) {
+      const res = await serveTools(name, tools, req, { user: job.user, job: job.job })
+      res.headers.set(PROXY_HEADER, '1')
+      return res
+    }
 
     const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer()
     const send = (url: string, token: string) => {
@@ -86,7 +97,7 @@ export function mcpProxy(o: { proxyUrl: string; jobs: JobTokens; grants: Grants 
     }
     if (res.status === 401) { await res.body?.cancel(); return fail(403, `${name} did not accept the user's sign-in; connect it again`) }
     if (res.status >= 300 && res.status < 400) { await res.body?.cancel(); return fail(502, `the MCP server ${name} sent a redirect`) }
-    const h = new Headers()
+    const h = new Headers({ [PROXY_HEADER]: '1' })
     for (const k of DOWN) { const v = res.headers.get(k); if (v !== null) h.set(k, v) }
     return new Response(res.body, { status: res.status, headers: h })
   }
