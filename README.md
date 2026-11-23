@@ -29,7 +29,7 @@ Version 1 supports two sandbox providers: E2B and Daytona. More providers come l
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/who-dark.png">
-  <img alt="Who brings what: you, the developer, build the app, pick the sandbox provider and own the database, and import byoa into your app's backend. The end user uses the app, signs in on the lab's own page and connects each MCP tool once. byoa creates, runs and destroys a sandbox for each job; the sandbox runs the user's own Claude Code or Codex, makes model calls on the user's own plan, and sends MCP calls with a job token to byoa, which adds the real token." src=".github/readme/who-light.png">
+  <img alt="Who brings what: you, the developer, build the app, pick the sandbox provider and own the database, and import byoa into your app's backend. The end user uses the app, signs in on the lab's own page and connects each MCP tool once. Your app code calls agents.run on byoa, which keeps AI logins and MCP grants in your database. byoa's box reaches past your backend's edge: outside it, byoa creates, runs and destroys a sandbox for each job at E2B or Daytona on your account, where the user's own Claude Code or Codex runs; the AI labs get the model calls, paid by the user's own plan; and the user's MCP servers get the real token from byoa's proxy." src=".github/readme/who-light.png">
 </picture>
 
 <details>
@@ -46,29 +46,24 @@ DEVELOPER · YOU                                           END USER
                    │                             connects each MCP tool once │
                    ▼                                                         ▼
 ┌─ YOUR APP'S BACKEND · you run it ────────────────────────────────────────────────────────────┐
-│                                                 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓   │
-│  your app code ─── agents.run(userId, task) ───▶┃ byoa · open source, Apache 2.0         ┃   │
-│                                                 ┃ AI login · harness install             ┃   │
-│                                                 ┃ MCP OAuth · MCP proxy                  ┃   │
-│  your database ◀─── MCP grants, AI logins ──────┃ skills, AGENTS.md and MCP config       ┃   │
-│                                                 ┗━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━┛   │
-│                                                       │         ▲                   │        │
-│                                                       │         │                   │        │
-└───────────────────────────────────────────────────────┼─────────┼───────────────────┼────────┘
-                                 create · run · destroy │         │ MCP calls,        │
-                                                        │         │ with a job token  │
-                                                        ▼         │                   │
-┌─ SANDBOX · a new one for each job ──────────────────────────────┴────┐              │
-│ E2B or Daytona, on your account                                      │              │
-│ runs the user's own Claude Code or Codex, unmodified                 │              │
-│ a copy of the user's AI login; no real MCP token                     │              │
-└──────────────────┬───────────────────────────────────────────────────┘   MCP calls, │
-                   │ model calls, paid by                                    with the │
-                   │ the user's own plan                                   real token │
-                   ▼                                                                  ▼
-┌─ AI LABS ──────────────────────────┐                    ┌─ MCP SERVERS ──────────────────────┐
-│ Anthropic · OpenAI                 │                    │ Notion · Gmail · … the user's own  │
-└────────────────────────────────────┘                    └────────────────────────────────────┘
+│  your app code                                            your database                      │
+│        │ agents.run(userId, task)                               ▲ AI logins, MCP grants      │
+│        ▼                                                        │                            │
+│ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+│ ┃ byoa · open source, Apache 2.0                                                           ┃ │
+│ ┃   AI login · harness            skills · AGENTS.md            MCP OAuth · proxy          ┃ │
+│ ┃              │                                                           │               ┃ │
+└─╂┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄ ▲ your backend · outside it ▼ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╂─┘
+  ┃              │ create · run · destroy                         real token │               ┃
+  ┃              ▼                                                           ▼               ┃
+  ┃ ┌─ SANDBOX ────────────────┐  ┌─ AI LABS ────────────────┐  ┌─ MCP SERVERS ────────────┐ ┃
+  ┃ │ E2B or Daytona,          │  │ Anthropic · OpenAI       │  │ Notion · Gmail · …       │ ┃
+  ┃ │ on your account          ├─▶│ model calls, paid by     │  │ the user's own accounts  │ ┃
+  ┃ │ runs the user's own      │  │ the user's own plan      │  │                          │ ┃
+  ┃ │ Claude Code or Codex     │  │                          │  │                          │ ┃
+  ┃ └──────────────────────────┘  └──────────────────────────┘  └──────────────────────────┘ ┃
+  ┃                                                                                          ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
 </details>
