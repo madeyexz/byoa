@@ -1,7 +1,11 @@
+mcp_optional_startup_grace_ms = 0
+
 [mcp_servers.linear]
 url = "https://app.example.com/byoa/mcp/linear"
 bearer_token_env_var = "BYOA_JOB_TOKEN"
+startup_timeout_sec = 60
 
 [mcp_servers.notion]
 url = "https://app.example.com/byoa/mcp/notion"
 bearer_token_env_var = "BYOA_JOB_TOKEN"
+startup_timeout_sec = 60

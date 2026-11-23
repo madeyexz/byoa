@@ -18,6 +18,11 @@ export interface Setup {
 
 /** The environment variable that carries the job token to the harness. */
 export const JOB_TOKEN_ENV = 'BYOA_JOB_TOKEN'
+/** How long Codex waits for each MCP server to start, in seconds (its own default is 10). The proxy holds a server's
+ *  first request while the grant's one refresh runs, which can take up to 60 s (mcp/grants.ts). Codex also waits for
+ *  all optional servers together only 1 s by default (`mcp_optional_startup_grace_ms`), and then leaves a server that
+ *  is not ready out of the job, with no error; byoa sets that to 0, so Codex waits each server's own timeout. */
+export const CODEX_MCP_STARTUP_SEC = 60
 /** Where the Claude Code MCP config goes, relative to the job's folder. */
 export const CLAUDE_MCP_CONFIG = '.byoa/mcp.json'
 
@@ -59,8 +64,8 @@ export function harnessFiles(harness: HarnessName, setup: Setup, o: { proxyUrl: 
     }]))
     files[CLAUDE_MCP_CONFIG] = JSON.stringify({ mcpServers }, null, 2) + '\n'
   } else if (servers.length) {
-    files['.codex/config.toml'] = servers.map((s) =>
-      `[mcp_servers.${s}]\nurl = ${tomlString(serverUrl(o.proxyUrl, s))}\nbearer_token_env_var = "${JOB_TOKEN_ENV}"\n`).join('\n')
+    files['.codex/config.toml'] = 'mcp_optional_startup_grace_ms = 0\n\n' + servers.map((s) =>
+      `[mcp_servers.${s}]\nurl = ${tomlString(serverUrl(o.proxyUrl, s))}\nbearer_token_env_var = "${JOB_TOKEN_ENV}"\nstartup_timeout_sec = ${CODEX_MCP_STARTUP_SEC}\n`).join('\n')
   }
   return files
 }

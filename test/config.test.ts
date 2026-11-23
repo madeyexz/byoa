@@ -52,9 +52,11 @@ test('V10: the pinned Codex reads the config.toml byoa writes', { skip: !codex &
   mkdirSync(home)
   for (const [p, text] of Object.entries(write('codex').files)) { mkdirSync(dirname(join(work, 'job', p)), { recursive: true }); writeFileSync(join(work, 'job', p), text) }
   const out = execFileSync(codex!, ['-c', `projects={${JSON.stringify(join(work, 'job'))}={trust_level="trusted"}}`, 'mcp', 'list', '--json'], { cwd: join(work, 'job'), env: { ...process.env, CODEX_HOME: home }, encoding: 'utf8' })
-  const list = JSON.parse(out) as { name: string; transport: { type: string; url: string; bearer_token_env_var: string } }[]
-  assert.deepEqual(list.map((s) => [s.name, s.transport.type, s.transport.url, s.transport.bearer_token_env_var]).sort(), [
-    ['linear', 'streamable_http', 'https://app.example.com/byoa/mcp/linear', 'BYOA_JOB_TOKEN'],
-    ['notion', 'streamable_http', 'https://app.example.com/byoa/mcp/notion', 'BYOA_JOB_TOKEN'],
+  const list = JSON.parse(out) as { name: string; transport: { type: string; url: string; bearer_token_env_var: string }; startup_timeout_sec: number | null }[]
+  // startup_timeout_sec: Codex waits that long for a server whose first request waits on a refresh at the proxy;
+  // with a key Codex does not know, it reports null and waits its default 10 s
+  assert.deepEqual(list.map((s) => [s.name, s.transport.type, s.transport.url, s.transport.bearer_token_env_var, s.startup_timeout_sec]).sort(), [
+    ['linear', 'streamable_http', 'https://app.example.com/byoa/mcp/linear', 'BYOA_JOB_TOKEN', 60],
+    ['notion', 'streamable_http', 'https://app.example.com/byoa/mcp/notion', 'BYOA_JOB_TOKEN', 60],
   ])
 })
