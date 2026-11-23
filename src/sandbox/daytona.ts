@@ -27,6 +27,29 @@ export interface DaytonaOptions {
 const HOME = '/home/daytona'
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+/** Daytona's command logs are lines: it ends a last line that has no newline with one. So each command prints this
+ *  after its output, on stdout and on stderr, and what comes after it is Daytona's. */
+const END = '\x1ebyoa-end\x1e'
+
+/** Passes a stream's chunks on up to END. It holds back only a tail that could be the start of END. */
+function untilEnd(out: (c: string) => void) {
+  let held = '', ended = false
+  return {
+    push(c: string) {
+      if (ended) return
+      held += c
+      const i = held.indexOf(END)
+      if (i >= 0) { ended = true; if (i) out(held.slice(0, i)); held = ''; return }
+      let k = Math.min(held.length, END.length - 1)
+      while (k > 0 && !END.startsWith(held.slice(-k))) k--
+      if (held.length > k) out(held.slice(0, held.length - k))
+      held = held.slice(held.length - k)
+    },
+    /** The command printed no END (it was killed with its shell): keep all of it. */
+    end() { if (!ended && held) out(held); held = '' },
+  }
+}
+
 export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
   let client = opts.client
   const d = () => (client ??= new Daytona(opts.apiKey ? { apiKey: opts.apiKey } : {}).v0)
@@ -44,7 +67,7 @@ export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
         return `${k}=${q(v)} `
       }).join('')
       const limit = o.timeoutMs ? `timeout -s KILL ${Math.ceil(o.timeoutMs / 1000)} ` : ''
-      const command = `cd ${q(o.cwd ?? HOME)} && ${env}${limit}bash -c ${q(cmd)} < /dev/null`
+      const command = `(cd ${q(o.cwd ?? HOME)} && ${env}${limit}bash -c ${q(cmd)} < /dev/null); e=$?; printf '\\036byoa-end\\036'; printf '\\036byoa-end\\036' >&2; (exit $e)`
       const session = `byoa-${randomUUID()}`
       await s.process.createSession(session)
       const { cmdId } = await s.process.executeSessionCommand(session, { command, runAsync: true })
@@ -52,9 +75,10 @@ export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
       if (o.background) return { exitCode: 0, stdout: '', stderr: '' }
       try {
         let stdout = '', stderr = ''
-        await s.process.getSessionCommandLogs(session, cmdId,
-          (c) => { stdout += c; o.onStdout?.(c) },
-          (c) => { stderr += c; o.onStderr?.(c) })
+        const out = untilEnd((c) => { stdout += c; o.onStdout?.(c) })
+        const err = untilEnd((c) => { stderr += c; o.onStderr?.(c) })
+        await s.process.getSessionCommandLogs(session, cmdId, out.push, err.push)
+        out.end(); err.end()
         // the log stream can end just before the command's exit code is recorded
         for (let i = 0; ; i++) {
           const { exitCode } = await s.process.getSessionCommand(session, cmdId)

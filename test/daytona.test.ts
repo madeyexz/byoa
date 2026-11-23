@@ -1,6 +1,7 @@
-// The Daytona adapter against Daytona itself (R5.3, R5.4, R1.4): create with a volume, run, write, destroy; a second
-// sandbox sees what the first wrote in the login, and another login's subpath is not there; a destroyed sandbox is
+// The Daytona adapter against Daytona itself (R5.3, R5.4): create, run, write, destroy, and a destroyed sandbox is
 // gone at Daytona. Needs DAYTONA_API_KEY, and costs a little, so it does not run on every commit.
+// With BYOA_DAYTONA_VOLUMES=1 too, it also checks volumes (cliLogin, R1.5): a second sandbox sees what the first wrote
+// in the login, and another login's subpath is not there. That needs a key with the volume permissions.
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { test } from 'node:test'
@@ -8,45 +9,55 @@ import { Daytona } from '@daytona/sdk'
 import { daytona } from '../src/sandbox/daytona.ts'
 
 const skip = !process.env.DAYTONA_API_KEY && 'set DAYTONA_API_KEY to check the Daytona adapter'
+const skipVolumes = skip || (!process.env.BYOA_DAYTONA_VOLUMES && 'set BYOA_DAYTONA_VOLUMES=1 and DAYTONA_API_KEY to check Daytona volumes')
 
-test('Daytona adapter: create, run, write, volume, destroy', { skip, timeout: 10 * 60_000 }, async () => {
+test('Daytona adapter: create, run, write, destroy', { skip, timeout: 10 * 60_000 }, async () => {
+  const p = daytona()
+  const a = await p.create({ labels: { 'byoa-check': 'adapter' }, timeoutMs: 5 * 60_000 })
+  try {
+    assert.equal(a.home, '/home/daytona')
+    assert.equal((await a.run('echo $HOME; whoami')).stdout, '/home/daytona\ndaytona\n')
+    assert.deepEqual(await a.run('echo out; echo err >&2; exit 3'), { exitCode: 3, stdout: 'out\n', stderr: 'err\n' })
+    let streamed = ''
+    await a.run('printf "a\\nb\\n"; sleep 1; printf "c\\n"', { onStdout: (c) => { streamed += c } })
+    assert.equal(streamed, 'a\nb\nc\n')
+    assert.equal((await a.run(`printf '%s' "$X"`, { env: { X: `it's "quoted" $HOME` } })).stdout, `it's "quoted" $HOME`)
+    assert.equal((await a.run('pwd', { cwd: '/tmp' })).stdout, '/tmp\n')
+    assert.equal((await a.run('pwd')).stdout, '/home/daytona\n')
+    assert.equal((await a.run('cat', {})).exitCode, 0, 'a command that reads stdin does not wait for it')
+    assert.equal((await a.run('sleep 30', { timeoutMs: 2000 })).exitCode, 137)
+    await a.writeFile('/home/daytona/work/deep/kept.txt', new TextEncoder().encode('written by byoa'))
+    assert.equal((await a.run('cat /home/daytona/work/deep/kept.txt')).stdout, 'written by byoa')
+    assert.equal((await a.run('stat -c %U /home/daytona/work/deep/kept.txt')).stdout, 'daytona\n')
+    assert.equal((await p.resume(a.id)).id, a.id)
+    await a.run('sleep 3; echo done > /tmp/bg', { background: true })
+    assert.equal((await a.run('test -e /tmp/bg')).exitCode, 1, 'a background command returns at once')
+    await new Promise((r) => setTimeout(r, 6000))
+    assert.equal((await a.run('cat /tmp/bg')).stdout, 'done\n')
+  } finally { await a.destroy() }
+  await assert.rejects(new Daytona().v0.get(a.id), 'V8: the sandbox no longer exists at Daytona')
+  await assert.rejects(p.resume(a.id))
+})
+
+test('Daytona adapter: login volumes', { skip: skipVolumes, timeout: 10 * 60_000 }, async () => {
   const p = daytona()
   const login = `byoa-check-${randomBytes(6).toString('hex')}`, other = `${login}-other`
+  // cleanup must not hide the error that ended the test
+  const cleanup = () => Promise.all([login, other].map((v) => p.deleteVolume(v).catch(() => {})))
   try {
-    const a = await p.create({ volumes: [{ name: login, path: '.claude' }, { name: other, path: '.codex' }], labels: { 'byoa-check': 'adapter' }, timeoutMs: 5 * 60_000 })
+    const a = await p.create({ volumes: [{ name: login, path: '.claude' }, { name: other, path: '.codex' }], timeoutMs: 5 * 60_000 })
     try {
-      assert.equal(a.home, '/home/daytona')
-      assert.equal((await a.run('echo $HOME; whoami')).stdout, '/home/daytona\ndaytona\n')
-      assert.deepEqual(await a.run('echo out; echo err >&2; exit 3'), { exitCode: 3, stdout: 'out\n', stderr: 'err\n' })
-      let streamed = ''
-      await a.run('printf "a\\nb\\n"; sleep 1; printf "c\\n"', { onStdout: (c) => { streamed += c } })
-      assert.equal(streamed, 'a\nb\nc\n')
-      assert.equal((await a.run(`printf '%s' "$X"`, { env: { X: `it's "quoted" $HOME` } })).stdout, `it's "quoted" $HOME`)
-      assert.equal((await a.run('pwd', { cwd: '/tmp' })).stdout, '/tmp\n')
-      assert.equal((await a.run('pwd')).stdout, '/home/daytona\n')
-      assert.equal((await a.run('cat', {})).exitCode, 0, 'a command that reads stdin does not wait for it')
-      assert.equal((await a.run('sleep 30', { timeoutMs: 2000 })).exitCode, 137)
       await a.writeFile('/home/daytona/.claude/kept.txt', 'kept in the volume')
-      await a.writeFile('/home/daytona/work/deep/gone.txt', new TextEncoder().encode('gone with the sandbox'))
-      assert.equal((await a.run('cat /home/daytona/work/deep/gone.txt')).stdout, 'gone with the sandbox')
-      assert.equal((await a.run('stat -c %U /home/daytona/work/deep/gone.txt /home/daytona/.claude/kept.txt')).stdout, 'daytona\ndaytona\n')
+      assert.equal((await a.run('stat -c %U /home/daytona/.claude/kept.txt')).stdout, 'daytona\n')
       // what the harnesses do with their login folder: atomic replace by rename, append, a lock
       const fs = await a.run('cd ~/.claude && echo 1 > t.tmp && mv t.tmp t.json && echo 2 >> t.json && cat t.json && mkdir lock && rmdir lock && rm t.json')
       assert.deepEqual(fs, { exitCode: 0, stdout: '1\n2\n', stderr: '' })
       await a.writeFile('/home/daytona/.codex/other.txt', 'another login')
-      assert.equal((await p.resume(a.id)).id, a.id)
-      await a.run('sleep 3; echo done > /tmp/bg', { background: true })
-      assert.equal((await a.run('test -e /tmp/bg')).exitCode, 1, 'a background command returns at once')
-      await new Promise((r) => setTimeout(r, 6000))
-      assert.equal((await a.run('cat /tmp/bg')).stdout, 'done\n')
     } finally { await a.destroy() }
-    await assert.rejects(new Daytona().v0.get(a.id), 'V8: the sandbox no longer exists at Daytona')
-    await assert.rejects(p.resume(a.id))
 
     const b = await p.create({ volumes: [{ name: login, path: '.claude' }], timeoutMs: 5 * 60_000 })
     try {
       assert.equal((await b.run('cat /home/daytona/.claude/kept.txt')).stdout, 'kept in the volume')
-      assert.equal((await b.run('test -e /home/daytona/work/deep/gone.txt')).exitCode, 1)
       assert.equal((await b.run('ls -A /home/daytona/.claude; test -e /home/daytona/.codex')).stdout, 'kept.txt\n', 'only this login is mounted')
     } finally { await b.destroy() }
 
@@ -56,7 +67,6 @@ test('Daytona adapter: create, run, write, volume, destroy', { skip, timeout: 10
       assert.equal((await c.run('ls -A /home/daytona/.claude; cat /home/daytona/.codex/other.txt')).stdout, 'another login', 'deleteVolume deletes only that login')
     } finally { await c.destroy() }
   } finally {
-    await p.deleteVolume(login)
-    await p.deleteVolume(other)
+    await cleanup()
   }
 })
