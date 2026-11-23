@@ -47,7 +47,7 @@ export interface LoginDriver {
   env(sbx: Sandbox, user: string, h: HarnessName): Promise<Record<string, string>>
   /** Whether the sandbox has a login for the harness. */
   present(sbx: Sandbox, user: string, h: HarnessName): Promise<boolean>
-  /** After the job, before byoa destroys the sandbox (also when the job failed, or env was never called). */
+  /** After the job, before byoa pauses or destroys the sandbox (also when the job failed, or env was never called). */
   release?(sbx: Sandbox, user: string, h: HarnessName): Promise<void>
   start(user: string, h: HarnessName): Promise<LoginStart>
   /** Claude Code: `code` is the code Anthropic's page shows after sign-in. Codex: no code; `waitMs` waits that long

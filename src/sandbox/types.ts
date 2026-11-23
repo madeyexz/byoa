@@ -1,5 +1,5 @@
 // One interface for every sandbox provider (R5.3): create (with volumes mounted), resume, run a command, write a
-// file, destroy. An adapter for another provider (Daytona, Modal, ...) implements only this file's two interfaces;
+// file, pause, destroy. An adapter for another provider (Daytona, Modal, ...) implements only this file's two interfaces;
 // nothing else in byoa knows which provider runs the sandbox.
 
 export interface Volume {
@@ -15,8 +15,17 @@ export interface CreateOptions {
   volumes?: Volume[]
   /** Labels the provider keeps with the sandbox (E2B metadata, Daytona labels). Never secrets. */
   labels?: Record<string, string>
-  /** The provider ends the sandbox after this long, even if byoa cannot (a crash, a lost network). */
+  /** The provider stops the sandbox after this long, even if byoa cannot (a crash, a lost network). */
   timeoutMs?: number
+  /** A sandbox that byoa keeps between jobs (the user's sandbox, R5.4): when it times out, the provider pauses it and
+   *  keeps its files, instead of deleting it. Without `keep`, the provider deletes it. */
+  keep?: boolean
+}
+
+/** `resume` throws this when the provider no longer has the sandbox (it was deleted, or it expired). Other errors,
+ *  such as a rate limit, are not this one: then the sandbox may still be there. */
+export class SandboxGoneError extends Error {
+  readonly code = 'gone'
 }
 
 export interface RunOptions {
@@ -44,6 +53,9 @@ export interface Sandbox {
   run(cmd: string, opts?: RunOptions): Promise<RunResult>
   /** Writes a file, with its parent folders. */
   writeFile(path: string, data: string | Uint8Array): Promise<void>
+  /** Stops the sandbox at the provider and keeps its files and volumes; `resume` starts it again. Processes that run
+   *  in it may stop (E2B pauses with no memory where it can; Daytona stops the sandbox). */
+  pause(): Promise<void>
   /** Ends the sandbox at the provider. Its volumes stay. */
   destroy(): Promise<void>
 }
@@ -51,8 +63,12 @@ export interface Sandbox {
 export interface SandboxProvider {
   readonly name: string
   create(opts?: CreateOptions): Promise<Sandbox>
-  /** Connects to a sandbox that still runs, by its id. Throws if the provider no longer has it. */
-  resume(id: string): Promise<Sandbox>
+  /** Connects to a sandbox by its id, and starts it again when it is paused. `timeoutMs`: the provider stops it after
+   *  this long (as in CreateOptions). Throws SandboxGoneError if the provider no longer has it. */
+  resume(id: string, opts?: { timeoutMs?: number }): Promise<Sandbox>
+  /** Ends a sandbox by its id, running or paused, such as a user's sandbox when the app deletes the user. Nothing
+   *  happens when the provider no longer has it. */
+  destroy(id: string): Promise<void>
   /** Deletes a volume and its files, when the app deletes a user. */
   deleteVolume(name: string): Promise<void>
 }

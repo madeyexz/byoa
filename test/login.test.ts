@@ -6,7 +6,7 @@ import { chmodSync } from 'node:fs'
 import { after, test } from 'node:test'
 import { cliLogin, memoryStore } from '../src/index.ts'
 import { localSandbox } from '../src/sandbox/local.ts'
-import { collect, testApp } from './helpers/app.ts'
+import { collect, running, testApp } from './helpers/app.ts'
 
 const BIN = new URL('./fixtures/bin/', import.meta.url).pathname
 chmodSync(`${BIN}claude`, 0o755)
@@ -31,7 +31,7 @@ test('R1.1 / R1.5: Claude Code sign-in: the page as data, the code typed into th
   await agents.connectLogin('ann', 'claude')
   assert.deepEqual(await agents.finishLogin('ann', 'claude', { code: 'good-code' }), { state: 'signed-in' })
   assert.equal(await agents.loginState('ann', 'claude'), 'signed-in')
-  assert.equal(sandbox.live.size, 0, 'the sign-in sandbox is gone; the volume stays')
+  assert.equal(running(sandbox), 0, 'the sign-in sandbox is gone; the volume stays')
 
   // with cliLogin, the login is in the volume only, not in the app's database
   const stored = (await Promise.all((store as ReturnType<typeof memoryStore>).keys().map((k) => store.get(k)))).map((e) => e!.value).join('\n')
@@ -81,7 +81,7 @@ test('Lab rules: with cliLogin, the same user in two apps has two login volumes,
 })
 
 test('R1.4: by default the login is encrypted in the app\'s store, each job gets a copy, and what the CLI refreshed is saved', async () => {
-  const { existsSync, readdirSync } = await import('node:fs')
+  const { existsSync, readdirSync, readFileSync } = await import('node:fs')
   const { join } = await import('node:path')
   const a = await app()
 
@@ -98,10 +98,17 @@ test('R1.4: by default the login is encrypted in the app\'s store, each job gets
   // two jobs at once: one holds the login at a time, so neither refresh is lost
   const both = (await Promise.all([result(), result()])).map((e) => (e as { result: string }).result).sort()
   assert.deepEqual(both, ['cred: lab-secret-claudexx', 'cred: lab-secret-claudexxx'])
-  assert.equal(a.sandbox.live.size, 0)
+  // all four jobs ran in the user's one sandbox, which is paused now, and its copy of the login was removed
+  assert.equal(running(a.sandbox), 0)
+  const [kept] = [...a.sandbox.paused]
+  assert.equal(a.sandbox.paused.size, 1)
+  const inSandbox = readdirSync(kept!, { recursive: true, withFileTypes: true }).filter((e) => e.isFile())
+    .map((e) => readFileSync(join(e.parentPath, e.name), 'utf8')).join('\n')
+  assert.ok(!inSandbox.includes('lab-secret'), 'no login file in the paused sandbox')
 
   await a.agents.signOut('dee', 'claude')
   assert.equal(await a.agents.loginState('dee', 'claude'), 'signed-out')
+  assert.equal(a.sandbox.live.size, 0, 'sign-out deletes the user\'s sandbox')
   assert.ok(!a.store.keys().some((k) => k.startsWith('ailogin/')))
   assert.equal((await collect(a.agents.run('dee', { harness: 'claude', task: 'cred' })))[0]!.type, 'error')
 })

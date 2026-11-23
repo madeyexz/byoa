@@ -17,7 +17,7 @@ import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { createAgents, memoryStore, readPlugin, type Sandbox, type SandboxProvider } from '../src/index.ts'
+import { SandboxGoneError, createAgents, memoryStore, readPlugin, type Sandbox, type SandboxProvider } from '../src/index.ts'
 import { readPluginDir, toNodeListener } from '../src/node.ts'
 import { q } from '../src/sh.ts'
 import { daytona } from '../src/sandbox/daytona.ts'
@@ -30,22 +30,26 @@ const FIXTURES = join(import.meta.dirname, 'fixtures')
 /** The files of the job's folder that come from the setup, which must be the same in both providers. */
 const SETUP_FILES = ['AGENTS.md', 'CLAUDE.md', '.claude/skills/summarize/SKILL.md', '.claude/skills/summarize/references/checklist.md']
 
-/** Keeps the setup files of each job's sandbox, read in the sandbox before it is destroyed, and each sandbox's id.
+/** Keeps the setup files of each job's sandbox, read in the sandbox before it pauses or is destroyed, and each
+ *  sandbox's id.
  *  `hosts`: a line for the sandbox's /etc/hosts. In E2B sandboxes about one lookup of the tunnel's name in four
  *  fails (no answer, or an IPv6 address the sandbox has no route to), and the fake harness does not retry. */
 function kept(p: SandboxProvider, hosts?: () => string) {
   const k = { ids: [] as string[], files: [] as Record<string, string>[] }
-  const wrap = (s: Sandbox): Sandbox => ({
-    id: s.id, home: s.home, run: (c, o) => s.run(c, o), writeFile: (f, d) => s.writeFile(f, d),
-    async destroy() {
+  const wrap = (s: Sandbox): Sandbox => {
+    const keep = async () => {
       const files: Record<string, string> = {}
       for (const f of SETUP_FILES) files[f] = (await s.run(`cat ${s.home}/work/${f}`)).stdout
       k.files.push(files)
-      await s.destroy()
-    },
-  })
+    }
+    return {
+      id: s.id, home: s.home, run: (c, o) => s.run(c, o), writeFile: (f, d) => s.writeFile(f, d),
+      async pause() { await keep(); await s.pause() },
+      async destroy() { await keep(); await s.destroy() },
+    }
+  }
   const provider: SandboxProvider = {
-    name: p.name, deleteVolume: (n) => p.deleteVolume(n), resume: (id) => p.resume(id).then(wrap),
+    name: p.name, deleteVolume: (n) => p.deleteVolume(n), destroy: (id) => p.destroy(id), resume: (id, o) => p.resume(id, o).then(wrap),
     create: async (o) => {
       const s = await p.create(o)
       k.ids.push(s.id)
@@ -80,8 +84,11 @@ test('V4: a job on E2B, then on Daytona, with the same MCP grant and skills and 
   let handler: (r: Request) => Promise<Response> = async () => new Response(null, { status: 503 })
   const server = createServer(toNodeListener((r) => handler(r)))
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
-  const t = await tunnel((server.address() as AddressInfo).port)
+  let t: Awaited<ReturnType<typeof tunnel>> | undefined
+  // the user's sandboxes stay paused at each provider until deleted, also when an assertion fails
+  let cleanup = async () => {}
   try {
+    t = await tunnel((server.address() as AddressInfo).port)
     const relay = process.env.BYOA_V4_RELAY?.replace(/\/+$/, '')
     const proxyUrl = relay ? `${relay}/${new URL(t.url).hostname.split('.')[0]}/byoa/mcp` : `${t.url}/byoa/mcp`
     let hosts = ''
@@ -92,6 +99,7 @@ test('V4: a job on E2B, then on Daytona, with the same MCP grant and skills and 
     const onDaytona = kept(daytona(), () => hosts)
     const agentsE2B = createAgents({ ...app, sandbox: onE2B.provider })
     const agentsDaytona = createAgents({ ...app, sandbox: onDaytona.provider })
+    cleanup = () => Promise.all([agentsE2B, agentsDaytona].map((a) => a.deleteSandbox('alice'))).then(() => {})
     // the proxy keeps its state in the store, so one served proxy is the same for both
     handler = agentsE2B.proxy
     // the tunnel's name needs a moment to resolve; the proxy refuses a request with no job token
@@ -127,11 +135,15 @@ test('V4: a job on E2B, then on Daytona, with the same MCP grant and skills and 
     const expected = Object.fromEntries(SETUP_FILES.map((f) => [f, readFileSync(join(FIXTURES, 'expected', 'claude', f), 'utf8')]))
     assert.deepEqual(onE2B.files, [expected])
     assert.deepEqual(onDaytona.files, [expected])
-    // and each job's sandbox is gone at its provider (V8)
-    await assert.rejects(e2b().resume(onE2B.ids[0]))
-    await assert.rejects(daytona().resume(onDaytona.ids[0]))
+    // each provider has the user's one sandbox, paused; deleteSandbox removes it there
+    assert.equal(onE2B.ids.length, 1)
+    assert.equal(onDaytona.ids.length, 1)
+    await cleanup()
+    await assert.rejects(e2b().resume(onE2B.ids[0]!), (e: Error) => e instanceof SandboxGoneError)
+    await assert.rejects(daytona().resume(onDaytona.ids[0]!), (e: Error) => e instanceof SandboxGoneError)
   } finally {
-    t.close()
+    await cleanup().catch(() => {})
+    t?.close()
     await new Promise<void>((r) => { server.closeAllConnections(); server.close(() => r()) })
     await mcp.close()
   }

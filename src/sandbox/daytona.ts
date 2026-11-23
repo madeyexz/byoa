@@ -1,4 +1,5 @@
-// The Daytona adapter. A sandbox is created for each job and destroyed after it (R5.4). Daytona allows few volumes
+// The Daytona adapter. A user's sandbox is stopped between jobs and started for the next one; a sandbox for one job
+// is ephemeral, deleted when it stops (R5.4). Daytona allows few volumes
 // per organization, so the user's AI login (R1.4) is a subpath of one shared volume: each login is its own subpath,
 // and a sandbox sees only the subpaths it mounts. Uses Daytona v0, Daytona's current platform, through the
 // `@daytona/sdk` package (a peer dependency).
@@ -7,7 +8,7 @@ import { posix } from 'node:path'
 import { Daytona, DaytonaNotFoundError, type DaytonaV0Client } from '@daytona/sdk'
 import type { Sandbox as DaytonaSandbox, VolumeMount } from '@daytona/sdk/v0'
 import { q } from '../sh.ts'
-import type { CreateOptions, RunOptions, RunResult, Sandbox, SandboxProvider, Volume } from './types.ts'
+import { SandboxGoneError, type CreateOptions, type RunOptions, type RunResult, type Sandbox, type SandboxProvider, type Volume } from './types.ts'
 
 export interface DaytonaOptions {
   /** Default: the DAYTONA_API_KEY environment variable. */
@@ -94,6 +95,9 @@ export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
       await s.fs.createFolder(posix.dirname(path), '755')
       await s.fs.uploadFile(Buffer.from(data), path)
     },
+    async pause() {
+      await s.stop(60)
+    },
     async destroy() {
       await s.delete(60, true)
     },
@@ -124,22 +128,41 @@ export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
       ...(opts.snapshot ? { snapshot: opts.snapshot } : {}),
       labels: c.labels,
       volumes: await mounts(c.volumes ?? [], c.mountAt ?? ((v) => `${HOME}/${v.path}`)),
-      // Daytona deletes the sandbox when it stops, and stops it after this long, even if byoa cannot (a crash, a
-      // lost network)
-      ephemeral: true,
-      ttlMinutes: minutes,
+      // Daytona stops the sandbox after this long with no activity, even if byoa cannot (a crash, a lost network). A
+      // sandbox for one job is ephemeral: Daytona deletes it when it stops, and at the latest after this long. A kept
+      // one stays stopped, with its files, until the next job starts it (Daytona archives it after 7 days stopped).
+      ...(c.keep ? { ephemeral: false, ttlMinutes: 0 } : { ephemeral: true, ttlMinutes: minutes }),
       autoStopInterval: minutes,
     })
     return wrap(s)
+  }
+
+  const get = async (id: string) => {
+    try { return await d().get(id) } catch (e) {
+      if (e instanceof DaytonaNotFoundError) throw new SandboxGoneError(`byoa daytona: the sandbox ${id} is gone`)
+      throw e
+    }
   }
 
   return {
     name: 'daytona',
     create: (c) => create(c),
     async resume(id) {
-      const s = await d().get(id)
-      if (s.state !== 'started') throw new Error(`byoa daytona: the sandbox ${id} is ${s.state}`)
-      return wrap(s)
+      const s = await get(id)
+      for (const end = Date.now() + 120_000; ; await sleep(1000), await s.refreshData()) {
+        if (s.state === 'started') return wrap(s)
+        if (s.state === 'stopped' || s.state === 'archived' || s.state === 'paused') { await s.start(120); return wrap(s) }
+        if (s.state === 'error' && s.recoverable) { await s.recover(120); return wrap(s) }
+        if (s.state === 'destroyed' || s.state === 'destroying' || s.state === 'error' || s.state === 'build_failed') {
+          if (s.state === 'error' || s.state === 'build_failed') await s.delete(60).catch(() => {})
+          throw new SandboxGoneError(`byoa daytona: the sandbox ${id} is ${s.state}`)
+        }
+        // starting, stopping, archiving, pausing, ...: wait for it to settle
+        if (Date.now() > end) throw new Error(`byoa daytona: the sandbox ${id} is still ${s.state}`)
+      }
+    },
+    async destroy(id) {
+      try { await (await get(id)).delete(60, true) } catch (e) { if (!(e instanceof SandboxGoneError) && !(e instanceof DaytonaNotFoundError)) throw e }
     },
     /** Deletes the login's subpath: a short sandbox mounts it and deletes its files. */
     async deleteVolume(name) {

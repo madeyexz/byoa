@@ -5,7 +5,7 @@ description: Adds byoa to an app, so the app runs each user's own Claude Code or
 
 # Add byoa to an app
 
-byoa is a library. It runs inside the app's own backend (Node, Bun or Convex actions). It is not a hosted service. The app gives it a sandbox adapter and a store adapter. byoa then signs each user in to their own plan, keeps their MCP grants, and runs each job in a new sandbox.
+byoa is a library. It runs inside the app's own backend (Node, Bun or Convex actions). It is not a hosted service. The app gives it a sandbox adapter and a store adapter. byoa then signs each user in to their own plan, keeps their MCP grants, and runs each job in that user's sandbox (or, as an option, a new sandbox for each job).
 
 The reference app is the to-do example: https://github.com/madeyexz/byoa/tree/main/examples/todo. Its `app.ts` holds all of its byoa code. Read it before you write the app's code, and copy its patterns.
 
@@ -81,7 +81,7 @@ await agents.signOut(userId, 'claude')
 
 Show `url` as a link or a QR code, so the user can sign in on another device. Keep each request short (for example `waitMs: 20_000`) and let the page call `finishLogin` again while the state is `pending`. This also works from short-lived backends such as Convex actions.
 
-**Where the login stays.** With no `login` option, byoa keeps the CLI's own login files encrypted in the app's store (`storedLogin()`, the default). Each job gets a copy in its new sandbox, and byoa saves it back when the CLI refreshed it. One job of a user and harness holds the login at a time. Options:
+**Where the login stays.** With no `login` option, byoa keeps the CLI's own login files encrypted in the app's store (`storedLogin()`, the default). Each job gets a copy in its sandbox; after the job, byoa saves it back when the CLI refreshed it and removes it from the sandbox. One job of a user and harness holds the login at a time. Options:
 
 - `login: storedLogin({ store: loginStore, encryptionKey: loginKey })`: a table and a key of their own.
 - `login: cliLogin`: a volume of that user, behind the sandbox adapter. The app's database never holds the login. It needs a provider with volumes (E2B volumes must be turned on for the team).
@@ -123,7 +123,9 @@ for await (const ev of agents.run(userId, {
 - The events are the same for Claude Code and Codex. The full schema is in reference/api.md.
 - `run` never throws for job failures. It yields `error` events (`code`: `signed-out`, `expired`, `harness`, `sandbox` or `mcp`) and always ends with one `end` event (`ok`, `result`, `usage`). On `signed-out` or `expired`, show the sign-in again.
 - A server in `mcp` that the user has not connected gives an `error` with code `mcp`, and the job runs without it.
-- byoa creates a new sandbox, runs the job and destroys the sandbox. If the client goes away, stop the loop (or call `return()` on the generator): byoa then closes the job token and destroys the sandbox. The example's `ndjson()` in `app.ts` streams the events as JSON lines and does this on `cancel`.
+- **The sandbox.** By default (`sandboxPer: 'user'`), each user has one sandbox of the app for each harness: the first job creates it, byoa pauses it after each job and resumes it for the next, with a new job folder. One job of a user and harness runs at a time; another waits up to `waitMs` (default 10 minutes; set it shorter on short-lived backends such as Convex actions). A sandbox the provider lost is replaced by a new one. `sandboxPer: 'job'` gives each job a new sandbox and destroys it after the job; use it when jobs of one user must run at the same time, or when nothing may stay between jobs. Ask the developer which they want.
+- `agents.signOut` deletes the user's sandbox for that harness. When the app deletes a user, call `agents.deleteSandbox(userId)` too.
+- If the client goes away, stop the loop (or call `return()` on the generator): byoa then closes the job token and pauses (or destroys) the sandbox. The example's `ndjson()` in `app.ts` streams the events as JSON lines and does this on `cancel`.
 - To run the app's own program around the unmodified harness, use `agents.session(userId, { harness, mcp })` and call `s.close()` in a `finally`. See reference/api.md.
 
 ## 7. Test without a plan or a sandbox

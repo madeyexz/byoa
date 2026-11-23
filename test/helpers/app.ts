@@ -1,6 +1,6 @@
 // A test app: createAgents on a local sandbox and a memory store, with the MCP proxy served over node:http. The
-// sandbox provider is watched: it keeps the environment of every command, and before each sandbox is destroyed it
-// keeps the text of every file in it, so tests can search them for real tokens.
+// sandbox provider is watched: it keeps the environment of every command, and before each sandbox pauses or is
+// destroyed it keeps the text of every file in it, so tests can search them for real tokens.
 import { randomBytes } from 'node:crypto'
 import { mkdtempSync, readFileSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -11,25 +11,27 @@ import { createAgents, memoryStore, type AgentEvent, type AgentsOptions, type Sa
 import { toNodeListener } from '../../src/node.ts'
 import { localSandbox } from '../../src/sandbox/local.ts'
 
-export interface Watched extends SandboxProvider { envs: Record<string, string>[]; files: string[]; created: number; live: Set<string> }
+export interface Watched extends SandboxProvider { envs: Record<string, string>[]; files: string[]; created: number; live: Set<string>; paused: Set<string> }
 
 export function watched(inner: ReturnType<typeof localSandbox>): Watched {
   const w: Watched = {
-    name: inner.name, envs: [], files: [], created: 0, live: inner.live,
-    resume: (id) => inner.resume(id).then(wrap),
+    name: inner.name, envs: [], files: [], created: 0, live: inner.live, paused: inner.paused,
+    resume: (id, o) => inner.resume(id, o).then(wrap),
+    destroy: (id) => inner.destroy(id),
     deleteVolume: (n) => inner.deleteVolume(n),
     create: async (o) => { w.created++; return wrap(await inner.create(o)) },
   }
   function wrap(s: Sandbox): Sandbox {
+    const keep = () => {
+      for (const e of readdirSync(s.id, { recursive: true, withFileTypes: true })) {
+        if (e.isFile()) { try { w.files.push(readFileSync(join(e.parentPath, e.name), 'utf8')) } catch {} }
+      }
+    }
     return {
       id: s.id, home: s.home, writeFile: (p, d) => s.writeFile(p, d),
       run: (cmd, o) => { w.envs.push({ ...o?.env }); return s.run(cmd, o) },
-      destroy: async () => {
-        for (const e of readdirSync(s.id, { recursive: true, withFileTypes: true })) {
-          if (e.isFile()) { try { w.files.push(readFileSync(join(e.parentPath, e.name), 'utf8')) } catch {} }
-        }
-        await s.destroy()
-      },
+      pause: async () => { keep(); await s.pause() },
+      destroy: async () => { keep(); await s.destroy() },
     }
   }
   return w
@@ -51,6 +53,9 @@ export async function testApp(o: Partial<AgentsOptions> & { env?: Record<string,
   handler = agents.proxy
   return { agents, sandbox, store, root, proxyUrl, close: () => new Promise<void>((r) => { server.closeAllConnections(); server.close(() => r()) }) }
 }
+
+/** The sandboxes that run now: not destroyed, not paused. */
+export const running = (w: Watched) => [...w.live].filter((id) => !w.paused.has(id)).length
 
 export async function collect(it: AsyncIterable<AgentEvent>) {
   const out: AgentEvent[] = []

@@ -3,7 +3,7 @@
 // harness installer (R5.1).
 import { auth } from '@modelcontextprotocol/sdk/client/auth.js'
 import { CLAUDE_MCP_CONFIG, JOB_TOKEN_ENV, SERVER_NAME, harnessFiles, serverUrl, type Plugin, type Setup } from './config.ts'
-import { importKey, open, seal } from './crypto.ts'
+import { importKey, open, randomToken, seal, sha256hex } from './crypto.ts'
 import { claudeArgs, claudeReader } from './harness/claude.ts'
 import { codexArgs, codexReader } from './harness/codex.ts'
 import type { AgentEvent, EventReader } from './harness/events.ts'
@@ -15,7 +15,7 @@ import type { LoginDeps, LoginDriver } from './login.ts'
 import { GrantError, Grants, type Grant } from './mcp/grants.ts'
 import { Provider, clientMetadataDocument, type OAuthConfig } from './mcp/oauth.ts'
 import { JobTokens, mcpProxy } from './mcp/proxy.ts'
-import type { Sandbox, SandboxProvider } from './sandbox/types.ts'
+import { SandboxGoneError, type Sandbox, type SandboxProvider } from './sandbox/types.ts'
 import { q } from './sh.ts'
 import type { Store } from './store.ts'
 
@@ -38,6 +38,13 @@ export interface AgentsOptions {
   login?: (deps: LoginDeps) => LoginDriver
   /** The most one job may take. Default 30 minutes. */
   jobTimeoutMs?: number
+  /** Where jobs run (R5.4). `user` (the default): each user has one sandbox of this app for each harness, which byoa
+   *  pauses after each job and resumes for the next one; one job of a user and harness runs at a time, and another
+   *  waits. `job`: a new sandbox for each job, destroyed after it. */
+  sandboxPer?: 'user' | 'job'
+  /** With `sandboxPer: 'user'`: how long a job waits for another job of the same user and harness to end. Default 10
+   *  minutes. */
+  waitMs?: number
   /** More origins that fetchWithGrant may send a grant's token to (R2.6), by the origin of the grant's MCP server:
    *  `{ 'https://margin.rippling.computer': ['https://helpful-tern-930.convex.site'] }`. Only for an API of that same
    *  service that takes the same token. Each key and value is an exact origin (https, or http on localhost): no path,
@@ -83,7 +90,8 @@ export interface Session {
   missing: string[]
   /** What the harness showed of its login: `expired` when it refused it, `signed-in` when a job worked (R1.6). */
   reportLogin(state: 'signed-in' | 'expired'): Promise<void>
-  /** Ends the job token (R3.4) and destroys the sandbox (R5.4). */
+  /** Ends the job token (R3.4), saves the login the CLI refreshed and removes it from the sandbox (R1.4), and pauses
+   *  the user's sandbox, or destroys a sandbox of one job (R5.4). */
   close(): Promise<void>
 }
 
@@ -106,6 +114,11 @@ export type ConnectResult = { name: string; connected: true } | { name: string; 
 
 const FLOW_MS = 15 * 60_000
 const flowKey = (state: string) => `mcpflow/${state}`
+/** The user's sandbox at one provider for one harness (R5.4): its id there, and the lease of the job that uses it. */
+const slotKey = (user: string, provider: string, h: RunHarness) => `usersandbox/${encodeURIComponent(user)}/${provider}/${h}`
+interface Slot { sandbox?: string; holder?: string; until: number }
+const HARNESSES: RunHarness[] = ['claude', 'codex', 'fake']
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const secure = (u: URL) => u.protocol === 'https:' || (u.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(u.hostname))
 
 /** `s` when it is an exact origin that may get a token, such as https://api.example.com. */
@@ -126,6 +139,9 @@ export function createAgents(o: AgentsOptions) {
   const jobs = new JobTokens(o.store)
   const login = (o.login ?? storedLogin())({ sandbox: o.sandbox, store: o.store, app: o.app, pins, encryptionKey: o.encryptionKey, jobTimeoutMs: o.jobTimeoutMs })
   const timeout = o.jobTimeoutMs ?? 30 * 60_000
+  const keep = (o.sandboxPer ?? 'user') === 'user'
+  if (!['user', 'job'].includes(o.sandboxPer ?? 'user')) throw new Error("byoa: sandboxPer: 'user' or 'job'")
+  const waitMs = o.waitMs ?? 10 * 60_000
   const grantOrigins = new Map(Object.entries(o.grantOrigins ?? {}).map(([mcp, extra]) => [exactOrigin(mcp), extra.map(exactOrigin)]))
 
   /** One MCP `initialize`, to see whether the server answers and whether it wants a token. */
@@ -248,29 +264,89 @@ export function createAgents(o: AgentsOptions) {
     }
   }
 
+  /** Takes the user's sandbox for this harness, with compare-and-set: a job waits while another job of the same user
+   *  and harness holds it. A lease left by a job that never ended runs out after the job timeout and 5 minutes. */
+  async function takeSlot(user: string, h: RunHarness): Promise<{ holder: string; sandbox?: string }> {
+    const k = slotKey(user, o.sandbox.name, h), holder = randomToken(12)
+    for (const end = Date.now() + waitMs; ;) {
+      const e = await o.store.get(k)
+      const cur: Slot = e ? JSON.parse(e.value) : { until: 0 }
+      if (cur.until < Date.now() && (await o.store.cas(k, e?.version ?? null, JSON.stringify({ sandbox: cur.sandbox, holder, until: Date.now() + timeout + 5 * 60_000 })))) return { holder, sandbox: cur.sandbox }
+      if (Date.now() > end) throw new Error(`byoa: another job of this user still holds the ${h} sandbox; try again when it ends`)
+      await sleep(500)
+    }
+  }
+  /** Changes the slot while `holder` holds it. False when it does not (deleteSandbox removed it meanwhile). */
+  async function setSlot(user: string, h: RunHarness, holder: string, next: Slot): Promise<boolean> {
+    const e = await o.store.get(slotKey(user, o.sandbox.name, h))
+    if (!e || (JSON.parse(e.value) as Slot).holder !== holder) return false
+    return o.store.cas(slotKey(user, o.sandbox.name, h), e.version, JSON.stringify(next))
+  }
+
+  /** Deletes the user's sandboxes of this app at this provider (R5.4): for one harness, or for all. For sign-out and
+   *  when the app deletes the user. A job that runs in one of them ends. The AI login and the MCP grants stay. */
+  async function deleteSandbox(user: string, h?: RunHarness) {
+    for (const x of h ? [h] : HARNESSES) {
+      const e = await o.store.get(slotKey(user, o.sandbox.name, x))
+      if (!e) continue
+      const id = (JSON.parse(e.value) as Slot).sandbox
+      if (id) await o.sandbox.destroy(id)
+      await o.store.delete(slotKey(user, o.sandbox.name, x))
+    }
+  }
+
   /** Opens one job (R5.4) for an app that runs its own program around the unmodified harness (Bookish runs its own
-   *  core, which starts `claude` or `codex`): a new sandbox with the user's AI login, the pinned harness, the
-   *  user's setup in `work`, and a job token for the MCP servers this job gets. `close` ends the job token and
-   *  destroys the sandbox; call it in a `finally`. Throws LoginError when the harness is not signed in. */
+   *  core, which starts `claude` or `codex`): the user's sandbox (or, with `sandboxPer: 'job'`, a new one) with the
+   *  user's AI login, the pinned harness, the user's setup in a new `work` folder, and a job token for the MCP
+   *  servers this job gets. `close` ends the job token, saves the login and removes it from the sandbox, and pauses
+   *  the sandbox (or destroys it); call it in a `finally`. Throws LoginError when the harness is not signed in. */
   async function session(user: string, r: SessionOptions): Promise<Session> {
     const h = r.harness
     const plugins = r.plugins ?? []
     const t = await jobToken(user, { mcp: [...(r.mcp ?? []), ...plugins.flatMap((p) => p.mcp.map((m) => m.name))] })
     const { token, job } = t
-    let sbx: Sandbox | undefined, closed = false
+    let sbx: Sandbox | undefined, slot: { holder: string; sandbox?: string } | undefined, closed = false
     const close = async () => {
       if (closed) return
       closed = true
       await t.close().catch(() => {})
-      // the stored login (the default) saves what the CLI changed and gives its lease back, before the sandbox goes
-      if (sbx && h !== 'fake') await login.release?.(sbx, user, h).catch(() => {})
-      await sbx?.destroy()
+      // the stored login (the default) saves what the CLI changed, removes its files and gives its lease back, before
+      // the sandbox pauses or goes. A kept sandbox whose login could not be removed is destroyed instead.
+      const released = !sbx || h === 'fake' || (await (login.release?.(sbx, user, h) ?? Promise.resolve()).then(() => true, () => false))
+      if (!slot) return sbx?.destroy()
+      try {
+        if (sbx && released) await sbx.pause()
+        else if (sbx) { await sbx.destroy(); slot.sandbox = undefined }
+      } finally {
+        await setSlot(user, h, slot.holder, { sandbox: slot.sandbox, until: 0 })
+      }
     }
     try {
       const setup: Setup = { agentsMd: r.setup?.agentsMd, skills: [...(r.setup?.skills ?? []), ...plugins.flatMap((p) => p.setup.skills ?? [])] }
       const files = harnessFiles(h === 'codex' ? 'codex' : 'claude', setup, { proxyUrl: o.proxyUrl, servers: t.mcp.map((m) => m.name) })
-      sbx = await o.sandbox.create({ volumes: h === 'fake' ? [] : await login.volumes(user, h), labels: { 'byoa-app': o.app, 'byoa-job': job }, timeoutMs: timeout + 60_000 })
+      if (keep) {
+        slot = await takeSlot(user, h)
+        if (slot.sandbox) {
+          try { sbx = await o.sandbox.resume(slot.sandbox, { timeoutMs: timeout + 60_000 }) } catch (e) {
+            // deleted or expired at the provider: the user gets a new one
+            if (!(e instanceof SandboxGoneError)) throw e
+          }
+        }
+      }
+      if (!sbx) {
+        const labels: Record<string, string> = slot ? { 'byoa-app': o.app, 'byoa-harness': h, 'byoa-user': (await sha256hex(user)).slice(0, 24) } : { 'byoa-app': o.app, 'byoa-job': job }
+        sbx = await o.sandbox.create({ volumes: h === 'fake' ? [] : await login.volumes(user, h), labels, timeoutMs: timeout + 60_000, keep: !!slot })
+        if (slot) {
+          slot.sandbox = sbx.id
+          if (!(await setSlot(user, h, slot.holder, { sandbox: sbx.id, holder: slot.holder, until: Date.now() + timeout + 5 * 60_000 }))) {
+            slot = undefined
+            throw new Error('byoa: the user\'s sandbox was deleted while this job started')
+          }
+        }
+      }
       const work = `${sbx.home}/work`
+      // each job's folder is new, also in a kept sandbox: no skills, MCP config or task of an earlier job
+      if (slot) await sbx.run(`rm -rf ${q(work)} && mkdir -p ${q(work)}`)
       let bin: string, version: string, env: Record<string, string> = {}
       if (h === 'fake') {
         bin = `${sbx.home}/.byoa/fake.mjs`
@@ -305,7 +381,7 @@ export function createAgents(o: AgentsOptions) {
     }
   }
 
-  /** Runs one job (R5.4): a session, the harness with the task, then close. Events in one schema for every harness
+  /** Runs one job (R5.4): a session, the harness with the task, then close (the sandbox pauses, or goes). Events in one schema for every harness
    *  (R5.5). */
   async function* run(user: string, r: RunOptions): AsyncGenerator<AgentEvent> {
     const h = r.harness
@@ -336,7 +412,7 @@ export function createAgents(o: AgentsOptions) {
         else yield { type: 'error', code: e instanceof GrantError ? 'mcp' : 'sandbox', message: (e as Error).message }
       }
       if (s) {
-        const failed = await s.close().then(() => undefined, (e) => `the sandbox was not destroyed: ${(e as Error).message}`)
+        const failed = await s.close().then(() => undefined, (e) => `the sandbox was not ${keep ? 'paused' : 'destroyed'}: ${(e as Error).message}`)
         if (failed) yield { type: 'error', code: 'sandbox', message: failed }
       }
       yield end
@@ -358,7 +434,10 @@ export function createAgents(o: AgentsOptions) {
     finishLogin: (user: string, h: HarnessName, input?: { code?: string; waitMs?: number }) => login.finish(user, h, input),
     /** `signed-in`, `signed-out` or `expired` (R1.6). */
     loginState: (user: string, h: HarnessName) => login.state(user, h),
-    signOut: (user: string, h: HarnessName) => login.signOut(user, h),
+    /** Signs the user out with the CLI, deletes the stored login (or the login volume), and deletes the user's
+     *  sandbox for this harness. */
+    signOut: async (user: string, h: HarnessName) => { await deleteSandbox(user, h); await login.signOut(user, h) },
+    deleteSandbox,
     connectMcp,
     importMcp,
     finishMcp,

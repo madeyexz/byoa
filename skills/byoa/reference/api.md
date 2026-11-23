@@ -6,7 +6,7 @@ This is the API in https://github.com/madeyexz/byoa today (version 0.1, before v
 
 | Import | What it gives |
 |---|---|
-| `byoa` | `createAgents`, `LoginError`, `memoryStore`, `storedLogin`, `cliLogin`, `harnessFiles`, `readPlugin`, `JOB_TOKEN_ENV`, `PINS`, `PACKAGES`, `ensureHarness`, `LOGIN_FILES`, `clientMetadataDocument`; types `AgentsOptions`, `RunOptions`, `RunHarness`, `ConnectResult`, `Session`, `SessionOptions`, `JobToken`, `Store`, `Entry`, `Sandbox`, `SandboxProvider`, `AgentEvent`, `Usage`, `Setup`, `Skill`, `Plugin`, `LoginState`, `LoginStart`, `LoginResult` |
+| `byoa` | `createAgents`, `LoginError`, `SandboxGoneError`, `memoryStore`, `storedLogin`, `cliLogin`, `harnessFiles`, `readPlugin`, `JOB_TOKEN_ENV`, `PINS`, `PACKAGES`, `ensureHarness`, `LOGIN_FILES`, `clientMetadataDocument`; types `AgentsOptions`, `RunOptions`, `RunHarness`, `ConnectResult`, `Session`, `SessionOptions`, `JobToken`, `Store`, `Entry`, `Sandbox`, `SandboxProvider`, `AgentEvent`, `Usage`, `Setup`, `Skill`, `Plugin`, `LoginState`, `LoginStart`, `LoginResult` |
 | `byoa/sandbox/e2b` | `e2b({ apiKey?, template?, timeoutMs? })`, `buildE2BTemplate(name?, { apiKey?, pins? })`, `e2bTemplate(pins?)`. Needs the `e2b` package. |
 | `byoa/sandbox/daytona` | `daytona({ apiKey?, client?, snapshot?, volume?, timeoutMs? })`. Needs `@daytona/sdk`. |
 | `byoa/sandbox/local` | `localSandbox({ root?, volumes?, env? })`: folders on this computer, for tests and development only. |
@@ -28,6 +28,8 @@ interface AgentsOptions {
   pins?: { claude: string; codex: string }   // default PINS
   login?: (deps) => LoginDriver              // default storedLogin(); or cliLogin
   jobTimeoutMs?: number                      // default 30 minutes
+  sandboxPer?: 'user' | 'job'                // default 'user': one sandbox per user and harness, paused between jobs
+  waitMs?: number                            // sandboxPer 'user': how long a job waits for the user's other job; default 10 minutes
   grantOrigins?: Record<string, string[]>    // more exact origins for fetchWithGrant, by MCP server origin
 }
 ```
@@ -35,6 +37,7 @@ interface AgentsOptions {
 - `oauth.redirectUrl`: the app's route that calls `finishMcp`.
 - `oauth.clientMetadataUrl`: an HTTPS URL where the app serves `agents.clientMetadata()` (a Client ID Metadata Document). Without it, byoa uses only Dynamic Client Registration.
 - `oauth.clientName`: the name the MCP server shows on its consent page. Default: `app`.
+- `sandboxPer`: `'user'` (the default): the first job of a user and harness creates the user's sandbox; byoa pauses it after each job (E2B pause, Daytona stop) and resumes it for the next, with a new job folder. One job of a user and harness at a time. A sandbox the provider no longer has is replaced by a new one. `'job'`: a new sandbox for each job, destroyed after it; jobs of one user can run at the same time.
 
 It returns an object with the methods below.
 
@@ -45,7 +48,8 @@ It returns an object with the methods below.
 | `connectLogin(user, 'claude' \| 'codex')` | `{ harness, url, code? }`. `url`: the lab's own sign-in page. `code`: Codex only, the code to enter on OpenAI's page. |
 | `finishLogin(user, h, { code?, waitMs? })` | `{ state: 'signed-in' \| 'signed-out' \| 'expired' \| 'pending', error? }`. Claude: pass `code` (the code Anthropic's page shows). Codex: no code; `waitMs` waits that long; call again while `pending`. |
 | `loginState(user, h)` | `'signed-in' \| 'signed-out' \| 'expired'` |
-| `signOut(user, h)` | `void` |
+| `signOut(user, h)` | `void`. Also deletes the user's sandbox for `h`. |
+| `deleteSandbox(user, h?)` | `void`. Deletes the user's sandbox of this app at this provider, for `h` or for every harness: call it when the app deletes the user. The login and grants stay. |
 
 Login drivers:
 
@@ -85,7 +89,7 @@ interface RunOptions {
 }
 ```
 
-Each run: a new sandbox, the user's login, the pinned harness, the setup files, the task, then the sandbox is destroyed. Stop the loop (or call `return()`) to end a job early; byoa still cleans up.
+Each run: the user's sandbox (resumed, or created for the first job; with `sandboxPer: 'job'`, a new one), the user's login, the pinned harness, the setup files in a new job folder, the task; then the login is taken out and the sandbox is paused (or destroyed). Stop the loop (or call `return()`) to end a job early; byoa still cleans up.
 
 ### Events (one schema for both harnesses)
 
@@ -110,7 +114,7 @@ For an app that runs its own program around the unmodified harness. Throws `Logi
 const s = await agents.session(userId, { harness: 'claude', mcp: ['notion'] })
 try {
   await s.sandbox.run(`my-server --claude ${s.bin}`, { cwd: s.work, env: s.env })
-} finally { await s.close() }   // ends the job token and destroys the sandbox
+} finally { await s.close() }   // ends the job token, takes the login out, and pauses (or destroys) the sandbox
 ```
 
 `Session`: `sandbox`, `work` (the job folder with byoa's files), `harness`, `bin` (the pinned binary), `version`, `env` (login folder and `BYOA_JOB_TOKEN`), `token`, `mcp` (`[{ name, url }]` at the proxy), `missing` (servers not connected), `reportLogin('signed-in' | 'expired')`, `close()`.
@@ -142,8 +146,9 @@ The version must change on every write, and a key that is deleted and written ag
 ```ts
 interface SandboxProvider {
   readonly name: string
-  create(opts?: { volumes?: { name: string; path: string }[]; labels?: Record<string, string>; timeoutMs?: number }): Promise<Sandbox>
-  resume(id: string): Promise<Sandbox>
+  create(opts?: { volumes?: { name: string; path: string }[]; labels?: Record<string, string>; timeoutMs?: number; keep?: boolean }): Promise<Sandbox>
+  resume(id: string, opts?: { timeoutMs?: number }): Promise<Sandbox>  // starts a paused one; throws SandboxGoneError when it is gone
+  destroy(id: string): Promise<void>                                   // by id, running or paused
   deleteVolume(name: string): Promise<void>
 }
 interface Sandbox {
@@ -151,11 +156,15 @@ interface Sandbox {
   readonly home: string
   run(cmd: string, opts?: { cwd?; env?; timeoutMs?; onStdout?; onStderr?; background? }): Promise<{ exitCode; stdout; stderr }>
   writeFile(path: string, data: string | Uint8Array): Promise<void>
+  pause(): Promise<void>      // keeps the files; resume starts it again
   destroy(): Promise<void>
 }
 ```
 
+- `keep: true`: a sandbox byoa keeps for the user. When it times out, the provider pauses it instead of deleting it.
+- E2B: `pause` takes a snapshot of the files only where the team can (`mode: 'filesystem'`), else a full one after it ends the sandbox's processes. E2B keeps a paused sandbox with no time limit.
 - E2B: the default template is `byoa`; build it once per pin change with `buildE2BTemplate()`. Any template with Node 20 or later works (byoa installs the pinned harness when it is missing, more slowly).
+- Daytona: `pause` stops the sandbox; `resume` starts it (also from archived, more slowly). A kept sandbox is not ephemeral and has no time to live; Daytona archives it after 7 days stopped.
 - Daytona: with `cliLogin`, every user's login is a subpath of one shared volume (`byoa` by default). On Tier 1 and 2 a sandbox reaches only allowed domains, so serve the proxy on one (for example `*.convex.site`, `*.workers.dev`).
 
 ## The fake harness

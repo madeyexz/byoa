@@ -39,7 +39,7 @@ We will add other sandbox providers (for example Modal or Vercel) after version 
 
 ## Adapters
 
-- A sandbox provider is one adapter with one interface: create, resume, run a command, write a file, mount a volume, destroy (R5.3). An adapter must not change the code outside it.
+- A sandbox provider is one adapter with one interface: create, resume, run a command, write a file, mount a volume, pause, destroy (R5.3). An adapter must not change the code outside it.
 - A store adapter is a small interface: get, put, delete, compare-and-set (R6). Compare-and-set must be atomic, because the single refresh owner (R2.3) needs it.
 - With each adapter, add the tests that show it passes the checks for its part of the spec.
 

@@ -36,7 +36,7 @@ Out of scope for version 1:
 - **R1.1** byoa MUST sign the user in to Claude Code by running the unmodified `claude` CLI login in the sandbox. The user completes sign-in on Anthropic's own page.
 - **R1.2** byoa MUST sign the user in to Codex by running the unmodified `codex login --device-auth` in the sandbox. The user enters the code on OpenAI's own page.
 - **R1.3** byoa MUST give the app the sign-in URL and code as data, so the app can show them on any device (for example a phone).
-- **R1.4** By default, byoa MUST keep the login (the CLI's own login files) in the app's own database, through the store adapter (R6), encrypted with a key that the app gives, for one user of one app. Each job MUST get a copy in its new sandbox, and byoa MUST save the files back when the CLI changed them (a token refresh). byoa MUST NOT let two sandboxes hold one user's login at the same time, so that two token refreshes do not revoke each other. byoa MUST NOT call the lab's token endpoints itself; the CLI is the only client that uses the tokens.
+- **R1.4** By default, byoa MUST keep the login (the CLI's own login files) in the app's own database, through the store adapter (R6), encrypted with a key that the app gives, for one user of one app. Each job MUST get a copy in its sandbox. After the job, byoa MUST save the files back when the CLI changed them (a token refresh), and MUST remove them from the sandbox, also from a sandbox that it keeps for the user's next job (R5.4). So between jobs the store is the only copy. byoa MUST NOT let two sandboxes hold one user's login at the same time, so that two token refreshes do not revoke each other. byoa MUST NOT call the lab's token endpoints itself; the CLI is the only client that uses the tokens.
 - **R1.5** The login part MUST be replaceable, with no change to R2 to R5. byoa MUST also ship a login that stays in a volume of that one user of that one app, mounted through the sandbox adapter (R5.3), which the app's database never holds.
 - **R1.6** byoa MUST report login state: `signed-in`, `signed-out`, `expired`.
 
@@ -65,10 +65,14 @@ Out of scope for version 1:
 
 ### R5. Harness and sandbox
 
-- **R5.1** byoa MUST install a pinned version of each harness in each new sandbox, or use a provider template with that version.
+- **R5.1** byoa MUST install a pinned version of each harness in each sandbox, or use a provider template with that version.
 - **R5.2** A new harness version MUST reach every user at their next job. (Bookish had to copy a new core into old sandboxes, because a template reaches only new sandboxes.)
-- **R5.3** Each sandbox provider MUST be one adapter with one interface: create, resume, run a command, write a file, mount a volume, destroy.
-- **R5.4** The default lifecycle MUST be: create a sandbox, load the user's setup, run the job, destroy the sandbox. The user's AI login (R1.4) and grants (R2) stay.
+- **R5.3** Each sandbox provider MUST be one adapter with one interface: create, resume, run a command, write a file, mount a volume, pause, destroy.
+- **R5.4** The lifecycle MUST be the app's choice, with the same app code on every provider:
+  - **One sandbox per user (the default).** Each user has one sandbox of the app for each harness. The first job creates it. After each job, byoa pauses it (E2B: pause; Daytona: stop), and the next job resumes it, with a new job folder. One job of a user and harness runs at a time; another job waits. When the provider no longer has the sandbox (it was deleted, or it expired), the next job creates a new one. A sandbox that times out during a job (a crash, a lost network) is paused, not deleted, and no process of that job runs when it resumes. byoa MUST delete the user's sandbox at sign-out, and MUST give the app a way to delete it, such as when it deletes the user.
+  - **One sandbox per job (`sandboxPer: 'job'`).** Create a sandbox, load the user's setup, run the job, destroy the sandbox.
+
+  In both, the user's AI login (R1.4) and grants (R2) stay in the app's database, and the security properties of R1.4 and R3 do not depend on the choice: no real MCP token goes into the sandbox, a job token is refused after its job, and no copy of the AI login stays in the sandbox between jobs.
 - **R5.5** `agents.run` MUST stream events (text, tool calls, permission requests, errors, end) in one schema for both harnesses.
 
 ### R6. Store adapter
@@ -111,18 +115,19 @@ Version 1 is done when every check below passes. Each check names the requiremen
 | V4 | Both providers | The same user runs a job on E2B, then on Daytona. The second job uses the same MCP grants and skills with no new MCP sign-in. | R5.3, R2 |
 | V5 | Tokens stay out | After a job with an MCP call, a test searches the sandbox's environment, every file, and `/proc/*/cmdline` and `/proc/*/environ` for each real token. It finds none. | R3.3 |
 | V6 | Old job tokens fail | A job token is used after its job ends. The proxy refuses it. | R3.4 |
-| V7 | One refresh | Two jobs start at the same time with an expired access token. The MCP server's token endpoint gets one refresh request, and both jobs succeed. | R2.3, R6.2 |
-| V8 | Disposable sandbox | After a job, the sandbox no longer exists at the provider. The next job works with no new sign-in. | R5.4 |
+| V7 | One refresh | Two jobs start at the same time with an expired access token (with `sandboxPer: 'job'`, so that they run at the same time). The MCP server's token endpoint gets one refresh request, and both jobs succeed. | R2.3, R6.2 |
+| V8 | Sandbox lifecycle | By default, a user's second job runs in the first job's sandbox, which was paused between them. When the provider no longer has it, the next job works in a new one with no new sign-in, and deleting the user's sandbox removes it at the provider. With `sandboxPer: 'job'`, after a job its sandbox no longer exists at the provider. | R5.4 |
 | V9 | Harness update | Change the pinned Claude Code version. The next job for an existing user runs the new version. | R5.2 |
 | V10 | Config formats | For a sample plugin, the files byoa writes match the expected files for each harness, byte for byte. | R4 |
 | V11 | Unmodified binaries | The test checks the hash of the installed `claude` and `codex` binaries against the published packages. | Lab rules |
 | V12 | The docs match the API | A test checks that every `agents.*` method, and every name imported from byoa, in the README and the agent skill exists in byoa. | R7.3 |
 
-V1 to V9 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11, V12 and the fake-harness tests run on every commit. In this repository: `npm test` runs V10, V12 and the fake-harness tests, `npm run test:v11` runs V11, and the job `example-todo` runs the to-do example's fake-harness tests (`.github/workflows/ci.yml`). With `E2B_API_KEY` and `DAYTONA_API_KEY` set, `npm test` also runs V4 (`test/v4.test.ts`).
+V1 to V9 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11, V12 and the fake-harness tests run on every commit. In this repository: `npm test` runs V10, V12 and the fake-harness tests, `npm run test:v11` runs V11, and the job `example-todo` runs the to-do example's fake-harness tests (`.github/workflows/ci.yml`). With `E2B_API_KEY` and `DAYTONA_API_KEY` set, `npm test` also runs V4 (`test/v4.test.ts`). `npm run test:e2b` runs V8 on E2B (`test/e2b.test.ts`).
 
 ## Open questions
 
 - Does the first version support Cloudflare Workers, or only Node and Convex?
 - How does a Claude login move from one sandbox provider to another without the app holding it? Today the user signs in again.
 - Do Anthropic and OpenAI accept the default stored login (R1.4) for apps that run their unmodified CLIs, or does an app need an agreement with them? We will ask them.
+- How long does a user's paused sandbox stay? Today byoa deletes it only at sign-out and when the app calls `deleteSandbox`. E2B keeps a paused sandbox with no time limit; Daytona archives a stopped one after 7 days, and the next job restores it more slowly. Does byoa need a limit for users who stop using an app?
 - Do we write a spec for credential references as an extension of Agent Plugins, and send it to the Agentic AI Foundation?

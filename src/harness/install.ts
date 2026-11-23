@@ -1,6 +1,7 @@
-// The harness installer (R5.1, R5.2). Each job runs in a new sandbox, so each job checks the harness there: the
-// template's copy when it is the pinned version, else the pinned version from npm, installed into the sandbox's
-// home folder. So a new pin reaches every user at their next job, also from an old template.
+// The harness installer (R5.1, R5.2). Each job checks the harness in its sandbox: the template's copy, or a copy an
+// earlier job of the user installed, when it is the pinned version; else the pinned version from npm, installed into
+// the sandbox's home folder. So a new pin reaches every user at their next job, also from an old template or in a
+// sandbox that byoa keeps between jobs.
 // It installs the labs' own npm packages, unchanged (Lab rules); `byoa/verify` checks that (V11).
 import type { Sandbox } from '../sandbox/types.ts'
 import { q } from '../sh.ts'

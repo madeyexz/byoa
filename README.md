@@ -27,7 +27,7 @@ Version 1 supports two sandbox providers: E2B and Daytona. More providers come l
 
 ## Who brings what
 
-**Your app brings the product. Each user brings the agent.** You build the app and pick the sandbox. Each user brings their plan and their tools. byoa runs inside your backend and runs each job in a new sandbox.
+**Your app brings the product. Each user brings the agent.** You build the app and pick the sandbox. Each user brings their plan and their tools. byoa runs inside your backend and runs each job in that user's own sandbox.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/who-dark.png">
@@ -125,7 +125,7 @@ The user connects each MCP tool one time. Every agent run has it. The real token
 
 ## How it works
 
-byoa sits in your backend, between your users and their agents. Your app calls `agents.run(userId, task)`. byoa starts a sandbox, loads the user's setup, and runs the user's own harness on the user's own plan.
+byoa sits in your backend, between your users and their agents. Your app calls `agents.run(userId, task)`. byoa starts or resumes the user's sandbox, loads the user's setup, and runs the user's own harness on the user's own plan.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/how-dark.png">
@@ -141,12 +141,14 @@ The agent in the sandbox gets a short-lived job token. The proxy in your backend
   <img alt="Token flow: the harness in the sandbox has an mcp.json that points to your proxy, with a job token for one job and one user, and no real MCP token. The MCP proxy in your backend checks the job token, adds the real token from the token store (your database, your key), sends the request on to the MCP server, and refuses the job token after the job ends." src=".github/readme/tokens-light.png">
 </picture>
 
-### Every job gets a fresh sandbox
+### The sandbox of each job
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/lifecycle-dark.png">
   <img alt="Lifecycle: 1. Create: byoa starts a sandbox at your provider. 2. Load the setup: pinned harness, skills, AGENTS.md and MCP config. 3. Run the job: text, tool calls and permission requests stream back as events. 4. Destroy: byoa destroys the sandbox at the provider. The user's AI login and MCP grants stay between jobs." src=".github/readme/lifecycle-light.png">
 </picture>
+
+The picture shows `sandboxPer: 'job'`. By default, step 1 resumes the user's sandbox from the last job (or creates it for the first job), and step 4 pauses it.
 
 ## Install
 
@@ -208,7 +210,7 @@ const s = await agents.session(userId, { harness: 'claude', mcp: ['notion'] })
 try {
   // s.bin: the pinned claude binary; s.env: its login folder and the job token; s.mcp: [{ name, url }] at the proxy
   await s.sandbox.run(`my-server --claude ${s.bin}`, { env: s.env })
-} finally { await s.close() }  // ends the job token and destroys the sandbox
+} finally { await s.close() }  // ends the job token, takes the AI login out, and pauses the user's sandbox
 ```
 
 A program outside byoa's sandboxes, such as a harness on the user's own computer, gets a job token with no sandbox: `const t = await agents.jobToken(userId, { mcp: ['notion'] })` gives `t.token` and `t.mcp` (the proxy URLs), with the same rules as a job's token, until `t.close()`.
@@ -228,15 +230,21 @@ const agents = createAgents({
 const r = await agents.fetchWithGrant(userId, 'margins', 'https://helpful-tern-930.convex.site/ext/export')
 ```
 
-Each job runs in a new sandbox, and byoa destroys the sandbox after the job. By default, the user's AI login stays encrypted in your database, and each job gets a copy (see AI login below). The MCP config in the sandbox points to `agents.proxy`, with a token for that one job. The real MCP tokens stay in your database.
+By default, each user has one sandbox of your app for each harness. The first job creates it. After each job, byoa pauses it (E2B pauses it; Daytona stops it), and the next job resumes it, so files that the app wrote there and the installed harness stay. Each job gets a new job folder (`s.work`) with its own setup. One job of a user and harness runs at a time; another job waits for it (`waitMs`, default 10 minutes). When the provider no longer has the sandbox, the next job creates a new one. For a new sandbox for each job, destroyed after it, set `sandboxPer: 'job'`:
 
-To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, destroy.
+```ts
+const agents = createAgents({ ...options, sandboxPer: 'job' })  // default 'user'
+```
+
+Either way, the user's AI login stays encrypted in your database, and each job gets a copy, which byoa takes out of the sandbox after the job (see AI login below). The MCP config in the sandbox points to `agents.proxy`, with a token for that one job. The real MCP tokens stay in your database. `agents.signOut` deletes the user's sandbox for that harness; when you delete a user, call `agents.deleteSandbox(userId)`, which deletes all of their sandboxes of your app at that provider.
+
+To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy.
 
 For Daytona, use `daytona({ apiKey })` from `byoa/sandbox/daytona` (it needs `@daytona/sdk`). Daytona allows 100 volumes per organization, so with `cliLogin` the adapter keeps every user's AI login in its own subpath of one shared volume (`byoa` by default). A sandbox mounts only that user's subpath. On Daytona Tier 1 and Tier 2, a sandbox can reach only [allowed domains](https://www.daytona.io/docs/en/network-limits), so serve `agents.proxy` on one of them (for example `*.convex.site`), or use Tier 3 or higher. `*.workers.dev` is on Daytona's list but does not work: a Worker's address has two labels below it (`<worker>.<account>.workers.dev`), and Daytona does not resolve those.
 
 ### AI login
 
-By default, byoa keeps each user's Claude or ChatGPT plan login in your own database, encrypted with your `encryptionKey`, through the store adapter. The sign-in is the unmodified CLI, on the lab's own page. When it ends, byoa keeps the CLI's own login files. Each job writes them into its new sandbox, and saves them back when the CLI refreshed them. One job of a user and harness holds the login at a time; another job waits for it. byoa never calls the labs' token endpoints itself. So the sandbox provider needs no volumes.
+By default, byoa keeps each user's Claude or ChatGPT plan login in your own database, encrypted with your `encryptionKey`, through the store adapter. The sign-in is the unmodified CLI, on the lab's own page. When it ends, byoa keeps the CLI's own login files. Each job writes them into its sandbox. After the job, byoa saves them back when the CLI refreshed them, and removes them from the sandbox, also from the user's sandbox that it keeps, so your database has the only copy between jobs. One job of a user and harness holds the login at a time; another job waits for it. byoa never calls the labs' token endpoints itself. So the sandbox provider needs no volumes.
 
 The labs' published terms restrict where these tokens may be stored: Anthropic's say developers may not "collect, store, or intermediate Claude.ai credentials or session tokens", and OpenAI's say stored tokens must be "local and under the user's control, not in a remote or managed environment" (see [SPEC.md](SPEC.md#lab-rules)). Check them for your app.
 
@@ -278,7 +286,7 @@ const agents = createAgents({ ...options, store: convexStore(ctx, internal.byoa)
 
 Use `harness: 'fake'`, `localSandbox()` from `byoa/sandbox/local` and `memoryStore()`. The fake harness runs no model. It calls MCP tools through the real proxy: each task line `call <server>.<tool> <json>` is one call.
 
-To test byoa itself: `npm test` (V10, V12, the fake-harness tests and the unit tests), and `npm run test:v11` (V11; it downloads about 600 MB). CI runs both on every commit. With `DAYTONA_API_KEY` set, `npm test` also checks the Daytona adapter against Daytona (with `BYOA_DAYTONA_VOLUMES=1` too, also its volumes; that needs a key with the volume permissions); with `E2B_API_KEY` too, it runs V4 ([test/v4.test.ts](test/v4.test.ts)), which needs `cloudflared` to give the proxy a public URL. On a Daytona org on Tier 1 or 2, also set `BYOA_V4_RELAY` to a relay on an allowed domain, such as [test/relay](test/relay/convex/http.ts) deployed to a temporary Convex project. `npm run test:e2b` checks the E2B adapter against E2B, with a volume; it needs `E2B_API_KEY` and an E2B team with volumes turned on.
+To test byoa itself: `npm test` (V10, V12, the fake-harness tests and the unit tests), and `npm run test:v11` (V11; it downloads about 600 MB). CI runs both on every commit. With `DAYTONA_API_KEY` set, `npm test` also checks the Daytona adapter against Daytona (with `BYOA_DAYTONA_VOLUMES=1` too, also its volumes; that needs a key with the volume permissions); with `E2B_API_KEY` too, it runs V4 ([test/v4.test.ts](test/v4.test.ts)), which needs `cloudflared` to give the proxy a public URL. On a Daytona org on Tier 1 or 2, also set `BYOA_V4_RELAY` to a relay on an allowed domain, such as [test/relay](test/relay/convex/http.ts) deployed to a temporary Convex project. `npm run test:e2b` checks the E2B adapter against E2B and runs V8 there (a user's jobs in one paused and resumed sandbox, and `sandboxPer: 'job'`); it needs `E2B_API_KEY`, and with `BYOA_E2B_VOLUMES=1` also checks volumes, for an E2B team with volumes turned on.
 
 ## Example app
 
@@ -292,8 +300,8 @@ We call version 1 done only when all of these checks pass. The full list is in [
 2. **Two harnesses work.** One user runs the same task with Claude Code and with Codex, each on that user's own plan.
 3. **Two providers work.** The same user, with the same MCP grants and skills, runs a job on E2B and then on Daytona. Only the adapter changes.
 4. **Tokens stay out of the sandbox.** A test searches the sandbox's environment, files and process list for each real MCP token after a job. It must find none.
-5. **One refresh owner.** Two jobs run at the same time and both need a token refresh. The provider sees one refresh request, and no grant is revoked.
-6. **Sandboxes are disposable.** The library destroys the sandbox after a job. The next job starts in a new sandbox, and the user does not sign in to an MCP server again.
+5. **One refresh owner.** Two jobs run at the same time (one sandbox for each job) and both need a token refresh. The provider sees one refresh request, and no grant is revoked.
+6. **The sandbox lifecycle works.** By default, a user's next job resumes the sandbox that was paused after the last one; when the provider lost it, the next job gets a new one. With `sandboxPer: 'job'`, the library destroys the sandbox after a job. In neither case does the user sign in to an MCP server again.
 
 ## Rules we follow
 

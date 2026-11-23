@@ -1,8 +1,9 @@
 // The default AI login (R1.4): the app's database holds it, encrypted, through the store adapter (R6).
 // The sign-in is cliLogin's: the lab's own, unmodified CLI, on the lab's own page (R1.1, R1.2). When it ends, byoa
 // reads the CLI's own login files from that sandbox and keeps them encrypted in the store, one entry per user and
-// harness in the app's own store. Each job then starts in a new sandbox with no volume: byoa writes the files in, and
-// after the job it saves them back when the CLI changed them (it refreshes its own tokens). byoa never reads the
+// harness in the app's own store. A job's sandbox has no login volume: byoa writes the files in, and after the job it
+// saves them back when the CLI changed them (it refreshes its own tokens) and removes them from the sandbox, also from
+// the user's sandbox that byoa keeps between jobs (R5.4). So the store is the only copy between jobs. byoa never reads the
 // tokens inside the files or calls the lab's token endpoints itself, so the CLI stays the only client that uses them.
 // Both CLIs rotate their refresh tokens, so only one sandbox holds a user's login at a time: a job takes a lease with
 // compare-and-set and waits for another job of the same user and harness to give it back.
@@ -102,13 +103,17 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
       },
       async release(sbx, user, h) {
         const x = held.get(sbx.id)
-        if (!x) return
         held.delete(sbx.id)
+        // the files leave the sandbox, which may be kept for the user's next job; the store keeps the login
+        const remove = () => sbx.run(`rm -f ${LOGIN_FILES[h].map((p) => q(`${sbx.home}/${p}`)).join(' ')}`)
+        if (!x) { await remove(); return }
         try {
           const now = await readFiles(sbx, h)
           // the CLI refreshed its login: keep the new files. Under the lease the version is still ours, unless the user
           // signed in again meanwhile; then that new login wins.
           if (now[LOGIN_FILES[h][0]!] && JSON.stringify(now) !== JSON.stringify(JSON.parse(x.text))) await store.cas(loginKey(user, h), x.version, await sealFiles(user, h, now))
+          const r = await remove()
+          if (r.exitCode !== 0) throw new Error(`byoa: could not remove the ${h} login from the sandbox: ${r.stderr.trim()}`)
         } finally {
           await give(user, h, x.lease)
         }

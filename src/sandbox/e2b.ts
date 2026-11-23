@@ -1,8 +1,9 @@
-// The E2B adapter. A sandbox is created for each job and destroyed after it (R5.4); the user's AI login lives in an
-// E2B volume that is mounted into each of their sandboxes (R1.4). Needs the `e2b` package (a peer dependency).
-import { CommandExitError, Sandbox as E2BSandbox, Template, Volume } from 'e2b'
+// The E2B adapter. A user's sandbox is paused between jobs and resumed for the next one; a sandbox for one job is
+// killed after it (R5.4). With cliLogin, the user's AI login lives in an E2B volume that is mounted into the sandbox
+// (R1.5). Needs the `e2b` package (a peer dependency).
+import { CommandExitError, NotFoundError, Sandbox as E2BSandbox, Template, Volume } from 'e2b'
 import { PINS, npmSpec, type Pins } from '../harness/pins.ts'
-import type { CreateOptions, RunOptions, Sandbox, SandboxProvider } from './types.ts'
+import { SandboxGoneError, type CreateOptions, type RunOptions, type Sandbox, type SandboxProvider } from './types.ts'
 
 export interface E2BOptions {
   /** Default: the E2B_API_KEY environment variable. */
@@ -15,6 +16,8 @@ export interface E2BOptions {
 }
 
 const HOME = '/home/user'
+/** Ends every process of the sandbox's user but this shell. */
+const STOP_ALL = 'for d in /proc/[0-9]*; do p=${d#/proc/}; [ "$p" = "$$" ] || { [ -O "$d" ] && kill -KILL "$p" 2>/dev/null; }; done; true'
 
 export function e2b(opts: E2BOptions = {}): SandboxProvider {
   const conn = { ...(opts.apiKey ? { apiKey: opts.apiKey } : {}) }
@@ -40,6 +43,15 @@ export function e2b(opts: E2BOptions = {}): SandboxProvider {
     async writeFile(path, data) {
       await s.files.write(path, typeof data === 'string' ? data : data.slice().buffer)
     },
+    async pause() {
+      // only the files: the next job reboots the sandbox, as on Daytona. A team that cannot take a snapshot with no
+      // memory gets a full one.
+      try { await s.pause({ mode: 'filesystem' }) } catch {
+        // a full snapshot keeps the processes: end them first, so no harness of this job runs in the next one
+        await s.commands.run(STOP_ALL)
+        await s.pause()
+      }
+    },
     async destroy() {
       await s.kill()
     },
@@ -62,12 +74,26 @@ export function e2b(opts: E2BOptions = {}): SandboxProvider {
         ...conn,
         metadata: c.labels,
         timeoutMs: c.timeoutMs ?? opts.timeoutMs ?? 30 * 60_000,
+        // a kept sandbox that times out (a crash, a lost network) is paused, not killed
+        ...(c.keep ? { lifecycle: { onTimeout: 'pause' as const, autoResume: false } } : {}),
         ...(Object.keys(volumeMounts).length ? { volumeMounts } : {}),
       })
       return wrap(s)
     },
-    async resume(id) {
-      return wrap(await E2BSandbox.connect(id, conn))
+    async resume(id, r = {}) {
+      try {
+        const paused = (await E2BSandbox.getInfo(id, conn)).state === 'paused'
+        const s = await E2BSandbox.connect(id, { ...conn, ...(r.timeoutMs ? { timeoutMs: r.timeoutMs } : {}) })
+        // a sandbox that paused itself at its timeout (the backend died during a job) kept its processes in memory
+        if (paused) await s.commands.run(STOP_ALL)
+        return wrap(s)
+      } catch (e) {
+        if (e instanceof NotFoundError) throw new SandboxGoneError(`byoa e2b: the sandbox ${id} is gone`)
+        throw e
+      }
+    },
+    async destroy(id) {
+      await E2BSandbox.kill(id, conn)
     },
     async deleteVolume(name) {
       const v = (await Volume.list(conn)).find((x) => x.name === name)

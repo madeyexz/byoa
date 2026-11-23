@@ -1,5 +1,6 @@
 // The Daytona adapter against Daytona itself (R5.3, R5.4): create, run, write, destroy, and a destroyed sandbox is
-// gone at Daytona. Needs DAYTONA_API_KEY, and costs a little, so it does not run on every commit.
+// gone at Daytona; a kept sandbox stops with its files and starts again. Needs DAYTONA_API_KEY, and costs a little, so
+// it does not run on every commit.
 // With BYOA_DAYTONA_VOLUMES=1 too, it also checks volumes (cliLogin, R1.5): a second sandbox sees what the first wrote
 // in the login, and another login's subpath is not there. That needs a key with the volume permissions.
 import assert from 'node:assert/strict'
@@ -7,6 +8,7 @@ import { randomBytes } from 'node:crypto'
 import { test } from 'node:test'
 import { Daytona } from '@daytona/sdk'
 import { daytona } from '../src/sandbox/daytona.ts'
+import { SandboxGoneError } from '../src/sandbox/types.ts'
 
 const skip = !process.env.DAYTONA_API_KEY && 'set DAYTONA_API_KEY to check the Daytona adapter'
 const skipVolumes = skip || (!process.env.BYOA_DAYTONA_VOLUMES && 'set BYOA_DAYTONA_VOLUMES=1 and DAYTONA_API_KEY to check Daytona volumes')
@@ -36,7 +38,31 @@ test('Daytona adapter: create, run, write, destroy', { skip, timeout: 10 * 60_00
     assert.equal((await a.run('cat /tmp/bg')).stdout, 'done\n')
   } finally { await a.destroy() }
   await assert.rejects(new Daytona().v0.get(a.id), 'V8: the sandbox no longer exists at Daytona')
-  await assert.rejects(p.resume(a.id))
+  await assert.rejects(p.resume(a.id), (e: Error) => e instanceof SandboxGoneError)
+})
+
+test('Daytona adapter: a kept sandbox stops with its files and starts again; destroy deletes it', { skip, timeout: 10 * 60_000 }, async () => {
+  const p = daytona()
+  const a = await p.create({ labels: { 'byoa-check': 'lifecycle' }, timeoutMs: 5 * 60_000, keep: true })
+  try {
+    assert.equal((await a.run('echo $HOME')).stdout, '/home/daytona\n')
+    await a.writeFile('/home/daytona/kept.txt', 'kept while stopped\n')
+    await a.run('sleep 600', { background: true })
+    await a.pause()
+    assert.equal((await new Daytona().v0.get(a.id)).state, 'stopped')
+    const b = await p.resume(a.id, { timeoutMs: 5 * 60_000 })
+    assert.equal(b.id, a.id)
+    assert.equal((await b.run('cat /home/daytona/kept.txt')).stdout, 'kept while stopped\n')
+    assert.equal((await b.run("pgrep -f 'slee[p] 600'")).exitCode, 1, 'no process of the earlier job runs')
+    assert.equal((await p.resume(a.id)).id, a.id, 'resume of a running sandbox')
+  } finally { await p.destroy(a.id) }
+  await assert.rejects(p.resume(a.id), (e: Error) => e instanceof SandboxGoneError)
+  await p.destroy(a.id)
+
+  // a sandbox of one job: destroyed, it is gone (V8)
+  const c = await p.create({ labels: { 'byoa-check': 'job' }, timeoutMs: 5 * 60_000 })
+  await c.destroy()
+  await assert.rejects(p.resume(c.id), (e: Error) => e instanceof SandboxGoneError)
 })
 
 test('Daytona adapter: login volumes', { skip: skipVolumes, timeout: 10 * 60_000 }, async () => {

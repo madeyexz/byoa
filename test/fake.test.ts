@@ -3,14 +3,14 @@
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { fakeMcp, signInAsUser, type FakeMcp } from './helpers/mcp-server.ts'
-import { collect, testApp } from './helpers/app.ts'
+import { collect, running, testApp } from './helpers/app.ts'
 
 const closers: (() => Promise<void>)[] = []
 after(() => Promise.all(closers.map((c) => c())))
 
-async function setup(opts: Parameters<typeof fakeMcp>[0] = {}) {
+async function setup(opts: Parameters<typeof fakeMcp>[0] = {}, app_: Parameters<typeof testApp>[0] = {}) {
   const mcp: FakeMcp = await fakeMcp(opts)
-  const app = await testApp()
+  const app = await testApp(app_)
   closers.push(mcp.close, app.close)
   const r = await app.agents.connectMcp('alice', mcp.url, { name: 'notes' })
   if (r.connected) throw new Error('expected a sign-in')
@@ -28,9 +28,72 @@ test('fake harness: a job calls an MCP tool through the proxy and streams events
   assert.deepEqual(ev[2], { type: 'tool_call', id: 'call_1', name: 'whoami', server: 'notes', input: { detail: true } })
   assert.deepEqual(ev[3], { type: 'tool_result', id: 'call_1', ok: true, output: 'you are alice ({"detail":true})' })
   assert.deepEqual(ev[4], { type: 'end', ok: true, result: 'you are alice ({"detail":true})' })
-  // like V8: the sandbox is gone after the job
+  // like V8: by default the user's sandbox is paused after the job, not gone
   assert.equal(sandbox.created, 1)
-  assert.equal(sandbox.live.size, 0)
+  assert.equal(sandbox.live.size, 1)
+  assert.equal(running(sandbox), 0)
+})
+
+test('R5.4: the user\'s sandbox is paused after each job and resumed for the next, with a new job folder', async () => {
+  const { agents, sandbox, store } = await setup()
+  const s1 = await agents.session('alice', { harness: 'fake', mcp: ['notes'], setup: { skills: [{ name: 'old', files: { 'SKILL.md': 'old' } }] } })
+  await s1.sandbox.writeFile(`${s1.sandbox.home}/kept.txt`, 'kept between jobs')
+  await s1.close()
+  assert.deepEqual([...sandbox.paused], [s1.sandbox.id])
+  const s2 = await agents.session('alice', { harness: 'fake' })
+  assert.equal(s2.sandbox.id, s1.sandbox.id, 'the same sandbox')
+  assert.equal((await s2.sandbox.run('cat ~/kept.txt')).stdout, 'kept between jobs')
+  assert.equal((await s2.sandbox.run('ls -A work work/.claude 2>&1')).stdout.includes('old'), false, 'no setup of the earlier job')
+  assert.equal((await s2.sandbox.run('test -e work/.byoa/mcp.json')).exitCode, 0)
+  await s2.close()
+  // another user, and another harness of the same user, get sandboxes of their own
+  const ev = await collect(agents.run('bob', { harness: 'fake', task: 'hi' }))
+  assert.deepEqual(ev.at(-1), { type: 'end', ok: true, result: 'fake answer' })
+  assert.equal(sandbox.created, 2)
+
+  // deleted or expired at the provider: the next job gets a new sandbox, with no new sign-in
+  await sandbox.destroy(s1.sandbox.id)
+  assert.deepEqual((await collect(agents.run('alice', { harness: 'fake', task: TASK, mcp: ['notes'] }))).at(-1), { type: 'end', ok: true, result: 'you are alice ({"detail":true})' })
+  assert.equal(sandbox.created, 3)
+
+  // deleteSandbox (sign-out, delete account) removes it at the provider and in the store
+  await agents.deleteSandbox('alice')
+  assert.equal(sandbox.live.size, 1, 'only bob\'s is left')
+  assert.ok(!store.keys().some((k) => k.startsWith('usersandbox/alice')))
+})
+
+test('R5.4: one job of a user and harness at a time: a second job waits for the first, in the same sandbox', async () => {
+  const { agents, sandbox } = await setup()
+  const s1 = await agents.session('alice', { harness: 'fake' })
+  let second: string | undefined
+  const p = agents.session('alice', { harness: 'fake' }).then((s) => { second = s.sandbox.id; return s })
+  await new Promise((r) => setTimeout(r, 700))
+  assert.equal(second, undefined, 'the second job waits')
+  await s1.close()
+  const s2 = await p
+  assert.equal(second, s1.sandbox.id)
+  await s2.close()
+  assert.equal(sandbox.created, 1)
+})
+
+test('R5.4: with waitMs, a job that cannot get the user\'s sandbox in time fails, and the first job is not touched', async () => {
+  const { agents } = await setup({}, { waitMs: 300 })
+  const s1 = await agents.session('alice', { harness: 'fake' })
+  const ev = await collect(agents.run('alice', { harness: 'fake', task: 'hi' }))
+  assert.deepEqual(ev, [{ type: 'error', code: 'sandbox', message: 'byoa: another job of this user still holds the fake sandbox; try again when it ends' }, { type: 'end', ok: false }])
+  assert.equal((await s1.sandbox.run('echo ok')).stdout, 'ok\n')
+  await s1.close()
+})
+
+test('R5.4: sandboxPer: \'job\' gives each job a new sandbox and destroys it after the job (like V8)', async () => {
+  const { agents, sandbox, store } = await setup({}, { sandboxPer: 'job' })
+  for (let i = 0; i < 2; i++) {
+    const ev = await collect(agents.run('alice', { harness: 'fake', task: TASK, mcp: ['notes'] }))
+    assert.deepEqual(ev.at(-1), { type: 'end', ok: true, result: 'you are alice ({"detail":true})' })
+    assert.equal(sandbox.live.size, 0)
+  }
+  assert.equal(sandbox.created, 2)
+  assert.ok(!store.keys().some((k) => k.startsWith('usersandbox/')))
 })
 
 test('fake harness: no real token is in the sandbox\'s files or environment (like V5), and the job token fails after the job (like V6)', async () => {
@@ -48,7 +111,8 @@ test('fake harness: no real token is in the sandbox\'s files or environment (lik
 })
 
 test('fake harness: two jobs at once with an expired access token cause one refresh, and both succeed (like V7)', async () => {
-  const { agents, mcp } = await setup({ tokenDelayMs: 200 })
+  // a sandbox for each job, so the two jobs of one user run at the same time
+  const { agents, mcp } = await setup({ tokenDelayMs: 200 }, { sandboxPer: 'job' })
   mcp.expireAccess()
   const [a, b] = await Promise.all([1, 2].map(() => collect(agents.run('alice', { harness: 'fake', task: TASK, mcp: ['notes'] }))))
   for (const ev of [a, b]) assert.deepEqual(ev.at(-1), { type: 'end', ok: true, result: 'you are alice ({"detail":true})' })
@@ -66,10 +130,12 @@ test('fake harness: a job gets only the MCP servers the app names (R2.5)', async
   assert.deepEqual(missing.at(-1), { type: 'end', ok: true, result: 'fake answer' })
 })
 
-test('fake harness: a consumer that stops reading early still ends the job and destroys the sandbox', async () => {
+test('fake harness: a consumer that stops reading early still ends the job and pauses the sandbox', async () => {
   const { agents, sandbox } = await setup()
   for await (const e of agents.run('alice', { harness: 'fake', task: TASK, mcp: ['notes'] })) if (e.type === 'text') break
-  assert.equal(sandbox.live.size, 0)
+  assert.equal(running(sandbox), 0)
+  // and the user's next job does not wait for it
+  assert.deepEqual((await collect(agents.run('alice', { harness: 'fake', task: 'hi' }))).at(-1), { type: 'end', ok: true, result: 'fake answer' })
 })
 
 test('session: an app runs its own program in the job\'s sandbox, its MCP calls go through the proxy, and close ends both', async () => {
@@ -84,15 +150,15 @@ test('session: an app runs its own program in the job\'s sandbox, its MCP calls 
   const everything = [...sandbox.envs.map((e) => JSON.stringify(e))].join('\n')
   for (const t of mcp.issued) assert.ok(!everything.includes(t), 'a real token reached the sandbox')
   await s.close()
-  assert.equal(sandbox.live.size, 0)
+  assert.equal(running(sandbox), 0)
   const r = await fetch(s.mcp[0]!.url, { method: 'POST', headers: { authorization: `Bearer ${s.token}`, 'content-type': 'application/json' }, body: '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' })
   assert.equal(r.status, 401, 'the job token ends with the session')
 })
 
-test('session: a harness with no login throws LoginError, leaves no sandbox, and the login state says signed-out', async () => {
+test('session: a harness with no login throws LoginError, leaves no running sandbox, and the login state says signed-out', async () => {
   const { agents, sandbox } = await setup()
   await assert.rejects(agents.session('alice', { harness: 'claude' }), (e: Error) => e.name === 'Error' && (e as { code?: string }).code === 'signed-out')
-  assert.equal(sandbox.live.size, 0)
+  assert.equal(running(sandbox), 0)
   assert.equal(await agents.loginState('alice', 'claude'), 'signed-out')
 })
 

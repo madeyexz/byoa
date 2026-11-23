@@ -42,7 +42,7 @@ async function start() {
   }
 }
 
-test('a user connects their to-dos once; then each job changes them through byoa in a new sandbox', async () => {
+test('a user connects their to-dos once; then each job changes them through byoa in the user\'s sandbox', async () => {
   const app = await start()
   assert.deepEqual((await app.state('alice')).mcp, [])
   assert.deepEqual(await app.connect('alice'), { name: 'todos', connected: true })
@@ -59,9 +59,10 @@ test('a user connects their to-dos once; then each job changes them through byoa
   const list = [{ id: 1, title: 'Buy milk', done: true }, { id: 2, title: 'Call mom', done: false }]
   assert.deepEqual(ev.at(-1), { type: 'end', ok: true, result: JSON.stringify(list) })
   assert.deepEqual((await app.state('alice')).todos, list)
-  assert.equal(app.sandbox.live.size, 0, 'the sandbox is destroyed after the job')
+  assert.deepEqual([...app.sandbox.paused], [...app.sandbox.live], 'the user\'s one sandbox is paused after the job')
+  assert.equal(app.sandbox.live.size, 1)
 
-  // the next job runs in another new sandbox, with no new connection
+  // the next job resumes it, with no new connection
   const again = await app.ask('alice', 'fake', 'call todos.delete_todo {"id":2}')
   assert.deepEqual(again.at(-1), { type: 'end', ok: true, result: '"deleted 2"' })
   assert.deepEqual((await app.state('alice')).todos, [list[0]])
@@ -96,7 +97,7 @@ test('Claude Code with no sign-in: the job ends with signed-out, and the state s
   assert.deepEqual(ev.map((e) => [e.type, e.code]), [['error', 'signed-out'], ['end', undefined]])
   assert.equal(ev.at(-1).ok, false)
   assert.deepEqual((await app.state('alice')).login, { claude: 'signed-out', codex: 'signed-out' })
-  assert.equal(app.sandbox.live.size, 0)
+  assert.deepEqual([...app.sandbox.paused], [...app.sandbox.live], 'no sandbox runs')
   const bad = await app.send('alice', 'POST', '/api/ask', { harness: 'gpt', task: 'x' })
   assert.equal(bad.status, 400)
 })
