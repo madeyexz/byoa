@@ -232,7 +232,7 @@ const r = await agents.fetchWithGrant(userId, 'margins', 'https://helpful-tern-9
 
 By default, each user has one sandbox of your app for each harness. The first job creates it. After each job, byoa pauses it (E2B pauses it; Daytona stops it), and the next job resumes it, so files that the app wrote there and the installed harness stay. Each job gets a new job folder (`s.work`) with its own setup. One job of a user and harness runs at a time; another job waits for it (`waitMs`, default 10 minutes). When the provider no longer has the sandbox, the next job creates a new one.
 
-An app where one user has many workspaces, such as projects or conversations, gives each job a `sandboxKey`. Each key has its own kept sandbox and its own lease, so jobs with different keys run at the same time. For a new sandbox for each job, destroyed after it, set `sandboxPer: 'job'`:
+An app where one user has many workspaces, such as projects or conversations, gives each job a `sandboxKey`. Each key has its own kept sandbox and its own lease, so jobs with different keys run at the same time. With the default stored login, this is true only for the fake harness: one job of a user and harness holds the AI login at a time (see AI login below), so the user's Claude Code or Codex jobs still run one after the other, also with different keys and with `sandboxPer: 'job'`. For a new sandbox for each job, destroyed after it, set `sandboxPer: 'job'`:
 
 ```ts
 agents.run(userId, { harness: 'claude', task, sandboxKey: projectId })  // one kept sandbox for each project

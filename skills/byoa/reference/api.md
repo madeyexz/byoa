@@ -37,7 +37,7 @@ interface AgentsOptions {
 - `oauth.redirectUrl`: the app's route that calls `finishMcp`.
 - `oauth.clientMetadataUrl`: an HTTPS URL where the app serves `agents.clientMetadata()` (a Client ID Metadata Document). Without it, byoa uses only Dynamic Client Registration.
 - `oauth.clientName`: the name the MCP server shows on its consent page. Default: `app`.
-- `sandboxPer`: `'user'` (the default): the first job of a user and harness creates the user's sandbox; byoa pauses it after each job (E2B pause, Daytona stop) and resumes it for the next, with a new job folder. One job of a user and harness at a time. A job's `sandboxKey` (in `run` and `session`) gives the user one kept sandbox, with its own lease, for each key. A sandbox the provider no longer has is replaced by a new one. `'job'`: a new sandbox for each job, destroyed after it; jobs of one user can run at the same time.
+- `sandboxPer`: `'user'` (the default): the first job of a user and harness creates the user's sandbox; byoa pauses it after each job (E2B pause, Daytona stop) and resumes it for the next, with a new job folder. One job of a user and harness at a time. A job's `sandboxKey` (in `run` and `session`) gives the user one kept sandbox, with its own lease, for each key. A sandbox the provider no longer has is replaced by a new one. `'job'`: a new sandbox for each job, destroyed after it. With the default `storedLogin()`, one job of a user and harness holds the AI login at a time, so the user's Claude Code or Codex jobs run one after the other in both modes, also with different sandbox keys; only fake-harness jobs run at the same time.
 
 It returns an object with the methods below.
 
