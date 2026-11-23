@@ -7,7 +7,7 @@
 
 <div align="center">
 
-[Website](https://byoa.rippling.computer) · [Spec](SPEC.md) · [Example app](examples/todo) · [Contributing](CONTRIBUTING.md)
+[Website](https://byoa.rippling.computer) · [Spec](SPEC.md) · [Example app](examples/todo) · [Agent skill](skills/byoa) · [llms.txt](https://byoa.rippling.computer/llms.txt) · [Contributing](CONTRIBUTING.md)
 
 [![CI](https://github.com/madeyexz/byoa/actions/workflows/ci.yml/badge.svg)](https://github.com/madeyexz/byoa/actions/workflows/ci.yml)
 ![License: Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-2f4cff?style=flat-square)
@@ -159,6 +159,17 @@ bun add github:madeyexz/byoa        # Bun loads its TypeScript source
 
 From version 1: `npm install byoa` or `bun add byoa`. For E2B, also install `e2b`. byoa needs Node 22.18 or later, or Bun.
 
+## Agent skill
+
+[skills/byoa](skills/byoa) is a skill in the [Agent Skills](https://agentskills.io) format. It teaches a coding agent (Claude Code, Codex, Amp and others) to add byoa to an app: the install, `createAgents` with a store and a sandbox adapter, the sign-in, the MCP connections and their routes, `agents.run` and its events, and the lab rules. To install it in your app's repository:
+
+```sh
+npx skills add madeyexz/byoa              # Claude Code, Codex, Cursor and others
+amp skill add madeyexz/byoa/skills/byoa   # Amp
+```
+
+For LLMs, the site also serves the docs as [llms.txt](https://byoa.rippling.computer/llms.txt) (an index) and [llms-full.txt](https://byoa.rippling.computer/llms-full.txt) (the README, SPEC.md, the example and the skill in one file).
+
 ## How it will look
 
 This is the API in this repository today. It can change before version 1.
@@ -267,7 +278,7 @@ const agents = createAgents({ ...options, store: convexStore(ctx, internal.byoa)
 
 Use `harness: 'fake'`, `localSandbox()` from `byoa/sandbox/local` and `memoryStore()`. The fake harness runs no model. It calls MCP tools through the real proxy: each task line `call <server>.<tool> <json>` is one call.
 
-To test byoa itself: `npm test` (V10, the fake-harness tests and the unit tests), and `npm run test:v11` (V11; it downloads about 600 MB). CI runs both on every commit. With `DAYTONA_API_KEY` set, `npm test` also checks the Daytona adapter against Daytona; with `E2B_API_KEY` too, it runs V4 ([test/v4.test.ts](test/v4.test.ts)), which needs `cloudflared` to give the proxy a public URL. `npm run test:e2b` checks the E2B adapter against E2B, with a volume; it needs `E2B_API_KEY` and an E2B team with volumes turned on.
+To test byoa itself: `npm test` (V10, V12, the fake-harness tests and the unit tests), and `npm run test:v11` (V11; it downloads about 600 MB). CI runs both on every commit. With `DAYTONA_API_KEY` set, `npm test` also checks the Daytona adapter against Daytona; with `E2B_API_KEY` too, it runs V4 ([test/v4.test.ts](test/v4.test.ts)), which needs `cloudflared` to give the proxy a public URL. `npm run test:e2b` checks the E2B adapter against E2B, with a volume; it needs `E2B_API_KEY` and an E2B team with volumes turned on.
 
 ## Example app
 

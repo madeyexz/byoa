@@ -1,0 +1,49 @@
+// V12: the README and the agent skill (skills/byoa) name only the API that byoa has (R7.3). An agent that reads the
+// skill writes the names it finds there, so a renamed method or export must fail here, not in the agent's app.
+import assert from 'node:assert/strict'
+import { randomBytes } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { test } from 'node:test'
+import { createAgents, memoryStore, type SandboxProvider } from '../src/index.ts'
+
+const ROOT = new URL('../', import.meta.url)
+const DOCS = ['README.md', 'skills/byoa/SKILL.md', 'skills/byoa/reference/api.md']
+const text = (p: string) => readFileSync(new URL(p, ROOT), 'utf8')
+const exportsMap: Record<string, { bun: string }> = JSON.parse(text('package.json')).exports
+
+/** The source file of an import specifier such as `byoa/sandbox/e2b`. */
+const module = (spec: string) => import(new URL(exportsMap[spec === 'byoa' ? '.' : `./${spec.slice(5)}`]!.bun, ROOT).href)
+
+test('every agents.* method in the README and the skill is one that createAgents returns', () => {
+  const agents = createAgents({
+    app: 'docs', sandbox: {} as SandboxProvider, store: memoryStore(), encryptionKey: randomBytes(32).toString('base64'),
+    proxyUrl: 'http://127.0.0.1/byoa/mcp', oauth: { redirectUrl: 'http://127.0.0.1/byoa/callback' },
+  })
+  const names = new Set<string>()
+  for (const p of DOCS) for (const m of text(p).matchAll(/(?<![\w/-])agents\.(\w+)/g)) names.add(m[1]!)
+  // the method tables of the API reference: | `connectLogin(user, ...)` | ...
+  for (const m of text('skills/byoa/reference/api.md').matchAll(/^\| `(\w+)\(/gm)) names.add(m[1]!)
+  assert.ok(names.size > 10)
+  assert.deepEqual([...names].filter((n) => !(n in agents)), [])
+})
+
+test('every name the README and the skill import from byoa is exported there', async () => {
+  const want = new Map<string, Set<string>>()
+  const add = (spec: string, name: string) => { if (!want.has(spec)) want.set(spec, new Set()); want.get(spec)!.add(name) }
+  for (const p of DOCS) {
+    for (const m of text(p).matchAll(/^import \{([^}]+)\} from '(byoa(?:\/[\w/]+)?)'/gm)) {
+      for (const n of m[1]!.split(',')) if (n.trim() && !n.trim().startsWith('type ')) add(m[2]!, n.trim())
+    }
+  }
+  // the Imports table of the API reference: | `byoa/sandbox/e2b` | `e2b({ ... })`, `buildE2BTemplate(...)`. Needs ...
+  for (const m of text('skills/byoa/reference/api.md').matchAll(/^\| `(byoa[\w/]*)` \| (.+?)(?:\. |; types|\|)/gm)) {
+    for (const n of m[2]!.matchAll(/`(\w+)[(`]/g)) add(m[1]!, n[1]!)
+  }
+  assert.ok(want.size >= 7, [...want.keys()].join(', '))
+  const missing: string[] = []
+  for (const [spec, names] of want) {
+    const mod = await module(spec)
+    for (const n of names) if (!(n in mod)) missing.push(`${spec}: ${n}`)
+  }
+  assert.deepEqual(missing, [])
+})

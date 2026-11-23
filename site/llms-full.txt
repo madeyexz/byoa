@@ -1,0 +1,913 @@
+# byoa: the full docs
+
+> byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend.
+
+This file has the full text of byoa's docs, for LLMs: README.md, SPEC.md, skills/byoa/SKILL.md, skills/byoa/reference/api.md, examples/todo/README.md, examples/todo/app.ts, from https://github.com/madeyexz/byoa (branch main). The index is https://byoa.rippling.computer/llms.txt.
+
+---
+
+Source: https://github.com/madeyexz/byoa/blob/main/README.md
+
+Image: byoa: your users bring their own agent. byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend. Version 1 targets: Claude Code, Codex, E2B, Daytona, Node and Convex. Cloudflare Workers is planned.
+
+# byoa: bring your own agent
+
+**byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend.**
+
+byoa is an open-source library that helps you build AI-native apps fast. Your app runs the user's own Claude Code or Codex in a sandbox. The user signs in with their own ChatGPT or Claude plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
+
+Version 1 supports two sandbox providers: E2B and Daytona. More providers come later. To change the provider, you change one adapter.
+
+## Who brings what
+
+**Your app brings the product. Each user brings the agent.** You build the app and pick the sandbox. Each user brings their plan and their tools. byoa runs inside your backend and runs each job in a new sandbox.
+
+Image: Who brings what: you, the developer, build the app, pick the sandbox provider and own the database, and import byoa into your app's backend. The end user uses the app, signs in on the lab's own page and connects each MCP tool once. Your app code calls agents.run on byoa, which keeps AI logins and MCP grants in your database. byoa's box reaches past your backend's edge: outside it, byoa creates, runs and destroys a sandbox for each job at E2B or Daytona on your account, where the user's own Claude Code or Codex runs; the AI labs get the model calls, paid by the user's own plan; and the user's MCP servers get the real token from byoa's proxy.
+
+The same diagram as text
+
+```text
+DEVELOPER · YOU                                           END USER
+┌────────────────────────────────────┐                    ┌────────────────────────────────────┐
+│ builds the app                     │                    │ uses the app                       │
+│ picks the sandbox provider         │                    │ has a Claude or ChatGPT plan       │
+│ owns the database                  │                    │ has MCP tools and skills           │
+└──────────────────┬─────────────────┘                    └──────────────────┬─────────────────┘
+                   │ imports byoa             signs in on the lab's own page │
+                   │                             connects each MCP tool once │
+                   ▼                                                         ▼
+┌─ YOUR APP'S BACKEND · you run it ────────────────────────────────────────────────────────────┐
+│  your app code                                            your database                      │
+│        │ agents.run(userId, task)                               ▲ AI logins, MCP grants      │
+│        ▼                                                        │                            │
+│ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+│ ┃ byoa · open source, Apache 2.0                                                           ┃ │
+│ ┃   AI login · harness            skills · AGENTS.md            MCP OAuth · proxy          ┃ │
+│ ┃              │                                                           │               ┃ │
+└─╂┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄ ▲ your backend · outside it ▼ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╂─┘
+  ┃              │ create · run · destroy                         real token │               ┃
+  ┃              ▼                                                           ▼               ┃
+  ┃ ┌─ SANDBOX ────────────────┐  ┌─ AI LABS ────────────────┐  ┌─ MCP SERVERS ────────────┐ ┃
+  ┃ │ E2B or Daytona,          │  │ Anthropic · OpenAI       │  │ Notion · Gmail · …       │ ┃
+  ┃ │ on your account          ├─▶│ model calls, paid by     │  │ the user's own accounts  │ ┃
+  ┃ │ runs the user's own      │  │ the user's own plan      │  │                          │ ┃
+  ┃ │ Claude Code or Codex     │  │                          │  │                          │ ┃
+  ┃ └──────────────────────────┘  └──────────────────────────┘  └──────────────────────────┘ ┃
+  ┃                                                                                          ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+```
+
+## The problem
+
+To make an app AI-native, you run a big lab's harness (Claude Code or Codex) in a sandbox, with the user's own AI plan. For each app, you must build the same connection layer again:
+
+- the user's AI login, through the real CLI;
+- the user's MCP connections and their OAuth tokens, with one refresh owner;
+- the user's skills and AGENTS.md;
+- the harness install and its updates;
+- the code that connects all of this to one sandbox provider.
+
+byoa is that layer, as a library, so you do not build it again for each app.
+
+## What byoa is, and what it is not
+
+- byoa **is** a library. It runs inside your app's own backend (Node or Convex). Cloudflare Workers support is planned.
+- byoa **stores tokens in your own database**, through a store adapter.
+- byoa **is not** a hosted service. We do not run a server, and we never see your users' tokens.
+
+Image: What version 1 covers. Agents: Claude Code and Codex (v1), Gemini or Antigravity maybe later. User plans: Claude and ChatGPT (v1). Sandboxes: E2B and Daytona (v1), other providers planned. Backends: Node and Convex actions (v1), Cloudflare Workers planned. Token stores: Convex and Postgres (v1), or your own with get, put, delete and compare-and-set.
+
+## Why byoa
+
+### The user's plan pays.
+
+Each user signs in with their own Claude or ChatGPT plan, on Anthropic's or OpenAI's own sign-in page. The agent work runs on that plan, not on your API bill.
+
+### The real agents.
+
+Your app runs the real, unmodified Claude Code and Codex. Users get the full harness, with their tools and skills.
+
+### Any sandbox.
+
+Each sandbox provider is one adapter with one interface. E2B and Daytona come first. To change the provider, you change one line.
+
+### Connect once.
+
+The user connects each MCP tool one time. Every agent run has it. The real tokens never go into the sandbox.
+
+## How it works
+
+byoa sits in your backend, between your users and their agents. Your app calls `agents.run(userId, task)`. byoa starts a sandbox, loads the user's setup, and runs the user's own harness on the user's own plan.
+
+Image: Architecture: the end user, with a Claude or ChatGPT plan and Notion, Gmail and Heptabase accounts, uses your app. byoa runs inside your app's own backend: sandbox adapters (E2B, Daytona), the AI login flow (the real claude and codex CLI), a pinned harness installer, MCP OAuth with one refresh owner, skills and config, one event stream for both harnesses, the token store and the MCP proxy. It creates, runs and destroys the sandbox, where the unmodified Claude Code or Codex calls the AI labs on the user's own plan. As an option, the user's login is a volume mounted into the sandbox (cliLogin) instead of in the database. MCP calls go through the proxy to the MCP servers.
+
+### Real tokens never go into the sandbox
+
+The agent in the sandbox gets a short-lived job token. The proxy in your backend adds the real MCP token to each request.
+
+Image: Token flow: the harness in the sandbox has an mcp.json that points to your proxy, with a job token for one job and one user, and no real MCP token. The MCP proxy in your backend checks the job token, adds the real token from the token store (your database, your key), sends the request on to the MCP server, and refuses the job token after the job ends.
+
+### Every job gets a fresh sandbox
+
+Image: Lifecycle: 1. Create: byoa starts a sandbox at your provider. 2. Load the setup: pinned harness, skills, AGENTS.md and MCP config. 3. Run the job: text, tool calls and permission requests stream back as events. 4. Destroy: byoa destroys the sandbox at the provider. The user's AI login and MCP grants stay between jobs.
+
+## Install
+
+byoa is not on npm yet. Until version 1, install it from GitHub:
+
+```sh
+npm install github:madeyexz/byoa     # npm builds it on install
+bun add github:madeyexz/byoa        # Bun loads its TypeScript source
+```
+
+From version 1: `npm install byoa` or `bun add byoa`. For E2B, also install `e2b`. byoa needs Node 22.18 or later, or Bun.
+
+## Agent skill
+
+[skills/byoa](https://github.com/madeyexz/byoa/blob/main/skills/byoa) is a skill in the [Agent Skills](https://agentskills.io) format. It teaches a coding agent (Claude Code, Codex, Amp and others) to add byoa to an app: the install, `createAgents` with a store and a sandbox adapter, the sign-in, the MCP connections and their routes, `agents.run` and its events, and the lab rules. To install it in your app's repository:
+
+```sh
+npx skills add madeyexz/byoa              # Claude Code, Codex, Cursor and others
+amp skill add madeyexz/byoa/skills/byoa   # Amp
+```
+
+For LLMs, the site also serves the docs as [llms.txt](https://byoa.rippling.computer/llms.txt) (an index) and [llms-full.txt](https://byoa.rippling.computer/llms-full.txt) (the README, SPEC.md, the example and the skill in one file).
+
+## How it will look
+
+This is the API in this repository today. It can change before version 1.
+
+```ts
+import { createAgents } from 'byoa'
+import { e2b } from 'byoa/sandbox/e2b'
+import { postgresStore } from 'byoa/store/postgres'
+
+const agents = createAgents({
+  app: 'myapp',                                    // one app's AI logins are only this app's
+  sandbox: e2b({ apiKey }),
+  store: postgresStore({ query: (sql, args) => pool.query(sql, args) }),
+  encryptionKey,                                   // openssl rand -base64 32; grants and AI logins are encrypted with it
+  proxyUrl: 'https://myapp.example.com/byoa/mcp',  // serve agents.proxy here
+  oauth: { redirectUrl: 'https://myapp.example.com/byoa/callback' },
+})
+
+const claude = await agents.connectLogin(userId, 'claude')  // { url }: Anthropic's own sign-in page
+await agents.finishLogin(userId, 'claude', { code })        // the code that page shows
+const codex = await agents.connectLogin(userId, 'codex')    // { url, code }: OpenAI's page and the code to enter
+await agents.finishLogin(userId, 'codex', { waitMs: 60_000 })
+
+const mcp = await agents.connectMcp(userId, 'https://mcp.notion.com/mcp', { name: 'notion' })
+// mcp.signInUrl: the server's sign-in page; your redirectUrl route then calls agents.finishMcp({ state, code })
+
+for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['notion'], setup: { agentsMd, skills } })) {
+  // start, text, tool_call, tool_result, permission, error, end: the same events for Claude Code and Codex
+}
+```
+
+An app that runs its own program around the unmodified harness (for example its own server, which starts `claude` or `codex` itself) opens the job with `agents.session` instead. It gets the same sandbox, login, pinned harness and job token, and runs its own command:
+
+```ts
+const s = await agents.session(userId, { harness: 'claude', mcp: ['notion'] })
+try {
+  // s.bin: the pinned claude binary; s.env: its login folder and the job token; s.mcp: [{ name, url }] at the proxy
+  await s.sandbox.run(`my-server --claude ${s.bin}`, { env: s.env })
+} finally { await s.close() }  // ends the job token and destroys the sandbox
+```
+
+A program outside byoa's sandboxes, such as a harness on the user's own computer, gets a job token with no sandbox: `const t = await agents.jobToken(userId, { mcp: ['notion'] })` gives `t.token` and `t.mcp` (the proxy URLs), with the same rules as a job's token, until `t.close()`.
+
+To move an MCP grant that the user already made elsewhere into byoa, call `agents.importMcp(userId, { name, url, oauth })` with the MCP SDK's state (`client`, `tokens`, `at`). Delete the old copy, so the grant keeps one refresh owner.
+
+Some MCP servers have an API next to the MCP endpoint that is not MCP, such as an export. Your backend calls it with the user's grant through `agents.fetchWithGrant(userId, 'tasks', 'https://mcp.example.com/export')`: byoa adds the current token, refreshed by the one refresh owner, and gives you the response. By default, it sends the token only to the origin of that grant's MCP server. It does not follow redirects, and never gives you the token.
+
+When the service's API is on another origin than its MCP server, name that origin in your own configuration, for the MCP server's origin. Only grants of that MCP server can go there, and only to that exact origin:
+
+```ts
+const agents = createAgents({
+  ...options,
+  // Margins' MCP server is on margin.rippling.computer; its export is on its Convex site
+  grantOrigins: { 'https://margin.rippling.computer': ['https://helpful-tern-930.convex.site'] },
+})
+const r = await agents.fetchWithGrant(userId, 'margins', 'https://helpful-tern-930.convex.site/ext/export')
+```
+
+Each job runs in a new sandbox, and byoa destroys the sandbox after the job. By default, the user's AI login stays encrypted in your database, and each job gets a copy (see AI login below). The MCP config in the sandbox points to `agents.proxy`, with a token for that one job. The real MCP tokens stay in your database.
+
+To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](https://github.com/madeyexz/byoa/blob/main/src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, destroy.
+
+For Daytona, use `daytona({ apiKey })` from `byoa/sandbox/daytona` (it needs `@daytona/sdk`). Daytona allows 100 volumes per organization, so with `cliLogin` the adapter keeps every user's AI login in its own subpath of one shared volume (`byoa` by default). A sandbox mounts only that user's subpath. On Daytona Tier 1 and Tier 2, a sandbox can reach only [allowed domains](https://www.daytona.io/docs/en/network-limits), so serve `agents.proxy` on one of them (for example `*.convex.site` or `*.workers.dev`), or use Tier 3 or higher.
+
+### AI login
+
+By default, byoa keeps each user's Claude or ChatGPT plan login in your own database, encrypted with your `encryptionKey`, through the store adapter. The sign-in is the unmodified CLI, on the lab's own page. When it ends, byoa keeps the CLI's own login files. Each job writes them into its new sandbox, and saves them back when the CLI refreshed them. One job of a user and harness holds the login at a time; another job waits for it. byoa never calls the labs' token endpoints itself. So the sandbox provider needs no volumes.
+
+The labs' published terms restrict where these tokens may be stored: Anthropic's say developers may not "collect, store, or intermediate Claude.ai credentials or session tokens", and OpenAI's say stored tokens must be "local and under the user's control, not in a remote or managed environment" (see [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules)). Check them for your app.
+
+To keep the logins in a table of their own, with a key of their own, so you can give them their own access rules and backups:
+
+```ts
+import { createAgents, storedLogin } from 'byoa'
+
+// Convex: convex/schema.ts has  byoaLogin: convexTable(),  and convex/byoaLogin.ts has
+//   export const { get, put, remove, cas } = convexFunctions('byoaLogin')
+const loginStore = convexStore(ctx, internal.byoaLogin)
+// Postgres: run postgresSchema('byoa_ai_login') once
+const loginStore = postgresStore({ query, table: 'byoa_ai_login' })
+
+const agents = createAgents({ ...options, login: storedLogin({ store: loginStore, encryptionKey: loginKey }) })
+```
+
+To keep each login in a volume of that user and app instead, behind the sandbox adapter, pass `login: cliLogin` (from `byoa`). Your database then never holds the login. This needs a provider with volumes; on E2B, volumes must be turned on for your team.
+
+### Convex
+
+In a Convex app, byoa's state is one table and four internal functions in your deployment (`byoa/store/convex`). Call byoa from actions and HTTP actions, which can make network calls; serve `agents.proxy` from an HTTP action.
+
+```ts
+// convex/schema.ts
+import { convexTable } from 'byoa/store/convex'
+export default defineSchema({ ...yourTables, byoa: convexTable() })
+
+// convex/byoa.ts
+import { convexFunctions } from 'byoa/store/convex'
+export const { get, put, remove, cas } = convexFunctions()
+
+// in an action or HTTP action
+import { convexStore } from 'byoa/store/convex'
+const agents = createAgents({ ...options, store: convexStore(ctx, internal.byoa) })
+```
+
+## Test your app without a plan or a sandbox
+
+Use `harness: 'fake'`, `localSandbox()` from `byoa/sandbox/local` and `memoryStore()`. The fake harness runs no model. It calls MCP tools through the real proxy: each task line `call <server>.<tool> <json>` is one call.
+
+To test byoa itself: `npm test` (V10, V12, the fake-harness tests and the unit tests), and `npm run test:v11` (V11; it downloads about 600 MB). CI runs both on every commit. With `DAYTONA_API_KEY` set, `npm test` also checks the Daytona adapter against Daytona; with `E2B_API_KEY` too, it runs V4 ([test/v4.test.ts](https://github.com/madeyexz/byoa/blob/main/test/v4.test.ts)), which needs `cloudflared` to give the proxy a public URL. `npm run test:e2b` checks the E2B adapter against E2B, with a volume; it needs `E2B_API_KEY` and an E2B team with volumes turned on.
+
+## Example app
+
+[examples/todo](https://github.com/madeyexz/byoa/blob/main/examples/todo) is an AI-native to-do list on byoa: the user signs in with their own plan, connects their to-dos one time, and asks Claude Code or Codex to change them. Its backend uses byoa in 35 lines. Its tests use the fake harness, and CI runs them on every commit.
+
+## How we will verify it
+
+We call version 1 done only when all of these checks pass. The full list is in [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification).
+
+1. **Two apps use it.** An existing app moves its own login, connector and sandbox code to byoa. A second app uses byoa with no copied code.
+2. **Two harnesses work.** One user runs the same task with Claude Code and with Codex, each on that user's own plan.
+3. **Two providers work.** The same user, with the same MCP grants and skills, runs a job on E2B and then on Daytona. Only the adapter changes.
+4. **Tokens stay out of the sandbox.** A test searches the sandbox's environment, files and process list for each real MCP token after a job. It must find none.
+5. **One refresh owner.** Two jobs run at the same time and both need a token refresh. The provider sees one refresh request, and no grant is revoked.
+6. **Sandboxes are disposable.** The library destroys the sandbox after a job. The next job starts in a new sandbox, and the user does not sign in to an MCP server again.
+
+## Rules we follow
+
+- We run the real, unmodified `claude` and `codex` binaries. We never pretend to be another client.
+- The user signs in through Anthropic's or OpenAI's own sign-in page.
+- One app's AI login is used only by that app.
+- The labs' terms restrict where an AI login may be stored. byoa keeps it in your database by default, so each app checks those terms and signs its own agreements with the labs. See [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules).
+
+## License
+
+Apache License 2.0. See [LICENSE](https://github.com/madeyexz/byoa/blob/main/LICENSE).
+
+Image: Bring your own agent.
+
+---
+
+Source: https://github.com/madeyexz/byoa/blob/main/SPEC.md
+
+# byoa requirements, version 1
+
+**Status:** draft, 2026-11-22. **Owner:** Ian Hsiao.
+
+This document says what version 1 of byoa must do and how we check it. It does not say how to build it. "MUST" and "SHOULD" have their usual meanings (RFC 2119).
+
+## Goal
+
+A developer makes an app AI-native in one day, not in weeks. The app runs the user's own Claude Code or Codex in any sandbox. The user signs in to ChatGPT or Claude one time and connects each MCP tool one time.
+
+## Users of this library
+
+- **App developer.** Imports byoa into their own backend. Does not want to build login, MCP OAuth, skills loading, harness updates or sandbox code.
+- **End user.** Uses the developer's app. Has a ChatGPT or Claude plan, and accounts in tools such as Notion, Gmail or Heptabase.
+
+## Scope
+
+In scope for version 1:
+
+- Harnesses: Claude Code and Codex. Both from the first version.
+- Sandbox providers: E2B and Daytona.
+- Backends: Node, and Convex actions. Cloudflare Workers SHOULD work if it costs little.
+- Store adapters: Convex and Postgres.
+
+Out of scope for version 1:
+
+- A hosted service. byoa never runs a server for other apps.
+- Sharing one user's AI login between different apps.
+- Harnesses other than Claude Code and Codex (OpenCode, Amp, Pi, Cursor).
+- A UI kit. The library gives data and events; the app draws its own UI.
+
+## Requirements
+
+### R1. AI login
+
+- **R1.1** byoa MUST sign the user in to Claude Code by running the unmodified `claude` CLI login in the sandbox. The user completes sign-in on Anthropic's own page.
+- **R1.2** byoa MUST sign the user in to Codex by running the unmodified `codex login --device-auth` in the sandbox. The user enters the code on OpenAI's own page.
+- **R1.3** byoa MUST give the app the sign-in URL and code as data, so the app can show them on any device (for example a phone).
+- **R1.4** By default, byoa MUST keep the login (the CLI's own login files) in the app's own database, through the store adapter (R6), encrypted with a key that the app gives, for one user of one app. Each job MUST get a copy in its new sandbox, and byoa MUST save the files back when the CLI changed them (a token refresh). byoa MUST NOT let two sandboxes hold one user's login at the same time, so that two token refreshes do not revoke each other. byoa MUST NOT call the lab's token endpoints itself; the CLI is the only client that uses the tokens.
+- **R1.5** The login part MUST be replaceable, with no change to R2 to R5. byoa MUST also ship a login that stays in a volume of that one user of that one app, mounted through the sandbox adapter (R5.3), which the app's database never holds.
+- **R1.6** byoa MUST report login state: `signed-in`, `signed-out`, `expired`.
+
+### R2. MCP connections
+
+- **R2.1** byoa MUST connect a remote MCP server for one user with MCP authorization (OAuth 2.1 with PKCE). It MUST use Client ID Metadata Documents when the server supports them, and Dynamic Client Registration only when it does not.
+- **R2.2** byoa MUST also accept a bearer token that the user pastes.
+- **R2.3** Each grant MUST have exactly one refresh owner: the app's backend. Two jobs that need a refresh at the same time MUST cause one refresh request.
+- **R2.4** byoa MUST store grants through the store adapter (R6), in the app's own database, encrypted with a key that the app gives.
+- **R2.5** byoa MUST let the app choose which MCP servers each job gets. (Bookish gives MCP servers only to jobs that the user asked for.)
+- **R2.6** byoa MUST let the app's backend send a request with a user's grant to an API of the same service that is not MCP (for example an export). By default, the token goes only to the origin of the grant's MCP server. The app's backend MAY name more origins for the grants of one MCP server origin, as exact origins (https, no path, no wildcard), in its own configuration; the MCP server, the sandbox and the user MUST NOT be able to add one. byoa MUST add the token only for those origins, MUST NOT follow redirects, and MUST NOT give the token to the app. (Margins' MCP server is on `margin.rippling.computer`, and its export is on `helpful-tern-930.convex.site`.)
+
+### R3. MCP proxy: real tokens stay outside the sandbox
+
+- **R3.1** The `mcp.json` in the sandbox MUST point to the app's proxy, with a short-lived token for one job and one user.
+- **R3.2** The proxy MUST add the real token to each request and send it to the MCP server.
+- **R3.3** No real MCP token MUST be in the sandbox's environment, files or processes at any time.
+- **R3.4** The proxy MUST refuse a job token after the job ends.
+
+### R4. Skills, AGENTS.md and config
+
+- **R4.1** byoa MUST write skills in the Agent Skills format where each harness reads them (for example `.claude/skills/`, `.agents/skills/`).
+- **R4.2** byoa MUST write AGENTS.md, and CLAUDE.md for Claude Code, from one source.
+- **R4.3** byoa MUST write MCP config in each harness's own format: JSON for Claude Code, TOML for Codex.
+- **R4.4** byoa SHOULD read an Agent Plugins 1.0 package (`plugin.json`, `skills/`, `mcp.json`).
+
+### R5. Harness and sandbox
+
+- **R5.1** byoa MUST install a pinned version of each harness in each new sandbox, or use a provider template with that version.
+- **R5.2** A new harness version MUST reach every user at their next job. (Bookish had to copy a new core into old sandboxes, because a template reaches only new sandboxes.)
+- **R5.3** Each sandbox provider MUST be one adapter with one interface: create, resume, run a command, write a file, mount a volume, destroy.
+- **R5.4** The default lifecycle MUST be: create a sandbox, load the user's setup, run the job, destroy the sandbox. The user's AI login (R1.4) and grants (R2) stay.
+- **R5.5** `agents.run` MUST stream events (text, tool calls, permission requests, errors, end) in one schema for both harnesses.
+
+### R6. Store adapter
+
+- **R6.1** The store adapter MUST be a small interface (get, put, delete, compare-and-set) that an app can write for its own database.
+- **R6.2** Compare-and-set is needed for R2.3.
+
+### R7. Developer experience
+
+- **R7.1** A new app MUST reach its first agent run in under 50 lines of its own code.
+- **R7.2** byoa MUST include a fake harness for tests, so apps can test without a plan or a sandbox.
+- **R7.3** byoa SHOULD ship an agent skill in the Agent Skills format (`skills/byoa/`) that teaches a coding agent to add byoa to an app, and its site SHOULD serve the docs for LLMs as `llms.txt` and `llms-full.txt`. Both MUST name only the API that byoa has.
+
+## Lab rules
+
+byoa follows the labs' published rules as read on 2026-11-22:
+
+- Anthropic ([legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)) allows an end user to sign in to the unmodified Claude Code binary with their own plan, including where a platform hosts Claude Code. It forbids third parties to "collect, store, or intermediate Claude.ai credentials or session tokens", unless Anthropic agrees otherwise.
+- OpenAI ([Sign in with ChatGPT Terms](https://openai.com/policies/sign-in-with-chatgpt-terms/), effective 2026-11-04) requires that "any persistent storage of Authentication Tokens must be local and under the user's control, not in a remote or managed environment", and that the plan is used "only for the application they connected". Paid or remotely hosted apps must [apply](https://openai.com/form/sign-in-with-chatgpt-interest/) to be partners.
+
+So byoa MUST:
+
+- run only unmodified `claude` and `codex` binaries, and never pretend to be another client;
+- send the user to the lab's own sign-in page;
+- not share one AI login between apps.
+
+The labs' terms above restrict where these tokens may be stored. byoa keeps the AI login in the app's database by default (R1.4), and ships a per-user volume as an option (R1.5). Each app checks the labs' terms for its own use.
+
+Each app is responsible for its own agreements with the labs. We plan to sign agreements for our own apps when they have traction.
+
+## Verification
+
+Version 1 is done when every check below passes. Each check names the requirement it proves.
+
+| # | Check | How | Proves |
+|---|---|---|---|
+| V1 | Bookish uses byoa | Replace `site/agent/login.ts`, `site/agent/sandbox.ts` and `src/core/connectors.ts` in Bookish with byoa. Bookish's existing e2e tests pass. | R1, R2, R5 |
+| V2 | A second app uses byoa | A second app (the to-do example in `examples/todo`, Margins, or the mail app) runs its first agent job with byoa, on a real sandbox provider and a real plan, with no code copied from Bookish. Count the app's own lines. | R7.1 |
+| V3 | Both harnesses | One test user runs the same task with Claude Code and with Codex. Both runs use that user's own plan. | R1.1, R1.2, R5.5 |
+| V4 | Both providers | The same user runs a job on E2B, then on Daytona. The second job uses the same MCP grants and skills with no new MCP sign-in. | R5.3, R2 |
+| V5 | Tokens stay out | After a job with an MCP call, a test searches the sandbox's environment, every file, and `/proc/*/cmdline` and `/proc/*/environ` for each real token. It finds none. | R3.3 |
+| V6 | Old job tokens fail | A job token is used after its job ends. The proxy refuses it. | R3.4 |
+| V7 | One refresh | Two jobs start at the same time with an expired access token. The MCP server's token endpoint gets one refresh request, and both jobs succeed. | R2.3, R6.2 |
+| V8 | Disposable sandbox | After a job, the sandbox no longer exists at the provider. The next job works with no new sign-in. | R5.4 |
+| V9 | Harness update | Change the pinned Claude Code version. The next job for an existing user runs the new version. | R5.2 |
+| V10 | Config formats | For a sample plugin, the files byoa writes match the expected files for each harness, byte for byte. | R4 |
+| V11 | Unmodified binaries | The test checks the hash of the installed `claude` and `codex` binaries against the published packages. | Lab rules |
+| V12 | The docs match the API | A test checks that every `agents.*` method, and every name imported from byoa, in the README and the agent skill exists in byoa. | R7.3 |
+
+V1 to V9 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11, V12 and the fake-harness tests run on every commit. In this repository: `npm test` runs V10, V12 and the fake-harness tests, `npm run test:v11` runs V11, and the job `example-todo` runs the to-do example's fake-harness tests (`.github/workflows/ci.yml`). With `E2B_API_KEY` and `DAYTONA_API_KEY` set, `npm test` also runs V4 (`test/v4.test.ts`).
+
+## Open questions
+
+- Does the first version support Cloudflare Workers, or only Node and Convex?
+- How does a Claude login move from one sandbox provider to another without the app holding it? Today the user signs in again.
+- Do Anthropic and OpenAI accept the default stored login (R1.4) for apps that run their unmodified CLIs, or does an app need an agreement with them? We will ask them.
+- Do we write a spec for credential references as an extension of Agent Plugins, and send it to the Agentic AI Foundation?
+
+---
+
+Source: https://github.com/madeyexz/byoa/blob/main/skills/byoa/SKILL.md
+
+---
+name: byoa
+description: Adds byoa to an app, so the app runs each user's own Claude Code or Codex in a sandbox (E2B, Daytona or local), on the user's own Claude or ChatGPT plan, with the user's MCP connections. Use when you add AI agent jobs to an app's backend with byoa, write its sign-in, MCP connect, proxy or callback routes, stream agents.run events to a UI, write a byoa store adapter, or test with byoa's fake harness.
+---
+
+# Add byoa to an app
+
+byoa is a library. It runs inside the app's own backend (Node, Bun or Convex actions). It is not a hosted service. The app gives it a sandbox adapter and a store adapter. byoa then signs each user in to their own plan, keeps their MCP grants, and runs each job in a new sandbox.
+
+The reference app is the to-do example: https://github.com/madeyexz/byoa/tree/main/examples/todo. Its `app.ts` holds all of its byoa code. Read it before you write the app's code, and copy its patterns.
+
+The full API, with every option and event, is in [reference/api.md](https://github.com/madeyexz/byoa/blob/main/skills/byoa/reference/api.md). The rules every app must follow are in "Lab rules" below. Do not skip them.
+
+## 1. Install
+
+byoa is not on npm yet. Install it from GitHub:
+
+```sh
+npm install github:madeyexz/byoa     # npm builds it on install
+bun add github:madeyexz/byoa        # Bun loads its TypeScript source
+```
+
+Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona. byoa needs Node 22.18 or later, or Bun. Do not write `npm install byoa`: that package is not byoa until version 1.
+
+## 2. One createAgents
+
+Make one `agents` object in the backend. Do it once per process (or once per Convex action).
+
+```ts
+import { createAgents } from 'byoa'
+import { e2b } from 'byoa/sandbox/e2b'              // or: daytona from 'byoa/sandbox/daytona'
+import { postgresStore } from 'byoa/store/postgres' // or: convexStore, or the app's own Store
+
+const agents = createAgents({
+  app: 'myapp',                                     // lower-case letters, digits, -; at most 24
+  sandbox: e2b({ apiKey: process.env.E2B_API_KEY }),
+  store: postgresStore({ query: (sql, args) => pool.query(sql, args) }),
+  encryptionKey: process.env.BYOA_KEY!,             // openssl rand -base64 32; keep it the same between restarts
+  proxyUrl: 'https://myapp.example.com/byoa/mcp',   // public HTTPS; serve agents.proxy here and below
+  oauth: { redirectUrl: 'https://myapp.example.com/byoa/callback' },
+})
+```
+
+- **Store.** `postgresStore` needs its table once: run `POSTGRES_SCHEMA` (from `byoa/store/postgres`). For Convex, see reference/api.md. For another database, write a `Store` with four methods: `get`, `put`, `delete`, `cas` (compare-and-set). The example's `sqliteStore` in `examples/todo/todos.ts` is one in 19 lines. A new version on every write is required, and a deleted and rewritten key must never get an old version back.
+- **Sandbox.** `e2b()` and `daytona()` read their API key from `E2B_API_KEY` / `DAYTONA_API_KEY` when you give none. `localSandbox()` from `byoa/sandbox/local` is a folder on this computer. It isolates nothing: use it only for development and tests.
+- **The sandbox must reach `proxyUrl`.** With E2B or Daytona it must be a public HTTPS URL (in development, a tunnel such as `cloudflared tunnel --url http://localhost:3000`). On Daytona Tier 1 and 2, only allowed domains work, such as `*.convex.site` or `*.workers.dev`.
+
+## 3. Routes the app must serve
+
+The app serves two byoa routes, and its own API routes that call `agents.*`. All handlers are fetch handlers (`Request` → `Response`). On Node, wrap the app's handler with `toNodeListener` from `byoa/node`.
+
+```ts
+if (url.pathname.startsWith('/byoa/mcp/')) return agents.proxy(req)  // the MCP proxy: no app session check here
+if (url.pathname === '/byoa/callback') {                               // the MCP server's sign-in page sends the browser here
+  const p = url.searchParams
+  await agents.finishMcp({ state: p.get('state') ?? '', code: p.get('code') ?? undefined, error: p.get('error') ?? undefined })
+  return Response.redirect(`${publicUrl}/`, 302)
+}
+```
+
+- The proxy checks the job token itself. Do not put the app's own sign-in check in front of it, because the harness in the sandbox has no app session.
+- `finishMcp` returns `{ user, name }`. It finds the user from the stored `state`, so the callback needs no session either.
+- Every other route reads the user from the app's own session. The `userId` you pass to byoa is the app's stable user id. Never take it from a header or a body that the browser controls (the example's `x-user` header is a stand-in only).
+
+## 4. Sign the user in to their plan
+
+The sign-in runs the unmodified CLI in a sandbox. The user signs in on the lab's own page. byoa gives the app only that page's URL (and, for Codex, a code).
+
+```ts
+// Claude: show the URL; the user signs in and pastes the code that Anthropic's page shows
+const { url } = await agents.connectLogin(userId, 'claude')
+const r = await agents.finishLogin(userId, 'claude', { code })            // r.state: 'signed-in' or an error
+
+// ChatGPT (Codex): show the URL and the code; the user enters the code on OpenAI's page
+const { url, code } = await agents.connectLogin(userId, 'codex')
+const r = await agents.finishLogin(userId, 'codex', { waitMs: 20_000 })  // call again while r.state === 'pending'
+
+await agents.loginState(userId, 'claude')  // 'signed-in' | 'signed-out' | 'expired'
+await agents.signOut(userId, 'claude')
+```
+
+Show `url` as a link or a QR code, so the user can sign in on another device. Keep each request short (for example `waitMs: 20_000`) and let the page call `finishLogin` again while the state is `pending`. This also works from short-lived backends such as Convex actions.
+
+**Where the login stays.** With no `login` option, byoa keeps the CLI's own login files encrypted in the app's store (`storedLogin()`, the default). Each job gets a copy in its new sandbox, and byoa saves it back when the CLI refreshed it. One job of a user and harness holds the login at a time. Options:
+
+- `login: storedLogin({ store: loginStore, encryptionKey: loginKey })`: a table and a key of their own.
+- `login: cliLogin`: a volume of that user, behind the sandbox adapter. The app's database never holds the login. It needs a provider with volumes (E2B volumes must be turned on for the team).
+
+Tell the developer that the labs' terms restrict where these tokens may be stored (see Lab rules), and let them choose. Do not choose for them in silence.
+
+## 5. Connect MCP tools, one time per user
+
+```ts
+// A server with its own sign-in (MCP authorization, OAuth 2.1 with PKCE)
+const c = await agents.connectMcp(userId, 'https://mcp.notion.com/mcp', { name: 'notion' })
+if (!c.connected) return Response.json({ signInUrl: c.signInUrl })  // send the browser there; it comes back to /byoa/callback
+
+// A server that takes a token the user pasted (or the app's own server, with this user's token)
+await agents.connectMcp(userId, 'https://myapp.example.com/mcp', { name: 'todos', bearer: token })
+
+await agents.listMcp(userId)            // [{ name, url }]
+await agents.removeMcp(userId, 'notion')
+```
+
+- `name`: lower-case letters, digits and -, at most 32. The job asks for servers by this name.
+- The URL must be `https://` (or `http://` on localhost). With `bearer`, byoa checks the token with one MCP `initialize` and throws if the server refuses it.
+- A sign-in that is not finished in 15 minutes runs out; call `connectMcp` again.
+- byoa refreshes each grant itself, with one refresh owner. Do not refresh or read the tokens in app code. To call a non-MCP API of the same service (for example an export), use `agents.fetchWithGrant(userId, name, url)`.
+
+## 6. Run a job and stream its events
+
+```ts
+for await (const ev of agents.run(userId, {
+  harness: 'claude',                   // 'claude' | 'codex' | 'fake'
+  task,                                // the user's request
+  mcp: ['notion'],                     // the servers this job gets; default none
+  setup: { agentsMd, skills },         // AGENTS.md (and CLAUDE.md for Claude Code); skills: [{ name, files: { 'SKILL.md': '...' } }]
+})) {
+  // ev.type: 'start' | 'text' | 'tool_call' | 'tool_result' | 'permission' | 'error' | 'end'
+}
+```
+
+- The events are the same for Claude Code and Codex. The full schema is in reference/api.md.
+- `run` never throws for job failures. It yields `error` events (`code`: `signed-out`, `expired`, `harness`, `sandbox` or `mcp`) and always ends with one `end` event (`ok`, `result`, `usage`). On `signed-out` or `expired`, show the sign-in again.
+- A server in `mcp` that the user has not connected gives an `error` with code `mcp`, and the job runs without it.
+- byoa creates a new sandbox, runs the job and destroys the sandbox. If the client goes away, stop the loop (or call `return()` on the generator): byoa then closes the job token and destroys the sandbox. The example's `ndjson()` in `app.ts` streams the events as JSON lines and does this on `cancel`.
+- To run the app's own program around the unmodified harness, use `agents.session(userId, { harness, mcp })` and call `s.close()` in a `finally`. See reference/api.md.
+
+## 7. Test without a plan or a sandbox
+
+Use `harness: 'fake'`, `localSandbox()` from `byoa/sandbox/local` and `memoryStore()` from `byoa`. The fake harness runs no model. Each task line `call <server>.<tool> <json>` is one MCP call through the real proxy, so a test proves the app's routes, grants and proxy end to end. With the local sandbox, `proxyUrl` can be `http://127.0.0.1:<port>/byoa/mcp`. Copy `examples/todo/todo.test.ts`. Do not offer `fake` to end users in production.
+
+## Lab rules
+
+Every app on byoa must follow these rules. If a request breaks one, stop and tell the developer.
+
+- Run only the unmodified `claude` and `codex` binaries that byoa installs (pinned, and checked in byoa's own tests). Do not patch them, wrap them to change what they send, or set headers or a user agent to pretend to be another client.
+- Send the user to the lab's own sign-in page, from `connectLogin`. Do not embed, proxy or copy that page, and never ask the user for a password or an API key in place of it.
+- Never read, export or call the labs' APIs with the user's AI tokens. The CLI is the only client that uses them. Do not call the labs' token endpoints.
+- One app's AI login is only for that app. Give each app its own `app` name and its own store. Never share a login between apps.
+- Real MCP tokens never go into the sandbox. Give a job its servers with `mcp: [...]`. Never put a grant's token in `setup`, the task, environment variables or files.
+- The labs' terms restrict where AI logins may be stored. Anthropic says third parties may not "collect, store, or intermediate Claude.ai credentials or session tokens" without its agreement. OpenAI says stored tokens must be "local and under the user's control", and paid or hosted apps must apply to be partners. byoa's default keeps the login in the app's database; `cliLogin` keeps it in a per-user volume. Each app checks the terms and makes its own agreements: https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules
+
+## Check your work
+
+- The app's byoa code is small: the example's backend uses byoa in 35 lines. If you write sign-in, OAuth, token refresh or sandbox code yourself, you are rebuilding byoa: use its API.
+- Run the app's tests with the fake harness and the local sandbox.
+- Every API name you use is in reference/api.md. If a name is not there, read the source (`src/agents.ts` in https://github.com/madeyexz/byoa) before you use it. The API can change before version 1.
+
+---
+
+Source: https://github.com/madeyexz/byoa/blob/main/skills/byoa/reference/api.md
+
+# byoa API reference
+
+This is the API in https://github.com/madeyexz/byoa today (version 0.1, before version 1). It can change before version 1. The source of truth is `src/agents.ts`, `src/index.ts` and the files they import.
+
+## Imports
+
+| Import | What it gives |
+|---|---|
+| `byoa` | `createAgents`, `LoginError`, `memoryStore`, `storedLogin`, `cliLogin`, `harnessFiles`, `readPlugin`, `JOB_TOKEN_ENV`, `PINS`, `PACKAGES`, `ensureHarness`, `LOGIN_FILES`, `clientMetadataDocument`; types `AgentsOptions`, `RunOptions`, `RunHarness`, `ConnectResult`, `Session`, `SessionOptions`, `JobToken`, `Store`, `Entry`, `Sandbox`, `SandboxProvider`, `AgentEvent`, `Usage`, `Setup`, `Skill`, `Plugin`, `LoginState`, `LoginStart`, `LoginResult` |
+| `byoa/sandbox/e2b` | `e2b({ apiKey?, template?, timeoutMs? })`, `buildE2BTemplate(name?, { apiKey?, pins? })`, `e2bTemplate(pins?)`. Needs the `e2b` package. |
+| `byoa/sandbox/daytona` | `daytona({ apiKey?, client?, snapshot?, volume?, timeoutMs? })`. Needs `@daytona/sdk`. |
+| `byoa/sandbox/local` | `localSandbox({ root?, volumes?, env? })`: folders on this computer, for tests and development only. |
+| `byoa/store/postgres` | `postgresStore({ query, table? })`, `postgresSchema(table?)`, `POSTGRES_SCHEMA` |
+| `byoa/store/convex` | `convexTable()`, `convexFunctions(table?)`, `convexStore(ctx, fns)`. Needs `convex`. |
+| `byoa/node` | `toNodeListener(handler)` (a fetch handler as a `node:http` listener), `readPluginDir(dir)` |
+| `byoa/verify` | `verifyHarness(sandbox, harness, bin, pins?)`: checks the installed binary against the published npm package |
+
+## createAgents(options)
+
+```ts
+interface AgentsOptions {
+  app: string                 // lower-case letters, digits, -; at most 24. Names the app's sandboxes and login volumes.
+  sandbox: SandboxProvider
+  store: Store
+  encryptionKey: string       // 32 random bytes as base64. Encrypts MCP grants and, by default, AI logins.
+  proxyUrl: string            // public URL where the app serves agents.proxy; each server is at <proxyUrl>/<name>
+  oauth: { redirectUrl: string; clientMetadataUrl?: string; clientName?: string }
+  pins?: { claude: string; codex: string }   // default PINS
+  login?: (deps) => LoginDriver              // default storedLogin(); or cliLogin
+  jobTimeoutMs?: number                      // default 30 minutes
+  grantOrigins?: Record<string, string[]>    // more exact origins for fetchWithGrant, by MCP server origin
+}
+```
+
+- `oauth.redirectUrl`: the app's route that calls `finishMcp`.
+- `oauth.clientMetadataUrl`: an HTTPS URL where the app serves `agents.clientMetadata()` (a Client ID Metadata Document). Without it, byoa uses only Dynamic Client Registration.
+- `oauth.clientName`: the name the MCP server shows on its consent page. Default: `app`.
+
+It returns an object with the methods below.
+
+## AI login
+
+| Method | Returns |
+|---|---|
+| `connectLogin(user, 'claude' \| 'codex')` | `{ harness, url, code? }`. `url`: the lab's own sign-in page. `code`: Codex only, the code to enter on OpenAI's page. |
+| `finishLogin(user, h, { code?, waitMs? })` | `{ state: 'signed-in' \| 'signed-out' \| 'expired' \| 'pending', error? }`. Claude: pass `code` (the code Anthropic's page shows). Codex: no code; `waitMs` waits that long; call again while `pending`. |
+| `loginState(user, h)` | `'signed-in' \| 'signed-out' \| 'expired'` |
+| `signOut(user, h)` | `void` |
+
+Login drivers:
+
+- `storedLogin({ store?, encryptionKey?, waitMs? })` (default): the CLI's own login files, encrypted in the store. `store` and `encryptionKey` default to the app's. `waitMs`: how long a job waits for another job of the same user and harness to give the login back (default 10 minutes).
+- `cliLogin`: the login stays in a volume of the user, mounted through the sandbox adapter. Needs a provider with volumes.
+
+## MCP connections
+
+| Method | Returns |
+|---|---|
+| `connectMcp(user, url, { name, bearer? })` | `{ name, connected: true }` or `{ name, connected: false, signInUrl }`. Send the browser to `signInUrl`. |
+| `finishMcp({ state, code?, error? })` | `{ user, name }`. Call it in the `oauth.redirectUrl` route with the query parameters. |
+| `listMcp(user)` | `[{ name, url }]` |
+| `removeMcp(user, name)` | `void` |
+| `importMcp(user, { name, url, oauth })` | `{ name }`. Moves a grant made elsewhere into byoa; `oauth` is the MCP SDK's state (`client`, `tokens`, `at`). Delete the old copy, so the grant keeps one refresh owner. |
+| `fetchWithGrant(user, name, url, init?)` | `Response`. A request with the grant's current token, only to the origin of the grant's MCP server (and `grantOrigins` for it). No redirects. The app never gets the token. |
+| `clientMetadata()` | The Client ID Metadata Document to serve at `oauth.clientMetadataUrl`. |
+
+`name`: lower-case letters, digits and -, at most 32. `url`: `https://`, or `http://` on localhost.
+
+## The proxy
+
+`agents.proxy` is a fetch handler (`Request` → `Response`). Serve it at `proxyUrl` and every path below it (`<proxyUrl>/<name>`). It checks the job token, adds the user's real token, and sends the request to the MCP server. It refuses a job token after the job ends. Do not put the app's session check in front of it.
+
+## Jobs
+
+### run(user, options): AsyncGenerator<AgentEvent>
+
+```ts
+interface RunOptions {
+  harness: 'claude' | 'codex' | 'fake'
+  task: string
+  setup?: { agentsMd?: string; skills?: { name: string; files: Record<string, string> }[] }  // files must have 'SKILL.md'
+  plugins?: Plugin[]          // from readPlugin(readPluginDir(dir)); their skills and MCP servers are added
+  mcp?: string[]              // the connected servers this job gets; default none
+  model?: string
+}
+```
+
+Each run: a new sandbox, the user's login, the pinned harness, the setup files, the task, then the sandbox is destroyed. Stop the loop (or call `return()`) to end a job early; byoa still cleans up.
+
+### Events (one schema for both harnesses)
+
+```ts
+type AgentEvent =
+  | { type: 'start'; harness: string; version: string; sandbox: string }
+  | { type: 'text'; text: string }
+  | { type: 'tool_call'; id: string; name: string; server?: string; input: unknown }   // server: the MCP server
+  | { type: 'tool_result'; id: string; ok: boolean; output: string }
+  | { type: 'permission'; tool: string; decision: 'denied'; input?: unknown }
+  | { type: 'error'; message: string; code?: 'signed-out' | 'expired' | 'harness' | 'sandbox' | 'mcp' }
+  | { type: 'end'; ok: boolean; result?: string; usage?: { input: number; output: number; cached?: number; costUsd?: number } }
+```
+
+`run` does not throw for job failures: it yields `error` events and then exactly one `end`. `signed-out` / `expired`: ask the user to sign in again (`loginState` says the same). `mcp`: a server is not connected, or its grant failed.
+
+### session(user, { harness, setup?, plugins?, mcp? }): Promise<Session>
+
+For an app that runs its own program around the unmodified harness. Throws `LoginError` when the harness is not signed in.
+
+```ts
+const s = await agents.session(userId, { harness: 'claude', mcp: ['notion'] })
+try {
+  await s.sandbox.run(`my-server --claude ${s.bin}`, { cwd: s.work, env: s.env })
+} finally { await s.close() }   // ends the job token and destroys the sandbox
+```
+
+`Session`: `sandbox`, `work` (the job folder with byoa's files), `harness`, `bin` (the pinned binary), `version`, `env` (login folder and `BYOA_JOB_TOKEN`), `token`, `mcp` (`[{ name, url }]` at the proxy), `missing` (servers not connected), `reportLogin('signed-in' | 'expired')`, `close()`.
+
+### jobToken(user, { mcp?, ttlMs? }): Promise<JobToken>
+
+A job token with no sandbox, for a harness outside byoa's sandboxes (such as on the user's own computer). `{ token, job, mcp, missing, close() }`. Send `token` as `Authorization: Bearer` to each `mcp[].url`.
+
+## Store adapter
+
+```ts
+interface Entry { value: string; version: string }
+interface Store {
+  get(key: string): Promise<Entry | null>
+  put(key: string, value: string): Promise<void>                        // writes whatever is there
+  delete(key: string): Promise<void>
+  cas(key: string, version: string | null, value: string): Promise<boolean>  // null: only if no entry; true if it wrote
+}
+```
+
+The version must change on every write, and a key that is deleted and written again must never get an earlier version back. The one refresh owner of each grant depends on `cas`.
+
+- Postgres: run `POSTGRES_SCHEMA` once (or `postgresSchema('my_table')`), then `postgresStore({ query: (sql, args) => pool.query(sql, args) })`.
+- Convex: `convex/schema.ts` has `byoa: convexTable()`; `convex/byoa.ts` has `export const { get, put, remove, cas } = convexFunctions()`; in an action or HTTP action, `store: convexStore(ctx, internal.byoa)`. Call byoa only from actions and HTTP actions, and serve `agents.proxy` from an HTTP action.
+- Tests: `memoryStore()` from `byoa`.
+
+## Sandbox adapter
+
+```ts
+interface SandboxProvider {
+  readonly name: string
+  create(opts?: { volumes?: { name: string; path: string }[]; labels?: Record<string, string>; timeoutMs?: number }): Promise<Sandbox>
+  resume(id: string): Promise<Sandbox>
+  deleteVolume(name: string): Promise<void>
+}
+interface Sandbox {
+  readonly id: string
+  readonly home: string
+  run(cmd: string, opts?: { cwd?; env?; timeoutMs?; onStdout?; onStderr?; background? }): Promise<{ exitCode; stdout; stderr }>
+  writeFile(path: string, data: string | Uint8Array): Promise<void>
+  destroy(): Promise<void>
+}
+```
+
+- E2B: the default template is `byoa`; build it once per pin change with `buildE2BTemplate()`. Any template with Node 20 or later works (byoa installs the pinned harness when it is missing, more slowly).
+- Daytona: with `cliLogin`, every user's login is a subpath of one shared volume (`byoa` by default). On Tier 1 and 2 a sandbox reaches only allowed domains, so serve the proxy on one (for example `*.convex.site`, `*.workers.dev`).
+
+## The fake harness
+
+`harness: 'fake'` runs no model and needs no login. It reads the same MCP config Claude Code would. Each task line `call <server>.<tool> <json arguments>` is one MCP call through the real proxy; it shows the task's first line as one `text` event and skips the other lines. The last call's output is the `end` event's `result`. Use it with `localSandbox()` and `memoryStore()` (or the app's own store) in tests.
+
+---
+
+Source: https://github.com/madeyexz/byoa/blob/main/examples/todo/README.md
+
+# AI-native to-do list: an example app on byoa
+
+A small to-do app. The user signs in with their own Claude or ChatGPT plan, connects their to-dos one time, and then asks the agent to change them ("add buy milk, and mark the oldest one done"). Each request is one job: byoa starts a new sandbox, runs the user's own, unmodified Claude Code or Codex in it, and destroys the sandbox after the job.
+
+The app has no code from Bookish. It is the second app for check V2 in [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification).
+
+## The files
+
+| File | What it does | Lines of code |
+|---|---|---|
+| [app.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/app.ts) | The backend, as one fetch handler. All of the app's byoa code is here. | 87 |
+| [todos.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/todos.ts) | The app's own data (SQLite), its MCP server with four to-do tools, and byoa's store adapter for SQLite. | 60 |
+| [main.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/main.ts) | Starts the server on Node and selects the sandbox provider. | 25 |
+| [page.html](https://github.com/madeyexz/byoa/blob/main/examples/todo/page.html) | The page: sign in, connect, ask, and the list. | 120 |
+| [todo.test.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/todo.test.ts) | Tests with byoa's fake harness. | 103 |
+
+"Lines of code" does not count empty lines and comments. Of the backend's 172 lines, 35 in app.ts use byoa: `createAgents`, the routes that call `agents.*`, the MCP callback, and the stream of events to the page. The SQLite store adapter is 19 more; with byoa's own Postgres or Convex adapter, it is one line. The rest is the to-do app itself.
+
+## How the app uses byoa
+
+1. **One `createAgents`** ([app.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/app.ts)). The app gives byoa its sandbox provider, its own database (through `sqliteStore`, 19 lines in [todos.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/todos.ts)), an encryption key, and the URLs where it serves byoa's MCP proxy and the MCP sign-in callback. The app gives no `login` option, so byoa keeps each user's plan login (the CLI's own login files) encrypted in the app's database, and writes a copy into each job's new sandbox. After the job, byoa saves the files back when the CLI refreshed them. No sandbox volumes are needed. With `login: cliLogin`, the login stays in a volume of the user instead, and the app's database never holds it. The labs' terms restrict where these tokens may be stored: see [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules), and check them for your own app.
+2. **Sign in to the plan.** `agents.connectLogin(user, 'claude')` runs the real `claude auth login` in a sandbox and gives the URL of Anthropic's own sign-in page. The user signs in there and pastes the code that page shows; `agents.finishLogin` types it into the CLI. For ChatGPT, `codex login --device-auth` gives OpenAI's page and a code to enter there.
+3. **Connect the to-dos, one time.** `agents.connectMcp(user, '<app>/mcp', { name: 'todos', bearer })` keeps the user's token for the app's own MCP server as an encrypted grant. The user can also connect any remote MCP server (for example Notion) with its own sign-in page; byoa does the OAuth and calls `/byoa/callback`.
+4. **Ask.** `agents.run(user, { harness, task, mcp, setup: { agentsMd } })` gives a stream of events (`start`, `text`, `tool_call`, `tool_result`, `error`, `end`) in one schema for both harnesses. The app sends them to the page as they come, one JSON object for each line.
+5. **The proxy.** The harness in the sandbox gets only a job token. Its MCP calls go to `agents.proxy`, which adds the user's real token and sends them to the MCP server. The real token never goes into the sandbox.
+
+## Run it
+
+You need Node 22.18 or later. From the root of this repository:
+
+```sh
+npm ci                                  # installs and builds byoa
+cd examples/todo && npm install
+BYOA_KEY=$(openssl rand -base64 32) FAKE=1 npm start
+```
+
+Open http://127.0.0.1:3000, type a name, click **Connect my to-dos**, select **Fake harness**, and ask with lines such as `call todos.add_todo {"title":"Buy milk"}`. The fake harness runs no model: each line `call <server>.<tool> <json>` is one MCP call through the real proxy.
+
+In your own app, install byoa with `npm install github:madeyexz/byoa` instead.
+
+### Settings
+
+| Variable | Default | What it is |
+|---|---|---|
+| `BYOA_KEY` | (required) | 32 random bytes as base64. byoa encrypts the MCP grants and the plan logins with it. Keep it the same between restarts. |
+| `SANDBOX` | `local` | `local`, `e2b` (needs `E2B_API_KEY`) or `daytona` (needs `DAYTONA_API_KEY`). |
+| `PUBLIC_URL` | `http://127.0.0.1:$PORT` | Where browsers and sandboxes reach the app. |
+| `PORT` | `3000` | |
+| `DB` | `.data/todo.db` | The SQLite file. |
+| `FAKE` | off | `1` lets jobs use the fake harness. |
+
+The local sandbox is a folder on your computer. It isolates nothing, so use it only on your own computer. With Claude Code or Codex in it, the harness runs on your computer with your login.
+
+With E2B or Daytona, the sandbox must reach the proxy, so `PUBLIC_URL` must be a public HTTPS URL, for example from `cloudflared tunnel --url http://localhost:3000`. On Daytona Tier 1 and Tier 2, a sandbox reaches only [allowed domains](https://www.daytona.io/docs/en/network-limits).
+
+## Test it
+
+```sh
+npm test         # the fake harness and the local sandbox: no plan, no sandbox provider
+npm run typecheck
+```
+
+CI runs both on every commit (`.github/workflows/ci.yml`, job `example-todo`).
+
+## What a real app changes
+
+- **The user.** The page sends the user's name in an `x-user` header. That is a stand-in, not a sign-in: anyone can type any name. A real app reads the user from its own session.
+- **The database.** SQLite in one process is enough for one server. For more servers, use byoa's Postgres or Convex store adapter, or write one for your database (four operations: get, put, delete, compare-and-set).
+
+---
+
+Source: https://github.com/madeyexz/byoa/blob/main/examples/todo/app.ts
+
+```ts
+// The to-do app's backend, as one fetch handler. Everything the app does with byoa is in this file: the sign-in to
+// the user's own Claude or ChatGPT plan, the MCP connections, and the agent job.
+import { readFileSync } from 'node:fs'
+import type { DatabaseSync } from 'node:sqlite'
+import { createAgents, type AgentEvent, type RunHarness, type SandboxProvider } from 'byoa'
+import { sqliteStore, todoList, todoMcp } from './todos.ts'
+
+const AGENTS_MD = `# To-do assistant
+
+You manage the user's to-do list with the tools of the \`todos\` MCP server.
+Read the list first. Change only what the user asks for. Then answer in one or two short sentences.
+`
+const PAGE = readFileSync(new URL('page.html', import.meta.url), 'utf8')
+
+export interface TodoAppOptions {
+  db: DatabaseSync
+  sandbox: SandboxProvider
+  /** Where browsers and sandboxes reach this app, such as https://todo.example.com. */
+  publicUrl: string
+  /** Where this backend reaches itself. Default: publicUrl. */
+  localUrl?: string
+  encryptionKey: string
+  /** Lets a job use byoa's fake harness, which runs no model (for tests and demos). */
+  fake?: boolean
+}
+
+export function todoApp(o: TodoAppOptions): (req: Request) => Promise<Response> {
+  const todos = todoList(o.db)
+  // No `login` option: byoa keeps each user's plan login encrypted in this app's database (with encryptionKey), and
+  // writes a copy into each job's new sandbox. `login: cliLogin` keeps it in a volume of the user instead.
+  const agents = createAgents({
+    app: 'todo',
+    sandbox: o.sandbox,
+    store: sqliteStore(o.db),
+    encryptionKey: o.encryptionKey,
+    proxyUrl: `${o.publicUrl}/byoa/mcp`,
+    oauth: { redirectUrl: `${o.publicUrl}/byoa/callback`, clientName: 'byoa to-do example' },
+  })
+  const harnesses: RunHarness[] = ['claude', 'codex', ...(o.fake ? ['fake' as const] : [])]
+
+  async function api(user: string, route: string, b: any): Promise<Response> {
+    switch (route) {
+      case 'GET /api/state': return json({
+        todos: todos.list(user),
+        login: { claude: await agents.loginState(user, 'claude'), codex: await agents.loginState(user, 'codex') },
+        mcp: await agents.listMcp(user),
+        harnesses,
+      })
+      // The lab's own sign-in page. Claude: a URL, then the code that page shows. ChatGPT: a URL and a code to enter.
+      case 'POST /api/login': return json(await agents.connectLogin(user, plan(b.harness)))
+      case 'POST /api/login/finish': return json(await agents.finishLogin(user, plan(b.harness), { code: b.code, waitMs: b.harness === 'codex' ? 20_000 : undefined }))
+      // One time per user: the app's own to-do server with this user's token, or any MCP server with its own sign-in.
+      case 'POST /api/connect': return json(b.url
+        ? await agents.connectMcp(user, String(b.url), { name: String(b.name) })
+        : await agents.connectMcp(user, `${o.localUrl ?? o.publicUrl}/mcp`, { name: 'todos', bearer: todos.tokenFor(user) }))
+      case 'POST /api/ask': {
+        if (!harnesses.includes(b.harness)) throw new Error(`harness: one of ${harnesses.join(', ')}`)
+        const mcp = (await agents.listMcp(user)).map((g) => g.name)
+        return ndjson(agents.run(user, { harness: b.harness, task: String(b.task ?? ''), mcp, setup: { agentsMd: AGENTS_MD } }))
+      }
+    }
+    return json({ error: 'not found' }, 404)
+  }
+
+  return async (req) => {
+    const url = new URL(req.url)
+    try {
+      if (url.pathname.startsWith('/byoa/mcp/')) return await agents.proxy(req)
+      if (url.pathname === '/byoa/callback') {
+        const p = url.searchParams
+        await agents.finishMcp({ state: p.get('state') ?? '', code: p.get('code') ?? undefined, error: p.get('error') ?? undefined })
+        return Response.redirect(`${o.publicUrl}/`, 302)
+      }
+      if (url.pathname === '/mcp') {
+        const user = todos.userOf(/^Bearer (\S+)$/.exec(req.headers.get('authorization') ?? '')?.[1] ?? '')
+        return user ? await todoMcp(req, todos, user) : json({ error: 'unauthorized' }, 401)
+      }
+      if (url.pathname === '/') return new Response(PAGE, { headers: { 'content-type': 'text/html; charset=utf-8' } })
+      // A stand-in for the app's own sign-in: the page sends the user's name. A real app reads its session here.
+      const user = req.headers.get('x-user')?.trim()
+      if (!user) return json({ error: 'no x-user header' }, 401)
+      return await api(user, `${req.method} ${url.pathname}`, req.method === 'POST' ? await req.json() : {})
+    } catch (e) {
+      return json({ error: (e as Error).message }, 400)
+    }
+  }
+}
+
+function plan(h: unknown): 'claude' | 'codex' {
+  if (h !== 'claude' && h !== 'codex') throw new Error('harness: claude or codex')
+  return h
+}
+
+const json = (body: unknown, status = 200) => Response.json(body, { status })
+
+/** byoa's events, one JSON object per line, as they come. A browser that goes away ends the job. */
+function ndjson(events: AsyncGenerator<AgentEvent>): Response {
+  const enc = new TextEncoder()
+  return new Response(new ReadableStream({
+    async pull(c) {
+      const n = await events.next()
+      if (n.done) c.close()
+      else c.enqueue(enc.encode(JSON.stringify(n.value) + '\n'))
+    },
+    async cancel() { await events.return(undefined) },
+  }), { headers: { 'content-type': 'application/x-ndjson' } })
+}
+```

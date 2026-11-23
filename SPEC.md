@@ -80,6 +80,7 @@ Out of scope for version 1:
 
 - **R7.1** A new app MUST reach its first agent run in under 50 lines of its own code.
 - **R7.2** byoa MUST include a fake harness for tests, so apps can test without a plan or a sandbox.
+- **R7.3** byoa SHOULD ship an agent skill in the Agent Skills format (`skills/byoa/`) that teaches a coding agent to add byoa to an app, and its site SHOULD serve the docs for LLMs as `llms.txt` and `llms-full.txt`. Both MUST name only the API that byoa has.
 
 ## Lab rules
 
@@ -115,8 +116,9 @@ Version 1 is done when every check below passes. Each check names the requiremen
 | V9 | Harness update | Change the pinned Claude Code version. The next job for an existing user runs the new version. | R5.2 |
 | V10 | Config formats | For a sample plugin, the files byoa writes match the expected files for each harness, byte for byte. | R4 |
 | V11 | Unmodified binaries | The test checks the hash of the installed `claude` and `codex` binaries against the published packages. | Lab rules |
+| V12 | The docs match the API | A test checks that every `agents.*` method, and every name imported from byoa, in the README and the agent skill exists in byoa. | R7.3 |
 
-V1 to V9 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11 and the fake-harness tests run on every commit. In this repository: `npm test` runs V10 and the fake-harness tests, `npm run test:v11` runs V11, and the job `example-todo` runs the to-do example's fake-harness tests (`.github/workflows/ci.yml`). With `E2B_API_KEY` and `DAYTONA_API_KEY` set, `npm test` also runs V4 (`test/v4.test.ts`).
+V1 to V9 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11, V12 and the fake-harness tests run on every commit. In this repository: `npm test` runs V10, V12 and the fake-harness tests, `npm run test:v11` runs V11, and the job `example-todo` runs the to-do example's fake-harness tests (`.github/workflows/ci.yml`). With `E2B_API_KEY` and `DAYTONA_API_KEY` set, `npm test` also runs V4 (`test/v4.test.ts`).
 
 ## Open questions
 

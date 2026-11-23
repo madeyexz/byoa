@@ -1,0 +1,44 @@
+# byoa
+
+> byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend.
+
+byoa is an open-source library (Apache 2.0). It runs inside the app's own backend; it is not a hosted service. byoa is not on npm yet. Until version 1, install it from GitHub:
+
+```sh
+npm install github:madeyexz/byoa     # npm builds it on install
+bun add github:madeyexz/byoa        # Bun loads its TypeScript source
+```
+
+## Docs
+
+- [README: Who brings what](https://github.com/madeyexz/byoa/blob/main/README.md#who-brings-what): what the app developer brings, what each end user brings, and where byoa runs
+- [README: The problem](https://github.com/madeyexz/byoa/blob/main/README.md#the-problem): the connection layer each AI-native app builds again
+- [README: What byoa is, and what it is not](https://github.com/madeyexz/byoa/blob/main/README.md#what-byoa-is-and-what-it-is-not): a library in your own backend, not a hosted service
+- [README: Why byoa](https://github.com/madeyexz/byoa/blob/main/README.md#why-byoa): the user's plan pays, the real agents, any sandbox, connect once
+- [README: How it works](https://github.com/madeyexz/byoa/blob/main/README.md#how-it-works): agents.run, the MCP proxy and job tokens, and a new sandbox for each job
+- [README: Install](https://github.com/madeyexz/byoa/blob/main/README.md#install): from GitHub until version 1; Node 22.18 or later, or Bun
+- [README: Agent skill](https://github.com/madeyexz/byoa/blob/main/README.md#agent-skill): a skill that teaches a coding agent to add byoa to an app
+- [README: How it will look](https://github.com/madeyexz/byoa/blob/main/README.md#how-it-will-look): the API: createAgents, connectLogin/finishLogin, connectMcp/finishMcp, agents.run and its events, agents.session, jobToken, importMcp, fetchWithGrant, the AI login options, Daytona and Convex
+- [README: Test your app without a plan or a sandbox](https://github.com/madeyexz/byoa/blob/main/README.md#test-your-app-without-a-plan-or-a-sandbox): the fake harness, the local sandbox and memoryStore; byoa's own tests
+- [README: Example app](https://github.com/madeyexz/byoa/blob/main/README.md#example-app): the to-do example on byoa
+- [README: How we will verify it](https://github.com/madeyexz/byoa/blob/main/README.md#how-we-will-verify-it): the checks that define version 1
+- [README: Rules we follow](https://github.com/madeyexz/byoa/blob/main/README.md#rules-we-follow): the labs' rules that byoa and every app on it follow
+- [README: License](https://github.com/madeyexz/byoa/blob/main/README.md#license): Apache 2.0
+- [SPEC.md](https://raw.githubusercontent.com/madeyexz/byoa/main/SPEC.md): the version 1 requirements (R1 to R7) and the checks (V1 to V12)
+- [SPEC.md: Lab rules](https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules): what Anthropic's and OpenAI's terms allow, and what byoa and each app must do
+- [Full docs](https://byoa.rippling.computer/llms-full.txt): the README, SPEC.md, the example and the skill in one file
+
+## Example
+
+- [examples/todo](https://raw.githubusercontent.com/madeyexz/byoa/main/examples/todo/README.md): an AI-native to-do list on byoa; its backend uses byoa in 35 lines
+- [examples/todo/app.ts](https://raw.githubusercontent.com/madeyexz/byoa/main/examples/todo/app.ts): all of the example's byoa code, as one fetch handler
+
+## Agent skill
+
+- [skills/byoa/SKILL.md](https://raw.githubusercontent.com/madeyexz/byoa/main/skills/byoa/SKILL.md): teaches a coding agent (Claude Code, Codex, Amp and others) to add byoa to an app
+- [skills/byoa/reference/api.md](https://raw.githubusercontent.com/madeyexz/byoa/main/skills/byoa/reference/api.md): the API reference: every method, option and event
+
+## Optional
+
+- [CONTRIBUTING.md](https://raw.githubusercontent.com/madeyexz/byoa/main/CONTRIBUTING.md): how to work on byoa
+- [Source](https://github.com/madeyexz/byoa): the repository
