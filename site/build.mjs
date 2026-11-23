@@ -1,5 +1,5 @@
-// Builds the byoa.rippling.computer page: the design in template.html, with the first code block of the
-// README's "How it will look" section, so the page and the README show the same code.
+// Builds the byoa.rippling.computer page: the design in template.html, with the install commands from the
+// README's "Install" section, so the page and the README show the same commands.
 // Run from site/: npm install && node build.mjs   → writes index.html
 // worker.js (the Cloudflare Worker "byoa-site") serves that file, art/ and fonts/ from the main branch.
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -10,7 +10,7 @@ const REPO = 'https://github.com/madeyexz/byoa'
 const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8')
 let html = readFileSync(new URL('./template.html', import.meta.url), 'utf8')
 
-const highlighter = await createHighlighter({ themes: ['vitesse-dark'], langs: ['ts', 'text'] })
+const highlighter = await createHighlighter({ themes: ['vitesse-dark'], langs: ['sh', 'text'] })
 marked.use({
   renderer: {
     code({ text, lang }) {
@@ -34,8 +34,8 @@ const section = (name, pick = (md) => md) => {
 }
 
 const slots = {
-  // only the main example; the README has the notes and the other examples
-  code: section('How it will look', (md) => md.match(/^```[\s\S]*?^```$/m)?.[0]),
+  // only the commands; the README has the notes around them
+  install: section('Install', (md) => md.match(/^```[\s\S]*?^```$/m)?.[0]),
   repo: REPO,
 }
 for (const [name, value] of Object.entries(slots)) {

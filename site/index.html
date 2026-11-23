@@ -138,22 +138,20 @@
   .ascii .bs { color: var(--cobalt); }
   .ascii.narrow { display: none; }
 
-  /* code */
+  /* get started */
   .codegrid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 24px 56px; align-items: end; margin-bottom: 40px; }
   .bul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
   .bul li { padding: 16px 0; border-bottom: 1px solid var(--rule); display: grid; grid-template-columns: 36px 1fr; gap: 2px 14px; }
   .bul i { grid-row: span 2; font: 13px var(--pixel); font-style: normal; color: #fff; background: var(--cobalt); width: 30px; height: 30px; display: grid; place-items: center; }
   .bul b { font-weight: 600; font-size: 17px; letter-spacing: -.01em; }
   .bul span { color: var(--ink2); font-size: 15.5px; }
+  .bul a { text-decoration: none; }
+  .bul a b { display: inline-flex; align-items: center; gap: 10px; }
+  .bul a:hover b { color: var(--cobalt); }
   .codepanel { background: url(art/panel-code.webp) center/cover; padding: clamp(18px, 3.4vw, 46px); }
   .win { background: var(--navy); border: 1px solid #000; color: #c9cde6; max-width: 1000px; margin: 0 auto; min-width: 0; }
   .win .bar { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,.1); font: 12.5px var(--mono); color: #8b90b0; }
   .win .bar img { width: 18px; }
-  .win .body p { margin: 0; padding: 10px 18px; font: 12.5px/1.5 var(--mono); color: #8b90b0; }
-  .win .body p:last-child { border-top: 1px solid rgba(255,255,255,.1); }
-  .win .body p code { background: none; border: 0; padding: 0; color: var(--peri); }
-  .win .body p a { color: var(--peri); }
-  .win .body h3 { margin: 6px 0 0; padding: 16px 18px 2px; border-top: 1px solid rgba(255,255,255,.1); font: 12px var(--pixel); letter-spacing: .12em; text-transform: uppercase; color: var(--peri); }
   .win pre.shiki { margin: 0; padding: 12px 18px 16px; overflow-x: auto; background: transparent !important; }
   .win pre.shiki code { background: none; border: 0; padding: 0; font: 12.5px/1.65 var(--mono); }
 
@@ -188,6 +186,9 @@
   @media (max-width: 720px) {
     .ascii.wide { display: none; } .ascii.narrow { display: block; }
     .ascii-wrap { margin: 8px -12px 0; }
+    .codepanel { padding: 10px; }
+    .win pre.shiki { padding: 12px 12px 14px; }
+    .win pre.shiki code { font-size: 12px; }
     nav.top a:not(.brand):not(.gh) { display: none; }
     .frame.pad { padding: 72px 18px; }
     .hero .frame { padding: 72px 12px 170px; }
@@ -207,7 +208,7 @@
   <div class="row">
     <a class="brand" href="#"><img class="px" src="art/agent.png" alt="">byoa</a>
     <a class="opt" href="#who">Who brings what</a>
-    <a class="opt" href="#code">API</a>
+    <a class="opt" href="#start">Get started</a>
     <a class="opt" href="#scope">v1 scope</a>
     <span class="sp"></span>
     <a class="r" href="https://github.com/madeyexz/byoa/blob/main/SPEC.md">Read the spec</a>
@@ -338,47 +339,25 @@
   </div>
 </section>
 
-<section id="code" class="band">
+<section id="start" class="band">
   <div class="frame pad">
     <div class="codegrid">
       <div>
-        <div class="kick">The API</div>
-        <h2>A few calls to the first agent run.</h2>
-        <p class="sub" style="margin-bottom:0">The goal for v1: a new app reaches its first agent run in under 50 lines of its own code.</p>
+        <div class="kick">Get started</div>
+        <h2>Start in three steps.</h2>
+        <p class="sub" style="margin-bottom:0">byoa is not on npm yet. Until version 1, install it from GitHub.</p>
       </div>
       <ul class="bul">
-        <li><i>1</i><b>Sign-in is data</b></li>
-        <li><i>2</i><b>One event stream</b></li>
-        <li><i>3</i><b>Test without a plan</b></li>
+        <li><i>1</i><a href="https://github.com/madeyexz/byoa/blob/main/README.md#install"><b>Install from GitHub <span class="chev"></span></b></a><span>Needs Node 22.18 or later, or Bun.</span></li>
+        <li><i>2</i><a href="https://github.com/madeyexz/byoa/blob/main/README.md#how-it-will-look"><b>Write your first agent run <span class="chev"></span></b></a><span>Start from the example in the README.</span></li>
+        <li><i>3</i><a href="https://github.com/madeyexz/byoa/tree/main/examples/todo"><b>Run the to-do example <span class="chev"></span></b></a><span>An AI-native to-do list. Its backend uses byoa in 35 lines.</span></li>
       </ul>
     </div>
     <div class="codepanel">
       <div class="win">
-        <div class="bar"><img class="px" src="art/agent.png" alt="">your-backend/agents.ts</div>
-        <div class="body"><pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> createAgents</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">byoa</span><span style="color:#C98A7D77">'</span></span>
-<span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> e2b</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">byoa/sandbox/e2b</span><span style="color:#C98A7D77">'</span></span>
-<span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> postgresStore</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">byoa/store/postgres</span><span style="color:#C98A7D77">'</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">agents</span><span style="color:#666666"> =</span><span style="color:#80A665"> createAgents</span><span style="color:#666666">({</span></span>
-<span class="line"><span style="color:#B8A965">  app</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">myapp</span><span style="color:#C98A7D77">'</span><span style="color:#666666">,                                    </span><span style="color:#758575DD">// one app's AI logins are only this app's</span></span>
-<span class="line"><span style="color:#B8A965">  sandbox</span><span style="color:#666666">: </span><span style="color:#80A665">e2b</span><span style="color:#666666">({ </span><span style="color:#BD976A">apiKey</span><span style="color:#666666"> }),</span></span>
-<span class="line"><span style="color:#B8A965">  store</span><span style="color:#666666">: </span><span style="color:#80A665">postgresStore</span><span style="color:#666666">({ </span><span style="color:#80A665">query</span><span style="color:#666666">: (</span><span style="color:#BD976A">sql</span><span style="color:#666666">, </span><span style="color:#BD976A">args</span><span style="color:#666666">) => </span><span style="color:#BD976A">pool</span><span style="color:#666666">.</span><span style="color:#80A665">query</span><span style="color:#666666">(</span><span style="color:#BD976A">sql</span><span style="color:#666666">, </span><span style="color:#BD976A">args</span><span style="color:#666666">) }),</span></span>
-<span class="line"><span style="color:#BD976A">  encryptionKey</span><span style="color:#666666">,                                   </span><span style="color:#758575DD">// openssl rand -base64 32; grants and AI logins are encrypted with it</span></span>
-<span class="line"><span style="color:#B8A965">  proxyUrl</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">https://myapp.example.com/byoa/mcp</span><span style="color:#C98A7D77">'</span><span style="color:#666666">,  </span><span style="color:#758575DD">// serve agents.proxy here</span></span>
-<span class="line"><span style="color:#B8A965">  oauth</span><span style="color:#666666">: { </span><span style="color:#B8A965">redirectUrl</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">https://myapp.example.com/byoa/callback</span><span style="color:#C98A7D77">'</span><span style="color:#666666"> },</span></span>
-<span class="line"><span style="color:#666666">})</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">claude</span><span style="color:#666666"> =</span><span style="color:#4D9375"> await</span><span style="color:#BD976A"> agents</span><span style="color:#666666">.</span><span style="color:#80A665">connectLogin</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">claude</span><span style="color:#C98A7D77">'</span><span style="color:#666666">)</span><span style="color:#758575DD">  // { url }: Anthropic's own sign-in page</span></span>
-<span class="line"><span style="color:#4D9375">await</span><span style="color:#BD976A"> agents</span><span style="color:#666666">.</span><span style="color:#80A665">finishLogin</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">claude</span><span style="color:#C98A7D77">'</span><span style="color:#666666">,</span><span style="color:#666666"> { </span><span style="color:#BD976A">code</span><span style="color:#666666"> })</span><span style="color:#758575DD">        // the code that page shows</span></span>
-<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">codex</span><span style="color:#666666"> =</span><span style="color:#4D9375"> await</span><span style="color:#BD976A"> agents</span><span style="color:#666666">.</span><span style="color:#80A665">connectLogin</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">codex</span><span style="color:#C98A7D77">'</span><span style="color:#666666">)</span><span style="color:#758575DD">    // { url, code }: OpenAI's page and the code to enter</span></span>
-<span class="line"><span style="color:#4D9375">await</span><span style="color:#BD976A"> agents</span><span style="color:#666666">.</span><span style="color:#80A665">finishLogin</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">codex</span><span style="color:#C98A7D77">'</span><span style="color:#666666">,</span><span style="color:#666666"> { </span><span style="color:#B8A965">waitMs</span><span style="color:#666666">: </span><span style="color:#4C9A91">60_000</span><span style="color:#666666"> })</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">mcp</span><span style="color:#666666"> =</span><span style="color:#4D9375"> await</span><span style="color:#BD976A"> agents</span><span style="color:#666666">.</span><span style="color:#80A665">connectMcp</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">https://mcp.notion.com/mcp</span><span style="color:#C98A7D77">'</span><span style="color:#666666">,</span><span style="color:#666666"> { </span><span style="color:#B8A965">name</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">notion</span><span style="color:#C98A7D77">'</span><span style="color:#666666"> })</span></span>
-<span class="line"><span style="color:#758575DD">// mcp.signInUrl: the server's sign-in page; your redirectUrl route then calls agents.finishMcp({ state, code })</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#4D9375">for</span><span style="color:#4D9375"> await</span><span style="color:#666666"> (</span><span style="color:#CB7676">const </span><span style="color:#BD976A">event</span><span style="color:#CB7676"> of</span><span style="color:#BD976A"> agents</span><span style="color:#666666">.</span><span style="color:#80A665">run</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#666666"> { </span><span style="color:#B8A965">harness</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">claude</span><span style="color:#C98A7D77">'</span><span style="color:#666666">, </span><span style="color:#BD976A">task</span><span style="color:#666666">, </span><span style="color:#B8A965">mcp</span><span style="color:#666666">: [</span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">notion</span><span style="color:#C98A7D77">'</span><span style="color:#666666">], </span><span style="color:#B8A965">setup</span><span style="color:#666666">: { </span><span style="color:#BD976A">agentsMd</span><span style="color:#666666">, </span><span style="color:#BD976A">skills</span><span style="color:#666666"> } }))</span><span style="color:#666666"> {</span></span>
-<span class="line"><span style="color:#758575DD">  // start, text, tool_call, tool_result, permission, error, end: the same events for Claude Code and Codex</span></span>
-<span class="line"><span style="color:#666666">}</span></span></code></pre></div>
+        <div class="bar"><img class="px" src="art/agent.png" alt="">terminal</div>
+        <div class="body"><pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#80A665">npm</span><span style="color:#C98A7D"> install</span><span style="color:#C98A7D"> github:madeyexz/byoa</span><span style="color:#758575DD">     # npm builds it on install</span></span>
+<span class="line"><span style="color:#80A665">bun</span><span style="color:#C98A7D"> add</span><span style="color:#C98A7D"> github:madeyexz/byoa</span><span style="color:#758575DD">        # Bun loads its TypeScript source</span></span></code></pre></div>
       </div>
     </div>
   </div>

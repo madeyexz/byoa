@@ -138,22 +138,20 @@
   .ascii .bs { color: var(--cobalt); }
   .ascii.narrow { display: none; }
 
-  /* code */
+  /* get started */
   .codegrid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 24px 56px; align-items: end; margin-bottom: 40px; }
   .bul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
   .bul li { padding: 16px 0; border-bottom: 1px solid var(--rule); display: grid; grid-template-columns: 36px 1fr; gap: 2px 14px; }
   .bul i { grid-row: span 2; font: 13px var(--pixel); font-style: normal; color: #fff; background: var(--cobalt); width: 30px; height: 30px; display: grid; place-items: center; }
   .bul b { font-weight: 600; font-size: 17px; letter-spacing: -.01em; }
   .bul span { color: var(--ink2); font-size: 15.5px; }
+  .bul a { text-decoration: none; }
+  .bul a b { display: inline-flex; align-items: center; gap: 10px; }
+  .bul a:hover b { color: var(--cobalt); }
   .codepanel { background: url(art/panel-code.webp) center/cover; padding: clamp(18px, 3.4vw, 46px); }
   .win { background: var(--navy); border: 1px solid #000; color: #c9cde6; max-width: 1000px; margin: 0 auto; min-width: 0; }
   .win .bar { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,.1); font: 12.5px var(--mono); color: #8b90b0; }
   .win .bar img { width: 18px; }
-  .win .body p { margin: 0; padding: 10px 18px; font: 12.5px/1.5 var(--mono); color: #8b90b0; }
-  .win .body p:last-child { border-top: 1px solid rgba(255,255,255,.1); }
-  .win .body p code { background: none; border: 0; padding: 0; color: var(--peri); }
-  .win .body p a { color: var(--peri); }
-  .win .body h3 { margin: 6px 0 0; padding: 16px 18px 2px; border-top: 1px solid rgba(255,255,255,.1); font: 12px var(--pixel); letter-spacing: .12em; text-transform: uppercase; color: var(--peri); }
   .win pre.shiki { margin: 0; padding: 12px 18px 16px; overflow-x: auto; background: transparent !important; }
   .win pre.shiki code { background: none; border: 0; padding: 0; font: 12.5px/1.65 var(--mono); }
 
@@ -188,6 +186,9 @@
   @media (max-width: 720px) {
     .ascii.wide { display: none; } .ascii.narrow { display: block; }
     .ascii-wrap { margin: 8px -12px 0; }
+    .codepanel { padding: 10px; }
+    .win pre.shiki { padding: 12px 12px 14px; }
+    .win pre.shiki code { font-size: 12px; }
     nav.top a:not(.brand):not(.gh) { display: none; }
     .frame.pad { padding: 72px 18px; }
     .hero .frame { padding: 72px 12px 170px; }
@@ -207,7 +208,7 @@
   <div class="row">
     <a class="brand" href="#"><img class="px" src="art/agent.png" alt="">byoa</a>
     <a class="opt" href="#who">Who brings what</a>
-    <a class="opt" href="#code">API</a>
+    <a class="opt" href="#start">Get started</a>
     <a class="opt" href="#scope">v1 scope</a>
     <span class="sp"></span>
     <a class="r" href="{{repo}}/blob/main/SPEC.md">Read the spec</a>
@@ -338,24 +339,24 @@
   </div>
 </section>
 
-<section id="code" class="band">
+<section id="start" class="band">
   <div class="frame pad">
     <div class="codegrid">
       <div>
-        <div class="kick">The API</div>
-        <h2>A few calls to the first agent run.</h2>
-        <p class="sub" style="margin-bottom:0">The goal for v1: a new app reaches its first agent run in under 50 lines of its own code.</p>
+        <div class="kick">Get started</div>
+        <h2>Start in three steps.</h2>
+        <p class="sub" style="margin-bottom:0">byoa is not on npm yet. Until version 1, install it from GitHub.</p>
       </div>
       <ul class="bul">
-        <li><i>1</i><b>Sign-in is data</b></li>
-        <li><i>2</i><b>One event stream</b></li>
-        <li><i>3</i><b>Test without a plan</b></li>
+        <li><i>1</i><a href="{{repo}}/blob/main/README.md#install"><b>Install from GitHub <span class="chev"></span></b></a><span>Needs Node 22.18 or later, or Bun.</span></li>
+        <li><i>2</i><a href="{{repo}}/blob/main/README.md#how-it-will-look"><b>Write your first agent run <span class="chev"></span></b></a><span>Start from the example in the README.</span></li>
+        <li><i>3</i><a href="{{repo}}/tree/main/examples/todo"><b>Run the to-do example <span class="chev"></span></b></a><span>An AI-native to-do list. Its backend uses byoa in 35 lines.</span></li>
       </ul>
     </div>
     <div class="codepanel">
       <div class="win">
-        <div class="bar"><img class="px" src="art/agent.png" alt="">your-backend/agents.ts</div>
-        <div class="body">{{code}}</div>
+        <div class="bar"><img class="px" src="art/agent.png" alt="">terminal</div>
+        <div class="body">{{install}}</div>
       </div>
     </div>
   </div>
