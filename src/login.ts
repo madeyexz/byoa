@@ -81,7 +81,13 @@ rm -f in out status
 mkfifo in
 sleep ${LOGIN_SANDBOX_MS / 1000} > in &
 holder=$!
-script -qfec ${q(`stty cols 2000 2>/dev/null; exec ${cmd}`)} /dev/null < in > out 2>&1
+run=${q(`stty cols 2000 2>/dev/null; exec ${cmd}`)}
+# util-linux's script (every Linux sandbox) gives the CLI a terminal. BSD's script (macOS, with the local sandbox) has
+# other flags and refuses input that is not a terminal: there the CLI runs with no terminal, which is enough for
+# \`codex login --device-auth\` (checked with codex-cli 0.171.0 on macOS 27).
+if script --version >/dev/null 2>&1; then script -qfec "$run" /dev/null < in > out 2>&1
+else bash -c "$run" < in > out 2>&1
+fi
 echo $? > status
 kill $holder 2>/dev/null
 `

@@ -46,7 +46,7 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
     const held = new Map<string, { version: string; lease: string; text: string }>()
     const readFiles = async (sbx: Sandbox, h: HarnessName): Promise<Record<string, string>> => {
       const list = LOGIN_FILES[h].map(q).join(' ')
-      const r = await sbx.run(`cd ${q(sbx.home)} && for f in ${list}; do [ -s "$f" ] && printf '%s\\t%s\\n' "$f" "$(base64 -w0 "$f")"; done; true`)
+      const r = await sbx.run(`cd ${q(sbx.home)} && for f in ${list}; do [ -s "$f" ] && printf '%s\\t%s\\n' "$f" "$(base64 < "$f" | tr -d '\\n')"; done; true`)
       const files: Record<string, string> = {}
       for (const l of r.stdout.split('\n')) { const [p, b] = l.split('\t'); if (p && b) files[p] = fromB64(b) }
       return files

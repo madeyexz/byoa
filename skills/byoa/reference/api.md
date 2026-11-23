@@ -9,7 +9,7 @@ This is the API in https://github.com/madeyexz/byoa today (version 0.1, before v
 | `byoa` | `createAgents`, `LoginError`, `SandboxGoneError`, `memoryStore`, `storedLogin`, `cliLogin`, `harnessFiles`, `readPlugin`, `JOB_TOKEN_ENV`, `PINS`, `PACKAGES`, `ensureHarness`, `LOGIN_FILES`, `clientMetadataDocument`; types `AgentsOptions`, `RunOptions`, `RunHarness`, `ConnectResult`, `Session`, `SessionOptions`, `JobToken`, `Store`, `Entry`, `Sandbox`, `SandboxProvider`, `AgentEvent`, `Usage`, `Setup`, `Skill`, `Plugin`, `LoginState`, `LoginStart`, `LoginResult` |
 | `byoa/sandbox/e2b` | `e2b({ apiKey?, template?, timeoutMs? })`, `buildE2BTemplate(name?, { apiKey?, pins? })`, `e2bTemplate(pins?)`. Needs the `e2b` package. |
 | `byoa/sandbox/daytona` | `daytona({ apiKey?, client?, snapshot?, volume?, timeoutMs? })`. Needs `@daytona/sdk`. |
-| `byoa/sandbox/local` | `localSandbox({ root?, volumes?, env? })`: folders on this computer, for tests and development only. |
+| `byoa/sandbox/local` | `localSandbox({ root?, volumes?, env? })`: folders on this computer, for tests and development only. On macOS, the Codex sign-in works in it; the Claude Code sign-in needs Linux. |
 | `byoa/store/postgres` | `postgresStore({ query, table? })`, `postgresSchema(table?)`, `POSTGRES_SCHEMA` |
 | `byoa/store/convex` | `convexTable()`, `convexFunctions(table?)`, `convexStore(ctx, fns)`. Needs `convex`. |
 | `byoa/node` | `toNodeListener(handler)` (a fetch handler as a `node:http` listener), `readPluginDir(dir)` |
