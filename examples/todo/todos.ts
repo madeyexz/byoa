@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
-import type { Store } from 'byoa'
+import type { Store } from '@madeyexz/byoa'
 import { z } from 'zod'
 
 export interface Todo { id: number; title: string; done: boolean }

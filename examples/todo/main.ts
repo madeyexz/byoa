@@ -2,8 +2,8 @@
 import { mkdirSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { DatabaseSync } from 'node:sqlite'
-import type { SandboxProvider } from 'byoa'
-import { toNodeListener } from 'byoa/node'
+import type { SandboxProvider } from '@madeyexz/byoa'
+import { toNodeListener } from '@madeyexz/byoa/node'
 import { todoApp } from './app.ts'
 
 const env = process.env
@@ -13,10 +13,10 @@ if (!env.BYOA_KEY) throw new Error('Set BYOA_KEY to 32 random bytes as base64: o
 mkdirSync('.data', { recursive: true })
 
 async function sandbox(): Promise<SandboxProvider> {
-  if (env.SANDBOX === 'e2b') return (await import('byoa/sandbox/e2b')).e2b()
-  if (env.SANDBOX === 'daytona') return (await import('byoa/sandbox/daytona')).daytona()
+  if (env.SANDBOX === 'e2b') return (await import('@madeyexz/byoa/sandbox/e2b')).e2b()
+  if (env.SANDBOX === 'daytona') return (await import('@madeyexz/byoa/sandbox/daytona')).daytona()
   // Folders on this computer. It isolates nothing: only for development on your own computer.
-  return (await import('byoa/sandbox/local')).localSandbox({ root: `${process.cwd()}/.data/sandboxes` })
+  return (await import('@madeyexz/byoa/sandbox/local')).localSandbox({ root: `${process.cwd()}/.data/sandboxes` })
 }
 
 const handler = todoApp({

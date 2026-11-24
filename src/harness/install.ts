@@ -2,7 +2,7 @@
 // earlier job of the user installed, when it is the pinned version; else the pinned version from npm, installed into
 // the sandbox's home folder. So a new pin reaches every user at their next job, also from an old template or in a
 // sandbox that byoa keeps between jobs.
-// It installs the labs' own npm packages, unchanged (Lab rules); `byoa/verify` checks that (V11).
+// It installs the labs' own npm packages, unchanged (Lab rules); `@madeyexz/byoa/verify` checks that (V11).
 import type { Sandbox } from '../sandbox/types.ts'
 import { q } from '../sh.ts'
 import { PINS, npmSpec, type HarnessName, type Pins } from './pins.ts'

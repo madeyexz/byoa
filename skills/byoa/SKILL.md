@@ -16,20 +16,20 @@ The full API, with every option and event, is in [reference/api.md](reference/ap
 Install byoa from npm:
 
 ```sh
-npm install byoa
-bun add byoa
+npm install @madeyexz/byoa
+bun add @madeyexz/byoa
 ```
 
-Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona; Instabox needs none. byoa needs Node 22.18 or later, or Bun.
+Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona; Instabox needs none. byoa needs Node 22.18 or later, or Bun. The package is `@madeyexz/byoa`: do not write `npm install byoa` or `import ... from 'byoa'`, and do not install `byoa-sdk`, an unrelated package.
 
 ## 2. One createAgents
 
 Make one `agents` object in the backend. Do it once per process (or once per Convex action).
 
 ```ts
-import { createAgents } from 'byoa'
-import { e2b } from 'byoa/sandbox/e2b'              // or: daytona from 'byoa/sandbox/daytona', instabox from 'byoa/sandbox/instabox'
-import { postgresStore } from 'byoa/store/postgres' // or: convexStore, or the app's own Store
+import { createAgents } from '@madeyexz/byoa'
+import { e2b } from '@madeyexz/byoa/sandbox/e2b'           // or: daytona from '@madeyexz/byoa/sandbox/daytona', instabox from '@madeyexz/byoa/sandbox/instabox'
+import { postgresStore } from '@madeyexz/byoa/store/postgres' // or: convexStore, or the app's own Store
 
 const agents = createAgents({
   app: 'myapp',                                     // lower-case letters, digits, -; at most 24
@@ -42,13 +42,13 @@ const agents = createAgents({
 })
 ```
 
-- **Store.** `postgresStore` needs its table once: run `POSTGRES_SCHEMA` (from `byoa/store/postgres`). For Convex, see reference/api.md. For another database, write a `Store` with four methods: `get`, `put`, `delete`, `cas` (compare-and-set). The example's `sqliteStore` in `examples/todo/todos.ts` is one in 19 lines. A new version on every write is required, and a deleted and rewritten key must never get an old version back.
-- **Sandbox.** `e2b()`, `daytona()` and `instabox()` read their API key from `E2B_API_KEY` / `DAYTONA_API_KEY` / `INSTABOX_API_KEY` when you give none. Instabox has no volumes, so use the default `storedLogin()` there, not `cliLogin`. The default E2B template is named `byoa`, and a new E2B account does not have it: the first job then fails with `404: template 'byoa' not found`. Build it one time with `buildE2BTemplate()` from `byoa/sandbox/e2b`, or pass `e2b({ template: 'base' })`: byoa then installs the pinned harness in each new sandbox (about 10 seconds). `localSandbox()` from `byoa/sandbox/local` is a folder on this computer. It isolates nothing: use it only for development and tests.
+- **Store.** `postgresStore` needs its table once: run `POSTGRES_SCHEMA` (from `@madeyexz/byoa/store/postgres`). For Convex, see reference/api.md. For another database, write a `Store` with four methods: `get`, `put`, `delete`, `cas` (compare-and-set). The example's `sqliteStore` in `examples/todo/todos.ts` is one in 19 lines. A new version on every write is required, and a deleted and rewritten key must never get an old version back.
+- **Sandbox.** `e2b()`, `daytona()` and `instabox()` read their API key from `E2B_API_KEY` / `DAYTONA_API_KEY` / `INSTABOX_API_KEY` when you give none. Instabox has no volumes, so use the default `storedLogin()` there, not `cliLogin`. The default E2B template is named `byoa`, and a new E2B account does not have it: the first job then fails with `404: template 'byoa' not found`. Build it one time with `buildE2BTemplate()` from `@madeyexz/byoa/sandbox/e2b`, or pass `e2b({ template: 'base' })`: byoa then installs the pinned harness in each new sandbox (about 10 seconds). `localSandbox()` from `@madeyexz/byoa/sandbox/local` is a folder on this computer. It isolates nothing: use it only for development and tests.
 - **The sandbox must reach `proxyUrl`.** With E2B, Daytona or Instabox it must be a public HTTPS URL (in development, a tunnel such as `cloudflared tunnel --url http://localhost:3000`). On Daytona Tier 1 and 2, only allowed domains work, such as `*.convex.site` or `*.workers.dev`.
 
 ## 3. Routes the app must serve
 
-The app serves two byoa routes, and its own API routes that call `agents.*`. All handlers are fetch handlers (`Request` → `Response`). On Node, wrap the app's handler with `toNodeListener` from `byoa/node`.
+The app serves two byoa routes, and its own API routes that call `agents.*`. All handlers are fetch handlers (`Request` → `Response`). On Node, wrap the app's handler with `toNodeListener` from `@madeyexz/byoa/node`.
 
 ```ts
 if (url.pathname.startsWith('/byoa/mcp/')) return agents.proxy(req)  // the MCP proxy: no app session check here
@@ -153,7 +153,7 @@ for await (const ev of agents.run(userId, {
 
 ## 7. Test without a plan or a sandbox
 
-Use `harness: 'fake'`, `localSandbox()` from `byoa/sandbox/local` and `memoryStore()` from `byoa`. The fake harness runs no model. Each task line `call <server>.<tool> <json>` is one MCP call through the real proxy, so a test proves the app's routes, grants and proxy end to end. With the local sandbox, `proxyUrl` can be `http://127.0.0.1:<port>/byoa/mcp`. Copy `examples/todo/todo.test.ts`. Do not offer `fake` to end users in production.
+Use `harness: 'fake'`, `localSandbox()` from `@madeyexz/byoa/sandbox/local` and `memoryStore()` from `@madeyexz/byoa`. The fake harness runs no model. Each task line `call <server>.<tool> <json>` is one MCP call through the real proxy, so a test proves the app's routes, grants and proxy end to end. With the local sandbox, `proxyUrl` can be `http://127.0.0.1:<port>/byoa/mcp`. Copy `examples/todo/todo.test.ts`. Do not offer `fake` to end users in production.
 
 ## Lab rules
 

@@ -9,10 +9,12 @@ import { createAgents, memoryStore, type SandboxProvider } from '../src/index.ts
 const ROOT = new URL('../', import.meta.url)
 const DOCS = ['README.md', 'skills/byoa/SKILL.md', 'skills/byoa/reference/api.md']
 const text = (p: string) => readFileSync(new URL(p, ROOT), 'utf8')
-const exportsMap: Record<string, { bun: string }> = JSON.parse(text('package.json')).exports
+const pkg: { name: string; exports: Record<string, { bun: string }> } = JSON.parse(text('package.json'))
+/** The package name, such as `@madeyexz/byoa`, as a regular expression with the subpath after it. */
+const SPEC = `${pkg.name.replace(/[/]/g, '\\/')}(?:\\/[\\w/]+)?`
 
-/** The source file of an import specifier such as `byoa/sandbox/e2b`. */
-const module = (spec: string) => import(new URL(exportsMap[spec === 'byoa' ? '.' : `./${spec.slice(5)}`]!.bun, ROOT).href)
+/** The source file of an import specifier such as `@madeyexz/byoa/sandbox/e2b`. */
+const module = (spec: string) => import(new URL(pkg.exports[spec === pkg.name ? '.' : `.${spec.slice(pkg.name.length)}`]!.bun, ROOT).href)
 
 test('every agents.* method in the README and the skill is one that createAgents returns', () => {
   const agents = createAgents({
@@ -31,12 +33,12 @@ test('every name the README and the skill import from byoa is exported there', a
   const want = new Map<string, Set<string>>()
   const add = (spec: string, name: string) => { if (!want.has(spec)) want.set(spec, new Set()); want.get(spec)!.add(name) }
   for (const p of DOCS) {
-    for (const m of text(p).matchAll(/^import \{([^}]+)\} from '(byoa(?:\/[\w/]+)?)'/gm)) {
+    for (const m of text(p).matchAll(new RegExp(`^import \\{([^}]+)\\} from '(${SPEC})'`, 'gm'))) {
       for (const n of m[1]!.split(',')) if (n.trim() && !n.trim().startsWith('type ')) add(m[2]!, n.trim())
     }
   }
-  // the Imports table of the API reference: | `byoa/sandbox/e2b` | `e2b({ ... })`, `buildE2BTemplate(...)`. Needs ...
-  for (const m of text('skills/byoa/reference/api.md').matchAll(/^\| `(byoa[\w/]*)` \| (.+?)(?:\. |; types|\|)/gm)) {
+  // the Imports table of the API reference: | `@madeyexz/byoa/sandbox/e2b` | `e2b({ ... })`, `buildE2BTemplate(...)`. Needs ...
+  for (const m of text('skills/byoa/reference/api.md').matchAll(new RegExp(`^\\| \`(${SPEC})\` \\| (.+?)(?:\\. |; types|\\|)`, 'gm'))) {
     for (const n of m[2]!.matchAll(/`(\w+)[(`]/g)) add(m[1]!, n[1]!)
   }
   assert.ok(want.size >= 7, [...want.keys()].join(', '))

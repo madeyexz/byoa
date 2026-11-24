@@ -152,11 +152,11 @@ The picture shows `sandboxPer: 'job'`. By default, step 1 resumes the user's san
 
 ## Install
 
-Install byoa from npm:
+Install byoa from npm. Its package is `@madeyexz/byoa`, because npm does not allow the name `byoa`:
 
 ```sh
-npm install byoa
-bun add byoa
+npm install @madeyexz/byoa
+bun add @madeyexz/byoa
 ```
 
 Also install the sandbox SDK that your app uses: `e2b` for E2B, `@daytona/sdk` for Daytona. Instabox and the local sandbox need none. byoa needs Node 22.18 or later, or Bun. To use the newest commit on `main` before it is released, install from GitHub: `npm install github:madeyexz/byoa`.
@@ -177,9 +177,9 @@ For LLMs, the site also serves the docs as [llms.txt](https://byoa.rippling.comp
 This is the API in this repository today. It can change before version 1.
 
 ```ts
-import { createAgents } from 'byoa'
-import { e2b } from 'byoa/sandbox/e2b'
-import { postgresStore } from 'byoa/store/postgres'
+import { createAgents } from '@madeyexz/byoa'
+import { e2b } from '@madeyexz/byoa/sandbox/e2b'
+import { postgresStore } from '@madeyexz/byoa/store/postgres'
 
 const agents = createAgents({
   app: 'myapp',                                    // one app's AI logins are only this app's
@@ -281,9 +281,9 @@ Either way, the user's AI login stays encrypted in your database, and each job g
 
 To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy.
 
-For Daytona, use `daytona({ apiKey })` from `byoa/sandbox/daytona` (it needs `@daytona/sdk`). Daytona allows 100 volumes per organization, so with `cliLogin` the adapter keeps every user's AI login in its own subpath of one shared volume (`byoa` by default). A sandbox mounts only that user's subpath. On Daytona Tier 1 and Tier 2, a sandbox can reach only [allowed domains](https://www.daytona.io/docs/en/network-limits), so serve `agents.proxy` on one of them (for example `*.convex.site`), or use Tier 3 or higher. `*.workers.dev` is on Daytona's list but does not work: a Worker's address has two labels below it (`<worker>.<account>.workers.dev`), and Daytona does not resolve those.
+For Daytona, use `daytona({ apiKey })` from `@madeyexz/byoa/sandbox/daytona` (it needs `@daytona/sdk`). Daytona allows 100 volumes per organization, so with `cliLogin` the adapter keeps every user's AI login in its own subpath of one shared volume (`byoa` by default). A sandbox mounts only that user's subpath. On Daytona Tier 1 and Tier 2, a sandbox can reach only [allowed domains](https://www.daytona.io/docs/en/network-limits), so serve `agents.proxy` on one of them (for example `*.convex.site`), or use Tier 3 or higher. `*.workers.dev` is on Daytona's list but does not work: a Worker's address has two labels below it (`<worker>.<account>.workers.dev`), and Daytona does not resolve those.
 
-For Instabox, use `instabox({ apiKey })` from `byoa/sandbox/instabox`. It calls Instabox's HTTP API itself, so it needs no package. Each sandbox starts from the `agent-browser` template (Node 22, user `user`, home `/data/home`), or from a snapshot you name (`snapshot`). byoa stops the user's sandbox after each job, so the next job starts it again with its files and no process of the last one; a sandbox for one job is deleted after it, and Instabox deletes it at the latest when the job's time is up. byoa gives a sandbox none of your account's Vault items or org Secrets, and leaves its commands out of Instabox's command history, which would otherwise keep their output (and so the AI login that byoa reads back). Instabox has no volumes, so `cliLogin` does not work there; the default stored login does. Instabox sandboxes reach every public domain, so a tunnel works for `proxyUrl`. On the free plan, a workspace has one sandbox at a time (so one user with one kept sandbox, or one job), three starts a minute (byoa waits when it gets there), and a run of 2 hours at most before Instabox pauses the sandbox.
+For Instabox, use `instabox({ apiKey })` from `@madeyexz/byoa/sandbox/instabox`. It calls Instabox's HTTP API itself, so it needs no package. Each sandbox starts from the `agent-browser` template (Node 22, user `user`, home `/data/home`), or from a snapshot you name (`snapshot`). byoa stops the user's sandbox after each job, so the next job starts it again with its files and no process of the last one; a sandbox for one job is deleted after it, and Instabox deletes it at the latest when the job's time is up. byoa gives a sandbox none of your account's Vault items or org Secrets, and leaves its commands out of Instabox's command history, which would otherwise keep their output (and so the AI login that byoa reads back). Instabox has no volumes, so `cliLogin` does not work there; the default stored login does. Instabox sandboxes reach every public domain, so a tunnel works for `proxyUrl`. On the free plan, a workspace has one sandbox at a time (so one user with one kept sandbox, or one job), three starts a minute (byoa waits when it gets there), and a run of 2 hours at most before Instabox pauses the sandbox.
 
 ### AI login
 
@@ -296,7 +296,7 @@ The labs' published terms restrict where these tokens may be stored: Anthropic's
 To keep the logins in a table of their own, with a key of their own, so you can give them their own access rules and backups:
 
 ```ts
-import { createAgents, storedLogin } from 'byoa'
+import { createAgents, storedLogin } from '@madeyexz/byoa'
 
 // Convex: convex/schema.ts has  byoaLogin: convexTable(),  and convex/byoaLogin.ts has
 //   export const { get, put, remove, cas } = convexFunctions('byoaLogin')
@@ -307,29 +307,29 @@ const loginStore = postgresStore({ query, table: 'byoa_ai_login' })
 const agents = createAgents({ ...options, login: storedLogin({ store: loginStore, encryptionKey: loginKey }) })
 ```
 
-To keep each login in a volume of that user and app instead, behind the sandbox adapter, pass `login: cliLogin` (from `byoa`). Your database then never holds the login. This needs a provider with volumes; on E2B, volumes must be turned on for your team.
+To keep each login in a volume of that user and app instead, behind the sandbox adapter, pass `login: cliLogin` (from `@madeyexz/byoa`). Your database then never holds the login. This needs a provider with volumes; on E2B, volumes must be turned on for your team.
 
 ### Convex
 
-In a Convex app, byoa's state is one table and four internal functions in your deployment (`byoa/store/convex`). Call byoa from actions and HTTP actions, which can make network calls; serve `agents.proxy` from an HTTP action.
+In a Convex app, byoa's state is one table and four internal functions in your deployment (`@madeyexz/byoa/store/convex`). Call byoa from actions and HTTP actions, which can make network calls; serve `agents.proxy` from an HTTP action.
 
 ```ts
 // convex/schema.ts
-import { convexTable } from 'byoa/store/convex'
+import { convexTable } from '@madeyexz/byoa/store/convex'
 export default defineSchema({ ...yourTables, byoa: convexTable() })
 
 // convex/byoa.ts
-import { convexFunctions } from 'byoa/store/convex'
+import { convexFunctions } from '@madeyexz/byoa/store/convex'
 export const { get, put, remove, cas } = convexFunctions()
 
 // in an action or HTTP action
-import { convexStore } from 'byoa/store/convex'
+import { convexStore } from '@madeyexz/byoa/store/convex'
 const agents = createAgents({ ...options, store: convexStore(ctx, internal.byoa) })
 ```
 
 ## Test your app without a plan or a sandbox
 
-Use `harness: 'fake'`, `localSandbox()` from `byoa/sandbox/local` and `memoryStore()`. The fake harness runs no model. It calls MCP tools through the real proxy: each task line `call <server>.<tool> <json>` is one call.
+Use `harness: 'fake'`, `localSandbox()` from `@madeyexz/byoa/sandbox/local` and `memoryStore()`. The fake harness runs no model. It calls MCP tools through the real proxy: each task line `call <server>.<tool> <json>` is one call.
 
 To test byoa itself: `npm test` (V10, V12, the fake-harness tests and the unit tests), and `npm run test:v11` (V11; it downloads about 600 MB). CI runs both on every commit. With `DAYTONA_API_KEY` set, `npm test` also checks the Daytona adapter against Daytona (with `BYOA_DAYTONA_VOLUMES=1` too, also its volumes; that needs a key with the volume permissions); with `E2B_API_KEY` too, it runs V4 ([test/v4.test.ts](test/v4.test.ts)), which needs `cloudflared` to give the proxy a public URL. On a Daytona org on Tier 1 or 2, also set `BYOA_V4_RELAY` to a relay on an allowed domain, such as [test/relay](test/relay/convex/http.ts) deployed to a temporary Convex project. `npm run test:e2b` checks the E2B adapter against E2B and runs V8 there (a user's jobs in one paused and resumed sandbox, and `sandboxPer: 'job'`); it needs `E2B_API_KEY`, and with `BYOA_E2B_VOLUMES=1` also checks volumes, for an E2B team with volumes turned on. `npm run test:instabox` does the same on Instabox; it needs `INSTABOX_API_KEY`. `BYOA_V4_PROVIDERS=e2b,instabox` runs V4 on E2B and Instabox.
 

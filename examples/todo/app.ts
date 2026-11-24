@@ -2,7 +2,7 @@
 // the user's own Claude or ChatGPT plan, the MCP connections, and the agent job.
 import { readFileSync } from 'node:fs'
 import type { DatabaseSync } from 'node:sqlite'
-import { createAgents, type AgentEvent, type RunHarness, type SandboxProvider } from 'byoa'
+import { createAgents, type AgentEvent, type RunHarness, type SandboxProvider } from '@madeyexz/byoa'
 import { sqliteStore, todoList, todoMcp } from './todos.ts'
 
 const AGENTS_MD = `# To-do assistant
