@@ -1,9 +1,9 @@
 # Publishes byoa to npm, with provenance, when a maintainer pushes a tag v<version> that matches package.json.
 # It runs in the `npm` environment: set required reviewers on it (Settings → Environments), so nothing is published
-# until a maintainer approves the run. Auth: the NPM_TOKEN secret of that environment (an npm granular access token
-# with read and write access and Bypass 2FA) for the first release, because npm sets up trusted publishing only for a
-# package that exists; after it, set up trusted publishing for this workflow on npmjs.com and delete the token.
-# No dependency cache here, so a poisoned cache cannot reach a release.
+# until a maintainer approves the run. Auth: trusted publishing for this workflow, set up on npmjs.com in the package's
+# settings (npm sets it up only for a package that exists, so 1.0.0 was published by hand), or the NPM_TOKEN secret of
+# that environment. A version that is on npm already is not published again, so the tag of a version published by
+# hand passes. No dependency cache here, so a poisoned cache cannot reach a release.
 name: release
 on:
   push:
@@ -31,6 +31,12 @@ jobs:
           echo "BYOA_CODEX_BIN=$RUNNER_TEMP/codex/node_modules/.bin/codex" >> "$GITHUB_ENV"
       - run: npm test
       - run: npm run test:v11
+      - name: Is this version on npm already?
+        id: npm
+        run: |
+          v=$(node -p 'require("./package.json").version')
+          if curl -sf "https://registry.npmjs.org/byoa/$v" >/dev/null; then echo "byoa@$v is on npm already"; echo "published=true" >> "$GITHUB_OUTPUT"; fi
       - run: npm publish
+        if: steps.npm.outputs.published != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
