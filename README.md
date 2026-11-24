@@ -209,7 +209,7 @@ An app that runs its own program around the unmodified harness (for example its 
 ```ts
 const s = await agents.session(userId, { harness: 'claude', mcp: ['notion'] })
 try {
-  // s.bin: the pinned claude binary; s.env: its login folder and the job token; s.mcp: [{ name, url }] at the proxy
+  // s.bin: the pinned claude binary; s.env: its login folder, the job token and its MCP start timeout; s.mcp: [{ name, url }] at the proxy
   await s.sandbox.run(`my-server --claude ${s.bin}`, { env: s.env })
 } finally { await s.close() }  // ends the job token, takes the AI login out, and pauses the user's sandbox
 ```

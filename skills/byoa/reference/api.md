@@ -127,7 +127,7 @@ try {
 } finally { await s.close() }   // ends the job token, takes the login out, and pauses (or destroys) the sandbox
 ```
 
-`Session`: `sandbox`, `work` (the job folder with byoa's files), `harness`, `bin` (the pinned binary), `version`, `env` (login folder and `BYOA_JOB_TOKEN`), `token`, `mcp` (`[{ name, url }]` at the proxy), `missing` (servers not connected), `failing` (`[{ name, message }]`: servers that did not answer through the proxy), `reportLogin('signed-in' | 'expired')`, `close()`.
+`Session`: `sandbox`, `work` (the job folder with byoa's files), `harness`, `bin` (the pinned binary), `version`, `env` (login folder, `BYOA_JOB_TOKEN`, and for Claude Code `MCP_TIMEOUT`), `token`, `mcp` (`[{ name, url }]` at the proxy), `missing` (servers not connected), `failing` (`[{ name, message }]`: servers that did not answer through the proxy), `reportLogin('signed-in' | 'expired')`, `close()`.
 
 ### jobToken(user, { mcp?, ttlMs? }): Promise<JobToken>
 

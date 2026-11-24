@@ -2,7 +2,7 @@
 // driver (R1), the MCP grants and their one refresh owner (R2), the proxy (R3), the config writers (R4) and the
 // harness installer (R5.1).
 import { auth } from '@modelcontextprotocol/sdk/client/auth.js'
-import { ACCESS, CLAUDE_MCP_CONFIG, JOB_TOKEN_ENV, SERVER_NAME, harnessFiles, serverUrl, type Access, type Plugin, type Setup } from './config.ts'
+import { ACCESS, CLAUDE_MCP_CONFIG, JOB_TOKEN_ENV, MCP_STARTUP_SEC, SERVER_NAME, harnessFiles, serverUrl, type Access, type Plugin, type Setup } from './config.ts'
 import { importKey, open, randomToken, seal, sha256hex } from './crypto.ts'
 import { claudeArgs, claudeReader } from './harness/claude.ts'
 import { codexArgs, codexReader } from './harness/codex.ts'
@@ -97,7 +97,8 @@ export interface Session {
   /** The pinned, unmodified harness binary in the sandbox (for `fake`: the fake harness's script, run with node). */
   bin: string
   version: string
-  /** The harness's environment: its login folder and the job token (JOB_TOKEN_ENV). */
+  /** The harness's environment: its login folder, the job token (JOB_TOKEN_ENV), and for Claude Code, how long it
+   *  waits for each MCP server to start (MCP_TIMEOUT). */
   env: Record<string, string>
   /** The job token: each MCP server below takes it as `Authorization: Bearer`, until close. */
   token: string
@@ -455,7 +456,8 @@ export function createAgents(o: AgentsOptions) {
         const inst = await ensureHarness(sbx, h, pins)
         bin = inst.bin
         version = inst.version
-        env = await login.env(sbx, user, h)
+        // Claude Code has no MCP start timeout in its config, only this variable (config.ts, MCP_STARTUP_SEC)
+        env = { ...(await login.env(sbx, user, h)), ...(h === 'claude' ? { MCP_TIMEOUT: String(MCP_STARTUP_SEC * 1000) } : {}) }
       }
       for (const [p, text] of Object.entries(files)) await sbx.writeFile(`${work}/${p}`, text)
       const box = sbx

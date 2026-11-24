@@ -172,7 +172,7 @@ An app that runs its own program around the unmodified harness (for example its 
 ```ts
 const s = await agents.session(userId, { harness: 'claude', mcp: ['notion'] })
 try {
-  // s.bin: the pinned claude binary; s.env: its login folder and the job token; s.mcp: [{ name, url }] at the proxy
+  // s.bin: the pinned claude binary; s.env: its login folder, the job token and its MCP start timeout; s.mcp: [{ name, url }] at the proxy
   await s.sandbox.run(`my-server --claude ${s.bin}`, { env: s.env })
 } finally { await s.close() }  // ends the job token, takes the AI login out, and pauses the user's sandbox
 ```
@@ -783,7 +783,7 @@ try {
 } finally { await s.close() }   // ends the job token, takes the login out, and pauses (or destroys) the sandbox
 ```
 
-`Session`: `sandbox`, `work` (the job folder with byoa's files), `harness`, `bin` (the pinned binary), `version`, `env` (login folder and `BYOA_JOB_TOKEN`), `token`, `mcp` (`[{ name, url }]` at the proxy), `missing` (servers not connected), `failing` (`[{ name, message }]`: servers that did not answer through the proxy), `reportLogin('signed-in' | 'expired')`, `close()`.
+`Session`: `sandbox`, `work` (the job folder with byoa's files), `harness`, `bin` (the pinned binary), `version`, `env` (login folder, `BYOA_JOB_TOKEN`, and for Claude Code `MCP_TIMEOUT`), `token`, `mcp` (`[{ name, url }]` at the proxy), `missing` (servers not connected), `failing` (`[{ name, message }]`: servers that did not answer through the proxy), `reportLogin('signed-in' | 'expired')`, `close()`.
 
 ### jobToken(user, { mcp?, ttlMs? }): Promise<JobToken>
 

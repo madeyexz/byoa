@@ -18,11 +18,14 @@ export interface Setup {
 
 /** The environment variable that carries the job token to the harness. */
 export const JOB_TOKEN_ENV = 'BYOA_JOB_TOKEN'
-/** How long Codex waits for each MCP server to start, in seconds (its own default is 10). The proxy holds a server's
- *  first request while the grant's one refresh runs, which can take up to 60 s (mcp/grants.ts). Codex also waits for
- *  all optional servers together only 1 s by default (`mcp_optional_startup_grace_ms`), and then leaves a server that
- *  is not ready out of the job, with no error; byoa sets that to 0, so Codex waits each server's own timeout. */
-export const CODEX_MCP_STARTUP_SEC = 60
+/** How long each harness waits for each MCP server to start, in seconds. The proxy holds a server's first request
+ *  while the grant's one refresh runs, which can take up to 60 s (mcp/grants.ts), and byoa's check before the harness
+ *  waits 70 s (R3.5). A harness that stops waiting leaves the server's tools out of the job, with no error, and the job
+ *  still ends well. Codex: `startup_timeout_sec` (its own default is 10); it also waits for all optional servers
+ *  together only 1 s by default (`mcp_optional_startup_grace_ms`), so byoa sets that to 0, and Codex waits each
+ *  server's own timeout. Claude Code: the MCP_TIMEOUT environment variable, in ms (its own default is 30 s; checked
+ *  with 2.1.330, which drops a server that takes 40 s to answer `initialize`). */
+export const MCP_STARTUP_SEC = 60
 /** Where the Claude Code MCP config goes, relative to the job's folder. */
 export const CLAUDE_MCP_CONFIG = '.byoa/mcp.json'
 
@@ -76,7 +79,7 @@ export function harnessFiles(harness: HarnessName, setup: Setup, o: { proxyUrl: 
     // Checked with codex-cli 0.171.0.
     const approve = o.access === 'read-only' ? 'default_tools_approval_mode = "approve"\n' : ''
     files['.codex/config.toml'] = 'mcp_optional_startup_grace_ms = 0\n\n' + servers.map((s) =>
-      `[mcp_servers.${s}]\nurl = ${tomlString(serverUrl(o.proxyUrl, s))}\nbearer_token_env_var = "${JOB_TOKEN_ENV}"\nstartup_timeout_sec = ${CODEX_MCP_STARTUP_SEC}\n${approve}`).join('\n')
+      `[mcp_servers.${s}]\nurl = ${tomlString(serverUrl(o.proxyUrl, s))}\nbearer_token_env_var = "${JOB_TOKEN_ENV}"\nstartup_timeout_sec = ${MCP_STARTUP_SEC}\n${approve}`).join('\n')
   }
   return files
 }
