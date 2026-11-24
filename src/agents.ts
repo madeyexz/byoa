@@ -572,23 +572,46 @@ export function createAgents(o: AgentsOptions) {
   }
 }
 
-/** Runs the command and turns its output, line by line, into events as they come. */
+/** How long a job waits for the harness to exit after its last event. The CLI still writes files after it printed its
+ *  result (Claude Code 2.1.330 exits about 0.6 s later, and may write its login files then), so the job's login is
+ *  saved and removed, and its lease given back, only after the CLI ended (R1.4). */
+const EXIT_WAIT_MS = 10_000
+/** Ends every process that runs in the job's folder: the harness and what it started. */
+const stopJob = (work: string) => `for d in /proc/[0-9]*; do [ "$(readlink "$d/cwd" 2>/dev/null)" = ${q(work)} ] && kill -KILL "\${d#/proc/}" 2>/dev/null; done; true`
+
+/** Runs the command and turns its output, line by line, into events as they come. When the reader stops early (the
+ *  harness gave its end event, or the app stopped the job), it waits for the command to exit: after an end event up to
+ *  EXIT_WAIT_MS, then it ends the job's processes. So no harness of the job runs when the job closes. */
 async function* stream(sbx: Sandbox, cmd: string, opts: { cwd: string; env: Record<string, string>; timeoutMs: number }, reader: EventReader): AsyncGenerator<AgentEvent> {
   const queue: AgentEvent[] = []
-  let wake: (() => void) | undefined, done = false, buf = ''
+  let wake: (() => void) | undefined, done = false, ended = false, buf = ''
   const push = (evs: AgentEvent[]) => { if (evs.length) { queue.push(...evs); wake?.(); wake = undefined } }
   const lines = (chunk: string) => {
     buf += chunk
     let k
     while ((k = buf.indexOf('\n')) >= 0) { push(reader.line(buf.slice(0, k))); buf = buf.slice(k + 1) }
   }
-  sbx.run(cmd, { ...opts, onStdout: lines })
+  const exited = sbx.run(cmd, { ...opts, onStdout: lines })
     .then((res) => { if (buf) push(reader.line(buf)); push(reader.exit(res.exitCode, res.stderr)) },
       (e) => push([{ type: 'error', code: 'sandbox', message: (e as Error).message }, { type: 'end', ok: false }]))
     .finally(() => { done = true; wake?.() })
-  for (;;) {
-    if (queue.length) { yield queue.shift()!; continue }
-    if (done) return
-    await new Promise<void>((r) => { wake = r })
+  const within = (ms: number) => new Promise<void>((r) => { const t = setTimeout(r, ms); exited.then(() => { clearTimeout(t); r() }) })
+  try {
+    for (;;) {
+      if (queue.length) {
+        const ev = queue.shift()!
+        if (ev.type === 'end') ended = true
+        yield ev
+        continue
+      }
+      if (done) return
+      await new Promise<void>((r) => { wake = r })
+    }
+  } finally {
+    if (!done && ended) await within(EXIT_WAIT_MS)
+    if (!done) {
+      await sbx.run(stopJob(opts.cwd), { timeoutMs: 30_000 }).catch(() => {})
+      await within(5_000)
+    }
   }
 }

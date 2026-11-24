@@ -43,6 +43,11 @@ export interface StoredLoginOptions {
 /** The CLI's own login files, relative to the home folder. */
 export const LOGIN_FILES: Record<HarnessName, string[]> = { claude: ['.claude/.credentials.json', '.claude/.claude.json'], codex: ['.codex/auth.json'] }
 
+/** Copies of the login files that the CLI makes by itself, as shell globs relative to the home folder: byoa removes them
+ *  with the login files and does not store them. Claude Code 2.1.330 writes a backup of `.claude.json` (the account:
+ *  email, organization, plan; no token) at each start. */
+const LOGIN_COPIES: Partial<Record<HarnessName, string[]>> = { claude: ['.claude/backups/.claude.json.backup.*'] }
+
 const enc = encodeURIComponent
 const loginKey = (user: string, h: HarnessName) => `ailogin/${enc(user)}/${h}`
 const leaseKey = (user: string, h: HarnessName) => `ailoginlease/${enc(user)}/${h}`
@@ -177,7 +182,7 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
         const x = held.get(sbx.id)
         held.delete(sbx.id)
         // the files leave the sandbox, which may be kept for the user's next job; the store keeps the login
-        const remove = () => sbx.run(`rm -f ${LOGIN_FILES[h].map((p) => q(`${sbx.home}/${p}`)).join(' ')}`)
+        const remove = () => sbx.run(`rm -f ${[...LOGIN_FILES[h].map((p) => q(`${sbx.home}/${p}`)), ...(LOGIN_COPIES[h] ?? []).map((p) => `${q(sbx.home)}/${p}`)].join(' ')}`)
         if (!x) { await remove(); return }
         try {
           const now = await readFiles(sbx, h)

@@ -26,11 +26,13 @@ case "$1" in
     task=$(cat)
     echo '{"type":"system","subtype":"init","session_id":"s1","tools":[]}'
     if [[ "$task" == *cred* ]]; then
-      # like a token refresh: report the login it found, then replace it
+      # like a token refresh: report the login it found, then replace it. As Claude Code 2.1.330 does, it writes its
+      # files after it printed its result, and keeps a backup of .claude.json (the account, no token)
       t=$(sed -E 's/.*"accessToken":"([^"]*)".*/\1/' "$CLAUDE_CONFIG_DIR/.credentials.json" 2>/dev/null)
-      [ -n "$t" ] && echo "{\"claudeAiOauth\":{\"accessToken\":\"${t}x\"}}" > "$CLAUDE_CONFIG_DIR/.credentials.json"
-      sleep 0.3
       echo "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"cred: ${t:-none}\",\"usage\":{}}"
+      sleep 0.3
+      [ -n "$t" ] && echo "{\"claudeAiOauth\":{\"accessToken\":\"${t}x\"}}" > "$CLAUDE_CONFIG_DIR/.credentials.json"
+      mkdir -p "$CLAUDE_CONFIG_DIR/backups" && echo '{"oauthAccount":{"emailAddress":"lab-account@example.com"}}' > "$CLAUDE_CONFIG_DIR/backups/.claude.json.backup.$$"
       exit 0
     fi
     if [[ "$task" == *expire* ]]; then

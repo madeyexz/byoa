@@ -105,6 +105,7 @@ test('R1.4: by default the login is encrypted in the app\'s store, each job gets
   const inSandbox = readdirSync(kept!, { recursive: true, withFileTypes: true }).filter((e) => e.isFile())
     .map((e) => readFileSync(join(e.parentPath, e.name), 'utf8')).join('\n')
   assert.ok(!inSandbox.includes('lab-secret'), 'no login file in the paused sandbox')
+  assert.ok(!inSandbox.includes('lab-account'), 'no backup of the CLI\'s account file in the paused sandbox')
 
   await a.agents.signOut('dee', 'claude')
   assert.equal(await a.agents.loginState('dee', 'claude'), 'signed-out')
