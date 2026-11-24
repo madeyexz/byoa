@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict'
 import { chmodSync } from 'node:fs'
 import { after, test } from 'node:test'
-import { cliLogin, memoryStore } from '../src/index.ts'
+import { cliLogin, memoryStore, type RunOptions } from '../src/index.ts'
 import { localSandbox } from '../src/sandbox/local.ts'
 import { collect, running, testApp } from './helpers/app.ts'
 
@@ -126,7 +126,7 @@ test('R1.4: the stored login works the same for Codex, also with a store and key
   assert.ok(own.keys().some((k) => k.startsWith('ailogin/')) && !a.store.keys().some((k) => k.startsWith('ailogin/')), 'in the login\'s own store')
 })
 
-test('R1.4: with parallel, Codex jobs of one user share a login that is not due for a refresh, and hold alone a login that is', async () => {
+test('R1.4 / R5.8: by default, Codex jobs of one user share a login that is not due for a refresh, and hold alone a login that is', async () => {
   const { mkdtempSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
@@ -149,11 +149,11 @@ test('R1.4: with parallel, Codex jobs of one user share a login that is not due 
     return Math.max(...ends.map((e) => Number(e.result.replace('together: ', ''))))
   }
   // the access token ends in 10 days (as Codex's does): the CLI will not refresh it during these jobs
-  assert.equal(await together(await signedIn(10 * 24 * 3600, storedLogin({ parallel: true }))), 3, 'the three jobs ran at the same time')
+  assert.equal(await together(await signedIn(10 * 24 * 3600)), 3, 'the three jobs ran at the same time')
   // it ends in 20 minutes, before a job's time runs out: the CLI of one of the jobs can refresh it, so one at a time
-  assert.equal(await together(await signedIn(20 * 60, storedLogin({ parallel: true }))), 1)
-  // the default: one job holds the login at a time
-  assert.equal(await together(await signedIn(10 * 24 * 3600)), 1)
+  assert.equal(await together(await signedIn(20 * 60)), 1)
+  // parallel: false: one job holds the login at a time, and the others wait their turn
+  assert.equal(await together(await signedIn(10 * 24 * 3600, storedLogin({ parallel: false }))), 1)
 })
 
 test('R1.4: when a login is due, byoa reads only the time its access token ends', async () => {
@@ -189,4 +189,101 @@ test('R5.6: access read-only starts each CLI with its own limits, and the job\'s
   assert.match(text.text, /^args: exec --json --skip-git-repo-check --ephemeral --sandbox read-only -c projects=/)
   const bad = await collect(a.agents.run('gus', { harness: 'codex', task: 'x', access: 'none' as never }))
   assert.deepEqual(bad, [{ type: 'error', code: 'sandbox', message: "byoa: access: 'full' or 'read-only'" }, { type: 'end', ok: false }])
+})
+
+test('R1.4: a backend that dies during a job: the next job in that kept sandbox saves the login its CLI refreshed, unless the user signed in again', async () => {
+  const { randomBytes } = await import('node:crypto')
+  const { createAgents } = await import('../src/index.ts')
+  const encryptionKey = randomBytes(32).toString('base64')
+  const a = await testApp({ env, encryptionKey }); closers.push(a.close)
+  await a.agents.connectLogin('gus', 'claude')
+  assert.deepEqual(await a.agents.finishLogin('gus', 'claude', { code: 'good-code' }), { state: 'signed-in' })
+  // a second backend of the same app, after the first one died
+  const b = createAgents({ app: 'testapp', sandbox: a.sandbox, store: a.store, encryptionKey, proxyUrl: a.proxyUrl, oauth: { redirectUrl: 'http://127.0.0.1:9/callback' } })
+  const crash = async (token?: string) => {
+    const s = await a.agents.session('gus', { harness: 'claude' })
+    // the CLI refreshed its login, then the backend died: close() never runs; the leases ran out
+    if (token) await s.sandbox.writeFile(`${s.sandbox.home}/.claude/.credentials.json`, JSON.stringify({ claudeAiOauth: { accessToken: token } }))
+    await a.store.delete('ailoginlease/gus/claude')
+    const k = 'usersandbox/gus/local/claude/'
+    await a.store.put(k, JSON.stringify({ ...JSON.parse((await a.store.get(k))!.value), holder: undefined, until: 0 }))
+  }
+  const cred = async () => ((await collect(b.run('gus', { harness: 'claude', task: 'cred' }))).at(-1) as { result: string }).result
+
+  await crash('refreshed-by-dead-job')
+  assert.equal(await cred(), 'cred: refreshed-by-dead-job', 'the refresh the dead job left is used, not the older stored copy')
+  assert.equal(await cred(), 'cred: refreshed-by-dead-jobx', 'and was saved')
+  assert.ok(!a.store.keys().some((k) => k.startsWith('ailoginloan/')), 'no loan after a job closed')
+
+  // the user signed in again after the crash: the store moved on, so what the dead job left is not saved
+  await crash('stale')
+  await b.connectLogin('gus', 'claude')
+  await b.finishLogin('gus', 'claude', { code: 'good-code' })
+  assert.equal(await cred(), 'cred: lab-secret-claude')
+  await b.deleteSandbox('gus')
+})
+
+test('R1.4: byoa saves a login from a sandbox only when it is the same account and not older', async () => {
+  const { accept } = await import('../src/login-stored.ts')
+  const codex = (account: string, last: string, t = 'a') => ({ '.codex/auth.json': JSON.stringify({ tokens: { access_token: t, account_id: account }, last_refresh: last }) })
+  const claude = (account: string, expiresAt: number, t = 'a') => ({
+    '.claude/.credentials.json': JSON.stringify({ claudeAiOauth: { accessToken: t, expiresAt } }),
+    '.claude/.claude.json': JSON.stringify({ oauthAccount: { accountUuid: account } }),
+  })
+  assert.equal(accept('codex', codex('acc-1', '2026-11-20T00:00:00Z'), codex('acc-1', '2026-11-24T00:00:00Z', 'b')), true, 'refreshed')
+  assert.equal(accept('codex', codex('acc-1', '2026-11-20T00:00:00Z'), codex('acc-2', '2026-11-24T00:00:00Z', 'b')), false, 'another account')
+  assert.equal(accept('codex', codex('acc-1', '2026-11-24T00:00:00Z'), codex('acc-1', '2026-11-20T00:00:00Z', 'b')), false, 'older')
+  assert.equal(accept('codex', codex('acc-1', '2026-11-20T00:00:00Z'), codex('acc-1', '2026-11-20T00:00:00Z')), false, 'unchanged')
+  assert.equal(accept('codex', codex('acc-1', '2026-11-20T00:00:00Z'), {}), false, 'no files')
+  assert.equal(accept('claude', claude('u-1', 1000), claude('u-1', 2000, 'b')), true)
+  assert.equal(accept('claude', claude('u-1', 1000), claude('u-2', 2000, 'b')), false)
+  assert.equal(accept('claude', claude('u-1', 2000), claude('u-1', 1000, 'b')), false)
+})
+
+test('R1.7: cancelLogin ends a sign-in and its sandbox at once; signOut does too', async () => {
+  const { agents, sandbox } = await app()
+  await agents.connectLogin('hal', 'claude')
+  assert.equal(running(sandbox), 1)
+  assert.deepEqual(await agents.finishLogin('hal', 'claude'), { state: 'pending' }, 'a check-in with no code')
+  await agents.cancelLogin('hal', 'claude')
+  assert.equal(running(sandbox), 0)
+  assert.deepEqual(await agents.finishLogin('hal', 'claude', { code: 'good-code' }), { state: 'signed-out', error: 'no sign-in is in progress' })
+  await agents.connectLogin('hal', 'claude')
+  await agents.signOut('hal', 'claude')
+  assert.equal(running(sandbox), 0)
+})
+
+test('R5.7: a job runs the model and effort it names, else the app\'s default for the harness', async () => {
+  const a = await testApp({ env, models: { claude: { model: 'opus' }, codex: { model: 'gpt-6.2-sol', effort: 'high' } } }); closers.push(a.close)
+  for (const h of ['claude', 'codex'] as const) {
+    await a.agents.connectLogin('ivy', h)
+    await a.agents.finishLogin('ivy', h, h === 'claude' ? { code: 'good-code' } : { waitMs: 10_000 })
+  }
+  const args = async (r: Partial<RunOptions> & { harness: 'claude' | 'codex' }) => {
+    const t = (await collect(a.agents.run('ivy', { task: 'hi', ...r }))).find((e) => e.type === 'text' && e.text.startsWith('args: ')) as { text: string }
+    return t.text.slice(6).split(';')[0]
+  }
+  assert.match(await args({ harness: 'claude' }), / --model opus$/)
+  assert.match(await args({ harness: 'claude', effort: 'max' }), / --model opus --effort max$/)
+  assert.match(await args({ harness: 'claude', model: 'haiku' }), / --model haiku$/)
+  assert.match(await args({ harness: 'codex' }), / -m gpt-6\.2-sol -c model_reasoning_effort="high" -$/)
+  assert.match(await args({ harness: 'codex', model: 'gpt-5.5', effort: 'low' }), / -m gpt-5\.5 -c model_reasoning_effort="low" -$/)
+})
+
+test('R5.7: listModels lists what the user\'s plan has, as each CLI lists it with the user\'s login', async () => {
+  const { agents, sandbox } = await app()
+  await assert.rejects(agents.listModels('jo', 'claude'), /not signed in/)
+  await agents.connectLogin('jo', 'claude')
+  await agents.finishLogin('jo', 'claude', { code: 'good-code' })
+  assert.deepEqual(await agents.listModels('jo', 'claude'), [
+    { id: 'default', name: 'Default (recommended)', description: 'Sonnet 5.5', isDefault: true, efforts: ['low', 'medium', 'high'] },
+    { id: 'opus', name: 'Opus', description: 'Opus 5.5', isDefault: false, efforts: ['low', 'high', 'max'], resolved: 'claude-opus-5-5' },
+    { id: 'haiku', name: 'Haiku', description: 'Haiku 5.5', isDefault: false, efforts: [] },
+  ])
+  await agents.connectLogin('jo', 'codex')
+  await agents.finishLogin('jo', 'codex', { waitMs: 10_000 })
+  assert.deepEqual(await agents.listModels('jo', 'codex'), [
+    { id: 'gpt-6.2-sol', name: 'GPT-6.2-Sol', description: 'Fast', isDefault: true, efforts: ['low', 'ultra'] },
+  ], 'both pages, without the hidden model')
+  assert.equal(running(sandbox), 0, 'its sandbox is gone')
 })

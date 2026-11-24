@@ -12,7 +12,7 @@ export const CLAUDE_DIR = '.claude'
 const CLAUDE_READ_TOOLS = ['Read', 'Glob', 'Grep', 'Skill']
 
 /** `servers`: the job's MCP servers, whose tools a `read-only` job may call. */
-export function claudeArgs(o: { mcpConfig: string; model?: string; access?: Access; servers?: string[] }): string[] {
+export function claudeArgs(o: { mcpConfig: string; model?: string; effort?: string; access?: Access; servers?: string[] }): string[] {
   return [
     '-p', '--output-format', 'stream-json', '--verbose',
     '--mcp-config', o.mcpConfig, '--strict-mcp-config',
@@ -24,9 +24,14 @@ export function claudeArgs(o: { mcpConfig: string; model?: string; access?: Acce
       // the sandbox is the job's alone, has no real tokens (R3.3), and is destroyed after the job (R5.4)
       : ['--permission-mode', 'bypassPermissions']),
     '--no-session-persistence',
-    ...(o.model ? ['--model', o.model] : []),
+    ...claudeModelArgs(o),
   ]
 }
+
+/** `--model` (an alias such as `opus`, or a full name) and `--effort` (low, medium, high, xhigh, max), as `claude --help`
+ *  of 2.1.330 lists them. */
+export const claudeModelArgs = (o: { model?: string; effort?: string }): string[] =>
+  [...(o.model ? ['--model', o.model] : []), ...(o.effort ? ['--effort', o.effort] : [])]
 
 const mcpName = (n: string): { name: string; server?: string } => {
   const m = /^mcp__(.+?)__(.+)$/.exec(n)

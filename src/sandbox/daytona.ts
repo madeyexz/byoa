@@ -186,6 +186,10 @@ export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
     async destroy(id) {
       try { await (await get(id)).delete(60, true) } catch (e) { if (!(e instanceof SandboxGoneError) && !(e instanceof DaytonaNotFoundError)) throw e }
     },
+    /** Daytona's time to live, from now: it deletes the sandbox then, in whatever state (whole minutes, at least 1). */
+    async keepAlive(id, ms) {
+      await (await get(id)).setTtl(Math.max(1, Math.ceil(ms / 60_000)))
+    },
     /** Deletes the login's subpath: a short sandbox mounts it and deletes its files. */
     async deleteVolume(name) {
       try { await d().volume.get(volumeName) } catch (e) { if (e instanceof DaytonaNotFoundError) return; throw e }

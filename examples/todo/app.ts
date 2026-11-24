@@ -48,7 +48,11 @@ export function todoApp(o: TodoAppOptions): (req: Request) => Promise<Response> 
       })
       // The lab's own sign-in page. Claude: a URL, then the code that page shows. ChatGPT: a URL and a code to enter.
       case 'POST /api/login': return json(await agents.connectLogin(user, plan(b.harness)))
+      // Claude: with the code, it finishes; with none, it only checks in. Codex: it waits up to 20 s for the user. Each
+      // call keeps the sign-in alive; with no call for 2 minutes, byoa ends it.
       case 'POST /api/login/finish': return json(await agents.finishLogin(user, plan(b.harness), { code: b.code, waitMs: b.harness === 'codex' ? 20_000 : undefined }))
+      // The user closed the sign-in: its sandbox ends now.
+      case 'POST /api/login/cancel': return json(await agents.cancelLogin(user, plan(b.harness)) ?? {})
       // One time per user: the app's own to-do server with this user's token, or any MCP server with its own sign-in.
       case 'POST /api/connect': return json(b.url
         ? await agents.connectMcp(user, String(b.url), { name: String(b.name) })
@@ -77,7 +81,8 @@ export function todoApp(o: TodoAppOptions): (req: Request) => Promise<Response> 
       }
       if (url.pathname === '/') return new Response(PAGE, { headers: { 'content-type': 'text/html; charset=utf-8' } })
       // A stand-in for the app's own sign-in: the page sends the user's name. A real app reads its session here.
-      const user = req.headers.get('x-user')?.trim()
+      // (a page that closes sends its cancel as a beacon, which has no headers: the name is in the URL)
+      const user = (req.headers.get('x-user') ?? (url.pathname === '/api/login/cancel' ? url.searchParams.get('user') : null))?.trim()
       if (!user) return json({ error: 'no x-user header' }, 401)
       return await api(user, `${req.method} ${url.pathname}`, req.method === 'POST' ? await req.json() : {})
     } catch (e) {

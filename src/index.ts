@@ -1,4 +1,5 @@
-export { createAgents, LoginError, ProxyError, type AgentsOptions, type RunOptions, type RunHarness, type ConnectResult, type Session, type SessionOptions, type JobToken } from './agents.ts'
+export { createAgents, LoginError, ProxyError, type AgentsOptions, type RunOptions, type RunHarness, type ConnectResult, type Session, type SessionOptions, type JobToken, type ModelChoice, type Waiting } from './agents.ts'
+export type { ModelInfo } from './harness/models.ts'
 export { memoryStore, type Store, type Entry } from './store.ts'
 export { SandboxGoneError, type Sandbox, type SandboxProvider, type CreateOptions, type RunOptions as SandboxRunOptions, type RunResult, type Volume } from './sandbox/types.ts'
 export { harnessFiles, readPlugin, JOB_TOKEN_ENV, type Setup, type Skill, type Plugin, type Access } from './config.ts'

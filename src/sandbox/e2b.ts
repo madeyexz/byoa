@@ -99,6 +99,13 @@ export function e2b(opts: E2BOptions = {}): SandboxProvider {
       const v = (await Volume.list(conn)).find((x) => x.name === name)
       if (v) await Volume.destroy(v.volumeId, conn)
     },
+    /** E2B ends the sandbox `ms` from now; a shorter time than before counts too. */
+    async keepAlive(id, ms) {
+      try { await E2BSandbox.setTimeout(id, ms, conn) } catch (e) {
+        if (e instanceof NotFoundError) throw new SandboxGoneError(`byoa e2b: the sandbox ${id} is gone`)
+        throw e
+      }
+    },
   }
 }
 

@@ -232,6 +232,7 @@ done`
       }
     },
     destroy,
+    // no keepAlive: Instabox sets a sandbox's delete time (deleteAfterSeconds) only when it creates it
     /** Instabox has no volumes, so there is none to delete. */
     async deleteVolume() {},
   }

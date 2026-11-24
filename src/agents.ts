@@ -4,10 +4,11 @@
 import { auth } from '@modelcontextprotocol/sdk/client/auth.js'
 import { ACCESS, CLAUDE_MCP_CONFIG, JOB_TOKEN_ENV, MCP_STARTUP_SEC, SERVER_NAME, harnessFiles, serverUrl, type Access, type Plugin, type Setup } from './config.ts'
 import { importKey, open, randomToken, seal, sha256hex } from './crypto.ts'
-import { claudeArgs, claudeReader } from './harness/claude.ts'
-import { codexArgs, codexReader } from './harness/codex.ts'
+import { claudeArgs, claudeModelArgs, claudeReader } from './harness/claude.ts'
+import { codexArgs, codexModelArgs, codexReader } from './harness/codex.ts'
 import type { AgentEvent, EventReader } from './harness/events.ts'
 import { FAKE_JS, fakeReader } from './harness/fake.ts'
+import { MODELS_JS, readModels, type ModelInfo } from './harness/models.ts'
 import { ensureHarness } from './harness/install.ts'
 import { PINS, type HarnessName, type Pins } from './harness/pins.ts'
 import { storedLogin } from './login-stored.ts'
@@ -16,6 +17,7 @@ import { GrantError, Grants, type Grant } from './mcp/grants.ts'
 import { Provider, clientMetadataDocument, type OAuthConfig } from './mcp/oauth.ts'
 import { JobTokens, PROXY_HEADER, mcpProxy } from './mcp/proxy.ts'
 import { checkTools, type AppTools } from './mcp/tools.ts'
+import { inLine } from './queue.ts'
 import { SandboxGoneError, type Sandbox, type SandboxProvider } from './sandbox/types.ts'
 import { q } from './sh.ts'
 import type { Store } from './store.ts'
@@ -44,8 +46,12 @@ export interface AgentsOptions {
    *  project or a conversation); one job of a sandbox runs at a time, and another waits. `job`: a new sandbox for each
    *  job, destroyed after it. */
   sandboxPer?: 'user' | 'job'
-  /** With `sandboxPer: 'user'`: how long a job waits for another job of the same sandbox to end. Default 10 minutes. */
+  /** With `sandboxPer: 'user'`: how long a job waits in line for the jobs before it in the same sandbox. Default: no
+   *  limit; jobs of one sandbox run one after the other, in the order they came (R5.8). */
   waitMs?: number
+  /** The model and effort of each harness when a job names none (R5.7), such as `{ claude: { model: 'opus' }, codex:
+   *  { model: 'gpt-6.2-sol', effort: 'high' } }`. Default: the CLI's own. `listModels` lists what a user's plan has. */
+  models?: Partial<Record<HarnessName, ModelChoice>>
   /** More origins that fetchWithGrant may send a grant's token to (R2.6), by the origin of the grant's MCP server:
    *  `{ 'https://margin.rippling.computer': ['https://helpful-tern-930.convex.site'] }`. Only for an API of that same
    *  service that takes the same token. Each key and value is an exact origin (https, or http on localhost): no path,
@@ -59,14 +65,23 @@ export interface AgentsOptions {
 
 export type RunHarness = HarnessName | 'fake'
 
-export interface RunOptions {
+/** `model`: Claude Code's alias (`opus`, `sonnet`, ...) or a full model name; Codex's model name. `effort`: Claude
+ *  Code's `--effort` (low, medium, high, xhigh, max); Codex's `model_reasoning_effort`. Each model's own efforts are
+ *  in listModels. */
+export interface ModelChoice { model?: string; effort?: string }
+
+/** A job waits in line (R5.8): for the user's sandbox, or for the AI login; `ahead` jobs came before it. */
+export interface Waiting { for: 'sandbox' | 'login'; ahead: number }
+
+export interface RunOptions extends ModelChoice {
   harness: RunHarness
-  task: string
+  /** What the agent does. Several messages go to the one agent of this job, which reads them all and decides the
+   *  order itself (R5.8). */
+  task: string | string[]
   setup?: Setup
   plugins?: Plugin[]
   /** The MCP servers (names given to connectMcp) this job gets (R2.5). Default: none. A plugin's servers are added. */
   mcp?: string[]
-  model?: string
   /** With `sandboxPer: 'user'`: which of the user's kept sandboxes the job runs in, such as a project or conversation
    *  id. Jobs with the same key (and harness) share one sandbox, paused between them. Default: the user's one sandbox
    *  for the harness. */
@@ -74,9 +89,11 @@ export interface RunOptions {
   /** What the agent may do (R5.6). Default `full`: every tool of the harness, with no approval. `read-only`: the
    *  job's MCP tools, and reading files; no change to a file, and no network but the job's MCP servers. */
   access?: Access
+  /** While the job waits in line for the user's sandbox or the AI login (R5.8). */
+  onWait?: (w: Waiting) => void
 }
 
-export interface SessionOptions {
+export interface SessionOptions extends ModelChoice {
   harness: RunHarness
   setup?: Setup
   plugins?: Plugin[]
@@ -87,6 +104,8 @@ export interface SessionOptions {
   /** As in RunOptions. Here it changes only the files byoa writes (Codex's MCP config): the app starts the harness
    *  itself, with its own flags. */
   access?: Access
+  /** While the job waits in line for the user's sandbox or the AI login (R5.8). */
+  onWait?: (w: Waiting) => void
 }
 
 export interface Session {
@@ -97,6 +116,9 @@ export interface Session {
   /** The pinned, unmodified harness binary in the sandbox (for `fake`: the fake harness's script, run with node). */
   bin: string
   version: string
+  /** The harness's flags for the job's model and effort (from SessionOptions, else createAgents' `models`), for the
+   *  app's own command line. */
+  args: string[]
   /** The harness's environment: its login folder, the job token (JOB_TOKEN_ENV), and for Claude Code, how long it
    *  waits for each MCP server to start (MCP_TIMEOUT). */
   env: Record<string, string>
@@ -199,7 +221,13 @@ export function createAgents(o: AgentsOptions) {
   const timeout = o.jobTimeoutMs ?? 30 * 60_000
   const keep = (o.sandboxPer ?? 'user') === 'user'
   if (!['user', 'job'].includes(o.sandboxPer ?? 'user')) throw new Error("byoa: sandboxPer: 'user' or 'job'")
-  const waitMs = o.waitMs ?? 10 * 60_000
+  const waitMs = o.waitMs
+  /** The flags of the job's model and effort: the job's own, else the app's default for the harness. */
+  const modelArgs = (h: RunHarness, r: ModelChoice): string[] => {
+    if (h === 'fake') return []
+    const m = { ...o.models?.[h], ...(r.model ? { model: r.model } : {}), ...(r.effort ? { effort: r.effort } : {}) }
+    return h === 'claude' ? claudeModelArgs(m) : codexModelArgs(m)
+  }
   const grantOrigins = new Map(Object.entries(o.grantOrigins ?? {}).map(([mcp, extra]) => [exactOrigin(mcp), extra.map(exactOrigin)]))
   const tools: AppTools = o.tools ?? {}
   for (const [name, group] of Object.entries(tools)) {
@@ -347,16 +375,17 @@ export function createAgents(o: AgentsOptions) {
 
   /** Takes one of the user's kept sandboxes, with compare-and-set: a job waits while another job of the same sandbox
    *  holds it. A lease left by a job that never ended runs out after the job timeout and 5 minutes. */
-  async function takeSlot(user: string, h: RunHarness, key: string): Promise<{ k: string; holder: string; sandbox?: string }> {
+  /** Takes the user's sandbox of this harness and key, in line after the jobs that came first (R5.8). */
+  async function takeSlot(user: string, h: RunHarness, key: string, onWait?: (ahead: number) => void): Promise<{ k: string; holder: string; sandbox?: string }> {
     const k = slotKey(user, o.sandbox.name, h, key), holder = randomToken(12)
-    for (const end = Date.now() + waitMs; ;) {
+    return inLine(o.store, `${k}/line`, async () => {
       const e = await o.store.get(k)
       if (!e) await changeIndex(user, (l) => l.some(([x, y]) => x === h && y === key) ? l : [...l, [h, key]])
       const cur: Slot = e ? JSON.parse(e.value) : { until: 0 }
       if (cur.until < Date.now() && (await o.store.cas(k, e?.version ?? null, JSON.stringify({ sandbox: cur.sandbox, holder, until: Date.now() + timeout + 5 * 60_000 })))) return { k, holder, sandbox: cur.sandbox }
-      if (Date.now() > end) throw new Error(`byoa: another job of this user still holds the ${h} sandbox${key ? ` ${JSON.stringify(key)}` : ''}; try again when it ends`)
-      await sleep(500)
-    }
+      return undefined
+    }, { until: waitMs === undefined ? undefined : Date.now() + waitMs, onWait },
+    () => new Error(`byoa: another job of this user still holds the ${h} sandbox${key ? ` ${JSON.stringify(key)}` : ''}; try again when it ends`))
   }
   /** Changes the slot while `holder` holds it. False when it does not (deleteSandbox removed it meanwhile). */
   async function setSlot(k: string, holder: string, next: Slot): Promise<boolean> {
@@ -398,9 +427,12 @@ export function createAgents(o: AgentsOptions) {
     const t = await jobToken(user, { mcp: [...(r.mcp ?? []), ...plugins.flatMap((p) => p.mcp.map((m) => m.name))] })
     const { token, job } = t
     let sbx: Sandbox | undefined, slot: { k: string; holder: string; sandbox?: string } | undefined, closed = false
+    let tick: ReturnType<typeof setInterval> | undefined, saving: Promise<void> = Promise.resolve()
     const close = async () => {
       if (closed) return
       closed = true
+      clearInterval(tick)
+      await saving
       await t.close().catch(() => {})
       // the stored login (the default) saves what the CLI changed, removes its files and gives its lease back, before
       // the sandbox pauses or goes. A kept sandbox whose login could not be removed is destroyed instead.
@@ -417,7 +449,7 @@ export function createAgents(o: AgentsOptions) {
       const setup: Setup = { agentsMd: r.setup?.agentsMd, skills: [...(r.setup?.skills ?? []), ...plugins.flatMap((p) => p.setup.skills ?? [])] }
       const files = harnessFiles(h === 'codex' ? 'codex' : 'claude', setup, { proxyUrl: o.proxyUrl, servers: t.mcp.map((m) => m.name), access: r.access })
       if (keep) {
-        slot = await takeSlot(user, h, key)
+        slot = await takeSlot(user, h, key, (ahead) => r.onWait?.({ for: 'sandbox', ahead }))
         if (slot.sandbox) {
           try { sbx = await o.sandbox.resume(slot.sandbox, { timeoutMs: timeout + 60_000 }) } catch (e) {
             // deleted or expired at the provider: the user gets a new one
@@ -442,6 +474,7 @@ export function createAgents(o: AgentsOptions) {
       // each job's folder is new, also in a kept sandbox: no skills, MCP config or task of an earlier job
       if (slot) await sbx.run(`rm -rf ${q(work)} && mkdir -p ${q(work)}`)
       let bin: string, version: string, env: Record<string, string> = {}
+      const box = sbx
       if (h !== 'fake' && !(await login.present(sbx, user, h))) {
         await login.setState(user, h, 'signed-out')
         throw new LoginError(`${h} is not signed in for this user; call connectLogin first`)
@@ -457,12 +490,15 @@ export function createAgents(o: AgentsOptions) {
         bin = inst.bin
         version = inst.version
         // Claude Code has no MCP start timeout in its config, only this variable (config.ts, MCP_STARTUP_SEC)
-        env = { ...(await login.env(sbx, user, h)), ...(h === 'claude' ? { MCP_TIMEOUT: String(MCP_STARTUP_SEC * 1000) } : {}) }
+        // the login leaves the sandbox before the provider pauses or ends it (it does at timeout + 1 min)
+        env = { ...(await login.env(sbx, user, h, { deadline: Date.now() + timeout + 45_000, onWait: (ahead) => r.onWait?.({ for: 'login', ahead }) })), ...(h === 'claude' ? { MCP_TIMEOUT: String(MCP_STARTUP_SEC * 1000) } : {}) }
+        // saves what the CLI changed in its login every minute, so a backend that dies loses at most that (R1.4)
+        tick = setInterval(() => { saving = saving.then(() => login.checkpoint?.(box, user, h as HarnessName)).catch(() => {}) }, CHECKPOINT_MS)
+        tick.unref?.()
       }
       for (const [p, text] of Object.entries(files)) await sbx.writeFile(`${work}/${p}`, text)
-      const box = sbx
       return {
-        sandbox: box, work, harness: h, bin, version, token,
+        sandbox: box, work, harness: h, bin, version, token, args: modelArgs(h, r),
         env: { ...env, [JOB_TOKEN_ENV]: token },
         mcp: t.mcp,
         missing: t.missing,
@@ -512,11 +548,14 @@ export function createAgents(o: AgentsOptions) {
         let cmd: string, reader: EventReader
         if (h === 'fake') { cmd = `node ${q(s.bin)}`; reader = fakeReader() }
         else {
-          const args = h === 'claude' ? claudeArgs({ mcpConfig: CLAUDE_MCP_CONFIG, model: r.model, access: r.access, servers: s.mcp.map((m) => m.name) }) : codexArgs({ work: s.work, model: r.model, access: r.access })
+          // the model and effort flags come from s.args: the job's own, else the app's default (R5.7)
+          const args = h === 'claude' ? claudeArgs({ mcpConfig: CLAUDE_MCP_CONFIG, access: r.access, servers: s.mcp.map((m) => m.name) }) : codexArgs({ work: s.work, access: r.access })
+          if (h === 'codex') args.splice(args.length - 1, 0, ...s.args)
+          else args.push(...s.args)
           cmd = [s.bin, ...args].map(q).join(' ')
           reader = h === 'claude' ? claudeReader() : codexReader()
         }
-        await s.sandbox.writeFile(`${s.work}/.byoa/task.md`, r.task)
+        await s.sandbox.writeFile(`${s.work}/.byoa/task.md`, taskText(r.task))
         yield { type: 'start', harness: h, version: s.version, sandbox: o.sandbox.name }
 
         for await (const ev of stream(s.sandbox, `${cmd} < .byoa/task.md`, { cwd: s.work, env: s.env, timeoutMs: timeout }, reader)) {
@@ -539,6 +578,31 @@ export function createAgents(o: AgentsOptions) {
     }
   }
 
+  /** The models the user's plan can use with this harness (R5.7), as the unmodified CLI lists them with the user's
+   *  login, in a new sandbox that is destroyed after. A Claude Code list waits for the user's other Claude Code jobs,
+   *  which hold the login alone. Each call starts a sandbox: keep the list for a while. */
+  async function listModels(user: string, h: HarnessName): Promise<ModelInfo[]> {
+    const sbx = await o.sandbox.create({ volumes: await login.volumes(user, h), labels: { 'byoa-app': o.app, 'byoa-models': h }, timeoutMs: 10 * 60_000 })
+    try {
+      if (!(await login.present(sbx, user, h))) {
+        await login.setState(user, h, 'signed-out')
+        throw new LoginError(`${h} is not signed in for this user; call connectLogin first`)
+      }
+      const { bin } = await ensureHarness(sbx, h, pins)
+      const env = await login.env(sbx, user, h, { deadline: Date.now() + 9 * 60_000 })
+      const file = `${sbx.home}/.byoa/models.mjs`
+      await sbx.writeFile(file, MODELS_JS)
+      const r = await sbx.run(`node ${q(file)} ${q(bin)} ${h}`, { env, cwd: sbx.home, timeoutMs: 120_000 })
+      let out: { models?: any[]; error?: string }
+      try { out = JSON.parse(r.stdout.trim().split('\n').pop() ?? '') } catch { throw new Error(`byoa: ${h} did not list its models: ${(r.stderr || r.stdout).trim().slice(-300)}`) }
+      if (!out.models) throw new Error(`byoa: ${h} did not list its models: ${out.error}`)
+      return readModels(h, out.models)
+    } finally {
+      await login.release?.(sbx, user, h).catch(() => {})
+      await sbx.destroy().catch(() => {})
+    }
+  }
+
   async function missingOf(user: string, r: SessionOptions) {
     const want = [...new Set([...(r.mcp ?? []), ...(r.plugins ?? []).flatMap((p) => p.mcp.map((m) => m.name))])]
     const have = await serversOf(user)
@@ -548,8 +612,12 @@ export function createAgents(o: AgentsOptions) {
   return {
     /** Starts the lab's own sign-in for the user (R1.1, R1.2): show `url` (and Codex's `code`) to the user. */
     connectLogin: (user: string, h: HarnessName) => login.start(user, h),
-    /** Claude Code: pass the code Anthropic's page shows. Codex: call again until the state is not `pending`. */
+    /** Claude Code: pass the code Anthropic's page shows. Codex: call again until the state is not `pending`. With no
+     *  code (Claude Code) and no wait, it only checks in: the sign-in sandbox lives while the app's sign-in UI calls it
+     *  at least every 2 minutes, and ends 2 minutes after the last call (R1.7). */
     finishLogin: (user: string, h: HarnessName, input?: { code?: string; waitMs?: number }) => login.finish(user, h, input),
+    /** Ends a sign-in that has not finished, and its sandbox, at once: call it when the user closes the sign-in. */
+    cancelLogin: (user: string, h: HarnessName) => login.cancel(user, h),
     /** `signed-in`, `signed-out` or `expired` (R1.6). */
     loginState: (user: string, h: HarnessName) => login.state(user, h),
     /** Signs the user out with the CLI, deletes the stored login (or the login volume), and deletes the user's
@@ -564,6 +632,7 @@ export function createAgents(o: AgentsOptions) {
     removeMcp: (user: string, name: string) => grants.remove(user, name),
     run,
     session,
+    listModels,
     jobToken,
     /** The MCP proxy, a fetch handler (Request → Response). Serve it at `proxyUrl` and below. */
     proxy: mcpProxy({ proxyUrl: o.proxyUrl, jobs, grants, tools }),
@@ -576,6 +645,17 @@ export function createAgents(o: AgentsOptions) {
  *  result (Claude Code 2.1.330 exits about 0.6 s later, and may write its login files then), so the job's login is
  *  saved and removed, and its lease given back, only after the CLI ended (R1.4). */
 const EXIT_WAIT_MS = 10_000
+/** How often a job saves what the CLI changed in its login while it runs (R1.4). */
+const CHECKPOINT_MS = 60_000
+
+/** One task, or several messages to one agent (R5.8): the agent gets them all at once and decides the order. */
+export function taskText(task: string | string[]): string {
+  if (typeof task === 'string') return task
+  if (!task.length) throw new Error('byoa: task: at least one message')
+  if (task.length === 1) return task[0]!
+  return `You have ${task.length} messages from the user. Read them all first, then decide the order to do them in, and do each one.\n\n` +
+    task.map((m, i) => `## Message ${i + 1}\n\n${m}`).join('\n\n') + '\n'
+}
 /** Ends every process that runs in the job's folder: the harness and what it started. */
 const stopJob = (work: string) => `for d in /proc/[0-9]*; do [ "$(readlink "$d/cwd" 2>/dev/null)" = ${q(work)} ] && kill -KILL "\${d#/proc/}" 2>/dev/null; done; true`
 

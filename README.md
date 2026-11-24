@@ -189,12 +189,14 @@ const agents = createAgents({
   proxyUrl: 'https://myapp.example.com/byoa/mcp',  // serve agents.proxy here
   oauth: { redirectUrl: 'https://myapp.example.com/byoa/callback' },
   tools: { todos: { add_todo: { description: 'Add one to-do.', input, run: ({ title }, { user }) => db.addTodo(user, title) } } },  // your app's own tools
+  models: { claude: { model: 'opus' }, codex: { effort: 'high' } },  // optional: each harness's default model and effort
 })
 
 const claude = await agents.connectLogin(userId, 'claude')  // { url }: Anthropic's own sign-in page
 await agents.finishLogin(userId, 'claude', { code })        // the code that page shows
 const codex = await agents.connectLogin(userId, 'codex')    // { url, code }: OpenAI's page and the code to enter
-await agents.finishLogin(userId, 'codex', { waitMs: 60_000 })
+await agents.finishLogin(userId, 'codex', { waitMs: 20_000 }) // call again while it says 'pending'
+await agents.cancelLogin(userId, 'codex')                   // the user closed the sign-in: its sandbox ends now
 
 const mcp = await agents.connectMcp(userId, 'https://mcp.notion.com/mcp', { name: 'notion' })
 // mcp.signInUrl: the server's sign-in page; your redirectUrl route then calls agents.finishMcp({ state, code })
@@ -202,6 +204,17 @@ const mcp = await agents.connectMcp(userId, 'https://mcp.notion.com/mcp', { name
 for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['notion', 'todos'], setup: { agentsMd, skills } })) {
   // start, text, tool_call, tool_result, permission, error, end: the same events for Claude Code and Codex
 }
+```
+
+The sign-in runs the CLI in a sandbox of its own, which lives only while your sign-in UI checks in: each `finishLogin` call keeps it for 2 more minutes (Claude Code: with no code, the call only checks in; Codex: each call waits up to `waitMs` for the user). When the user closes the sign-in, call `cancelLogin`, and its sandbox ends at once; when your UI stops calling, it ends 2 minutes after the last call, on E2B and Daytona. Instabox cannot change a sandbox's time after it starts, so there a sign-in that is left ends after 15 minutes, as long as Codex's device code lasts, unless you call `cancelLogin`. `signOut` cancels a sign-in that has not finished too.
+
+### Models and effort
+
+`run(userId, { harness, task, model, effort })` runs the harness with that model and effort: Claude Code's `--model` (an alias such as `opus`, or a full name) and `--effort` (`low` to `max`), Codex's `-m` and `model_reasoning_effort`. Without them, a job gets the harness's default from `createAgents({ models })`, else the CLI's own. `agents.listModels(userId, harness)` lists the models that user's plan can use, as the CLI lists them with the user's login: `[{ id, name, description, isDefault, efforts, resolved? }]`, where `id` is what `model` takes and `efforts` what `effort` takes. Each call starts a sandbox, so keep the list for a while.
+
+```ts
+const models = await agents.listModels(userId, 'codex')   // [{ id: 'gpt-6.2-sol', isDefault: true, efforts: ['low', ...] }, ...]
+agents.run(userId, { harness: 'codex', task, model: models[0].id, effort: 'high' })
 ```
 
 An app that runs its own program around the unmodified harness (for example its own server, which starts `claude` or `codex` itself) opens the job with `agents.session` instead. It gets the same sandbox, login, pinned harness and job token, and runs its own command:
@@ -268,18 +281,30 @@ Before the harness starts, byoa checks from the job's sandbox that each MCP serv
 
 ### The sandbox of a user
 
-By default, each user has one sandbox of your app for each harness. The first job creates it. After each job, byoa pauses it (E2B pauses it; Daytona and Instabox stop it), and the next job resumes it, so files that the app wrote there and the installed harness stay. Each job gets a new job folder (`s.work`) with its own setup. One job of a user and harness runs at a time; another job waits for it (`waitMs`, default 10 minutes). When the provider no longer has the sandbox, the next job creates a new one.
+By default, each user has one sandbox of your app for each harness. The first job creates it. After each job, byoa pauses it (E2B pauses it; Daytona and Instabox stop it), and the next job resumes it, so files that the app wrote there and the installed harness stay. Each job gets a new job folder (`s.work`) with its own setup. One job of a user and harness runs at a time; the others wait in line and run in the order they came (`waitMs`: how long a job waits before it fails; default no limit). `onWait` tells the app how many jobs are ahead. When the provider no longer has the sandbox, the next job creates a new one.
 
-An app where one user has many workspaces, such as projects or conversations, gives each job a `sandboxKey`. Each key has its own kept sandbox and its own lease, so jobs with different keys run at the same time. With the default stored login, this is true only for the fake harness: one job of a user and harness holds the AI login at a time. For many Codex agents of one user at the same time, each on its own machine, with one sign-in, turn on the shared login: `login: storedLogin({ parallel: true })` (see AI login below). For a new sandbox for each job, destroyed after it, set `sandboxPer: 'job'`:
+An app where one user has many workspaces, such as projects or conversations, gives each job a `sandboxKey`. Each key has its own kept sandbox and its own lease, so jobs with different keys run at the same time. For a new sandbox for each job, destroyed after it, set `sandboxPer: 'job'`.
+
+### Many agents of one user
+
+An app chooses how one user's agents run, and can mix the three ways:
 
 ```ts
-agents.run(userId, { harness: 'claude', task, sandboxKey: projectId })  // one kept sandbox for each project
-const agents = createAgents({ ...options, sandboxPer: 'job' })          // a new sandbox for each job; default 'user'
+// 1. A queue: jobs of one sandbox run one after the other, in the order they came
+agents.run(userId, { harness: 'claude', task, onWait: ({ ahead }) => show(`${ahead} jobs before yours`) })
+
+// 2. Several messages to one agent, which reads them all and decides the order itself
+agents.run(userId, { harness: 'codex', task: ['water the plants', 'call mom', 'plan the week'] })
+
+// 3. Several sandboxes at once: a sandbox key for each agent (or sandboxPer: 'job')
+const jobs = projects.map((p) => agents.run(userId, { harness: 'codex', task, sandboxKey: p.id }))  // read each stream; they run together
 ```
+
+Codex jobs of one user in different sandboxes run at the same time with one sign-in (see AI login below). Claude Code jobs of one user run one at a time, also in different sandboxes: each waits in line for the login.
 
 Either way, the user's AI login stays encrypted in your database, and each job gets a copy, which byoa takes out of the sandbox after the job (see AI login below). The MCP config in the sandbox points to `agents.proxy`, with a token for that one job. The real MCP tokens stay in your database. `agents.signOut` deletes the user's sandbox for that harness; when you delete a user, call `agents.deleteSandbox(userId)`, which deletes all of their sandboxes of your app at that provider, and when you delete a project, `agents.deleteSandbox(userId, { sandboxKey: projectId })`.
 
-To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy.
+To change the provider, change `e2b(...)` to another adapter. An adapter implements one interface ([src/sandbox/types.ts](src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy, and optionally keepAlive (a new end time for a sandbox that is not kept).
 
 For Daytona, use `daytona({ apiKey })` from `@madeyexz/byoa/sandbox/daytona` (it needs `@daytona/sdk`). Daytona allows 100 volumes per organization, so with `cliLogin` the adapter keeps every user's AI login in its own subpath of one shared volume (`byoa` by default). A sandbox mounts only that user's subpath. On Daytona Tier 1 and Tier 2, a sandbox can reach only [allowed domains](https://www.daytona.io/docs/en/network-limits), so serve `agents.proxy` on one of them (for example `*.convex.site`), or use Tier 3 or higher. `*.workers.dev` is on Daytona's list but does not work: a Worker's address has two labels below it (`<worker>.<account>.workers.dev`), and Daytona does not resolve those.
 
@@ -287,9 +312,9 @@ For Instabox, use `instabox({ apiKey })` from `@madeyexz/byoa/sandbox/instabox`.
 
 ### AI login
 
-By default, byoa keeps each user's Claude or ChatGPT plan login in your own database, encrypted with your `encryptionKey`, through the store adapter. The sign-in is the unmodified CLI, on the lab's own page. When it ends, byoa keeps the CLI's own login files. Each job writes them into its sandbox. After the job, byoa saves them back when the CLI refreshed them, and removes them from the sandbox, also from the user's sandbox that it keeps, so your database has the only copy between jobs. One job of a user and harness holds the login at a time; another job waits for it. byoa never calls the labs' token endpoints itself. So the sandbox provider needs no volumes.
+By default, byoa keeps each user's Claude or ChatGPT plan login in your own database, encrypted with your `encryptionKey`, through the store adapter. The sign-in is the unmodified CLI, on the lab's own page. When it ends, byoa keeps the CLI's own login files. Each job writes them into its sandbox. After the job, byoa saves them back when the CLI refreshed them, and removes them from the sandbox, also from the user's sandbox that it keeps, so your database has the only copy between jobs. During the job it saves a refresh every minute or so. When your backend dies during a job, a watcher in the sandbox removes the files before the provider pauses it, and the next job in that sandbox saves a login that the dead job's CLI refreshed. byoa saves files from a sandbox only when they are the same account's login and not older than the stored one. byoa never calls the labs' token endpoints itself. So the sandbox provider needs no volumes.
 
-Both CLIs rotate their refresh tokens, so two sandboxes must not refresh one login. That is why one job holds it at a time. With `login: storedLogin({ parallel: true })`, the Codex jobs of one user share the login instead, each with a copy in its own sandbox (a `sandboxKey` for each, or `sandboxPer: 'job'`), and run at the same time. Codex refreshes its login 5 minutes before its access token ends, and that token lasts 10 days. byoa reads that time from the login files, and nothing else in them. When the login is due for a refresh before a job's time runs out, one job holds it alone: it waits for the user's other jobs to end, its CLI refreshes the login, byoa saves it, and the next jobs share it again. One risk stays: Codex also refreshes when OpenAI answers 401 to a token that has not run out, and two sandboxes that get that answer at the same time both refresh; one of them fails, and the user may have to sign in again. Claude Code jobs of one user always run one at a time.
+Both CLIs rotate their refresh tokens, so two sandboxes must not refresh one login. By default, the Codex jobs of one user share the login, each with a copy in its own sandbox (a `sandboxKey` for each, or `sandboxPer: 'job'`), and run at the same time. Codex refreshes its login 5 minutes before its access token ends, and that token lasts 10 days. byoa reads that time from the login files, and nothing else in them. When the login is due for a refresh before a job's time runs out, one job holds it alone: it waits for the user's other jobs to end, its CLI refreshes the login, byoa saves it, and the next jobs share it again. One risk stays: Codex also refreshes when OpenAI answers 401 to a token that has not run out, and two sandboxes that get that answer at the same time both refresh; one of them fails, and the user may have to sign in again. To hold the Codex login one job at a time instead, pass `login: storedLogin({ parallel: false })`. Claude Code jobs of one user always hold the login one at a time, in line, because when Claude Code refreshes is not checked yet.
 
 The labs' published terms restrict where these tokens may be stored: Anthropic's say developers may not "collect, store, or intermediate Claude.ai credentials or session tokens", and OpenAI's say stored tokens must be "local and under the user's control, not in a remote or managed environment" (see [SPEC.md](SPEC.md#lab-rules)). Check them for your app.
 

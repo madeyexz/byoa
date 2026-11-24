@@ -43,19 +43,33 @@ export interface LoginDeps {
 export interface LoginDriver {
   /** The volumes every job of this user and harness mounts. */
   volumes(user: string, h: HarnessName): Promise<Volume[]>
-  /** Environment variables for the harness. */
-  env(sbx: Sandbox, user: string, h: HarnessName): Promise<Record<string, string>>
+  /** Environment variables for the harness. `job`: when the job's sandbox time ends, and how long the job waits for
+   *  the login when another job holds it. */
+  env(sbx: Sandbox, user: string, h: HarnessName, job?: JobLogin): Promise<Record<string, string>>
+  /** During the job, every minute or so: saves what the CLI changed in its login (a refresh) now, so a backend that
+   *  dies loses at most that much (R1.4). */
+  checkpoint?(sbx: Sandbox, user: string, h: HarnessName): Promise<void>
   /** Whether the sandbox has a login for the harness. */
   present(sbx: Sandbox, user: string, h: HarnessName): Promise<boolean>
   /** After the job, before byoa pauses or destroys the sandbox (also when the job failed, or env was never called). */
   release?(sbx: Sandbox, user: string, h: HarnessName): Promise<void>
   start(user: string, h: HarnessName): Promise<LoginStart>
   /** Claude Code: `code` is the code Anthropic's page shows after sign-in. Codex: no code; `waitMs` waits that long
-   *  for the user to finish on OpenAI's page. */
+   *  for the user to finish on OpenAI's page. With no code (Claude) or no wait (Codex), it only checks in: the
+   *  sign-in sandbox lives while the app checks in (R1.7). */
   finish(user: string, h: HarnessName, input?: { code?: string; waitMs?: number }): Promise<LoginResult>
+  /** Ends a sign-in that has not finished, and its sandbox, at once. Nothing happens when none runs. */
+  cancel(user: string, h: HarnessName): Promise<void>
   state(user: string, h: HarnessName): Promise<LoginState>
   setState(user: string, h: HarnessName, s: LoginState): Promise<void>
   signOut(user: string, h: HarnessName): Promise<void>
+}
+
+export interface JobLogin {
+  /** When the provider ends or pauses the job's sandbox (ms since 1970): the login files leave the sandbox before. */
+  deadline?: number
+  /** While the job waits in line for the login: how many jobs are ahead. */
+  onWait?: (ahead: number) => void
 }
 
 /** Where each harness keeps its login, relative to the home folder. Each is the mount path of a login volume. */
@@ -66,7 +80,10 @@ const URL_RE: Record<HarnessName, RegExp> = {
   codex: /https:\/\/auth\.openai\.com\/[^\s\x07\x1b]+/,
 }
 const CODE_RE = /\n\s*([A-Z0-9]{4,}-[A-Z0-9]{4,})\s*\r?\n/
-const LOGIN_SANDBOX_MS = 20 * 60_000
+/** The most a sign-in may take, as long as Codex's device code lasts. */
+export const LOGIN_MAX_MS = 15 * 60_000
+/** After this long with no check-in (finishLogin), the provider ends the sign-in sandbox (R1.7). */
+export const LOGIN_IDLE_MS = 2 * 60_000
 
 const enc = encodeURIComponent
 const stateKey = (user: string, h: HarnessName) => `login/${enc(user)}/${h}`
@@ -79,7 +96,7 @@ const loginScript = (cmd: string) => `#!/bin/bash
 cd "$(dirname "$0")" || exit 1
 rm -f in out status
 mkfifo in
-sleep ${LOGIN_SANDBOX_MS / 1000} > in &
+sleep ${LOGIN_MAX_MS / 1000} > in &
 holder=$!
 run=${q(`stty cols 2000 2>/dev/null; exec ${cmd}`)}
 # util-linux's script (every Linux sandbox) gives the CLI a terminal. BSD's script (macOS, with the local sandbox) has
@@ -125,7 +142,11 @@ export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
     const p = await d.store.get(pendingKey(user, h))
     if (!p) return
     await d.store.delete(pendingKey(user, h))
-    try { await (await d.sandbox.resume(JSON.parse(p.value).sandbox)).destroy() } catch {}
+    try { await d.sandbox.destroy(JSON.parse(p.value).sandbox) } catch {}
+  }
+  /** The sign-in sandbox ends `ms` from now, at the latest LOGIN_MAX_MS after the sign-in started. */
+  const keepAlive = async (id: string, at: number, ms: number) => {
+    await d.sandbox.keepAlive?.(id, Math.max(1_000, Math.min(ms, at + LOGIN_MAX_MS - Date.now()))).catch(() => {})
   }
 
   return {
@@ -137,7 +158,8 @@ export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
 
     async start(user, h) {
       await dropPending(user, h)
-      const sbx = await d.sandbox.create({ volumes: await volumes(user, h), labels: { 'byoa-app': d.app, 'byoa-login': h }, timeoutMs: LOGIN_SANDBOX_MS })
+      const at = Date.now()
+      const sbx = await d.sandbox.create({ volumes: await volumes(user, h), labels: { 'byoa-app': d.app, 'byoa-login': h }, timeoutMs: LOGIN_MAX_MS })
       try {
         const { bin } = await ensureHarness(sbx, h, d.pins)
         const cmd = h === 'claude' ? `${q(bin)} auth login` : `${q(bin)} login --device-auth`
@@ -148,7 +170,9 @@ export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
           const url = URL_RE[h].exec(out)?.[0]
           const code = h === 'codex' ? CODE_RE.exec(out)?.[1] : undefined
           if (url && (h === 'claude' || code)) {
-            await d.store.put(pendingKey(user, h), JSON.stringify({ sandbox: sbx.id, at: Date.now() }))
+            await d.store.put(pendingKey(user, h), JSON.stringify({ sandbox: sbx.id, at }))
+            // from now on the sandbox lives only while the app checks in
+            await keepAlive(sbx.id, at, LOGIN_IDLE_MS)
             return { harness: h, url, ...(code ? { code } : {}) }
           }
           if (status) throw new Error(`byoa: the ${h} sign-in ended at once: ${lastLine(out)}`)
@@ -161,19 +185,19 @@ export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
     },
 
     async finish(user, h, input = {}) {
+      const code = input.code === undefined ? undefined : input.code.trim()
+      if (h === 'claude' && code !== undefined && (!code || /[\s]/.test(code))) throw new Error("byoa: the Claude Code sign-in needs the code that Anthropic's page shows")
       const p = await d.store.get(pendingKey(user, h))
       if (!p) return { state: await state(user, h), error: 'no sign-in is in progress' }
+      const { sandbox: id, at } = JSON.parse(p.value) as { sandbox: string; at: number }
+      const ranOut = async () => { await dropPending(user, h); return { state: await state(user, h), error: 'the sign-in ran out; start it again' } }
+      if (Date.now() - at > LOGIN_MAX_MS) return ranOut()
+      const wait = input.waitMs ?? (h === 'claude' && code ? 60_000 : 0)
       let sbx: Sandbox
-      try { sbx = await d.sandbox.resume(JSON.parse(p.value).sandbox) } catch {
-        await d.store.delete(pendingKey(user, h))
-        return { state: await state(user, h), error: 'the sign-in ran out; start it again' }
-      }
-      if (h === 'claude') {
-        const code = (input.code ?? '').trim()
-        if (!code || /[\s]/.test(code)) throw new Error("byoa: the Claude Code sign-in needs the code that Anthropic's page shows")
-        await sbx.run(`timeout 5 bash -c ${q(`printf '%s\\r' ${q(code)} > ${q(`${dirOf(sbx)}/in`)}`)}`)
-      }
-      const end = Date.now() + (input.waitMs ?? (h === 'claude' ? 60_000 : 0))
+      try { sbx = await d.sandbox.resume(id, { timeoutMs: LOGIN_IDLE_MS + wait }) } catch { return ranOut() }
+      await keepAlive(id, at, LOGIN_IDLE_MS + wait)
+      if (h === 'claude' && code) await sbx.run(`timeout 5 bash -c ${q(`printf '%s\\r' ${q(code)} > ${q(`${dirOf(sbx)}/in`)}`)}`)
+      const end = Date.now() + wait
       let r = await read(sbx)
       while (!r.status) {
         if (Date.now() >= end) return { state: 'pending' }
@@ -186,6 +210,8 @@ export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
       if (ok) { await setState(user, h, 'signed-in'); return { state: 'signed-in' } }
       return { state: await state(user, h), error: lastLine(r.out) }
     },
+
+    cancel: dropPending,
 
     async signOut(user, h) {
       await dropPending(user, h)

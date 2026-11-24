@@ -112,6 +112,30 @@ test('R5.4: one job of a user and harness at a time: a second job waits for the 
   assert.equal(sandbox.created, 1)
 })
 
+test('R5.8: jobs of one sandbox wait in line and get it in the order they came, each told how many are ahead', async () => {
+  const { agents } = await setup()
+  const s1 = await agents.session('alice', { harness: 'fake' })
+  const order: string[] = [], waits: Record<string, number[]> = { b: [], c: [] }
+  const next = (name: 'b' | 'c') => agents.session('alice', { harness: 'fake', onWait: (w) => { assert.equal(w.for, 'sandbox'); waits[name]!.push(w.ahead) } })
+    .then(async (s) => { order.push(name); await new Promise((r) => setTimeout(r, 300)); await s.close() })
+  const b = next('b')
+  await new Promise((r) => setTimeout(r, 300))
+  const c = next('c')
+  await new Promise((r) => setTimeout(r, 1500))
+  assert.deepEqual(order, [], 'both wait while the first job runs')
+  await s1.close()
+  await Promise.all([b, c])
+  assert.deepEqual(order, ['b', 'c'])
+  assert.deepEqual([waits.b, waits.c], [[0], [1, 0]])
+})
+
+test('R5.8: several messages go to one agent in one job, which reads them all and decides the order', async () => {
+  const { agents } = await setup()
+  const ev = await collect(agents.run('alice', { harness: 'fake', task: ['water the plants', 'call mom'] }))
+  assert.deepEqual(ev.find((e) => e.type === 'text'), { type: 'text', text: 'fake harness: You have 2 messages from the user. Read them all first, then decide the order to do them in, and do each one.' })
+  assert.equal(ev.at(-1)?.type, 'end')
+})
+
 test('R5.4: with waitMs, a job that cannot get the user\'s sandbox in time fails, and the first job is not touched', async () => {
   const { agents } = await setup({}, { waitMs: 300 })
   const s1 = await agents.session('alice', { harness: 'fake' })

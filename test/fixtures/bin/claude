@@ -23,6 +23,13 @@ case "$1" in
       logout) rm -f "$CLAUDE_CONFIG_DIR/.credentials.json" ;;
     esac ;;
   -p)
+    if [[ "$*" == *"--input-format stream-json"* ]]; then
+      # the initialize control request, as Claude Code 2.1.330 answers it: the models this login may use
+      read -r line
+      echo '{"type":"control_response","response":{"subtype":"success","request_id":"byoa-models","response":{"models":[{"value":"default","displayName":"Default (recommended)","description":"Sonnet 5.5","supportsEffort":true,"supportedEffortLevels":["low","medium","high"]},{"value":"opus","resolvedModel":"claude-opus-5-5","displayName":"Opus","description":"Opus 5.5","supportsEffort":true,"supportedEffortLevels":["low","high","max"]},{"value":"haiku","displayName":"Haiku","description":"Haiku 5.5","supportsEffort":false}]}}}'
+      cat >/dev/null
+      exit 0
+    fi
     task=$(cat)
     echo '{"type":"system","subtype":"init","session_id":"s1","tools":[]}'
     if [[ "$task" == *cred* ]]; then

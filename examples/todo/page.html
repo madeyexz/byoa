@@ -69,7 +69,20 @@ async function refresh() {
     || '<li class="muted">No to-dos yet. Ask the agent to add some.</li>'
 }
 
-const finished = (r) => { $('signin').innerHTML = r.error ? `<p class="bad">${esc(r.error)}</p>` : ''; refresh() }
+// The sign-in sandbox lives only while this page checks in (finishLogin every 30 s or more often); Cancel, or leaving
+// the page, ends it at once (cancelLogin).
+let signingIn
+const endSignIn = () => { clearInterval(signingIn?.beat); signingIn = undefined }
+const finished = (r) => { endSignIn(); $('signin').innerHTML = r.error ? `<p class="bad">${esc(r.error)}</p>` : ''; refresh() }
+const cancelSignIn = () => {
+  if (!signingIn) return
+  const h = signingIn.h
+  endSignIn()
+  $('signin').innerHTML = ''
+  refresh()
+  return api('POST', '/api/login/cancel', { harness: h })
+}
+addEventListener('pagehide', () => { if (signingIn) navigator.sendBeacon(`/api/login/cancel?user=${encodeURIComponent(user.value.trim())}`, JSON.stringify({ harness: signingIn.h })) })
 $('plans').onclick = async (e) => {
   const h = e.target.dataset.login
   if (!h) return
@@ -77,17 +90,24 @@ $('plans').onclick = async (e) => {
   $('signin').innerHTML = '<p class="muted">Starting the sign-in…</p>'
   try {
     const s = await api('POST', '/api/login', { harness: h })
+    signingIn = { h }
+    const cancel = '<button class="quiet" id="cancel">Cancel</button>'
     if (h === 'claude') {
       $('signin').innerHTML = `<p>Open <a href="${esc(s.url)}" target="_blank" rel="noopener">Anthropic's sign-in page</a>, sign in, and paste the code it shows:</p>
-        <div class="row"><input id="code" size="40"><button id="finish">Finish</button></div>`
+        <div class="row"><input id="code" size="40"><button id="finish">Finish</button>${cancel}</div>`
+      $('cancel').onclick = cancelSignIn
+      // while the user is on Anthropic's page: a check-in with no code keeps the sign-in alive
+      signingIn.beat = setInterval(() => api('POST', '/api/login/finish', { harness: h }).then((r) => { if (r.state !== 'pending' && signingIn?.h === h) finished(r) }, () => {}), 30_000)
       $('finish').onclick = () => api('POST', '/api/login/finish', { harness: h, code: $('code').value }).then(finished, fail)
     } else {
-      $('signin').innerHTML = `<p>Open <a href="${esc(s.url)}" target="_blank" rel="noopener">OpenAI's sign-in page</a> and enter the code <b>${esc(s.code)}</b>. Waiting for you…</p>`
+      $('signin').innerHTML = `<p>Open <a href="${esc(s.url)}" target="_blank" rel="noopener">OpenAI's sign-in page</a> and enter the code <b>${esc(s.code)}</b>. Waiting for you… ${cancel}</p>`
+      $('cancel').onclick = cancelSignIn
+      // each call waits up to 20 s for the user, and keeps the sign-in alive
       let r
-      do r = await api('POST', '/api/login/finish', { harness: h }); while (r.state === 'pending')
-      finished(r)
+      do r = await api('POST', '/api/login/finish', { harness: h }); while (r.state === 'pending' && signingIn?.h === h)
+      if (signingIn?.h === h) finished(r)
     }
-  } catch (err) { fail(err) }
+  } catch (err) { endSignIn(); fail(err) }
 }
 
 $('connect').onclick = () => api('POST', '/api/connect', {}).then(refresh, fail)

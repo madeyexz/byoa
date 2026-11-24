@@ -71,4 +71,8 @@ export interface SandboxProvider {
   destroy(id: string): Promise<void>
   /** Deletes a volume and its files, when the app deletes a user. */
   deleteVolume(name: string): Promise<void>
+  /** A sandbox that is not kept: the provider ends it `ms` from now, sooner or later than before; each call sets the
+   *  time again. byoa uses it for the sign-in sandbox, which lives only while the app checks in (R1.7). Optional: a
+   *  provider that cannot change a sandbox's time keeps the time it was created with. */
+  keepAlive?(id: string, ms: number): Promise<void>
 }

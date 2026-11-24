@@ -14,6 +14,8 @@ export function localSandbox(opts: { root?: string; volumes?: string; env?: Reco
   /** The sandboxes that exist, running or paused; and the paused ones. */
   const live = new Set<string>(), paused = new Set<string>()
   const background = new Map<string, number[]>()
+  /** keepAlive's timers: the sandbox is destroyed when one fires. */
+  const ends = new Map<string, ReturnType<typeof setTimeout>>()
   const foreground = new Map<string, Set<ReturnType<typeof spawn>>>()
   mkdirSync(root, { recursive: true })
   const stopBackground = (id: string) => {
@@ -29,6 +31,8 @@ export function localSandbox(opts: { root?: string; volumes?: string; env?: Reco
   const destroy = (id: string) => {
     live.delete(id)
     paused.delete(id)
+    clearTimeout(ends.get(id))
+    ends.delete(id)
     stopBackground(id)
     rmSync(id, { recursive: true, force: true })
   }
@@ -101,6 +105,11 @@ export function localSandbox(opts: { root?: string; volumes?: string; env?: Reco
     async destroy(id) { destroy(id) },
     async deleteVolume(name) {
       rmSync(join(volumes, name), { recursive: true, force: true })
+    },
+    async keepAlive(id, ms) {
+      if (!live.has(id)) throw new SandboxGoneError(`byoa local sandbox: no sandbox ${id}`)
+      clearTimeout(ends.get(id))
+      ends.set(id, setTimeout(() => destroy(id), ms).unref())
     },
   }
 }
