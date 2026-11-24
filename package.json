@@ -1,6 +1,6 @@
 {
   "name": "byoa",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Run your users' own Claude Code or Codex in any sandbox, with their MCP connections and skills. A library for your own backend.",
   "license": "Apache-2.0",
   "repository": {

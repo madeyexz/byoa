@@ -152,14 +152,14 @@ The picture shows `sandboxPer: 'job'`. By default, step 1 resumes the user's san
 
 ## Install
 
-byoa is not on npm yet. Until version 1, install it from GitHub:
+Install byoa from npm:
 
 ```sh
-npm install github:madeyexz/byoa     # npm builds it on install
-bun add github:madeyexz/byoa        # Bun loads its TypeScript source
+npm install byoa
+bun add byoa
 ```
 
-From version 1: `npm install byoa` or `bun add byoa`. For E2B, also install `e2b`. byoa needs Node 22.18 or later, or Bun.
+Also install the sandbox SDK that your app uses: `e2b` for E2B, `@daytona/sdk` for Daytona. Instabox and the local sandbox need none. byoa needs Node 22.18 or later, or Bun. To use the newest commit on `main` before it is released, install from GitHub: `npm install github:madeyexz/byoa`.
 
 ## Agent skill
 

@@ -67,7 +67,7 @@ const ABOUT = {
   'What byoa is, and what it is not': 'a library in your own backend, not a hosted service',
   'Why byoa': "the user's plan pays, the real agents, any sandbox, connect once",
   'How it works': 'agents.run, the MCP proxy and job tokens, and a new sandbox for each job',
-  'Install': 'from GitHub until version 1; Node 22.18 or later, or Bun',
+  'Install': 'npm install byoa, and the sandbox SDK; Node 22.18 or later, or Bun',
   'Agent skill': 'a skill that teaches a coding agent to add byoa to an app',
   'How it will look': 'the API: createAgents, connectLogin/finishLogin, connectMcp/finishMcp, agents.run and its events, agents.session, jobToken, importMcp, fetchWithGrant, the AI login options, Daytona and Convex',
   'Test your app without a plan or a sandbox': "the fake harness, the local sandbox and memoryStore; byoa's own tests",

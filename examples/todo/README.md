@@ -36,7 +36,7 @@ BYOA_KEY=$(openssl rand -base64 32) FAKE=1 npm start
 
 Open http://127.0.0.1:3000, type a name, click **Connect my to-dos**, select **Fake harness**, and ask with lines such as `call todos.add_todo {"title":"Buy milk"}`. The fake harness runs no model: each line `call <server>.<tool> <json>` is one MCP call through the real proxy.
 
-In your own app, install byoa with `npm install github:madeyexz/byoa` instead.
+In your own app, install byoa with `npm install byoa` instead.
 
 ### Settings
 

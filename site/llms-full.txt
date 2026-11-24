@@ -115,14 +115,14 @@ The picture shows `sandboxPer: 'job'`. By default, step 1 resumes the user's san
 
 ## Install
 
-byoa is not on npm yet. Until version 1, install it from GitHub:
+Install byoa from npm:
 
 ```sh
-npm install github:madeyexz/byoa     # npm builds it on install
-bun add github:madeyexz/byoa        # Bun loads its TypeScript source
+npm install byoa
+bun add byoa
 ```
 
-From version 1: `npm install byoa` or `bun add byoa`. For E2B, also install `e2b`. byoa needs Node 22.18 or later, or Bun.
+Also install the sandbox SDK that your app uses: `e2b` for E2B, `@daytona/sdk` for Daytona. Instabox and the local sandbox need none. byoa needs Node 22.18 or later, or Bun. To use the newest commit on `main` before it is released, install from GitHub: `npm install github:madeyexz/byoa`.
 
 ## Agent skill
 
@@ -491,14 +491,14 @@ The full API, with every option and event, is in [reference/api.md](https://gith
 
 ## 1. Install
 
-byoa is not on npm yet. Install it from GitHub:
+Install byoa from npm:
 
 ```sh
-npm install github:madeyexz/byoa     # npm builds it on install
-bun add github:madeyexz/byoa        # Bun loads its TypeScript source
+npm install byoa
+bun add byoa
 ```
 
-Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona; Instabox needs none. byoa needs Node 22.18 or later, or Bun. Do not write `npm install byoa`: that package is not byoa until version 1.
+Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona; Instabox needs none. byoa needs Node 22.18 or later, or Bun.
 
 ## 2. One createAgents
 
@@ -880,7 +880,7 @@ BYOA_KEY=$(openssl rand -base64 32) FAKE=1 npm start
 
 Open http://127.0.0.1:3000, type a name, click **Connect my to-dos**, select **Fake harness**, and ask with lines such as `call todos.add_todo {"title":"Buy milk"}`. The fake harness runs no model: each line `call <server>.<tool> <json>` is one MCP call through the real proxy.
 
-In your own app, install byoa with `npm install github:madeyexz/byoa` instead.
+In your own app, install byoa with `npm install byoa` instead.
 
 ### Settings
 

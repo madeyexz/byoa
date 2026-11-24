@@ -1,7 +1,9 @@
 # Publishes byoa to npm, with provenance, when a maintainer pushes a tag v<version> that matches package.json.
 # It runs in the `npm` environment: set required reviewers on it (Settings → Environments), so nothing is published
-# until a maintainer approves the run. Auth: the NPM_TOKEN secret of that environment (an npm automation token) for
-# the first release; after it, set up trusted publishing for this workflow on npmjs.com and delete the token.
+# until a maintainer approves the run. Auth: the NPM_TOKEN secret of that environment (an npm granular access token
+# with read and write access and Bypass 2FA) for the first release, because npm sets up trusted publishing only for a
+# package that exists; after it, set up trusted publishing for this workflow on npmjs.com and delete the token.
+# No dependency cache here, so a poisoned cache cannot reach a release.
 name: release
 on:
   push:
@@ -17,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 24, cache: npm, registry-url: 'https://registry.npmjs.org' }
+        with: { node-version: 24, registry-url: 'https://registry.npmjs.org' }
       - name: The tag matches package.json
         run: test "v$(node -p 'require(\"./package.json\").version')" = "$GITHUB_REF_NAME"
       - run: npm ci

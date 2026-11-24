@@ -2,11 +2,11 @@
 
 > byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend.
 
-byoa is an open-source library (Apache 2.0). It runs inside the app's own backend; it is not a hosted service. byoa is not on npm yet. Until version 1, install it from GitHub:
+byoa is an open-source library (Apache 2.0). It runs inside the app's own backend; it is not a hosted service. Install byoa from npm:
 
 ```sh
-npm install github:madeyexz/byoa     # npm builds it on install
-bun add github:madeyexz/byoa        # Bun loads its TypeScript source
+npm install byoa
+bun add byoa
 ```
 
 ## Docs
@@ -16,7 +16,7 @@ bun add github:madeyexz/byoa        # Bun loads its TypeScript source
 - [README: What byoa is, and what it is not](https://github.com/madeyexz/byoa/blob/main/README.md#what-byoa-is-and-what-it-is-not): a library in your own backend, not a hosted service
 - [README: Why byoa](https://github.com/madeyexz/byoa/blob/main/README.md#why-byoa): the user's plan pays, the real agents, any sandbox, connect once
 - [README: How it works](https://github.com/madeyexz/byoa/blob/main/README.md#how-it-works): agents.run, the MCP proxy and job tokens, and a new sandbox for each job
-- [README: Install](https://github.com/madeyexz/byoa/blob/main/README.md#install): from GitHub until version 1; Node 22.18 or later, or Bun
+- [README: Install](https://github.com/madeyexz/byoa/blob/main/README.md#install): npm install byoa, and the sandbox SDK; Node 22.18 or later, or Bun
 - [README: Agent skill](https://github.com/madeyexz/byoa/blob/main/README.md#agent-skill): a skill that teaches a coding agent to add byoa to an app
 - [README: How it will look](https://github.com/madeyexz/byoa/blob/main/README.md#how-it-will-look): the API: createAgents, connectLogin/finishLogin, connectMcp/finishMcp, agents.run and its events, agents.session, jobToken, importMcp, fetchWithGrant, the AI login options, Daytona and Convex
 - [README: Test your app without a plan or a sandbox](https://github.com/madeyexz/byoa/blob/main/README.md#test-your-app-without-a-plan-or-a-sandbox): the fake harness, the local sandbox and memoryStore; byoa's own tests

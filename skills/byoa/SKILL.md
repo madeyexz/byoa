@@ -13,14 +13,14 @@ The full API, with every option and event, is in [reference/api.md](reference/ap
 
 ## 1. Install
 
-byoa is not on npm yet. Install it from GitHub:
+Install byoa from npm:
 
 ```sh
-npm install github:madeyexz/byoa     # npm builds it on install
-bun add github:madeyexz/byoa        # Bun loads its TypeScript source
+npm install byoa
+bun add byoa
 ```
 
-Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona; Instabox needs none. byoa needs Node 22.18 or later, or Bun. Do not write `npm install byoa`: that package is not byoa until version 1.
+Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona; Instabox needs none. byoa needs Node 22.18 or later, or Bun.
 
 ## 2. One createAgents
 
