@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, registry-url: 'https://registry.npmjs.org' }
       - name: The tag matches package.json
-        run: test "v$(node -p 'require(\"./package.json\").version')" = "$GITHUB_REF_NAME"
+        run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
       - run: npm ci
       - run: npm run typecheck
       - name: Install the pinned Codex for V10
