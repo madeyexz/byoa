@@ -1,13 +1,14 @@
-// V12: the README and the agent skill (skills/byoa) name only the API that byoa has (R7.3). An agent that reads the
+// V12: the README, the docs (docs/) and the agent skill (skills/byoa) name only the API that byoa has (R7.3). An agent that reads the
 // skill writes the names it finds there, so a renamed method or export must fail here, not in the agent's app.
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { test } from 'node:test'
 import { createAgents, memoryStore, type SandboxProvider } from '../src/index.ts'
 
 const ROOT = new URL('../', import.meta.url)
-const DOCS = ['README.md', 'skills/byoa/SKILL.md', 'skills/byoa/reference/api.md']
+const DOCS = ['README.md', 'skills/byoa/SKILL.md', 'skills/byoa/reference/api.md',
+  ...readdirSync(new URL('docs/', ROOT)).filter((f) => f.endsWith('.md')).map((f) => `docs/${f}`)]
 const text = (p: string) => readFileSync(new URL(p, ROOT), 'utf8')
 const pkg: { name: string; exports: Record<string, { bun: string }> } = JSON.parse(text('package.json'))
 /** The package name, such as `@madeyexz/byoa`, as a regular expression with the subpath after it. */
@@ -16,7 +17,7 @@ const SPEC = `${pkg.name.replace(/[/]/g, '\\/')}(?:\\/[\\w/]+)?`
 /** The source file of an import specifier such as `@madeyexz/byoa/sandbox/e2b`. */
 const module = (spec: string) => import(new URL(pkg.exports[spec === pkg.name ? '.' : `.${spec.slice(pkg.name.length)}`]!.bun, ROOT).href)
 
-test('every agents.* method in the README and the skill is one that createAgents returns', () => {
+test('every agents.* method in the README, the docs and the skill is one that createAgents returns', () => {
   const agents = createAgents({
     app: 'docs', sandbox: {} as SandboxProvider, store: memoryStore(), encryptionKey: randomBytes(32).toString('base64'),
     proxyUrl: 'http://127.0.0.1/byoa/mcp', oauth: { redirectUrl: 'http://127.0.0.1/byoa/callback' },
@@ -29,7 +30,7 @@ test('every agents.* method in the README and the skill is one that createAgents
   assert.deepEqual([...names].filter((n) => !(n in agents)), [])
 })
 
-test('every name the README and the skill import from byoa is exported there', async () => {
+test('every name the README, the docs and the skill import from byoa is exported there', async () => {
   const want = new Map<string, Set<string>>()
   const add = (spec: string, name: string) => { if (!want.has(spec)) want.set(spec, new Set()); want.get(spec)!.add(name) }
   for (const p of DOCS) {

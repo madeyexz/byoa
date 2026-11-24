@@ -9,24 +9,31 @@ npm install @madeyexz/byoa
 bun add @madeyexz/byoa
 ```
 
-## Docs
+## Start
 
-- [README: Who brings what](https://github.com/madeyexz/byoa/blob/main/README.md#who-brings-what): what the app developer brings, what each end user brings, and where byoa runs
-- [README: The problem](https://github.com/madeyexz/byoa/blob/main/README.md#the-problem): the connection layer each AI-native app builds again
-- [README: What byoa is, and what it is not](https://github.com/madeyexz/byoa/blob/main/README.md#what-byoa-is-and-what-it-is-not): a library in your own backend, not a hosted service
-- [README: Why byoa](https://github.com/madeyexz/byoa/blob/main/README.md#why-byoa): the user's plan pays, the real agents, any sandbox, connect once
-- [README: How it works](https://github.com/madeyexz/byoa/blob/main/README.md#how-it-works): agents.run, the MCP proxy and job tokens, and a new sandbox for each job
-- [README: Install](https://github.com/madeyexz/byoa/blob/main/README.md#install): npm install @madeyexz/byoa, and the sandbox SDK; Node 22.18 or later, or Bun
-- [README: Agent skill](https://github.com/madeyexz/byoa/blob/main/README.md#agent-skill): a skill that teaches a coding agent to add byoa to an app
-- [README: How it will look](https://github.com/madeyexz/byoa/blob/main/README.md#how-it-will-look): the API: createAgents, connectLogin/finishLogin, connectMcp/finishMcp, agents.run and its events, agents.session, jobToken, importMcp, fetchWithGrant, the AI login options, Daytona and Convex
-- [README: Test your app without a plan or a sandbox](https://github.com/madeyexz/byoa/blob/main/README.md#test-your-app-without-a-plan-or-a-sandbox): the fake harness, the local sandbox and memoryStore; byoa's own tests
-- [README: Example app](https://github.com/madeyexz/byoa/blob/main/README.md#example-app): the to-do example on byoa
-- [README: How we will verify it](https://github.com/madeyexz/byoa/blob/main/README.md#how-we-will-verify-it): the checks that define version 1
-- [README: Rules we follow](https://github.com/madeyexz/byoa/blob/main/README.md#rules-we-follow): the labs' rules that byoa and every app on it follow
-- [README: License](https://github.com/madeyexz/byoa/blob/main/README.md#license): Apache 2.0
-- [SPEC.md](https://raw.githubusercontent.com/madeyexz/byoa/main/SPEC.md): the version 1 requirements (R1 to R7) and the checks (V1 to V20)
-- [SPEC.md: Lab rules](https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules): what Anthropic's and OpenAI's terms allow, and what byoa and each app must do
-- [Full docs](https://byoa.rippling.computer/llms-full.txt): the README, SPEC.md, the example and the skill in one file
+- [Getting started](https://byoa.rippling.computer/docs/getting-started.md): install byoa, make one `agents` object, serve its two routes, sign a user in and run a first job
+- [Concepts](https://byoa.rippling.computer/docs/concepts.md): who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox
+
+## Guides
+
+- [AI login](https://byoa.rippling.computer/docs/ai-login.md): the sign-in on the lab's own page, where the login stays between jobs, one job step by step, the shared Codex login, and sign-out
+- [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle.md): every sandbox byoa creates, from creation to removal, what each provider does, and what happens when your backend dies
+- [MCP tools and the proxy](https://byoa.rippling.computer/docs/mcp.md): connect a user's MCP servers once, the proxy and job tokens, your app's own tools, and calls with a user's grant
+- [Running agents](https://byoa.rippling.computer/docs/running-agents.md): `agents.run` and its events, what the agent may do, sandbox modes, jobs at the same time, `session` and `jobToken`
+- [Sandbox providers](https://byoa.rippling.computer/docs/providers.md): E2B, Daytona, Instabox and the local sandbox, and how to write an adapter
+- [Stores and Convex](https://byoa.rippling.computer/docs/stores.md): the store adapter, Postgres, Convex, your own database, and a table of its own for the AI logins
+- [Testing](https://byoa.rippling.computer/docs/testing.md): test your app with the fake harness, the local sandbox and the memory store, and run byoa's own tests
+
+## Reference
+
+- [API reference](https://byoa.rippling.computer/docs/api.md): every import, method, option and event
+- [Lab rules](https://byoa.rippling.computer/docs/lab-rules.md): what Anthropic's and OpenAI's terms allow, and what byoa and each app must do
+- [Security](https://byoa.rippling.computer/docs/security.md): where each secret is kept, and how to report a problem
+
+## Spec
+
+- [SPEC.md](https://raw.githubusercontent.com/madeyexz/byoa/main/SPEC.md): the version 1 requirements (R1 to R7) and the checks (V1 to V16)
+- [Full docs](https://byoa.rippling.computer/llms-full.txt): the docs, SPEC.md, the example and the skill in one file
 
 ## Example
 
@@ -36,9 +43,9 @@ bun add @madeyexz/byoa
 ## Agent skill
 
 - [skills/byoa/SKILL.md](https://raw.githubusercontent.com/madeyexz/byoa/main/skills/byoa/SKILL.md): teaches a coding agent (Claude Code, Codex, Amp and others) to add byoa to an app
-- [skills/byoa/reference/api.md](https://raw.githubusercontent.com/madeyexz/byoa/main/skills/byoa/reference/api.md): the API reference: every method, option and event
 
 ## Optional
 
+- [Docs home](https://byoa.rippling.computer/docs/index.md): the list of docs pages
 - [CONTRIBUTING.md](https://raw.githubusercontent.com/madeyexz/byoa/main/CONTRIBUTING.md): how to work on byoa
 - [Source](https://github.com/madeyexz/byoa): the repository

@@ -132,7 +132,7 @@ Version 1 is done when every check below passes. Each check names the requiremen
 | V9 | Harness update | Change the pinned Claude Code version. The next job for an existing user runs the new version. | R5.2 |
 | V10 | Config formats | For a sample plugin, the files byoa writes match the expected files for each harness, byte for byte. | R4 |
 | V11 | Unmodified binaries | The test checks the hash of the installed `claude` and `codex` binaries against the published packages. | Lab rules |
-| V12 | The docs match the API | A test checks that every `agents.*` method, and every name imported from byoa, in the README and the agent skill exists in byoa. | R7.3 |
+| V12 | The docs match the API | A test checks that every `agents.*` method, and every name imported from byoa, in the README, the docs (`docs/`) and the agent skill exists in byoa. | R7.3 |
 | V13 | The app's own tools | A job with a real harness calls a tool that the app gave as a function. The function runs in the backend for the job's user. The app has no MCP server, and the user has no grant. | R2.7 |
 | V14 | A proxy that is down | A job starts while its sandbox cannot reach the proxy. The harness does not start, and the job ends with an `mcp` error and `ok: false`. | R3.5 |
 | V15 | Read-only access | A job with a real harness and `access: 'read-only'` reads its skill and calls an MCP tool. A command that writes a file fails, and a command that opens a network connection fails. | R5.6 |

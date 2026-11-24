@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI login · byoa docs</title>
+<meta name="description" content="the sign-in on the lab's own page, where the login stays between jobs, one job step by step, the shared Codex login, and sign-out">
+<meta property="og:title" content="AI login · byoa docs">
+<meta property="og:description" content="the sign-in on the lab's own page, where the login stays between jobs, one job step by step, the shared Codex login, and sign-out">
+<meta name="theme-color" content="#f8f6f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1124" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://byoa.rippling.computer/docs/ai-login">
+<link rel="alternate" type="text/markdown" href="/docs/ai-login.md" title="This page as Markdown">
+<link rel="icon" href="/art/agent.png">
+<link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  /* The styles that the home page (template.html) and the docs pages (docs.html) share. build.mjs puts them in each page. */
+/* Geist, Geist Mono and Geist Pixel: SIL Open Font License 1.1, see fonts/OFL.txt */
+@font-face { font-family: "Geist"; src: url(/fonts/Geist-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Geist Mono"; src: url(/fonts/GeistMono-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Geist Pixel"; src: url(/fonts/GeistPixel-Square.woff2) format("woff2"); font-display: swap; }
+
+:root {
+  --paper: #f8f6f0; --paper2: #f1eee5; --card: #fffdf8;
+  --rule: #e3dfd4; --rule2: #d3cdbe;
+  --ink: #141418; --ink2: #3d3d48; --muted: #6b6977; --dim: #9895a1;
+  --cobalt: #2f4cff; --cobalt2: #2238d8; --peri: #9db6ff; --peri2: #dfe6ff;
+  --tomato: #ff5a36; --butter: #ffc93c; --mint: #2fbf8a; --navy: #121428;
+  --g: clamp(16px, 8.3vw, 120px);           /* gutter: the ruled columns at the page edges */
+  --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --pixel: "Geist Pixel", "Geist Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+img { display: block; }
+.px { image-rendering: pixelated; }
+code { font: .86em/1.4 var(--mono); background: var(--paper2); border: 1px solid var(--rule); padding: 1px 5px; }
+.pixel { font-family: var(--pixel); letter-spacing: .02em; }
+
+/* the ruled frame: every band sits between two vertical rules, like a page of graph paper */
+.band { border-bottom: 1px solid var(--rule); position: relative; }
+.frame { margin: 0 var(--g); border-left: 1px solid var(--rule); border-right: 1px solid var(--rule); position: relative; }
+.frame.pad { padding: 104px clamp(20px, 4vw, 56px); }
+.dot::before, .dot::after { content: ""; position: absolute; width: 5px; height: 5px; background: var(--ink); top: -3px; z-index: 3; }
+.dot::before { left: -3px; } .dot::after { right: -3px; }
+
+/* nav */
+nav.top { position: sticky; top: 0; z-index: 30; background: rgba(248,246,240,.97); border-bottom: 1px solid var(--rule); }
+nav.top .row { display: flex; height: 56px; }
+nav.top a { display: flex; align-items: center; padding: 0 18px; text-decoration: none; font-size: 15px; border-right: 1px solid var(--rule); color: var(--ink2); white-space: nowrap; }
+nav.top a:hover { background: var(--paper2); color: var(--ink); }
+nav.top .brand { gap: 9px; font-weight: 640; font-size: 19px; letter-spacing: -.02em; color: var(--ink); width: var(--g); min-width: 120px; padding: 0 14px; }
+nav.top .brand img { width: 18px; height: auto; }
+nav.top .sp { flex: 1; }
+nav.top .r { border-right: 0; border-left: 1px solid var(--rule); }
+nav.top .gh { background: var(--ink); color: var(--paper); border: 0; gap: 10px; }
+nav.top .gh:hover { background: #000; color: #fff; }
+.chev { display: inline-block; width: 10px; height: 10px; background:
+  linear-gradient(currentColor,currentColor) 0 0/3px 3px no-repeat, linear-gradient(currentColor,currentColor) 3px 3px/3px 3px no-repeat,
+  linear-gradient(currentColor,currentColor) 6px 3px/0 0 no-repeat, linear-gradient(currentColor,currentColor) 0 6px/3px 3px no-repeat; }
+
+/* buttons */
+.btn { display: inline-flex; align-items: center; gap: 12px; padding: 13px 18px; font-size: 16px; font-weight: 520; text-decoration: none; background: var(--paper2); border: 1px solid var(--rule); color: var(--ink); transition: background .12s; }
+.btn:hover { background: #e9e5da; }
+.btn.dark { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.dark:hover { background: #000; }
+.btn .ico { width: 30px; height: 30px; margin: -6px 0 -6px -8px; display: grid; place-items: center; background: var(--cobalt); }
+.btn .ico img { width: 20px; }
+
+.badge { font: 11px var(--pixel); letter-spacing: .08em; padding: 3px 7px 2px; line-height: 1.2; display: inline-block; }
+.badge.v1 { background: var(--cobalt); color: #fff; }
+.badge.plan { background: var(--butter); color: var(--ink); }
+.badge.maybe { border: 1px dashed var(--rule2); color: var(--muted); }
+.badge.done { background: var(--mint); color: #fff; }
+
+/* who brings what: one box-drawing diagram, set in Geist Mono so every column lines up */
+.ascii-wrap { container-type: inline-size; margin: 8px auto 0; text-align: left; }
+/* a cell width of whole pixels (Geist Mono is .6em wide) and a whole-pixel line height keep the box lines unbroken */
+.ascii { --fs: round(down, min(16.67px, calc(100cqw / (var(--cols) * .6))), 1.6667px);
+  margin: 0 auto; width: max-content; font-family: var(--mono); font-weight: 400; letter-spacing: 0; -webkit-text-size-adjust: none; text-size-adjust: none;
+  font-size: var(--fs); line-height: round(nearest, calc(var(--fs) * 1.3), 1px); color: var(--ink); white-space: pre; font-variant-ligatures: none; }
+.ascii .l { color: var(--muted); letter-spacing: 0; }
+.ascii .k { color: var(--ink2); }
+.ascii .a { color: var(--ink2); }
+.ascii .u { color: var(--ink); font-weight: 500; }
+.ascii .t { color: var(--ink); }
+.ascii .m { color: var(--muted); }
+.ascii .x { color: var(--cobalt); font-weight: 600; }
+.ascii .p { color: #d93d1a; }
+.ascii .c { color: var(--tomato); }
+.ascii .o { color: var(--cobalt); font-weight: 700; }
+.ascii .bn { color: var(--cobalt); font-weight: 700; }
+.ascii .bs { color: var(--cobalt); }
+.ascii.narrow { display: none; }
+
+footer { background: var(--navy); color: #8b90b0; font-size: 14px; }
+footer .frame { border-color: rgba(255,255,255,.1); display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; padding: 22px 24px 30px; }
+footer a { color: #b8bdd8; text-decoration: none; }
+
+  /* ---- the docs: the home page's ruled frame, with a menu on the left and the page's headings on the right */
+  :root { color-scheme: light dark; --code: #121428; --flow-on: var(--cobalt); }
+  @media (prefers-color-scheme: dark) {
+    /* the home page's palette on the navy of its closing band, as in the README's dark images */
+    :root { --paper: #0f1124; --paper2: #151833; --card: #161a36; --rule: #2a2f57; --rule2: #3c4274;
+      --ink: #f3f1ea; --ink2: #c9cadc; --muted: #9195b6; --dim: #6b6f90; --peri2: #232a5c; --cobalt: #8ea6ff; --code: #0a0c1c; --flow-on: #8ea6ff; }
+    nav.top .gh { background: var(--ink); color: var(--paper); }
+    nav.top .gh:hover { background: #fff; color: #000; }
+    .badge.plan { color: #141418; }
+    .ascii .x, .ascii .o, .ascii .bn, .ascii .bs { color: var(--peri); }
+    .ascii .p { color: var(--tomato); }
+  }
+  body { font-size: 16.5px; }
+  nav.top { background: var(--paper); }
+  nav.top .menu { display: none; border-right: 1px solid var(--rule); background: none; border-top: 0; border-bottom: 0; border-left: 0; color: var(--ink2); font: 15px var(--sans); padding: 0 16px; cursor: pointer; }
+  nav.top a[aria-current] { color: var(--ink); background: var(--paper2); }
+  .search { position: relative; display: flex; align-items: center; border-left: 1px solid var(--rule); }
+  .search input { width: 220px; height: 56px; border: 0; background: transparent; color: var(--ink); font: 15px var(--sans); padding: 0 16px; outline: none; }
+  .search input::placeholder { color: var(--dim); }
+  .search input:focus { background: var(--paper2); }
+  .search kbd { position: absolute; right: 12px; font: 11px var(--mono); color: var(--dim); border: 1px solid var(--rule); padding: 1px 5px; pointer-events: none; }
+  .search input:focus + kbd, .search input:not(:placeholder-shown) + kbd { display: none; }
+  .results { position: absolute; top: 56px; right: 0; width: min(480px, 100vw); max-height: 70vh; overflow: auto; background: var(--card); border: 1px solid var(--rule2); box-shadow: 0 12px 40px rgba(0,0,0,.18); z-index: 40; }
+  nav.top .results a { display: block; padding: 11px 16px; border: 0; border-bottom: 1px solid var(--rule); text-decoration: none; white-space: normal; color: var(--ink); font-size: 15px; }
+  nav.top .results a:hover, nav.top .results a.sel { background: var(--paper2); }
+  .results b { display: block; font-weight: 560; font-size: 15px; }
+  .results span { display: block; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+  .results mark { background: var(--peri2); color: inherit; }
+  .results .none { padding: 14px 16px; color: var(--muted); font-size: 14px; }
+
+  .docs { display: grid; grid-template-columns: 248px minmax(0, 1fr) 216px; min-height: calc(100vh - 57px); }
+  .side, .toc { position: sticky; top: 57px; align-self: start; max-height: calc(100vh - 57px); overflow: auto; padding: 28px 0 40px; }
+  .side { border-right: 1px solid var(--rule); }
+  .side ul { list-style: none; margin: 0 0 18px; padding: 0; }
+  .side .ng { font: 11px var(--pixel); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 0 22px 8px; display: flex; align-items: center; gap: 8px; }
+  .side .ng::before { content: ""; width: 6px; height: 6px; background: var(--butter); }
+  .side a { display: block; padding: 6px 22px; text-decoration: none; color: var(--ink2); font-size: 15px; border-left: 3px solid transparent; }
+  .side a:hover { color: var(--ink); background: var(--paper2); }
+  .side a[aria-current] { color: var(--ink); font-weight: 560; border-left-color: var(--cobalt); background: var(--paper2); }
+  .toc { border-left: 1px solid var(--rule); padding-left: 0; font-size: 13.5px; }
+  .toc-h { font: 11px var(--pixel); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 0 20px 8px; }
+  .toc ul { list-style: none; margin: 0; padding: 0; }
+  .toc a { display: block; padding: 4px 20px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; }
+  .toc a:hover { color: var(--ink); }
+  .toc a.on { color: var(--ink); border-left-color: var(--cobalt); }
+  .toc code { font-size: .9em; padding: 0 3px; }
+  .tools { margin: 22px 20px 0; padding-top: 14px; border-top: 1px solid var(--rule); display: grid; gap: 6px; }
+  .tools a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  .tools a:hover { color: var(--ink); }
+
+  main { min-width: 0; padding: 48px clamp(20px, 4vw, 64px) 72px; }
+  .kick { font: 12px var(--pixel); letter-spacing: .12em; color: var(--cobalt); text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+  .kick::before { content: ""; width: 8px; height: 8px; background: currentColor; }
+  article { max-width: 760px; }
+  article h1 { font-size: clamp(36px, 4.4vw, 54px); line-height: 1.02; letter-spacing: -.045em; font-weight: 560; margin: 0 0 22px; }
+  article h2 { font-size: 30px; line-height: 1.1; letter-spacing: -.035em; font-weight: 560; margin: 56px 0 14px; padding-top: 22px; border-top: 1px solid var(--rule); }
+  article h3 { font-size: 21px; line-height: 1.2; letter-spacing: -.02em; font-weight: 580; margin: 34px 0 10px; }
+  article h4 { font-size: 17px; margin: 26px 0 8px; }
+  article :is(h2, h3, h4) { position: relative; scroll-margin-top: 76px; }
+  article .anchor { position: absolute; left: -1.1em; width: 1em; color: var(--dim); text-decoration: none; opacity: 0; font-weight: 400; }
+  article :is(h2, h3, h4):hover .anchor { opacity: 1; }
+  article p, article li { color: var(--ink2); }
+  article :is(p, ul, ol) { margin: 0 0 16px; }
+  article :is(ul, ol) { padding-left: 22px; }
+  article li { margin: 4px 0; }
+  article li::marker { color: var(--muted); }
+  article strong { color: var(--ink); font-weight: 600; }
+  article a { color: var(--cobalt); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--cobalt) 35%, transparent); text-underline-offset: 3px; }
+  article a:hover { text-decoration-color: currentColor; }
+  article code { font-size: .84em; word-break: break-word; }
+  article a code { color: inherit; }
+  article blockquote { margin: 0 0 16px; padding: 12px 18px; border-left: 3px solid var(--butter); background: var(--paper2); }
+  article blockquote p:last-child { margin: 0; }
+  article hr { border: 0; border-top: 1px solid var(--rule); margin: 32px 0; }
+  .code { margin: 0 0 20px; background: var(--code); border: 1px solid #000; }
+  .code pre.shiki { margin: 0; padding: 14px 18px; overflow-x: auto; background: transparent !important; }
+  .code pre.shiki code { background: none; border: 0; padding: 0; font: 13px/1.62 var(--mono); word-break: normal; }
+  .tbl { overflow-x: auto; margin: 0 0 20px; border: 1px solid var(--rule); background: var(--card); }
+  .tbl table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  .tbl :is(th, td) { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--rule); border-right: 1px solid var(--rule); }
+  .tbl :is(th, td):last-child { border-right: 0; }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .tbl th { font-weight: 560; background: var(--paper2); color: var(--ink); }
+  .tbl td { color: var(--ink2); }
+  .diagram { margin: 8px 0 24px; padding: 28px 12px; border: 1px solid var(--rule); background: var(--paper2); }
+  .diagram .ascii-wrap { margin: 0 auto; }
+
+  /* flow diagrams (build.mjs draws them from ```flow blocks; docs.js lays them out) */
+  .flow { margin: 10px 0 28px; padding: 18px 18px 20px; border: 1px solid var(--rule); background: var(--card); }
+  .flow .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--muted); margin-bottom: 16px; }
+  .flow .lg { display: inline-flex; align-items: center; gap: 7px; }
+  .flow .lg::before { content: ""; width: 26px; height: 0; border-top: 1px solid var(--muted); }
+  .flow .lg.on::before { border-top: 3px solid var(--flow-on); }
+  .flow .lg.dia::before { width: 10px; height: 10px; border: 1px solid var(--muted); transform: rotate(45deg); margin: 0 3px; }
+  .flow .lg.tb::before { display: none; }
+  .flow .seg { display: inline-flex; border: 1px solid var(--rule2); margin-bottom: 12px; flex-wrap: wrap; }
+  .flow .seg button { font: 14px var(--sans); background: transparent; color: var(--ink2); border: 0; border-right: 1px solid var(--rule2); padding: 8px 14px; cursor: pointer; }
+  .flow .seg button:last-child { border-right: 0; }
+  .flow .seg button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+  .flow .tabnote { font-size: 14.5px; color: var(--ink2); margin: 0 0 16px; }
+  /* the steps as a list: without JavaScript, and on a phone, where the drawing has no room for its side column */
+  .flow-list { list-style: none; margin: 0; padding: 0; counter-reset: s; font-size: 14.5px; color: var(--ink2); }
+  .flow-list > li { position: relative; margin: 0; padding: 0 0 16px 36px; }
+  .flow-list > li::before { counter-increment: s; content: counter(s); position: absolute; left: 0; top: 0; width: 23px; height: 23px; display: grid; place-items: center; font: 11px var(--pixel); background: var(--ink); color: var(--paper); }
+  .flow-list > li.k-dec::before { background: var(--butter); color: #141418; }
+  .flow-list > li.k-warn::before { background: var(--tomato); color: #fff; }
+  .flow-list > li::after { content: ""; position: absolute; left: 11px; top: 27px; bottom: 4px; width: 1px; background: var(--rule2); }
+  .flow-list > li.on::after { width: 3px; left: 10px; background: var(--flow-on); }
+  .flow-list > li:last-child::after { display: none; }
+  .flow-list b { display: block; font-weight: 560; color: var(--ink); }
+  .flow-list .nm { margin-top: 6px; }
+  .flow-list ul { list-style: none; margin: 8px 0 0; padding: 8px 12px; border: 1px dashed var(--rule2); }
+  .flow-list ul li { margin: 0; }
+  .flow-list ul i { font-style: normal; font: 11px var(--pixel); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .flow.drawn .flow-list { display: none; }
+  .flow:not(.drawn) .lg.dia { display: none; }
+  .flow-draw { position: relative; }
+  .flow-draw svg { position: absolute; left: 0; top: 0; overflow: visible; z-index: 0; }
+  .flow-draw .e { fill: none; stroke: var(--muted); stroke-width: 1; }
+  .flow-draw .e.on { stroke: var(--flow-on); stroke-width: 3; }
+  .flow-draw .e.dash { stroke-dasharray: 4 3; }
+  .flow-draw .dia { fill: var(--card); stroke: var(--rule2); stroke-width: 1; }
+  .flow-draw .lbl { font: 12px var(--sans); fill: var(--muted); paint-order: stroke; stroke: var(--card); stroke-width: 4px; }
+  .flow-draw .ah { fill: var(--muted); }
+  .flow-draw .ah.on { fill: var(--flow-on); }
+  .node { position: absolute; z-index: 1; padding: 9px 11px; background: var(--card); border: 1px solid var(--rule2); display: grid; gap: 3px; }
+  .node.end { border-color: var(--ink2); box-shadow: 3px 3px 0 var(--rule2); }
+  .node.warn { border: 1px dashed var(--tomato); }
+  .node.warn .nt::before { content: "!"; display: inline-grid; place-items: center; width: 15px; height: 15px; margin-right: 6px; background: var(--tomato); color: #fff; font: 11px var(--pixel); vertical-align: 1px; }
+  .node.dt { border: 0; background: transparent; padding: 0; text-align: center; justify-items: center; }
+  .nt { font-size: 13.5px; line-height: 18px; color: var(--ink); font-weight: 520; }
+  .nd { font-size: 12.5px; line-height: 17px; color: var(--muted); }
+  .node code, .flow-list code { font-size: 11.5px; padding: 0 3px; }
+  .nm { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+  .f-in, .f-out, .f-removed, .tb { display: inline-flex; align-items: center; font: 11px/16px var(--mono); padding: 0 6px; white-space: nowrap; max-width: 100%; }
+  .f-in { color: #fff; background: var(--flow-on); }
+  @media (prefers-color-scheme: dark) { .f-in { color: #0f1124; } }
+  .f-out, .f-removed { color: var(--muted); outline: 1px dashed var(--muted); outline-offset: -1px; }
+  .tb { color: var(--ink2); background: var(--paper2); white-space: normal; }
+  .tb::before { content: ""; width: 7px; height: 7px; margin-right: 5px; background: var(--butter); flex: none; }
+
+  .pn { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 64px; max-width: 760px; }
+  .pn a { display: grid; gap: 2px; padding: 16px 18px; border: 1px solid var(--rule); text-decoration: none; font-weight: 560; background: var(--card); }
+  .pn a:hover { border-color: var(--cobalt); }
+  .pn span { font: 11px var(--pixel); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  .pn .next { grid-column: 2; text-align: right; }
+  .edit { margin-top: 28px; font-size: 13.5px; color: var(--muted); max-width: 760px; }
+  .edit a { color: inherit; }
+  footer { background: var(--navy); color: #8b90b0; font-size: 14px; }
+  footer .frame { border-color: rgba(255,255,255,.1); display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; padding: 22px 24px 30px; }
+  footer a { color: #b8bdd8; text-decoration: none; }
+
+  @media (max-width: 1180px) { .docs { grid-template-columns: 232px minmax(0, 1fr); } .toc { display: none; } }
+  @media (max-width: 860px) {
+    nav.top .menu { display: flex; align-items: center; }
+    nav.top .opt { display: none; }
+    .search { flex: 1; } .search input { width: 100%; } .search kbd { display: none; }
+    nav.top .r:not(.gh) { display: none; }
+    .docs { grid-template-columns: minmax(0, 1fr); }
+    .side { display: none; position: fixed; inset: 57px 0 0; max-height: none; z-index: 35; background: var(--paper); border-right: 0; }
+    body.menu-open .side { display: block; }
+    main { padding: 30px 18px 56px; }
+    article h1 { font-size: 36px; }
+    article h2 { font-size: 26px; margin-top: 44px; }
+    article .anchor { display: none; }
+    .flow { padding: 14px 12px 16px; margin-left: -6px; margin-right: -6px; }
+    .diagram { margin-left: -12px; margin-right: -12px; padding: 18px 4px; }
+    .code { margin-left: -6px; margin-right: -6px; }
+    .code pre.shiki code { font-size: 12px; }
+    .pn { grid-template-columns: 1fr; } .pn .next { grid-column: 1; }
+  }
+  @media (max-width: 560px) { nav.top .brand { min-width: 0; width: auto; } nav.top .gh { display: none; } }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="row">
+    <a class="brand" href="/"><img class="px" src="/art/agent.png" alt="">byoa</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="side">Menu</button>
+    <a class="opt" href="/docs">Docs</a>
+    <a class="opt" href="/docs/api">API</a>
+    <a class="opt" href="https://github.com/madeyexz/byoa/blob/main/SPEC.md">Spec</a>
+    <span class="sp"></span>
+    <div class="search" role="search">
+      <input type="search" placeholder="Search" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+      <kbd>/</kbd>
+      <div class="results" hidden></div>
+    </div>
+    <a class="r gh" href="https://github.com/madeyexz/byoa">GitHub <span class="chev"></span></a>
+  </div>
+</nav>
+
+<div class="frame docs">
+  <aside class="side" id="side" aria-label="Docs"><ul><li><a href="/docs">Overview</a></li></ul><div class="ng">Start</div><ul><li><a href="/docs/getting-started">Getting started</a></li><li><a href="/docs/concepts">Concepts</a></li></ul><div class="ng">Guides</div><ul><li><a href="/docs/ai-login" aria-current="page">AI login</a></li><li><a href="/docs/sandbox-lifecycle">Sandbox lifecycle</a></li><li><a href="/docs/mcp">MCP tools and the proxy</a></li><li><a href="/docs/running-agents">Running agents</a></li><li><a href="/docs/providers">Sandbox providers</a></li><li><a href="/docs/stores">Stores and Convex</a></li><li><a href="/docs/testing">Testing</a></li></ul><div class="ng">Reference</div><ul><li><a href="/docs/api">API reference</a></li><li><a href="/docs/lab-rules">Lab rules</a></li><li><a href="/docs/security">Security</a></li></ul></aside>
+  <main>
+    <div class="kick">Guides</div>
+    <article>
+<h1>AI login</h1>
+<p>A user&#39;s AI login stays encrypted in your app&#39;s database, and is in a sandbox only while a sign-in, a job or a sign-out runs. This page shows how byoa signs a user in to Claude Code and Codex, keeps the CLI&#39;s own login files, and uses them for each job.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>The login tokens are in</th>
+<th>They are never in</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>the sign-in sandbox, until byoa destroys it</td>
+<td>what byoa returns to your app</td>
+</tr>
+<tr>
+<td>your app&#39;s database, encrypted</td>
+<td>the job&#39;s environment variables</td>
+</tr>
+<tr>
+<td>a job&#39;s sandbox, only while the job runs</td>
+<td>a kept sandbox between jobs</td>
+</tr>
+<tr>
+<td></td>
+<td>the state, lease and pending entries in the store</td>
+</tr>
+</tbody></table>
+</div><p>This is for the default login, <code>storedLogin()</code>. With <code>cliLogin</code>, the tokens stay in the user&#39;s volume instead of the database. byoa never uses the tokens itself and never calls the labs&#39; token endpoints. The unmodified CLI is the only client that sends them to the lab.</p>
+<h2 id="sign-in"><a class="anchor" href="#sign-in" aria-hidden="true" tabindex="-1">#</a>Sign-in</h2>
+<p>Your app calls <code>agents.connectLogin(user, harness)</code>. byoa starts a new sandbox for up to 20 minutes, installs the pinned CLI and runs its own sign-in. The user signs in on the lab&#39;s page. byoa gives your app only that page&#39;s address and, for Codex, a code.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th></th>
+<th>Claude Code</th>
+<th>Codex</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>The CLI&#39;s sign-in</td>
+<td><code>claude auth login</code></td>
+<td><code>codex login --device-auth</code></td>
+</tr>
+<tr>
+<td>What your app shows</td>
+<td>a link on claude.com</td>
+<td>a link on auth.openai.com, and a one-time code</td>
+</tr>
+<tr>
+<td>What the user does</td>
+<td>signs in; Anthropic&#39;s page shows a code</td>
+<td>enters the code on OpenAI&#39;s page</td>
+</tr>
+<tr>
+<td>How your app finishes</td>
+<td><code>finishLogin(user, &#39;claude&#39;, { code })</code> with that code; byoa types it into the CLI and waits up to 60 s</td>
+<td><code>finishLogin(user, &#39;codex&#39;, { waitMs })</code>, again until the state is no longer <code>pending</code></td>
+</tr>
+<tr>
+<td>The files the CLI writes</td>
+<td>in <code>~/.claude</code> (<code>CLAUDE_CONFIG_DIR</code>): <code>.credentials.json</code> (the tokens) and <code>.claude.json</code> (the account: email, organization, plan)</td>
+<td>in <code>~/.codex</code> (<code>CODEX_HOME</code>): <code>auth.json</code> (access token, refresh token, last refresh time)</td>
+</tr>
+</tbody></table>
+</div><p>Claude Code also writes a copy of <code>.claude.json</code> in <code>backups/</code> at each start. byoa removes it and does not store it.</p>
+<figure class="flow" aria-label="The sign-in sandbox, from connectLogin to the signed-in state">
+<div class="legend"><span class="lg on">login files in the sandbox</span><span class="lg">no login files</span><span class="lg dia">a question</span><span class="lg tb">time limit</span></div>
+<div class="tabp" data-tab="0"><ol class="flow-list"><li class="k-step"><b>Remove an unfinished earlier sign-in</b><code>connectLogin(user, h)</code> destroys this user&#39;s earlier sign-in sandbox for the harness, if one waits. <span class="nm"><span class="f-out">no login files</span></span></li><li class="k-step"><b>Create the sign-in sandbox</b>storedLogin: no volume. cliLogin: the user&#39;s volume at <code>~/.claude</code> or <code>~/.codex</code>. <span class="nm"><span class="tb">20 min, then the provider deletes it</span></span></li><li class="k-step"><b>Install the pinned CLI and start its sign-in</b><code>claude auth login</code> or <code>codex login --device-auth</code>, in the background</li><li class="k-dec"><b>Is the lab&#39;s page shown within 30 s?</b><ul><li><i>no</i><b>Destroy it, and throw an error</b>Also when the CLI exits at once.</li></ul></li><li class="k-step"><b>The user signs in on the lab&#39;s page</b>Your app shows the link, and Codex&#39;s code. The sandbox waits.</li><li class="k-step"><b>Your app calls finishLogin</b>Claude Code: byoa types in the code from Anthropic&#39;s page. <span class="nm"><span class="tb">waits: Claude 60 s, Codex 0</span></span></li><li class="k-dec"><b>Has the CLI ended?</b><ul><li><i>no</i><b>Answer &#39;pending&#39;</b>The sandbox keeps running. <span class="nm"><span class="tb">until 20 min</span></span> Then call again.</li></ul></li><li class="k-dec on"><b>Did the CLI write its token file?</b> <span class="nm"><span class="f-in">login files in</span></span><ul><li><i>no</i><b>Destroy it, and return the CLI&#39;s error</b>For example, a wrong code.</li></ul></li><li class="k-step on"><b>Keep the login</b>storedLogin: byoa encrypts the files into <code>ailogin/&lt;user&gt;/&lt;h&gt;</code>. cliLogin: they stay in the volume.</li><li class="k-end"><b>Destroy the sandbox. The state is &#39;signed-in&#39;.</b><code>login/&lt;user&gt;/&lt;h&gt;</code> <span class="nm"><span class="f-out">no login files</span></span></li></ol><div class="flow-draw" data-nodes="[{&quot;id&quot;:&quot;n0&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;Remove an unfinished earlier sign-in&quot;,&quot;d&quot;:&quot;&lt;code&gt;connectLogin(user, h)&lt;/code&gt; destroys this user&amp;#39;s earlier sign-in sandbox for the harness, if one waits.&quot;,&quot;m&quot;:&quot;&lt;span class=\&quot;f-out\&quot;&gt;no login files&lt;/span&gt;&quot;,&quot;f&quot;:false},{&quot;id&quot;:&quot;n1&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;Create the sign-in sandbox&quot;,&quot;d&quot;:&quot;storedLogin: no volume. cliLogin: the user&amp;#39;s volume at &lt;code&gt;~/.claude&lt;/code&gt; or &lt;code&gt;~/.codex&lt;/code&gt;.&quot;,&quot;m&quot;:&quot;&lt;span class=\&quot;tb\&quot;&gt;20 min, then the provider deletes it&lt;/span&gt;&quot;},{&quot;id&quot;:&quot;n2&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;Install the pinned CLI and start its sign-in&quot;,&quot;d&quot;:&quot;&lt;code&gt;claude auth login&lt;/code&gt; or &lt;code&gt;codex login --device-auth&lt;/code&gt;, in the background&quot;,&quot;m&quot;:&quot;&quot;},{&quot;id&quot;:&quot;n3&quot;,&quot;k&quot;:&quot;dec&quot;,&quot;t&quot;:&quot;Is the lab&amp;#39;s page shown within 30 s?&quot;,&quot;d&quot;:&quot;&quot;,&quot;m&quot;:&quot;&quot;,&quot;down&quot;:&quot;yes&quot;,&quot;side&quot;:{&quot;id&quot;:&quot;n4&quot;,&quot;k&quot;:&quot;end&quot;,&quot;t&quot;:&quot;Destroy it, and throw an error&quot;,&quot;d&quot;:&quot;Also when the CLI exits at once.&quot;,&quot;m&quot;:&quot;&quot;,&quot;label&quot;:&quot;no&quot;}},{&quot;id&quot;:&quot;n5&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;The user signs in on the lab&amp;#39;s page&quot;,&quot;d&quot;:&quot;Your app shows the link, and Codex&amp;#39;s code. The sandbox waits.&quot;,&quot;m&quot;:&quot;&quot;},{&quot;id&quot;:&quot;finish&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;Your app calls finishLogin&quot;,&quot;d&quot;:&quot;Claude Code: byoa types in the code from Anthropic&amp;#39;s page.&quot;,&quot;m&quot;:&quot;&lt;span class=\&quot;tb\&quot;&gt;waits: Claude 60 s, Codex 0&lt;/span&gt;&quot;},{&quot;id&quot;:&quot;n6&quot;,&quot;k&quot;:&quot;dec&quot;,&quot;t&quot;:&quot;Has the CLI ended?&quot;,&quot;d&quot;:&quot;&quot;,&quot;m&quot;:&quot;&quot;,&quot;down&quot;:&quot;yes&quot;,&quot;side&quot;:{&quot;id&quot;:&quot;n7&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;Answer &amp;#39;pending&amp;#39;&quot;,&quot;d&quot;:&quot;The sandbox keeps running.&quot;,&quot;m&quot;:&quot;&lt;span class=\&quot;tb\&quot;&gt;until 20 min&lt;/span&gt;&quot;,&quot;label&quot;:&quot;no&quot;,&quot;back&quot;:&quot;finish&quot;,&quot;backLabel&quot;:&quot;call again&quot;}},{&quot;id&quot;:&quot;n8&quot;,&quot;k&quot;:&quot;dec&quot;,&quot;t&quot;:&quot;Did the CLI write its token file?&quot;,&quot;d&quot;:&quot;&quot;,&quot;m&quot;:&quot;&lt;span class=\&quot;f-in\&quot;&gt;login files in&lt;/span&gt;&quot;,&quot;f&quot;:true,&quot;down&quot;:&quot;yes&quot;,&quot;side&quot;:{&quot;id&quot;:&quot;n9&quot;,&quot;k&quot;:&quot;end&quot;,&quot;t&quot;:&quot;Destroy it, and return the CLI&amp;#39;s error&quot;,&quot;d&quot;:&quot;For example, a wrong code.&quot;,&quot;m&quot;:&quot;&quot;,&quot;label&quot;:&quot;no&quot;}},{&quot;id&quot;:&quot;n10&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;Keep the login&quot;,&quot;d&quot;:&quot;storedLogin: byoa encrypts the files into &lt;code&gt;ailogin/&amp;lt;user&amp;gt;/&amp;lt;h&amp;gt;&lt;/code&gt;. cliLogin: they stay in the volume.&quot;,&quot;m&quot;:&quot;&quot;},{&quot;id&quot;:&quot;n11&quot;,&quot;k&quot;:&quot;end&quot;,&quot;t&quot;:&quot;Destroy the sandbox. The state is &amp;#39;signed-in&amp;#39;.&quot;,&quot;d&quot;:&quot;&lt;code&gt;login/&amp;lt;user&amp;gt;/&amp;lt;h&amp;gt;&lt;/code&gt;&quot;,&quot;m&quot;:&quot;&lt;span class=\&quot;f-out\&quot;&gt;no login files&lt;/span&gt;&quot;,&quot;f&quot;:false}]"></div></div>
+</figure><ul>
+<li>If the user leaves, or your app stops calling <code>finishLogin</code>, the sandbox runs until its 20 minutes end. Then the provider deletes it, with any login files in it. This is also what happens when your backend dies.</li>
+<li>A new <code>connectLogin</code> for the same user and harness destroys an unfinished sign-in sooner. With the default <code>storedLogin()</code>, <code>signOut</code> does not.</li>
+<li><code>finishLogin</code> after the sandbox is gone answers &quot;the sign-in ran out; start it again&quot;.</li>
+<li>The state (<code>agents.loginState(user, h)</code>) is <code>signed-in</code>, <code>signed-out</code> or <code>expired</code>, with no token in it.</li>
+</ul>
+<h2 id="where-the-login-stays-between-jobs"><a class="anchor" href="#where-the-login-stays-between-jobs" aria-hidden="true" tabindex="-1">#</a>Where the login stays between jobs</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th></th>
+<th>In your app&#39;s database (the default, <code>storedLogin()</code>)</th>
+<th>In a volume of the user (<code>cliLogin</code>)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>How it gets there</td>
+<td>byoa reads the CLI&#39;s files from the sign-in sandbox and encrypts them together with AES-256-GCM, with your <code>encryptionKey</code> or the key you give <code>storedLogin</code>. The entry&#39;s name is part of the encryption, so the entry cannot be moved to another user.</td>
+<td>The sign-in sandbox mounts the user&#39;s volume at <code>~/.claude</code> or <code>~/.codex</code>, and the CLI writes its files there.</td>
+</tr>
+<tr>
+<td>Where it is</td>
+<td>one entry for each user and harness, <code>ailogin/&lt;user&gt;/&lt;harness&gt;</code>, as <code>v1.&lt;iv&gt;.&lt;ciphertext&gt;</code>. It is the only copy between jobs.</td>
+<td>the volume <code>byoa-&lt;app&gt;-&lt;harness&gt;-&lt;first 24 hex of sha256(user)&gt;</code>, with the files as the CLI wrote them</td>
+</tr>
+<tr>
+<td>In a job</td>
+<td>byoa copies the files in and takes them out again (below).</td>
+<td>Every job sandbox of that user and harness mounts the same volume. byoa never reads or copies the files. The store keeps only the state.</td>
+</tr>
+<tr>
+<td>Providers</td>
+<td>all</td>
+<td>providers with volumes: E2B (when volumes are on for your team) and Daytona, not Instabox</td>
+</tr>
+</tbody></table>
+</div><p>To keep the logins in a table of their own, with a key of their own, so that you can give them their own access rules and backups, see <a href="/docs/stores#a-table-of-its-own-for-the-ai-logins">Stores and Convex</a>. To use the volume, pass <code>login: cliLogin</code> (from <code>@madeyexz/byoa</code>).</p>
+<p>The labs&#39; published terms limit where these tokens may be stored. Each app checks them: see <a href="/docs/lab-rules">Lab rules</a>.</p>
+<h2 id="one-job-step-by-step"><a class="anchor" href="#one-job-step-by-step" aria-hidden="true" tabindex="-1">#</a>One job, step by step</h2>
+<p>This is a job with the default <code>storedLogin()</code>. First byoa checks that the store has the user&#39;s login. If it does not, the job stops with <code>LoginError</code> (in <code>run</code>, an <code>error</code> event with code <code>signed-out</code>) and the state becomes <code>signed-out</code>. <code>close()</code> runs steps 4 to 7, also when the job failed.</p>
+<ol>
+<li><strong>Take the lease.</strong> Only one sandbox may hold a user&#39;s login at a time, because both CLIs rotate their refresh tokens. byoa writes the lease <code>ailoginlease/&lt;user&gt;/&lt;harness&gt;</code> with compare-and-set. If another job holds it, this job waits up to 10 minutes (<code>storedLogin({ waitMs })</code>), then fails. The lease ends by itself after the job timeout + 5 minutes, so a lost backend does not lock it.</li>
+<li><strong>Copy the login in.</strong> byoa decrypts the entry in your backend and writes the files into the job&#39;s sandbox, <code>chmod 600</code>. It remembers which version of the entry it read. <code>CLAUDE_CONFIG_DIR</code> or <code>CODEX_HOME</code> points the CLI at them: a folder path, not a token.</li>
+<li><strong>The CLI runs, and may refresh.</strong> The unmodified CLI uses its tokens to reach the lab. When its access token is due, it refreshes it and writes its own files again.</li>
+<li><strong>Save back what changed.</strong> If the files changed, byoa encrypts them and writes them over the entry, only if the entry is still the version from step 2 (compare-and-set). If the user signed in again meanwhile, the newer entry stays.</li>
+<li><strong>Remove the files.</strong> byoa deletes the login files and Claude&#39;s backups from the sandbox. If it cannot delete them, it destroys the sandbox instead of keeping it.</li>
+<li><strong>Give the lease back.</strong> The next job of this user and harness can take it. This also happens when step 4 or 5 fails.</li>
+<li><strong>Pause or destroy the sandbox.</strong> With <code>sandboxPer: &#39;user&#39;</code> (the default), byoa pauses the user&#39;s kept sandbox for the next job, with no login in it. With <code>&#39;job&#39;</code>, it destroys the sandbox.</li>
+</ol>
+<p>With <code>cliLogin</code> there is no lease and no copy. The volume is mounted in the job&#39;s sandbox, the CLI refreshes the files in place, and byoa saves nothing back and removes nothing.</p>
+<p>When your backend dies during step 3, <code>close()</code> never runs. <a href="/docs/sandbox-lifecycle#when-your-backend-dies-during-a-job">Sandbox lifecycle</a> says what then stays where.</p>
+<h2 id="codex-jobs-at-the-same-time-the-shared-login"><a class="anchor" href="#codex-jobs-at-the-same-time-the-shared-login" aria-hidden="true" tabindex="-1">#</a>Codex jobs at the same time: the shared login</h2>
+<p>With <code>login: storedLogin({ parallel: true })</code>, the Codex jobs of one user can run at the same time, each in its own sandbox: a <code>sandboxKey</code> for each job, or <code>sandboxPer: &#39;job&#39;</code>. Claude Code jobs still run one at a time, because when Claude Code refreshes is not checked yet.</p>
+<figure class="flow" aria-label="How a Codex job takes the shared login">
+<div class="legend"><span class="lg dia">a question</span><span class="lg tb">time limit</span></div>
+<div class="tabp" data-tab="0"><ol class="flow-list"><li class="k-dec"><b>Will Codex refresh the login before this job could end?</b>Within the lease time, the job timeout + 5 min<ul><li><i>yes, or not known</i><b>Hold the login alone</b>The job marks that it waits, so no new job joins. When the sharing jobs end, it takes the lease alone. Codex refreshes, step 4 saves the new login, and the jobs after it share again. <span class="nm"><span class="tb">lease: { alone: { id, until } }, after want</span></span></li></ul></li><li class="k-end"><b>Share the login</b>The job adds itself to the lease&#39;s shared list and gets its own copy of the login. More jobs can join. <span class="nm"><span class="tb">lease: { shared: { job1: until, job2: until } }</span></span></li></ol><div class="flow-draw" data-nodes="[{&quot;id&quot;:&quot;n0&quot;,&quot;k&quot;:&quot;dec&quot;,&quot;t&quot;:&quot;Will Codex refresh the login before this job could end?&quot;,&quot;d&quot;:&quot;Within the lease time, the job timeout + 5 min&quot;,&quot;m&quot;:&quot;&quot;,&quot;down&quot;:&quot;no&quot;,&quot;side&quot;:{&quot;id&quot;:&quot;n1&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;Hold the login alone&quot;,&quot;d&quot;:&quot;The job marks that it waits, so no new job joins. When the sharing jobs end, it takes the lease alone. Codex refreshes, step 4 saves the new login, and the jobs after it share again.&quot;,&quot;m&quot;:&quot;&lt;span class=\&quot;tb\&quot;&gt;lease: { alone: { id, until } }, after want&lt;/span&gt;&quot;,&quot;label&quot;:&quot;yes, or not known&quot;}},{&quot;id&quot;:&quot;n2&quot;,&quot;k&quot;:&quot;end&quot;,&quot;t&quot;:&quot;Share the login&quot;,&quot;d&quot;:&quot;The job adds itself to the lease&amp;#39;s shared list and gets its own copy of the login. More jobs can join.&quot;,&quot;m&quot;:&quot;&lt;span class=\&quot;tb\&quot;&gt;lease: { shared: { job1: until, job2: until } }&lt;/span&gt;&quot;}]"></div></div>
+</figure><ul>
+<li>To answer the question, byoa reads only the time the access token ends in <code>auth.json</code>, and no token. Codex refreshes 5 minutes before its access token ends, and that token lasts 10 days. When <code>auth.json</code> has no such time, byoa uses 8 days after the last refresh. When byoa cannot tell, the answer is yes.</li>
+<li>If two sharing jobs both save a change, the first save wins (step 4).</li>
+<li>One risk stays: Codex also refreshes when OpenAI answers 401 to a token that has not run out. If two sandboxes get that answer at the same time, both refresh, one refresh fails, and the user may have to sign in again. So sharing is your app&#39;s choice.</li>
+</ul>
+<h2 id="sign-out"><a class="anchor" href="#sign-out" aria-hidden="true" tabindex="-1">#</a>Sign-out</h2>
+<p><code>agents.signOut(user, harness)</code> deletes the user&#39;s kept sandboxes for this harness, signs out with the CLI so that the lab can revoke the login, and deletes the login.</p>
+<figure class="flow" aria-label="Sign-out, with the default storedLogin">
+<div class="legend"><span class="lg on">login files in the sandbox</span><span class="lg">no login files</span><span class="lg dia">a question</span><span class="lg tb">time limit</span></div>
+<div class="tabp" data-tab="0"><ol class="flow-list"><li class="k-step"><b>Destroy the user&#39;s kept sandboxes for this harness</b><code>signOut(user, h)</code> calls <code>deleteSandbox(user, { harness: h })</code>. A job in one of them ends. <span class="nm"><span class="f-out">no login files</span></span></li><li class="k-dec"><b>Is a login stored?</b><code>ailogin/&lt;user&gt;/&lt;h&gt;</code><ul><li><i>no</i><b>Skip the CLI sign-out</b></li></ul></li><li class="k-step on"><b>Sign out with the CLI in a new sandbox</b>Takes the login lease alone, writes the files in, and runs <code>claude auth logout</code> or <code>codex logout</code>, so that the lab can revoke the login. If this fails, byoa goes on. <span class="nm"><span class="f-in">login files in</span><span class="tb">5 min</span><span class="tb">not kept</span><span class="tb">waits for the lease, max 10 min</span></span></li><li class="k-step"><b>Destroy it, give the lease back</b> <span class="nm"><span class="f-out">no login files</span></span></li><li class="k-end"><b>Delete the stored login. The state is &#39;signed-out&#39;.</b><code>ailogin/&lt;user&gt;/&lt;h&gt;</code> is deleted.</li></ol><div class="flow-draw" data-nodes="[{&quot;id&quot;:&quot;n0&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;Destroy the user&amp;#39;s kept sandboxes for this harness&quot;,&quot;d&quot;:&quot;&lt;code&gt;signOut(user, h)&lt;/code&gt; calls &lt;code&gt;deleteSandbox(user, { harness: h })&lt;/code&gt;. A job in one of them ends.&quot;,&quot;m&quot;:&quot;&lt;span class=\&quot;f-out\&quot;&gt;no login files&lt;/span&gt;&quot;,&quot;f&quot;:false},{&quot;id&quot;:&quot;n1&quot;,&quot;k&quot;:&quot;dec&quot;,&quot;t&quot;:&quot;Is a login stored?&quot;,&quot;d&quot;:&quot;&lt;code&gt;ailogin/&amp;lt;user&amp;gt;/&amp;lt;h&amp;gt;&lt;/code&gt;&quot;,&quot;m&quot;:&quot;&quot;,&quot;down&quot;:&quot;yes&quot;,&quot;side&quot;:{&quot;id&quot;:&quot;n2&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;Skip the CLI sign-out&quot;,&quot;d&quot;:&quot;&quot;,&quot;m&quot;:&quot;&quot;,&quot;label&quot;:&quot;no&quot;,&quot;join&quot;:&quot;delete&quot;}},{&quot;id&quot;:&quot;n3&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;Sign out with the CLI in a new sandbox&quot;,&quot;d&quot;:&quot;Takes the login lease alone, writes the files in, and runs &lt;code&gt;claude auth logout&lt;/code&gt; or &lt;code&gt;codex logout&lt;/code&gt;, so that the lab can revoke the login. If this fails, byoa goes on.&quot;,&quot;m&quot;:&quot;&lt;span class=\&quot;f-in\&quot;&gt;login files in&lt;/span&gt;&lt;span class=\&quot;tb\&quot;&gt;5 min&lt;/span&gt;&lt;span class=\&quot;tb\&quot;&gt;not kept&lt;/span&gt;&lt;span class=\&quot;tb\&quot;&gt;waits for the lease, max 10 min&lt;/span&gt;&quot;,&quot;f&quot;:true},{&quot;id&quot;:&quot;n4&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;Destroy it, give the lease back&quot;,&quot;d&quot;:&quot;&quot;,&quot;m&quot;:&quot;&lt;span class=\&quot;f-out\&quot;&gt;no login files&lt;/span&gt;&quot;,&quot;f&quot;:false},{&quot;id&quot;:&quot;delete&quot;,&quot;k&quot;:&quot;end&quot;,&quot;t&quot;:&quot;Delete the stored login. The state is &amp;#39;signed-out&amp;#39;.&quot;,&quot;d&quot;:&quot;&lt;code&gt;ailogin/&amp;lt;user&amp;gt;/&amp;lt;h&amp;gt;&lt;/code&gt; is deleted.&quot;,&quot;m&quot;:&quot;&quot;}]"></div></div>
+</figure><p>With <code>cliLogin</code>, sign-out also destroys an unfinished sign-in sandbox, signs out in a sandbox that mounts the user&#39;s volume, and deletes the volume.</p>
+
+    </article>
+    <nav class="pn" aria-label="Pages"><a class="prev" href="/docs/concepts"><span>Previous</span>Concepts</a><a class="next" href="/docs/sandbox-lifecycle"><span>Next</span>Sandbox lifecycle</a></nav>
+    <p class="edit"><a href="https://github.com/madeyexz/byoa/blob/main/docs/ai-login.md">Edit this page on GitHub</a> · <a href="/docs/ai-login.md">This page as Markdown</a></p>
+  </main>
+  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#sign-in">Sign-in</a></li><li><a href="#where-the-login-stays-between-jobs">Where the login stays between jobs</a></li><li><a href="#one-job-step-by-step">One job, step by step</a></li><li><a href="#codex-jobs-at-the-same-time-the-shared-login">Codex jobs at the same time: the shared login</a></li><li><a href="#sign-out">Sign-out</a></li></ul>
+    <div class="tools"><a href="/llms.txt">llms.txt</a><a href="/llms-full.txt">llms-full.txt</a></div>
+  </aside>
+</div>
+
+<footer>
+  <div class="frame">
+    <span>byoa · bring your own agent · Apache 2.0</span>
+    <span><a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
+  </div>
+</footer>
+
+<script>
+// The docs pages' script (build.mjs puts it in each page): lays out the flow diagrams, switches their tabs, searches
+// the docs (search.json, which build.mjs writes), opens the menu on a phone, and marks the heading in view.
+{
+  // ---- flow diagrams: each .flow-draw has its nodes as JSON (build.mjs, flowHtml). Without this script, the page
+  // shows the same steps as a list.
+  const NS = 'http://www.w3.org/2000/svg'
+  function body(n) {
+    return `<div class="nt">${n.t}</div>${n.d ? `<div class="nd">${n.d}</div>` : ''}${n.m && n.k !== 'dec' ? `<div class="nm">${n.m}</div>` : ''}`
+  }
+  function draw(el, key) {
+    const nodes = JSON.parse(el.dataset.nodes)
+    const W = el.clientWidth
+    if (!W) return
+    // on a phone, the list of steps (build.mjs) reads better than a drawing with no room for its side column
+    const flow = el.closest('.flow')
+    flow.classList.toggle('drawn', W >= 520)
+    if (W < 520) { el.innerHTML = ''; el.style.height = '0px'; return }
+    el.innerHTML = ''
+    const gap = W < 680 ? 32 : 56
+    const mainW = Math.round((W - gap) * 0.56)
+    const sideX = mainW + gap, sideW = W - sideX, cx = mainW / 2
+    const dw = Math.min(mainW, 340)
+    const VG = 30, P = {}
+    const mk = (n, w, cls) => {
+      const d = document.createElement('div')
+      d.className = `node ${cls}`
+      d.innerHTML = body(n)
+      d.style.width = w + 'px'
+      el.appendChild(d)
+      return d
+    }
+    let y = 0, files = false
+    for (const n of nodes) {
+      if (n.f !== undefined) files = n.f
+      n._files = files
+      let h
+      if (n.k === 'dec') {
+        const tw = Math.round(dw * 0.56)
+        const d = mk(n, tw, 'dt')
+        const th = d.offsetHeight
+        h = Math.max(64, Math.ceil(th * 2 + 14))
+        const x = (mainW - dw) / 2
+        d.style.left = x + (dw - tw) / 2 + 'px'
+        d.style.top = y + (h - th) / 2 + 'px'
+        P[n.id] = { x, y, w: dw, h, dec: true }
+      } else {
+        const d = mk(n, mainW, n.k)
+        h = d.offsetHeight
+        d.style.left = '0px'
+        d.style.top = y + 'px'
+        P[n.id] = { x: 0, y, w: mainW, h }
+      }
+      let bottom = y + h
+      if (n.side) {
+        const s = n.side
+        const d = mk(s, sideW, s.k)
+        const sh = d.offsetHeight
+        const top = n.k === 'dec' ? y + h / 2 - 18 : y
+        d.style.left = sideX + 'px'
+        d.style.top = top + 'px'
+        P[s.id] = { x: sideX, y: top, w: sideW, h: sh }
+        bottom = Math.max(bottom, top + sh)
+      }
+      y = bottom + VG
+    }
+    const H = y - VG
+    el.style.height = H + 'px'
+
+    const svg = document.createElementNS(NS, 'svg')
+    svg.setAttribute('width', W)
+    svg.setAttribute('height', H)
+    svg.setAttribute('aria-hidden', 'true')
+    svg.innerHTML = `<defs>
+      <marker id="${key}-a" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="ah"/></marker>
+      <marker id="${key}-b" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="ah on"/></marker></defs>`
+    el.insertBefore(svg, el.firstChild)
+    const add = (tag, attrs, text) => {
+      const e = document.createElementNS(NS, tag)
+      for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v)
+      if (text) e.textContent = text
+      svg.appendChild(e)
+      return e
+    }
+    const path = (d, cls = '') => add('path', { d, class: `e ${cls}`, 'marker-end': `url(#${key}-${cls.includes('on') ? 'b' : 'a'})` })
+    const label = (x, y, s, anchor = 'start') => add('text', { x, y, class: 'lbl', 'text-anchor': anchor }, s)
+
+    nodes.forEach((n, i) => {
+      const p = P[n.id]
+      if (p.dec) add('polygon', { class: 'dia', points: `${p.x},${p.y + p.h / 2} ${p.x + p.w / 2},${p.y} ${p.x + p.w},${p.y + p.h / 2} ${p.x + p.w / 2},${p.y + p.h}` })
+      const m = nodes[i + 1]
+      if (m && n.k !== 'end') {
+        const q = P[m.id]
+        path(`M${cx},${p.y + p.h} V${q.y}`, n._files ? 'on' : '')
+        if (n.down) label(cx + 8, p.y + p.h + 14, n.down)
+      }
+      const midY = p.y + p.h / 2
+      if (n.right && P[n.right.to]) {
+        const t = P[n.right.to], tx = t.x + t.w / 2
+        path(`M${p.x + p.w},${midY} H${tx} V${t.y}`)
+        label(p.x + p.w + 6, midY - 6, n.right.label)
+      }
+      if (n.side) {
+        const s = n.side, sp = P[s.id]
+        if (n.k === 'dec') {
+          path(`M${p.x + p.w},${midY} H${sideX}`)
+          label(p.x + p.w + 6, midY - 6, s.label)
+        } else {
+          // no label here: the gap is too narrow, and the side node's title says when it happens
+          path(`M${mainW},${sp.y + 18} H${sideX}`, `dash ${n._files ? 'on' : ''}`)
+        }
+        const sx = sp.x + sp.w / 2
+        if (s.back && P[s.back]) {
+          const t = P[s.back], ty = t.y + t.h / 2
+          path(`M${sx},${sp.y} V${ty} H${t.x + t.w}`)
+          if (s.backLabel) label(sx + 6, (sp.y + ty) / 2 + 4, s.backLabel)
+        }
+        if (s.join && P[s.join]) {
+          const t = P[s.join], jy = t.y - 14
+          path(`M${sx},${sp.y + sp.h} V${jy} H${cx}`)
+        }
+      }
+    })
+  }
+  const flows = [...document.querySelectorAll('.flow')]
+  const drawAll = () => flows.forEach((f, i) => f.querySelectorAll('.tabp:not([hidden]) .flow-draw').forEach((el) => draw(el, `f${i}`)))
+  for (const [i, f] of flows.entries()) {
+    f.querySelector('.seg')?.addEventListener('click', (e) => {
+      const b = e.target.closest('button')
+      if (!b) return
+      for (const x of f.querySelectorAll('.seg button')) x.setAttribute('aria-selected', String(x === b))
+      for (const p of f.querySelectorAll('.tabp')) p.hidden = p.dataset.tab !== b.dataset.tab
+      f.querySelectorAll('.tabp:not([hidden]) .flow-draw').forEach((el) => draw(el, `f${i}`))
+    })
+  }
+  let lastW = 0
+  new ResizeObserver(() => { const w = document.querySelector('article')?.clientWidth; if (w && w !== lastW) { lastW = w; drawAll() } }).observe(document.body)
+  document.fonts?.ready.then(() => { lastW = 0; drawAll() })
+
+  // ---- the menu on a phone
+  const menu = document.querySelector('nav.top .menu')
+  menu?.addEventListener('click', () => {
+    const open = document.body.classList.toggle('menu-open')
+    menu.setAttribute('aria-expanded', String(open))
+  })
+
+  // ---- the heading in view, in "On this page"
+  const toc = [...document.querySelectorAll('.toc a[href^="#"]')]
+  if (toc.length) {
+    const heads = toc.map((a) => document.getElementById(decodeURIComponent(a.hash.slice(1)))).filter(Boolean)
+    const mark = () => {
+      let cur = heads[0]
+      for (const h of heads) if (h.getBoundingClientRect().top < 120) cur = h
+      for (const a of toc) a.classList.toggle('on', a.hash === `#${cur?.id}`)
+    }
+    addEventListener('scroll', mark, { passive: true })
+    mark()
+  }
+
+  // ---- search: search.json has one entry for each section of each page
+  const input = document.querySelector('.search input')
+  const box = document.querySelector('.search .results')
+  let index, sel = -1
+  const escape = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+  const words = (q) => q.toLowerCase().split(/\s+/).filter(Boolean)
+  function snippet(text, ws) {
+    const low = text.toLowerCase()
+    const at = Math.max(0, ...ws.map((w) => low.indexOf(w)).filter((i) => i >= 0).slice(0, 1))
+    const from = Math.max(0, at - 50)
+    let s = escape((from ? '…' : '') + text.slice(from, from + 170) + (from + 170 < text.length ? '…' : ''))
+    for (const w of ws) s = s.replace(new RegExp(`(${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'), '<mark>$1</mark>')
+    return s
+  }
+  async function search() {
+    const ws = words(input.value)
+    if (!ws.length) { box.hidden = true; return }
+    index ??= await fetch('/docs/search.json').then((r) => r.json()).catch(() => [])
+    const hits = index.map((e) => {
+      const head = `${e.page} ${e.head}`.toLowerCase(), text = e.text.toLowerCase()
+      let score = 0
+      for (const w of ws) {
+        if (head.includes(w)) score += 10
+        else if (text.includes(w)) score += 1
+        else return null
+      }
+      return { e, score }
+    }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 12)
+    sel = -1
+    box.innerHTML = hits.length
+      ? hits.map(({ e }) => `<a href="${e.url}"><b>${escape(e.head === e.page ? e.page : `${e.page} · ${e.head}`)}</b><span>${snippet(e.text, ws)}</span></a>`).join('')
+      : '<div class="none">Nothing in the docs has these words.</div>'
+    box.hidden = false
+  }
+  input.addEventListener('input', search)
+  input.addEventListener('focus', () => { if (input.value) search() })
+  input.addEventListener('keydown', (e) => {
+    const links = [...box.querySelectorAll('a')]
+    if (e.key === 'Escape') { input.value = ''; box.hidden = true; input.blur() }
+    else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && links.length) {
+      e.preventDefault()
+      sel = (sel + (e.key === 'ArrowDown' ? 1 : -1) + links.length) % links.length
+      links.forEach((a, i) => a.classList.toggle('sel', i === sel))
+      links[sel].scrollIntoView({ block: 'nearest' })
+    } else if (e.key === 'Enter' && links.length) location.href = links[Math.max(sel, 0)].href
+  })
+  addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement !== input && !/^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName)) { e.preventDefault(); input.focus() }
+  })
+  addEventListener('click', (e) => { if (!e.target.closest('.search')) box.hidden = true })
+}
+
+</script>
+</body>
+</html>

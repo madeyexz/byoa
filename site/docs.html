@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}}</title>
+<meta name="description" content="{{description}}">
+<meta property="og:title" content="{{title}}">
+<meta property="og:description" content="{{description}}">
+<meta name="theme-color" content="#f8f6f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1124" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="{{url}}">
+<link rel="alternate" type="text/markdown" href="{{md}}" title="This page as Markdown">
+<link rel="icon" href="/art/agent.png">
+<link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  {{base_css}}
+  /* ---- the docs: the home page's ruled frame, with a menu on the left and the page's headings on the right */
+  :root { color-scheme: light dark; --code: #121428; --flow-on: var(--cobalt); }
+  @media (prefers-color-scheme: dark) {
+    /* the home page's palette on the navy of its closing band, as in the README's dark images */
+    :root { --paper: #0f1124; --paper2: #151833; --card: #161a36; --rule: #2a2f57; --rule2: #3c4274;
+      --ink: #f3f1ea; --ink2: #c9cadc; --muted: #9195b6; --dim: #6b6f90; --peri2: #232a5c; --cobalt: #8ea6ff; --code: #0a0c1c; --flow-on: #8ea6ff; }
+    nav.top .gh { background: var(--ink); color: var(--paper); }
+    nav.top .gh:hover { background: #fff; color: #000; }
+    .badge.plan { color: #141418; }
+    .ascii .x, .ascii .o, .ascii .bn, .ascii .bs { color: var(--peri); }
+    .ascii .p { color: var(--tomato); }
+  }
+  body { font-size: 16.5px; }
+  nav.top { background: var(--paper); }
+  nav.top .menu { display: none; border-right: 1px solid var(--rule); background: none; border-top: 0; border-bottom: 0; border-left: 0; color: var(--ink2); font: 15px var(--sans); padding: 0 16px; cursor: pointer; }
+  nav.top a[aria-current] { color: var(--ink); background: var(--paper2); }
+  .search { position: relative; display: flex; align-items: center; border-left: 1px solid var(--rule); }
+  .search input { width: 220px; height: 56px; border: 0; background: transparent; color: var(--ink); font: 15px var(--sans); padding: 0 16px; outline: none; }
+  .search input::placeholder { color: var(--dim); }
+  .search input:focus { background: var(--paper2); }
+  .search kbd { position: absolute; right: 12px; font: 11px var(--mono); color: var(--dim); border: 1px solid var(--rule); padding: 1px 5px; pointer-events: none; }
+  .search input:focus + kbd, .search input:not(:placeholder-shown) + kbd { display: none; }
+  .results { position: absolute; top: 56px; right: 0; width: min(480px, 100vw); max-height: 70vh; overflow: auto; background: var(--card); border: 1px solid var(--rule2); box-shadow: 0 12px 40px rgba(0,0,0,.18); z-index: 40; }
+  nav.top .results a { display: block; padding: 11px 16px; border: 0; border-bottom: 1px solid var(--rule); text-decoration: none; white-space: normal; color: var(--ink); font-size: 15px; }
+  nav.top .results a:hover, nav.top .results a.sel { background: var(--paper2); }
+  .results b { display: block; font-weight: 560; font-size: 15px; }
+  .results span { display: block; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+  .results mark { background: var(--peri2); color: inherit; }
+  .results .none { padding: 14px 16px; color: var(--muted); font-size: 14px; }
+
+  .docs { display: grid; grid-template-columns: 248px minmax(0, 1fr) 216px; min-height: calc(100vh - 57px); }
+  .side, .toc { position: sticky; top: 57px; align-self: start; max-height: calc(100vh - 57px); overflow: auto; padding: 28px 0 40px; }
+  .side { border-right: 1px solid var(--rule); }
+  .side ul { list-style: none; margin: 0 0 18px; padding: 0; }
+  .side .ng { font: 11px var(--pixel); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 0 22px 8px; display: flex; align-items: center; gap: 8px; }
+  .side .ng::before { content: ""; width: 6px; height: 6px; background: var(--butter); }
+  .side a { display: block; padding: 6px 22px; text-decoration: none; color: var(--ink2); font-size: 15px; border-left: 3px solid transparent; }
+  .side a:hover { color: var(--ink); background: var(--paper2); }
+  .side a[aria-current] { color: var(--ink); font-weight: 560; border-left-color: var(--cobalt); background: var(--paper2); }
+  .toc { border-left: 1px solid var(--rule); padding-left: 0; font-size: 13.5px; }
+  .toc-h { font: 11px var(--pixel); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 0 20px 8px; }
+  .toc ul { list-style: none; margin: 0; padding: 0; }
+  .toc a { display: block; padding: 4px 20px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; }
+  .toc a:hover { color: var(--ink); }
+  .toc a.on { color: var(--ink); border-left-color: var(--cobalt); }
+  .toc code { font-size: .9em; padding: 0 3px; }
+  .tools { margin: 22px 20px 0; padding-top: 14px; border-top: 1px solid var(--rule); display: grid; gap: 6px; }
+  .tools a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  .tools a:hover { color: var(--ink); }
+
+  main { min-width: 0; padding: 48px clamp(20px, 4vw, 64px) 72px; }
+  .kick { font: 12px var(--pixel); letter-spacing: .12em; color: var(--cobalt); text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+  .kick::before { content: ""; width: 8px; height: 8px; background: currentColor; }
+  article { max-width: 760px; }
+  article h1 { font-size: clamp(36px, 4.4vw, 54px); line-height: 1.02; letter-spacing: -.045em; font-weight: 560; margin: 0 0 22px; }
+  article h2 { font-size: 30px; line-height: 1.1; letter-spacing: -.035em; font-weight: 560; margin: 56px 0 14px; padding-top: 22px; border-top: 1px solid var(--rule); }
+  article h3 { font-size: 21px; line-height: 1.2; letter-spacing: -.02em; font-weight: 580; margin: 34px 0 10px; }
+  article h4 { font-size: 17px; margin: 26px 0 8px; }
+  article :is(h2, h3, h4) { position: relative; scroll-margin-top: 76px; }
+  article .anchor { position: absolute; left: -1.1em; width: 1em; color: var(--dim); text-decoration: none; opacity: 0; font-weight: 400; }
+  article :is(h2, h3, h4):hover .anchor { opacity: 1; }
+  article p, article li { color: var(--ink2); }
+  article :is(p, ul, ol) { margin: 0 0 16px; }
+  article :is(ul, ol) { padding-left: 22px; }
+  article li { margin: 4px 0; }
+  article li::marker { color: var(--muted); }
+  article strong { color: var(--ink); font-weight: 600; }
+  article a { color: var(--cobalt); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--cobalt) 35%, transparent); text-underline-offset: 3px; }
+  article a:hover { text-decoration-color: currentColor; }
+  article code { font-size: .84em; word-break: break-word; }
+  article a code { color: inherit; }
+  article blockquote { margin: 0 0 16px; padding: 12px 18px; border-left: 3px solid var(--butter); background: var(--paper2); }
+  article blockquote p:last-child { margin: 0; }
+  article hr { border: 0; border-top: 1px solid var(--rule); margin: 32px 0; }
+  .code { margin: 0 0 20px; background: var(--code); border: 1px solid #000; }
+  .code pre.shiki { margin: 0; padding: 14px 18px; overflow-x: auto; background: transparent !important; }
+  .code pre.shiki code { background: none; border: 0; padding: 0; font: 13px/1.62 var(--mono); word-break: normal; }
+  .tbl { overflow-x: auto; margin: 0 0 20px; border: 1px solid var(--rule); background: var(--card); }
+  .tbl table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  .tbl :is(th, td) { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--rule); border-right: 1px solid var(--rule); }
+  .tbl :is(th, td):last-child { border-right: 0; }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .tbl th { font-weight: 560; background: var(--paper2); color: var(--ink); }
+  .tbl td { color: var(--ink2); }
+  .diagram { margin: 8px 0 24px; padding: 28px 12px; border: 1px solid var(--rule); background: var(--paper2); }
+  .diagram .ascii-wrap { margin: 0 auto; }
+
+  /* flow diagrams (build.mjs draws them from ```flow blocks; docs.js lays them out) */
+  .flow { margin: 10px 0 28px; padding: 18px 18px 20px; border: 1px solid var(--rule); background: var(--card); }
+  .flow .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--muted); margin-bottom: 16px; }
+  .flow .lg { display: inline-flex; align-items: center; gap: 7px; }
+  .flow .lg::before { content: ""; width: 26px; height: 0; border-top: 1px solid var(--muted); }
+  .flow .lg.on::before { border-top: 3px solid var(--flow-on); }
+  .flow .lg.dia::before { width: 10px; height: 10px; border: 1px solid var(--muted); transform: rotate(45deg); margin: 0 3px; }
+  .flow .lg.tb::before { display: none; }
+  .flow .seg { display: inline-flex; border: 1px solid var(--rule2); margin-bottom: 12px; flex-wrap: wrap; }
+  .flow .seg button { font: 14px var(--sans); background: transparent; color: var(--ink2); border: 0; border-right: 1px solid var(--rule2); padding: 8px 14px; cursor: pointer; }
+  .flow .seg button:last-child { border-right: 0; }
+  .flow .seg button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+  .flow .tabnote { font-size: 14.5px; color: var(--ink2); margin: 0 0 16px; }
+  /* the steps as a list: without JavaScript, and on a phone, where the drawing has no room for its side column */
+  .flow-list { list-style: none; margin: 0; padding: 0; counter-reset: s; font-size: 14.5px; color: var(--ink2); }
+  .flow-list > li { position: relative; margin: 0; padding: 0 0 16px 36px; }
+  .flow-list > li::before { counter-increment: s; content: counter(s); position: absolute; left: 0; top: 0; width: 23px; height: 23px; display: grid; place-items: center; font: 11px var(--pixel); background: var(--ink); color: var(--paper); }
+  .flow-list > li.k-dec::before { background: var(--butter); color: #141418; }
+  .flow-list > li.k-warn::before { background: var(--tomato); color: #fff; }
+  .flow-list > li::after { content: ""; position: absolute; left: 11px; top: 27px; bottom: 4px; width: 1px; background: var(--rule2); }
+  .flow-list > li.on::after { width: 3px; left: 10px; background: var(--flow-on); }
+  .flow-list > li:last-child::after { display: none; }
+  .flow-list b { display: block; font-weight: 560; color: var(--ink); }
+  .flow-list .nm { margin-top: 6px; }
+  .flow-list ul { list-style: none; margin: 8px 0 0; padding: 8px 12px; border: 1px dashed var(--rule2); }
+  .flow-list ul li { margin: 0; }
+  .flow-list ul i { font-style: normal; font: 11px var(--pixel); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .flow.drawn .flow-list { display: none; }
+  .flow:not(.drawn) .lg.dia { display: none; }
+  .flow-draw { position: relative; }
+  .flow-draw svg { position: absolute; left: 0; top: 0; overflow: visible; z-index: 0; }
+  .flow-draw .e { fill: none; stroke: var(--muted); stroke-width: 1; }
+  .flow-draw .e.on { stroke: var(--flow-on); stroke-width: 3; }
+  .flow-draw .e.dash { stroke-dasharray: 4 3; }
+  .flow-draw .dia { fill: var(--card); stroke: var(--rule2); stroke-width: 1; }
+  .flow-draw .lbl { font: 12px var(--sans); fill: var(--muted); paint-order: stroke; stroke: var(--card); stroke-width: 4px; }
+  .flow-draw .ah { fill: var(--muted); }
+  .flow-draw .ah.on { fill: var(--flow-on); }
+  .node { position: absolute; z-index: 1; padding: 9px 11px; background: var(--card); border: 1px solid var(--rule2); display: grid; gap: 3px; }
+  .node.end { border-color: var(--ink2); box-shadow: 3px 3px 0 var(--rule2); }
+  .node.warn { border: 1px dashed var(--tomato); }
+  .node.warn .nt::before { content: "!"; display: inline-grid; place-items: center; width: 15px; height: 15px; margin-right: 6px; background: var(--tomato); color: #fff; font: 11px var(--pixel); vertical-align: 1px; }
+  .node.dt { border: 0; background: transparent; padding: 0; text-align: center; justify-items: center; }
+  .nt { font-size: 13.5px; line-height: 18px; color: var(--ink); font-weight: 520; }
+  .nd { font-size: 12.5px; line-height: 17px; color: var(--muted); }
+  .node code, .flow-list code { font-size: 11.5px; padding: 0 3px; }
+  .nm { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+  .f-in, .f-out, .f-removed, .tb { display: inline-flex; align-items: center; font: 11px/16px var(--mono); padding: 0 6px; white-space: nowrap; max-width: 100%; }
+  .f-in { color: #fff; background: var(--flow-on); }
+  @media (prefers-color-scheme: dark) { .f-in { color: #0f1124; } }
+  .f-out, .f-removed { color: var(--muted); outline: 1px dashed var(--muted); outline-offset: -1px; }
+  .tb { color: var(--ink2); background: var(--paper2); white-space: normal; }
+  .tb::before { content: ""; width: 7px; height: 7px; margin-right: 5px; background: var(--butter); flex: none; }
+
+  .pn { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 64px; max-width: 760px; }
+  .pn a { display: grid; gap: 2px; padding: 16px 18px; border: 1px solid var(--rule); text-decoration: none; font-weight: 560; background: var(--card); }
+  .pn a:hover { border-color: var(--cobalt); }
+  .pn span { font: 11px var(--pixel); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  .pn .next { grid-column: 2; text-align: right; }
+  .edit { margin-top: 28px; font-size: 13.5px; color: var(--muted); max-width: 760px; }
+  .edit a { color: inherit; }
+  footer { background: var(--navy); color: #8b90b0; font-size: 14px; }
+  footer .frame { border-color: rgba(255,255,255,.1); display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; padding: 22px 24px 30px; }
+  footer a { color: #b8bdd8; text-decoration: none; }
+
+  @media (max-width: 1180px) { .docs { grid-template-columns: 232px minmax(0, 1fr); } .toc { display: none; } }
+  @media (max-width: 860px) {
+    nav.top .menu { display: flex; align-items: center; }
+    nav.top .opt { display: none; }
+    .search { flex: 1; } .search input { width: 100%; } .search kbd { display: none; }
+    nav.top .r:not(.gh) { display: none; }
+    .docs { grid-template-columns: minmax(0, 1fr); }
+    .side { display: none; position: fixed; inset: 57px 0 0; max-height: none; z-index: 35; background: var(--paper); border-right: 0; }
+    body.menu-open .side { display: block; }
+    main { padding: 30px 18px 56px; }
+    article h1 { font-size: 36px; }
+    article h2 { font-size: 26px; margin-top: 44px; }
+    article .anchor { display: none; }
+    .flow { padding: 14px 12px 16px; margin-left: -6px; margin-right: -6px; }
+    .diagram { margin-left: -12px; margin-right: -12px; padding: 18px 4px; }
+    .code { margin-left: -6px; margin-right: -6px; }
+    .code pre.shiki code { font-size: 12px; }
+    .pn { grid-template-columns: 1fr; } .pn .next { grid-column: 1; }
+  }
+  @media (max-width: 560px) { nav.top .brand { min-width: 0; width: auto; } nav.top .gh { display: none; } }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="row">
+    <a class="brand" href="/"><img class="px" src="/art/agent.png" alt="">byoa</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="side">Menu</button>
+    <a class="opt" href="/docs">Docs</a>
+    <a class="opt" href="/docs/api">API</a>
+    <a class="opt" href="{{repo}}/blob/main/SPEC.md">Spec</a>
+    <span class="sp"></span>
+    <div class="search" role="search">
+      <input type="search" placeholder="Search" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+      <kbd>/</kbd>
+      <div class="results" hidden></div>
+    </div>
+    <a class="r gh" href="{{repo}}">GitHub <span class="chev"></span></a>
+  </div>
+</nav>
+
+<div class="frame docs">
+  <aside class="side" id="side" aria-label="Docs">{{nav}}</aside>
+  <main>
+    <div class="kick">{{kick}}</div>
+    <article>
+{{content}}
+    </article>
+    <nav class="pn" aria-label="Pages">{{pn}}</nav>
+    <p class="edit"><a href="{{source}}">Edit this page on GitHub</a> · <a href="{{md}}">This page as Markdown</a></p>
+  </main>
+  <aside class="toc" aria-label="On this page">{{toc}}
+    <div class="tools"><a href="/llms.txt">llms.txt</a><a href="/llms-full.txt">llms-full.txt</a></div>
+  </aside>
+</div>
+
+<footer>
+  <div class="frame">
+    <span>byoa · bring your own agent · Apache 2.0</span>
+    <span><a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/llms.txt">llms.txt</a> · <a href="{{repo}}">GitHub</a></span>
+  </div>
+</footer>
+
+<script>
+{{docs_js}}
+</script>
+</body>
+</html>

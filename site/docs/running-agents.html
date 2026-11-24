@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Running agents · byoa docs</title>
+<meta name="description" content="agents.run and its events, what the agent may do, sandbox modes, jobs at the same time, session and jobToken">
+<meta property="og:title" content="Running agents · byoa docs">
+<meta property="og:description" content="agents.run and its events, what the agent may do, sandbox modes, jobs at the same time, session and jobToken">
+<meta name="theme-color" content="#f8f6f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1124" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://byoa.rippling.computer/docs/running-agents">
+<link rel="alternate" type="text/markdown" href="/docs/running-agents.md" title="This page as Markdown">
+<link rel="icon" href="/art/agent.png">
+<link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  /* The styles that the home page (template.html) and the docs pages (docs.html) share. build.mjs puts them in each page. */
+/* Geist, Geist Mono and Geist Pixel: SIL Open Font License 1.1, see fonts/OFL.txt */
+@font-face { font-family: "Geist"; src: url(/fonts/Geist-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Geist Mono"; src: url(/fonts/GeistMono-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Geist Pixel"; src: url(/fonts/GeistPixel-Square.woff2) format("woff2"); font-display: swap; }
+
+:root {
+  --paper: #f8f6f0; --paper2: #f1eee5; --card: #fffdf8;
+  --rule: #e3dfd4; --rule2: #d3cdbe;
+  --ink: #141418; --ink2: #3d3d48; --muted: #6b6977; --dim: #9895a1;
+  --cobalt: #2f4cff; --cobalt2: #2238d8; --peri: #9db6ff; --peri2: #dfe6ff;
+  --tomato: #ff5a36; --butter: #ffc93c; --mint: #2fbf8a; --navy: #121428;
+  --g: clamp(16px, 8.3vw, 120px);           /* gutter: the ruled columns at the page edges */
+  --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --pixel: "Geist Pixel", "Geist Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+img { display: block; }
+.px { image-rendering: pixelated; }
+code { font: .86em/1.4 var(--mono); background: var(--paper2); border: 1px solid var(--rule); padding: 1px 5px; }
+.pixel { font-family: var(--pixel); letter-spacing: .02em; }
+
+/* the ruled frame: every band sits between two vertical rules, like a page of graph paper */
+.band { border-bottom: 1px solid var(--rule); position: relative; }
+.frame { margin: 0 var(--g); border-left: 1px solid var(--rule); border-right: 1px solid var(--rule); position: relative; }
+.frame.pad { padding: 104px clamp(20px, 4vw, 56px); }
+.dot::before, .dot::after { content: ""; position: absolute; width: 5px; height: 5px; background: var(--ink); top: -3px; z-index: 3; }
+.dot::before { left: -3px; } .dot::after { right: -3px; }
+
+/* nav */
+nav.top { position: sticky; top: 0; z-index: 30; background: rgba(248,246,240,.97); border-bottom: 1px solid var(--rule); }
+nav.top .row { display: flex; height: 56px; }
+nav.top a { display: flex; align-items: center; padding: 0 18px; text-decoration: none; font-size: 15px; border-right: 1px solid var(--rule); color: var(--ink2); white-space: nowrap; }
+nav.top a:hover { background: var(--paper2); color: var(--ink); }
+nav.top .brand { gap: 9px; font-weight: 640; font-size: 19px; letter-spacing: -.02em; color: var(--ink); width: var(--g); min-width: 120px; padding: 0 14px; }
+nav.top .brand img { width: 18px; height: auto; }
+nav.top .sp { flex: 1; }
+nav.top .r { border-right: 0; border-left: 1px solid var(--rule); }
+nav.top .gh { background: var(--ink); color: var(--paper); border: 0; gap: 10px; }
+nav.top .gh:hover { background: #000; color: #fff; }
+.chev { display: inline-block; width: 10px; height: 10px; background:
+  linear-gradient(currentColor,currentColor) 0 0/3px 3px no-repeat, linear-gradient(currentColor,currentColor) 3px 3px/3px 3px no-repeat,
+  linear-gradient(currentColor,currentColor) 6px 3px/0 0 no-repeat, linear-gradient(currentColor,currentColor) 0 6px/3px 3px no-repeat; }
+
+/* buttons */
+.btn { display: inline-flex; align-items: center; gap: 12px; padding: 13px 18px; font-size: 16px; font-weight: 520; text-decoration: none; background: var(--paper2); border: 1px solid var(--rule); color: var(--ink); transition: background .12s; }
+.btn:hover { background: #e9e5da; }
+.btn.dark { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.dark:hover { background: #000; }
+.btn .ico { width: 30px; height: 30px; margin: -6px 0 -6px -8px; display: grid; place-items: center; background: var(--cobalt); }
+.btn .ico img { width: 20px; }
+
+.badge { font: 11px var(--pixel); letter-spacing: .08em; padding: 3px 7px 2px; line-height: 1.2; display: inline-block; }
+.badge.v1 { background: var(--cobalt); color: #fff; }
+.badge.plan { background: var(--butter); color: var(--ink); }
+.badge.maybe { border: 1px dashed var(--rule2); color: var(--muted); }
+.badge.done { background: var(--mint); color: #fff; }
+
+/* who brings what: one box-drawing diagram, set in Geist Mono so every column lines up */
+.ascii-wrap { container-type: inline-size; margin: 8px auto 0; text-align: left; }
+/* a cell width of whole pixels (Geist Mono is .6em wide) and a whole-pixel line height keep the box lines unbroken */
+.ascii { --fs: round(down, min(16.67px, calc(100cqw / (var(--cols) * .6))), 1.6667px);
+  margin: 0 auto; width: max-content; font-family: var(--mono); font-weight: 400; letter-spacing: 0; -webkit-text-size-adjust: none; text-size-adjust: none;
+  font-size: var(--fs); line-height: round(nearest, calc(var(--fs) * 1.3), 1px); color: var(--ink); white-space: pre; font-variant-ligatures: none; }
+.ascii .l { color: var(--muted); letter-spacing: 0; }
+.ascii .k { color: var(--ink2); }
+.ascii .a { color: var(--ink2); }
+.ascii .u { color: var(--ink); font-weight: 500; }
+.ascii .t { color: var(--ink); }
+.ascii .m { color: var(--muted); }
+.ascii .x { color: var(--cobalt); font-weight: 600; }
+.ascii .p { color: #d93d1a; }
+.ascii .c { color: var(--tomato); }
+.ascii .o { color: var(--cobalt); font-weight: 700; }
+.ascii .bn { color: var(--cobalt); font-weight: 700; }
+.ascii .bs { color: var(--cobalt); }
+.ascii.narrow { display: none; }
+
+footer { background: var(--navy); color: #8b90b0; font-size: 14px; }
+footer .frame { border-color: rgba(255,255,255,.1); display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; padding: 22px 24px 30px; }
+footer a { color: #b8bdd8; text-decoration: none; }
+
+  /* ---- the docs: the home page's ruled frame, with a menu on the left and the page's headings on the right */
+  :root { color-scheme: light dark; --code: #121428; --flow-on: var(--cobalt); }
+  @media (prefers-color-scheme: dark) {
+    /* the home page's palette on the navy of its closing band, as in the README's dark images */
+    :root { --paper: #0f1124; --paper2: #151833; --card: #161a36; --rule: #2a2f57; --rule2: #3c4274;
+      --ink: #f3f1ea; --ink2: #c9cadc; --muted: #9195b6; --dim: #6b6f90; --peri2: #232a5c; --cobalt: #8ea6ff; --code: #0a0c1c; --flow-on: #8ea6ff; }
+    nav.top .gh { background: var(--ink); color: var(--paper); }
+    nav.top .gh:hover { background: #fff; color: #000; }
+    .badge.plan { color: #141418; }
+    .ascii .x, .ascii .o, .ascii .bn, .ascii .bs { color: var(--peri); }
+    .ascii .p { color: var(--tomato); }
+  }
+  body { font-size: 16.5px; }
+  nav.top { background: var(--paper); }
+  nav.top .menu { display: none; border-right: 1px solid var(--rule); background: none; border-top: 0; border-bottom: 0; border-left: 0; color: var(--ink2); font: 15px var(--sans); padding: 0 16px; cursor: pointer; }
+  nav.top a[aria-current] { color: var(--ink); background: var(--paper2); }
+  .search { position: relative; display: flex; align-items: center; border-left: 1px solid var(--rule); }
+  .search input { width: 220px; height: 56px; border: 0; background: transparent; color: var(--ink); font: 15px var(--sans); padding: 0 16px; outline: none; }
+  .search input::placeholder { color: var(--dim); }
+  .search input:focus { background: var(--paper2); }
+  .search kbd { position: absolute; right: 12px; font: 11px var(--mono); color: var(--dim); border: 1px solid var(--rule); padding: 1px 5px; pointer-events: none; }
+  .search input:focus + kbd, .search input:not(:placeholder-shown) + kbd { display: none; }
+  .results { position: absolute; top: 56px; right: 0; width: min(480px, 100vw); max-height: 70vh; overflow: auto; background: var(--card); border: 1px solid var(--rule2); box-shadow: 0 12px 40px rgba(0,0,0,.18); z-index: 40; }
+  nav.top .results a { display: block; padding: 11px 16px; border: 0; border-bottom: 1px solid var(--rule); text-decoration: none; white-space: normal; color: var(--ink); font-size: 15px; }
+  nav.top .results a:hover, nav.top .results a.sel { background: var(--paper2); }
+  .results b { display: block; font-weight: 560; font-size: 15px; }
+  .results span { display: block; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+  .results mark { background: var(--peri2); color: inherit; }
+  .results .none { padding: 14px 16px; color: var(--muted); font-size: 14px; }
+
+  .docs { display: grid; grid-template-columns: 248px minmax(0, 1fr) 216px; min-height: calc(100vh - 57px); }
+  .side, .toc { position: sticky; top: 57px; align-self: start; max-height: calc(100vh - 57px); overflow: auto; padding: 28px 0 40px; }
+  .side { border-right: 1px solid var(--rule); }
+  .side ul { list-style: none; margin: 0 0 18px; padding: 0; }
+  .side .ng { font: 11px var(--pixel); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 0 22px 8px; display: flex; align-items: center; gap: 8px; }
+  .side .ng::before { content: ""; width: 6px; height: 6px; background: var(--butter); }
+  .side a { display: block; padding: 6px 22px; text-decoration: none; color: var(--ink2); font-size: 15px; border-left: 3px solid transparent; }
+  .side a:hover { color: var(--ink); background: var(--paper2); }
+  .side a[aria-current] { color: var(--ink); font-weight: 560; border-left-color: var(--cobalt); background: var(--paper2); }
+  .toc { border-left: 1px solid var(--rule); padding-left: 0; font-size: 13.5px; }
+  .toc-h { font: 11px var(--pixel); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 0 20px 8px; }
+  .toc ul { list-style: none; margin: 0; padding: 0; }
+  .toc a { display: block; padding: 4px 20px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; }
+  .toc a:hover { color: var(--ink); }
+  .toc a.on { color: var(--ink); border-left-color: var(--cobalt); }
+  .toc code { font-size: .9em; padding: 0 3px; }
+  .tools { margin: 22px 20px 0; padding-top: 14px; border-top: 1px solid var(--rule); display: grid; gap: 6px; }
+  .tools a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  .tools a:hover { color: var(--ink); }
+
+  main { min-width: 0; padding: 48px clamp(20px, 4vw, 64px) 72px; }
+  .kick { font: 12px var(--pixel); letter-spacing: .12em; color: var(--cobalt); text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+  .kick::before { content: ""; width: 8px; height: 8px; background: currentColor; }
+  article { max-width: 760px; }
+  article h1 { font-size: clamp(36px, 4.4vw, 54px); line-height: 1.02; letter-spacing: -.045em; font-weight: 560; margin: 0 0 22px; }
+  article h2 { font-size: 30px; line-height: 1.1; letter-spacing: -.035em; font-weight: 560; margin: 56px 0 14px; padding-top: 22px; border-top: 1px solid var(--rule); }
+  article h3 { font-size: 21px; line-height: 1.2; letter-spacing: -.02em; font-weight: 580; margin: 34px 0 10px; }
+  article h4 { font-size: 17px; margin: 26px 0 8px; }
+  article :is(h2, h3, h4) { position: relative; scroll-margin-top: 76px; }
+  article .anchor { position: absolute; left: -1.1em; width: 1em; color: var(--dim); text-decoration: none; opacity: 0; font-weight: 400; }
+  article :is(h2, h3, h4):hover .anchor { opacity: 1; }
+  article p, article li { color: var(--ink2); }
+  article :is(p, ul, ol) { margin: 0 0 16px; }
+  article :is(ul, ol) { padding-left: 22px; }
+  article li { margin: 4px 0; }
+  article li::marker { color: var(--muted); }
+  article strong { color: var(--ink); font-weight: 600; }
+  article a { color: var(--cobalt); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--cobalt) 35%, transparent); text-underline-offset: 3px; }
+  article a:hover { text-decoration-color: currentColor; }
+  article code { font-size: .84em; word-break: break-word; }
+  article a code { color: inherit; }
+  article blockquote { margin: 0 0 16px; padding: 12px 18px; border-left: 3px solid var(--butter); background: var(--paper2); }
+  article blockquote p:last-child { margin: 0; }
+  article hr { border: 0; border-top: 1px solid var(--rule); margin: 32px 0; }
+  .code { margin: 0 0 20px; background: var(--code); border: 1px solid #000; }
+  .code pre.shiki { margin: 0; padding: 14px 18px; overflow-x: auto; background: transparent !important; }
+  .code pre.shiki code { background: none; border: 0; padding: 0; font: 13px/1.62 var(--mono); word-break: normal; }
+  .tbl { overflow-x: auto; margin: 0 0 20px; border: 1px solid var(--rule); background: var(--card); }
+  .tbl table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  .tbl :is(th, td) { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--rule); border-right: 1px solid var(--rule); }
+  .tbl :is(th, td):last-child { border-right: 0; }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .tbl th { font-weight: 560; background: var(--paper2); color: var(--ink); }
+  .tbl td { color: var(--ink2); }
+  .diagram { margin: 8px 0 24px; padding: 28px 12px; border: 1px solid var(--rule); background: var(--paper2); }
+  .diagram .ascii-wrap { margin: 0 auto; }
+
+  /* flow diagrams (build.mjs draws them from ```flow blocks; docs.js lays them out) */
+  .flow { margin: 10px 0 28px; padding: 18px 18px 20px; border: 1px solid var(--rule); background: var(--card); }
+  .flow .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--muted); margin-bottom: 16px; }
+  .flow .lg { display: inline-flex; align-items: center; gap: 7px; }
+  .flow .lg::before { content: ""; width: 26px; height: 0; border-top: 1px solid var(--muted); }
+  .flow .lg.on::before { border-top: 3px solid var(--flow-on); }
+  .flow .lg.dia::before { width: 10px; height: 10px; border: 1px solid var(--muted); transform: rotate(45deg); margin: 0 3px; }
+  .flow .lg.tb::before { display: none; }
+  .flow .seg { display: inline-flex; border: 1px solid var(--rule2); margin-bottom: 12px; flex-wrap: wrap; }
+  .flow .seg button { font: 14px var(--sans); background: transparent; color: var(--ink2); border: 0; border-right: 1px solid var(--rule2); padding: 8px 14px; cursor: pointer; }
+  .flow .seg button:last-child { border-right: 0; }
+  .flow .seg button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+  .flow .tabnote { font-size: 14.5px; color: var(--ink2); margin: 0 0 16px; }
+  /* the steps as a list: without JavaScript, and on a phone, where the drawing has no room for its side column */
+  .flow-list { list-style: none; margin: 0; padding: 0; counter-reset: s; font-size: 14.5px; color: var(--ink2); }
+  .flow-list > li { position: relative; margin: 0; padding: 0 0 16px 36px; }
+  .flow-list > li::before { counter-increment: s; content: counter(s); position: absolute; left: 0; top: 0; width: 23px; height: 23px; display: grid; place-items: center; font: 11px var(--pixel); background: var(--ink); color: var(--paper); }
+  .flow-list > li.k-dec::before { background: var(--butter); color: #141418; }
+  .flow-list > li.k-warn::before { background: var(--tomato); color: #fff; }
+  .flow-list > li::after { content: ""; position: absolute; left: 11px; top: 27px; bottom: 4px; width: 1px; background: var(--rule2); }
+  .flow-list > li.on::after { width: 3px; left: 10px; background: var(--flow-on); }
+  .flow-list > li:last-child::after { display: none; }
+  .flow-list b { display: block; font-weight: 560; color: var(--ink); }
+  .flow-list .nm { margin-top: 6px; }
+  .flow-list ul { list-style: none; margin: 8px 0 0; padding: 8px 12px; border: 1px dashed var(--rule2); }
+  .flow-list ul li { margin: 0; }
+  .flow-list ul i { font-style: normal; font: 11px var(--pixel); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .flow.drawn .flow-list { display: none; }
+  .flow:not(.drawn) .lg.dia { display: none; }
+  .flow-draw { position: relative; }
+  .flow-draw svg { position: absolute; left: 0; top: 0; overflow: visible; z-index: 0; }
+  .flow-draw .e { fill: none; stroke: var(--muted); stroke-width: 1; }
+  .flow-draw .e.on { stroke: var(--flow-on); stroke-width: 3; }
+  .flow-draw .e.dash { stroke-dasharray: 4 3; }
+  .flow-draw .dia { fill: var(--card); stroke: var(--rule2); stroke-width: 1; }
+  .flow-draw .lbl { font: 12px var(--sans); fill: var(--muted); paint-order: stroke; stroke: var(--card); stroke-width: 4px; }
+  .flow-draw .ah { fill: var(--muted); }
+  .flow-draw .ah.on { fill: var(--flow-on); }
+  .node { position: absolute; z-index: 1; padding: 9px 11px; background: var(--card); border: 1px solid var(--rule2); display: grid; gap: 3px; }
+  .node.end { border-color: var(--ink2); box-shadow: 3px 3px 0 var(--rule2); }
+  .node.warn { border: 1px dashed var(--tomato); }
+  .node.warn .nt::before { content: "!"; display: inline-grid; place-items: center; width: 15px; height: 15px; margin-right: 6px; background: var(--tomato); color: #fff; font: 11px var(--pixel); vertical-align: 1px; }
+  .node.dt { border: 0; background: transparent; padding: 0; text-align: center; justify-items: center; }
+  .nt { font-size: 13.5px; line-height: 18px; color: var(--ink); font-weight: 520; }
+  .nd { font-size: 12.5px; line-height: 17px; color: var(--muted); }
+  .node code, .flow-list code { font-size: 11.5px; padding: 0 3px; }
+  .nm { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+  .f-in, .f-out, .f-removed, .tb { display: inline-flex; align-items: center; font: 11px/16px var(--mono); padding: 0 6px; white-space: nowrap; max-width: 100%; }
+  .f-in { color: #fff; background: var(--flow-on); }
+  @media (prefers-color-scheme: dark) { .f-in { color: #0f1124; } }
+  .f-out, .f-removed { color: var(--muted); outline: 1px dashed var(--muted); outline-offset: -1px; }
+  .tb { color: var(--ink2); background: var(--paper2); white-space: normal; }
+  .tb::before { content: ""; width: 7px; height: 7px; margin-right: 5px; background: var(--butter); flex: none; }
+
+  .pn { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 64px; max-width: 760px; }
+  .pn a { display: grid; gap: 2px; padding: 16px 18px; border: 1px solid var(--rule); text-decoration: none; font-weight: 560; background: var(--card); }
+  .pn a:hover { border-color: var(--cobalt); }
+  .pn span { font: 11px var(--pixel); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  .pn .next { grid-column: 2; text-align: right; }
+  .edit { margin-top: 28px; font-size: 13.5px; color: var(--muted); max-width: 760px; }
+  .edit a { color: inherit; }
+  footer { background: var(--navy); color: #8b90b0; font-size: 14px; }
+  footer .frame { border-color: rgba(255,255,255,.1); display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; padding: 22px 24px 30px; }
+  footer a { color: #b8bdd8; text-decoration: none; }
+
+  @media (max-width: 1180px) { .docs { grid-template-columns: 232px minmax(0, 1fr); } .toc { display: none; } }
+  @media (max-width: 860px) {
+    nav.top .menu { display: flex; align-items: center; }
+    nav.top .opt { display: none; }
+    .search { flex: 1; } .search input { width: 100%; } .search kbd { display: none; }
+    nav.top .r:not(.gh) { display: none; }
+    .docs { grid-template-columns: minmax(0, 1fr); }
+    .side { display: none; position: fixed; inset: 57px 0 0; max-height: none; z-index: 35; background: var(--paper); border-right: 0; }
+    body.menu-open .side { display: block; }
+    main { padding: 30px 18px 56px; }
+    article h1 { font-size: 36px; }
+    article h2 { font-size: 26px; margin-top: 44px; }
+    article .anchor { display: none; }
+    .flow { padding: 14px 12px 16px; margin-left: -6px; margin-right: -6px; }
+    .diagram { margin-left: -12px; margin-right: -12px; padding: 18px 4px; }
+    .code { margin-left: -6px; margin-right: -6px; }
+    .code pre.shiki code { font-size: 12px; }
+    .pn { grid-template-columns: 1fr; } .pn .next { grid-column: 1; }
+  }
+  @media (max-width: 560px) { nav.top .brand { min-width: 0; width: auto; } nav.top .gh { display: none; } }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="row">
+    <a class="brand" href="/"><img class="px" src="/art/agent.png" alt="">byoa</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="side">Menu</button>
+    <a class="opt" href="/docs">Docs</a>
+    <a class="opt" href="/docs/api">API</a>
+    <a class="opt" href="https://github.com/madeyexz/byoa/blob/main/SPEC.md">Spec</a>
+    <span class="sp"></span>
+    <div class="search" role="search">
+      <input type="search" placeholder="Search" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+      <kbd>/</kbd>
+      <div class="results" hidden></div>
+    </div>
+    <a class="r gh" href="https://github.com/madeyexz/byoa">GitHub <span class="chev"></span></a>
+  </div>
+</nav>
+
+<div class="frame docs">
+  <aside class="side" id="side" aria-label="Docs"><ul><li><a href="/docs">Overview</a></li></ul><div class="ng">Start</div><ul><li><a href="/docs/getting-started">Getting started</a></li><li><a href="/docs/concepts">Concepts</a></li></ul><div class="ng">Guides</div><ul><li><a href="/docs/ai-login">AI login</a></li><li><a href="/docs/sandbox-lifecycle">Sandbox lifecycle</a></li><li><a href="/docs/mcp">MCP tools and the proxy</a></li><li><a href="/docs/running-agents" aria-current="page">Running agents</a></li><li><a href="/docs/providers">Sandbox providers</a></li><li><a href="/docs/stores">Stores and Convex</a></li><li><a href="/docs/testing">Testing</a></li></ul><div class="ng">Reference</div><ul><li><a href="/docs/api">API reference</a></li><li><a href="/docs/lab-rules">Lab rules</a></li><li><a href="/docs/security">Security</a></li></ul></aside>
+  <main>
+    <div class="kick">Guides</div>
+    <article>
+<h1>Running agents</h1>
+<p>Your app runs a job with <code>agents.run</code>. byoa takes the user&#39;s sandbox, loads the user&#39;s setup, runs the user&#39;s own harness on the user&#39;s own plan, and streams its events. For a program of your own around the harness, use <code>agents.session</code>; for a harness outside byoa&#39;s sandboxes, <code>agents.jobToken</code>.</p>
+<h2 id="run-a-job-and-stream-its-events"><a class="anchor" href="#run-a-job-and-stream-its-events" aria-hidden="true" tabindex="-1">#</a>Run a job and stream its events</h2>
+<div class="code"><pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#4D9375">for</span><span style="color:#4D9375"> await</span><span style="color:#666666"> (</span><span style="color:#CB7676">const </span><span style="color:#BD976A">ev</span><span style="color:#CB7676"> of</span><span style="color:#BD976A"> agents</span><span style="color:#666666">.</span><span style="color:#80A665">run</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#666666"> {</span></span>
+<span class="line"><span style="color:#B8A965">  harness</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">claude</span><span style="color:#C98A7D77">'</span><span style="color:#666666">,                   </span><span style="color:#758575DD">// 'claude' | 'codex' | 'fake'</span></span>
+<span class="line"><span style="color:#BD976A">  task</span><span style="color:#666666">,                                </span><span style="color:#758575DD">// the user's request</span></span>
+<span class="line"><span style="color:#B8A965">  mcp</span><span style="color:#666666">: [</span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">notion</span><span style="color:#C98A7D77">'</span><span style="color:#666666">, </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">todos</span><span style="color:#C98A7D77">'</span><span style="color:#666666">],            </span><span style="color:#758575DD">// the servers this job gets; default none</span></span>
+<span class="line"><span style="color:#B8A965">  setup</span><span style="color:#666666">: { </span><span style="color:#BD976A">agentsMd</span><span style="color:#666666">, </span><span style="color:#BD976A">skills</span><span style="color:#666666"> },         </span><span style="color:#758575DD">// AGENTS.md (and CLAUDE.md for Claude Code); skills: [{ name, files: { 'SKILL.md': '...' } }]</span></span>
+<span class="line"><span style="color:#666666">}))</span><span style="color:#666666"> {</span></span>
+<span class="line"><span style="color:#758575DD">  // ev.type: 'start' | 'text' | 'tool_call' | 'tool_result' | 'permission' | 'error' | 'end'</span></span>
+<span class="line"><span style="color:#666666">}</span></span></code></pre></div><ul>
+<li>The events are the same for Claude Code and Codex. The schema is in the <a href="/docs/api#events-one-schema-for-both-harnesses">API reference</a>.</li>
+<li><code>run</code> does not throw when a job fails. It gives <code>error</code> events (<code>code</code>: <code>signed-out</code>, <code>expired</code>, <code>harness</code>, <code>sandbox</code> or <code>mcp</code>), and always ends with one <code>end</code> event (<code>ok</code>, <code>result</code>, <code>usage</code>). On <code>signed-out</code> or <code>expired</code>, show the sign-in again.</li>
+<li>byoa writes skills where each harness reads them (<code>.claude/skills/</code>, <code>.agents/skills/</code>), AGENTS.md (and CLAUDE.md for Claude Code) from one source, and the MCP config in each harness&#39;s own format. <code>plugins</code> adds the skills and MCP servers of an Agent Plugins package (<code>readPlugin(readPluginDir(dir))</code>).</li>
+<li>byoa installs the pinned version of each harness in each sandbox, so a new pin reaches every user at their next job.</li>
+<li>If the client goes away, stop the loop (or call <code>return()</code> on the generator). byoa still ends the job token, takes the login out, and pauses or destroys the sandbox.</li>
+</ul>
+<h2 id="what-the-agent-may-do"><a class="anchor" href="#what-the-agent-may-do" aria-hidden="true" tabindex="-1">#</a>What the agent may do</h2>
+<p>By default (<code>access: &#39;full&#39;</code>), the agent has every tool of its harness, with no approval: a shell, file changes and the network. This is for a sandbox that is the job&#39;s alone. An app whose agent must only use its MCP tools, such as a to-do list or a mail client, gives the job <code>access: &#39;read-only&#39;</code>:</p>
+<div class="code"><pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#BD976A">agents</span><span style="color:#666666">.</span><span style="color:#80A665">run</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#666666"> { </span><span style="color:#B8A965">harness</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">codex</span><span style="color:#C98A7D77">'</span><span style="color:#666666">, </span><span style="color:#BD976A">task</span><span style="color:#666666">, </span><span style="color:#B8A965">mcp</span><span style="color:#666666">: [</span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">mail</span><span style="color:#C98A7D77">'</span><span style="color:#666666">], </span><span style="color:#B8A965">setup</span><span style="color:#666666">: { </span><span style="color:#BD976A">skills</span><span style="color:#666666"> }, </span><span style="color:#B8A965">access</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">read-only</span><span style="color:#C98A7D77">'</span><span style="color:#666666"> })</span></span></code></pre></div><p>The agent can then call the job&#39;s MCP tools and read files, so the harness can still read its skills and AGENTS.md. It cannot change a file or reach the network by itself. byoa only sets each CLI&#39;s own options: Codex runs in its own <code>read-only</code> sandbox, and Claude Code gets only its tools that read; each tool it refuses is a <code>permission</code> event. <code>read-only</code> does not hide files: the agent can read each file that its user can read. Use it always with <code>localSandbox()</code> on a user&#39;s own computer, where the sandbox isolates nothing.</p>
+<h2 id="sandbox-modes"><a class="anchor" href="#sandbox-modes" aria-hidden="true" tabindex="-1">#</a>Sandbox modes</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th></th>
+<th>Where a job runs</th>
+<th>Jobs of one user and harness at the same time</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>sandboxPer: &#39;user&#39;</code> (the default)</td>
+<td>the user&#39;s one kept sandbox for that harness, paused between jobs</td>
+<td>one; another job waits (<code>waitMs</code>, default 10 minutes)</td>
+</tr>
+<tr>
+<td>a <code>sandboxKey</code> for each job</td>
+<td>one kept sandbox for each key, such as a project or a conversation, each with its own lease</td>
+<td>one for each key, but see the AI login below</td>
+</tr>
+<tr>
+<td><code>sandboxPer: &#39;job&#39;</code></td>
+<td>a new sandbox, destroyed after the job</td>
+<td>see the AI login below</td>
+</tr>
+</tbody></table>
+</div><div class="code"><pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#BD976A">agents</span><span style="color:#666666">.</span><span style="color:#80A665">run</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#666666"> { </span><span style="color:#B8A965">harness</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">claude</span><span style="color:#C98A7D77">'</span><span style="color:#666666">, </span><span style="color:#BD976A">task</span><span style="color:#666666">, </span><span style="color:#B8A965">sandboxKey</span><span style="color:#666666">: </span><span style="color:#BD976A">projectId</span><span style="color:#666666"> })</span><span style="color:#758575DD">  // one kept sandbox for each project</span></span>
+<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">agents</span><span style="color:#666666"> =</span><span style="color:#80A665"> createAgents</span><span style="color:#666666">({ ...</span><span style="color:#BD976A">options</span><span style="color:#666666">, </span><span style="color:#B8A965">sandboxPer</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">job</span><span style="color:#C98A7D77">'</span><span style="color:#666666"> })</span><span style="color:#758575DD">          // a new sandbox for each job; default 'user'</span></span></code></pre></div><p><a href="/docs/sandbox-lifecycle">Sandbox lifecycle</a> shows each step of each mode, and what each provider does.</p>
+<h2 id="jobs-at-the-same-time"><a class="anchor" href="#jobs-at-the-same-time" aria-hidden="true" tabindex="-1">#</a>Jobs at the same time</h2>
+<p>With the default stored login, one job of a user and harness holds the AI login at a time, and another job waits for it. So a user&#39;s Claude Code or Codex jobs run one after the other in every mode, also with different sandbox keys. Only the fake harness runs them at the same time.</p>
+<p>For many Codex agents of one user at the same time, each on its own machine, with one sign-in, turn on the shared login and give each agent its own sandbox:</p>
+<div class="code"><pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> createAgents</span><span style="color:#666666">,</span><span style="color:#BD976A"> storedLogin</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">@madeyexz/byoa</span><span style="color:#C98A7D77">'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">agents</span><span style="color:#666666"> =</span><span style="color:#80A665"> createAgents</span><span style="color:#666666">({ ...</span><span style="color:#BD976A">options</span><span style="color:#666666">, </span><span style="color:#B8A965">login</span><span style="color:#666666">: </span><span style="color:#80A665">storedLogin</span><span style="color:#666666">({ </span><span style="color:#B8A965">parallel</span><span style="color:#666666">: </span><span style="color:#4D9375">true</span><span style="color:#666666"> }) })</span></span>
+<span class="line"><span style="color:#4D9375">await</span><span style="color:#B8A965"> Promise</span><span style="color:#666666">.</span><span style="color:#80A665">all</span><span style="color:#666666">(</span><span style="color:#BD976A">tasks</span><span style="color:#666666">.</span><span style="color:#80A665">map</span><span style="color:#666666">((</span><span style="color:#BD976A">task</span><span style="color:#666666">,</span><span style="color:#BD976A"> i</span><span style="color:#666666">)</span><span style="color:#666666"> =></span><span style="color:#80A665"> drain</span><span style="color:#666666">(</span><span style="color:#BD976A">agents</span><span style="color:#666666">.</span><span style="color:#80A665">run</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#666666"> { </span><span style="color:#B8A965">harness</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">codex</span><span style="color:#C98A7D77">'</span><span style="color:#666666">, </span><span style="color:#BD976A">task</span><span style="color:#666666">, </span><span style="color:#B8A965">sandboxKey</span><span style="color:#666666">: </span><span style="color:#C98A7D77">`</span><span style="color:#C98A7D">agent-</span><span style="color:#4D9375">${</span><span style="color:#C98A7D">i</span><span style="color:#4D9375">}</span><span style="color:#C98A7D77">`</span><span style="color:#666666"> }))))</span></span></code></pre></div><p>(<code>drain</code> is your own function that reads each job&#39;s events.) The jobs then share the login while it is not due for a refresh. One risk stays, and Claude Code jobs of one user always run one at a time: see <a href="/docs/ai-login#codex-jobs-at-the-same-time-the-shared-login">AI login</a>.</p>
+<h2 id="a-program-of-your-own-around-the-harness"><a class="anchor" href="#a-program-of-your-own-around-the-harness" aria-hidden="true" tabindex="-1">#</a>A program of your own around the harness</h2>
+<p>An app that runs its own program around the unmodified harness (for example its own server, which starts <code>claude</code> or <code>codex</code> itself) opens the job with <code>agents.session</code> instead. It gets the same sandbox, login, pinned harness and job token, and runs its own command:</p>
+<div class="code"><pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">s</span><span style="color:#666666"> =</span><span style="color:#4D9375"> await</span><span style="color:#BD976A"> agents</span><span style="color:#666666">.</span><span style="color:#80A665">session</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#666666"> { </span><span style="color:#B8A965">harness</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">claude</span><span style="color:#C98A7D77">'</span><span style="color:#666666">, </span><span style="color:#B8A965">mcp</span><span style="color:#666666">: [</span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">notion</span><span style="color:#C98A7D77">'</span><span style="color:#666666">] })</span></span>
+<span class="line"><span style="color:#4D9375">try</span><span style="color:#666666"> {</span></span>
+<span class="line"><span style="color:#758575DD">  // s.bin: the pinned claude binary; s.env: its login folder, the job token and its MCP start timeout; s.mcp: [{ name, url }] at the proxy</span></span>
+<span class="line"><span style="color:#4D9375">  await</span><span style="color:#BD976A"> s</span><span style="color:#666666">.</span><span style="color:#BD976A">sandbox</span><span style="color:#666666">.</span><span style="color:#80A665">run</span><span style="color:#666666">(</span><span style="color:#C98A7D77">`</span><span style="color:#C98A7D">my-server --claude </span><span style="color:#4D9375">${</span><span style="color:#C98A7D">s</span><span style="color:#666666">.</span><span style="color:#C98A7D">bin</span><span style="color:#4D9375">}</span><span style="color:#C98A7D77">`</span><span style="color:#666666">,</span><span style="color:#666666"> { </span><span style="color:#B8A965">cwd</span><span style="color:#666666">: </span><span style="color:#BD976A">s</span><span style="color:#666666">.</span><span style="color:#BD976A">work</span><span style="color:#666666">, </span><span style="color:#B8A965">env</span><span style="color:#666666">: </span><span style="color:#BD976A">s</span><span style="color:#666666">.</span><span style="color:#BD976A">env</span><span style="color:#666666"> })</span></span>
+<span class="line"><span style="color:#666666">}</span><span style="color:#4D9375"> finally</span><span style="color:#666666"> {</span><span style="color:#4D9375"> await</span><span style="color:#BD976A"> s</span><span style="color:#666666">.</span><span style="color:#80A665">close</span><span style="color:#666666">()</span><span style="color:#666666"> }</span><span style="color:#758575DD">  // ends the job token, takes the AI login out, and pauses the user's sandbox</span></span></code></pre></div><p><code>session</code> throws <code>LoginError</code> when the harness is not signed in, and <code>ProxyError</code> when the sandbox cannot reach the proxy.</p>
+<h2 id="a-harness-outside-byoas-sandboxes"><a class="anchor" href="#a-harness-outside-byoas-sandboxes" aria-hidden="true" tabindex="-1">#</a>A harness outside byoa&#39;s sandboxes</h2>
+<p>A program outside byoa&#39;s sandboxes, such as a harness on the user&#39;s own computer, gets a job token with no sandbox: <code>const t = await agents.jobToken(userId, { mcp: [&#39;notion&#39;] })</code> gives <code>t.token</code> and <code>t.mcp</code> (the proxy URLs), with the same rules as a job&#39;s token, until <code>t.close()</code>. Send <code>t.token</code> as <code>Authorization: Bearer</code> to each <code>t.mcp[].url</code>.</p>
+
+    </article>
+    <nav class="pn" aria-label="Pages"><a class="prev" href="/docs/mcp"><span>Previous</span>MCP tools and the proxy</a><a class="next" href="/docs/providers"><span>Next</span>Sandbox providers</a></nav>
+    <p class="edit"><a href="https://github.com/madeyexz/byoa/blob/main/docs/running-agents.md">Edit this page on GitHub</a> · <a href="/docs/running-agents.md">This page as Markdown</a></p>
+  </main>
+  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#run-a-job-and-stream-its-events">Run a job and stream its events</a></li><li><a href="#what-the-agent-may-do">What the agent may do</a></li><li><a href="#sandbox-modes">Sandbox modes</a></li><li><a href="#jobs-at-the-same-time">Jobs at the same time</a></li><li><a href="#a-program-of-your-own-around-the-harness">A program of your own around the harness</a></li><li><a href="#a-harness-outside-byoas-sandboxes">A harness outside byoa&#39;s sandboxes</a></li></ul>
+    <div class="tools"><a href="/llms.txt">llms.txt</a><a href="/llms-full.txt">llms-full.txt</a></div>
+  </aside>
+</div>
+
+<footer>
+  <div class="frame">
+    <span>byoa · bring your own agent · Apache 2.0</span>
+    <span><a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
+  </div>
+</footer>
+
+<script>
+// The docs pages' script (build.mjs puts it in each page): lays out the flow diagrams, switches their tabs, searches
+// the docs (search.json, which build.mjs writes), opens the menu on a phone, and marks the heading in view.
+{
+  // ---- flow diagrams: each .flow-draw has its nodes as JSON (build.mjs, flowHtml). Without this script, the page
+  // shows the same steps as a list.
+  const NS = 'http://www.w3.org/2000/svg'
+  function body(n) {
+    return `<div class="nt">${n.t}</div>${n.d ? `<div class="nd">${n.d}</div>` : ''}${n.m && n.k !== 'dec' ? `<div class="nm">${n.m}</div>` : ''}`
+  }
+  function draw(el, key) {
+    const nodes = JSON.parse(el.dataset.nodes)
+    const W = el.clientWidth
+    if (!W) return
+    // on a phone, the list of steps (build.mjs) reads better than a drawing with no room for its side column
+    const flow = el.closest('.flow')
+    flow.classList.toggle('drawn', W >= 520)
+    if (W < 520) { el.innerHTML = ''; el.style.height = '0px'; return }
+    el.innerHTML = ''
+    const gap = W < 680 ? 32 : 56
+    const mainW = Math.round((W - gap) * 0.56)
+    const sideX = mainW + gap, sideW = W - sideX, cx = mainW / 2
+    const dw = Math.min(mainW, 340)
+    const VG = 30, P = {}
+    const mk = (n, w, cls) => {
+      const d = document.createElement('div')
+      d.className = `node ${cls}`
+      d.innerHTML = body(n)
+      d.style.width = w + 'px'
+      el.appendChild(d)
+      return d
+    }
+    let y = 0, files = false
+    for (const n of nodes) {
+      if (n.f !== undefined) files = n.f
+      n._files = files
+      let h
+      if (n.k === 'dec') {
+        const tw = Math.round(dw * 0.56)
+        const d = mk(n, tw, 'dt')
+        const th = d.offsetHeight
+        h = Math.max(64, Math.ceil(th * 2 + 14))
+        const x = (mainW - dw) / 2
+        d.style.left = x + (dw - tw) / 2 + 'px'
+        d.style.top = y + (h - th) / 2 + 'px'
+        P[n.id] = { x, y, w: dw, h, dec: true }
+      } else {
+        const d = mk(n, mainW, n.k)
+        h = d.offsetHeight
+        d.style.left = '0px'
+        d.style.top = y + 'px'
+        P[n.id] = { x: 0, y, w: mainW, h }
+      }
+      let bottom = y + h
+      if (n.side) {
+        const s = n.side
+        const d = mk(s, sideW, s.k)
+        const sh = d.offsetHeight
+        const top = n.k === 'dec' ? y + h / 2 - 18 : y
+        d.style.left = sideX + 'px'
+        d.style.top = top + 'px'
+        P[s.id] = { x: sideX, y: top, w: sideW, h: sh }
+        bottom = Math.max(bottom, top + sh)
+      }
+      y = bottom + VG
+    }
+    const H = y - VG
+    el.style.height = H + 'px'
+
+    const svg = document.createElementNS(NS, 'svg')
+    svg.setAttribute('width', W)
+    svg.setAttribute('height', H)
+    svg.setAttribute('aria-hidden', 'true')
+    svg.innerHTML = `<defs>
+      <marker id="${key}-a" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="ah"/></marker>
+      <marker id="${key}-b" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="ah on"/></marker></defs>`
+    el.insertBefore(svg, el.firstChild)
+    const add = (tag, attrs, text) => {
+      const e = document.createElementNS(NS, tag)
+      for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v)
+      if (text) e.textContent = text
+      svg.appendChild(e)
+      return e
+    }
+    const path = (d, cls = '') => add('path', { d, class: `e ${cls}`, 'marker-end': `url(#${key}-${cls.includes('on') ? 'b' : 'a'})` })
+    const label = (x, y, s, anchor = 'start') => add('text', { x, y, class: 'lbl', 'text-anchor': anchor }, s)
+
+    nodes.forEach((n, i) => {
+      const p = P[n.id]
+      if (p.dec) add('polygon', { class: 'dia', points: `${p.x},${p.y + p.h / 2} ${p.x + p.w / 2},${p.y} ${p.x + p.w},${p.y + p.h / 2} ${p.x + p.w / 2},${p.y + p.h}` })
+      const m = nodes[i + 1]
+      if (m && n.k !== 'end') {
+        const q = P[m.id]
+        path(`M${cx},${p.y + p.h} V${q.y}`, n._files ? 'on' : '')
+        if (n.down) label(cx + 8, p.y + p.h + 14, n.down)
+      }
+      const midY = p.y + p.h / 2
+      if (n.right && P[n.right.to]) {
+        const t = P[n.right.to], tx = t.x + t.w / 2
+        path(`M${p.x + p.w},${midY} H${tx} V${t.y}`)
+        label(p.x + p.w + 6, midY - 6, n.right.label)
+      }
+      if (n.side) {
+        const s = n.side, sp = P[s.id]
+        if (n.k === 'dec') {
+          path(`M${p.x + p.w},${midY} H${sideX}`)
+          label(p.x + p.w + 6, midY - 6, s.label)
+        } else {
+          // no label here: the gap is too narrow, and the side node's title says when it happens
+          path(`M${mainW},${sp.y + 18} H${sideX}`, `dash ${n._files ? 'on' : ''}`)
+        }
+        const sx = sp.x + sp.w / 2
+        if (s.back && P[s.back]) {
+          const t = P[s.back], ty = t.y + t.h / 2
+          path(`M${sx},${sp.y} V${ty} H${t.x + t.w}`)
+          if (s.backLabel) label(sx + 6, (sp.y + ty) / 2 + 4, s.backLabel)
+        }
+        if (s.join && P[s.join]) {
+          const t = P[s.join], jy = t.y - 14
+          path(`M${sx},${sp.y + sp.h} V${jy} H${cx}`)
+        }
+      }
+    })
+  }
+  const flows = [...document.querySelectorAll('.flow')]
+  const drawAll = () => flows.forEach((f, i) => f.querySelectorAll('.tabp:not([hidden]) .flow-draw').forEach((el) => draw(el, `f${i}`)))
+  for (const [i, f] of flows.entries()) {
+    f.querySelector('.seg')?.addEventListener('click', (e) => {
+      const b = e.target.closest('button')
+      if (!b) return
+      for (const x of f.querySelectorAll('.seg button')) x.setAttribute('aria-selected', String(x === b))
+      for (const p of f.querySelectorAll('.tabp')) p.hidden = p.dataset.tab !== b.dataset.tab
+      f.querySelectorAll('.tabp:not([hidden]) .flow-draw').forEach((el) => draw(el, `f${i}`))
+    })
+  }
+  let lastW = 0
+  new ResizeObserver(() => { const w = document.querySelector('article')?.clientWidth; if (w && w !== lastW) { lastW = w; drawAll() } }).observe(document.body)
+  document.fonts?.ready.then(() => { lastW = 0; drawAll() })
+
+  // ---- the menu on a phone
+  const menu = document.querySelector('nav.top .menu')
+  menu?.addEventListener('click', () => {
+    const open = document.body.classList.toggle('menu-open')
+    menu.setAttribute('aria-expanded', String(open))
+  })
+
+  // ---- the heading in view, in "On this page"
+  const toc = [...document.querySelectorAll('.toc a[href^="#"]')]
+  if (toc.length) {
+    const heads = toc.map((a) => document.getElementById(decodeURIComponent(a.hash.slice(1)))).filter(Boolean)
+    const mark = () => {
+      let cur = heads[0]
+      for (const h of heads) if (h.getBoundingClientRect().top < 120) cur = h
+      for (const a of toc) a.classList.toggle('on', a.hash === `#${cur?.id}`)
+    }
+    addEventListener('scroll', mark, { passive: true })
+    mark()
+  }
+
+  // ---- search: search.json has one entry for each section of each page
+  const input = document.querySelector('.search input')
+  const box = document.querySelector('.search .results')
+  let index, sel = -1
+  const escape = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+  const words = (q) => q.toLowerCase().split(/\s+/).filter(Boolean)
+  function snippet(text, ws) {
+    const low = text.toLowerCase()
+    const at = Math.max(0, ...ws.map((w) => low.indexOf(w)).filter((i) => i >= 0).slice(0, 1))
+    const from = Math.max(0, at - 50)
+    let s = escape((from ? '…' : '') + text.slice(from, from + 170) + (from + 170 < text.length ? '…' : ''))
+    for (const w of ws) s = s.replace(new RegExp(`(${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'), '<mark>$1</mark>')
+    return s
+  }
+  async function search() {
+    const ws = words(input.value)
+    if (!ws.length) { box.hidden = true; return }
+    index ??= await fetch('/docs/search.json').then((r) => r.json()).catch(() => [])
+    const hits = index.map((e) => {
+      const head = `${e.page} ${e.head}`.toLowerCase(), text = e.text.toLowerCase()
+      let score = 0
+      for (const w of ws) {
+        if (head.includes(w)) score += 10
+        else if (text.includes(w)) score += 1
+        else return null
+      }
+      return { e, score }
+    }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 12)
+    sel = -1
+    box.innerHTML = hits.length
+      ? hits.map(({ e }) => `<a href="${e.url}"><b>${escape(e.head === e.page ? e.page : `${e.page} · ${e.head}`)}</b><span>${snippet(e.text, ws)}</span></a>`).join('')
+      : '<div class="none">Nothing in the docs has these words.</div>'
+    box.hidden = false
+  }
+  input.addEventListener('input', search)
+  input.addEventListener('focus', () => { if (input.value) search() })
+  input.addEventListener('keydown', (e) => {
+    const links = [...box.querySelectorAll('a')]
+    if (e.key === 'Escape') { input.value = ''; box.hidden = true; input.blur() }
+    else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && links.length) {
+      e.preventDefault()
+      sel = (sel + (e.key === 'ArrowDown' ? 1 : -1) + links.length) % links.length
+      links.forEach((a, i) => a.classList.toggle('sel', i === sel))
+      links[sel].scrollIntoView({ block: 'nearest' })
+    } else if (e.key === 'Enter' && links.length) location.href = links[Math.max(sel, 0)].href
+  })
+  addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement !== input && !/^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName)) { e.preventDefault(); input.focus() }
+  })
+  addEventListener('click', (e) => { if (!e.target.closest('.search')) box.hidden = true })
+}
+
+</script>
+</body>
+</html>

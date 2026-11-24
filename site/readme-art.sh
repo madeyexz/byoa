@@ -3,8 +3,6 @@
 # Run from site/ after `node build.mjs`:  ./readme-art.sh   → writes ../.github/readme/*.png
 # Needs agent-browser (preinstalled in Amp orbs), python3 and ImageMagick.
 # Each image is captured at 2x, in light (the page) and dark (the same page on navy) where GitHub shows both.
-# The "Why" panels (why-*.png) and the how-it-works, token and lifecycle diagrams (how-, tokens-, lifecycle-*.png)
-# are no longer on the page, so this script keeps them as they are. To capture them again, use site/ at 33d2409.
 set -euo pipefail
 cd "$(dirname "$0")"
 OUT="$PWD/../.github/readme"

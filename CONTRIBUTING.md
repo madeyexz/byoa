@@ -53,8 +53,29 @@ We will add other sandbox providers (for example Modal or Vercel) after version 
 
 ## Docs and the website
 
-- The page at https://byoa.rippling.computer is built from README.md. If you change README.md, rebuild the page as the files in `site/` describe.
+- The docs are the Markdown files in `docs/`. https://byoa.rippling.computer/docs shows them; `docs/README.md` is the docs home, and its list of pages is the site's menu. A new page goes in that list.
+- README.md has only the pitch, the install, a short example and links into the docs. Put details in a docs page, not in the README.
+- A fact has one source. A docs page puts in the text of another file with `<!-- include: ../FILE.md -->` or `<!-- include: ../FILE.md#section -->`: the API reference is `skills/byoa/reference/api.md`, and the lab rules are in SPEC.md.
+- After a change to `docs/`, README.md, SPEC.md, `skills/byoa` or `site/`, run `cd site && npm install && node build.mjs`, and commit what it writes. `node preview.mjs` then serves the site as the Cloudflare Worker will.
 - Write docs in short, simple sentences, as README.md and SPEC.md do.
+
+### Flow diagrams
+
+The lifecycle diagrams in the docs are ```` ```flow ```` blocks of YAML in the Markdown, so a change in behavior is a change of a few lines of text. `site/build.mjs` draws each one on the site (and as a numbered list on a phone), and writes it as text for LLMs. For example:
+
+```yaml
+title: what the diagram shows, for screen readers and LLMs
+nodes:
+  - step: Copy the login in          # step, if (a question), end or warn
+    files: in                        # in, out or removed: the line is blue while the login files are in the sandbox
+    text: more words, with `code`
+    time: [job + 1 min]              # time limits
+  - if: Did byoa remove the files?
+    then: "yes"                      # the label of the way down (default yes)
+    side: { end: Destroy it, label: "no", text: ... }   # a node to the right; back: <id> or join: <id> to draw a line on
+```
+
+A flow can also have `tabs:`, each `{ tab, text, nodes }`, as in `docs/sandbox-lifecycle.md`. The comment "flow diagrams" in `site/build.mjs` lists every key.
 
 ## Pull requests
 

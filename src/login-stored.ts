@@ -34,7 +34,7 @@ import type { Store } from './store.ts'
 export interface StoredLoginOptions {
   /** 32 random bytes as base64. Default: the app's encryptionKey (each login is sealed under its own entry's name). */
   encryptionKey?: string
-  /** Default: the app's store. A table of its own lets you give it its own access rules and backups (README: "AI login"). */
+  /** Default: the app's store. A table of its own lets you give it its own access rules and backups (docs/stores.md: "A table of its own for the AI logins"). */
   store?: Store
   /** How long a job waits in line for the login, when other jobs of the same user and harness hold it. Default: no
    *  limit; the job waits its turn (R5.8). */
