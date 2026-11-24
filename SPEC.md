@@ -18,7 +18,7 @@ A developer makes an app AI-native in one day, not in weeks. The app runs the us
 In scope for version 1:
 
 - Harnesses: Claude Code and Codex. Both from the first version.
-- Sandbox providers: E2B and Daytona.
+- Sandbox providers: E2B, Daytona and Instabox.
 - Backends: Node, and Convex actions. Cloudflare Workers SHOULD work if it costs little.
 - Store adapters: Convex and Postgres.
 
@@ -69,9 +69,9 @@ Out of scope for version 1:
 
 - **R5.1** byoa MUST install a pinned version of each harness in each sandbox, or use a provider template with that version.
 - **R5.2** A new harness version MUST reach every user at their next job. (Bookish had to copy a new core into old sandboxes, because a template reaches only new sandboxes.)
-- **R5.3** Each sandbox provider MUST be one adapter with one interface: create, resume, run a command, write a file, mount a volume, pause, destroy.
+- **R5.3** Each sandbox provider MUST be one adapter with one interface: create, resume, run a command, write a file, mount a volume, pause, destroy. A provider with no volumes (Instabox) refuses a volume, so the volume login of R1.5 does not work on it; the stored login of R1.4 does.
 - **R5.4** The lifecycle MUST be the app's choice, with the same app code on every provider:
-  - **One kept sandbox per user (the default).** Each user has one sandbox of the app for each harness. The first job creates it. After each job, byoa pauses it (E2B: pause; Daytona: stop), and the next job resumes it, with a new job folder. One job of a user and harness runs at a time; another job waits. When the provider no longer has the sandbox (it was deleted, or it expired), the next job creates a new one. A sandbox that times out during a job (a crash, a lost network) is paused, not deleted, and no process of that job runs when it resumes. byoa MUST delete the user's sandbox at sign-out, and MUST give the app a way to delete it, such as when it deletes the user.
+  - **One kept sandbox per user (the default).** Each user has one sandbox of the app for each harness. The first job creates it. After each job, byoa pauses it (E2B: pause; Daytona and Instabox: stop), and the next job resumes it, with a new job folder. One job of a user and harness runs at a time; another job waits. When the provider no longer has the sandbox (it was deleted, or it expired), the next job creates a new one. A sandbox that times out during a job (a crash, a lost network) is paused, not deleted, and no process of that job runs when it resumes. byoa MUST delete the user's sandbox at sign-out, and MUST give the app a way to delete it, such as when it deletes the user.
   - **Many kept sandboxes per user (a `sandboxKey` for each job).** The same, but each key that the app gives a job (such as a project or a conversation) has its own sandbox and its own lease, so jobs with different keys run at the same time. With the stored login of R1.4, jobs that need the same AI login still run one at a time, unless the app turned on the shared login for Codex. The app MUST be able to delete the sandbox of one key, or all of the user's.
   - **One sandbox per job (`sandboxPer: 'job'`).** Create a sandbox, load the user's setup, run the job, destroy the sandbox.
 
@@ -116,7 +116,7 @@ Version 1 is done when every check below passes. Each check names the requiremen
 | V1 | Bookish uses byoa | Replace `site/agent/login.ts`, `site/agent/sandbox.ts` and `src/core/connectors.ts` in Bookish with byoa. Bookish's existing e2e tests pass. | R1, R2, R5 |
 | V2 | A second app uses byoa | A second app (the to-do example in `examples/todo`, Margins, or the mail app) runs its first agent job with byoa, on a real sandbox provider and a real plan, with no code copied from Bookish. Count the app's own lines. | R7.1 |
 | V3 | Both harnesses | One test user runs the same task with Claude Code and with Codex. Both runs use that user's own plan. | R1.1, R1.2, R5.5 |
-| V4 | Both providers | The same user runs a job on E2B, then on Daytona. The second job uses the same MCP grants and skills with no new MCP sign-in. | R5.3, R2 |
+| V4 | Two providers | The same user runs a job on E2B, then on Daytona or Instabox. The second job uses the same MCP grants and skills with no new MCP sign-in. | R5.3, R2 |
 | V5 | Tokens stay out | After a job with an MCP call, a test searches the sandbox's environment, every file, and `/proc/*/cmdline` and `/proc/*/environ` for each real token. It finds none. | R3.3 |
 | V6 | Old job tokens fail | A job token is used after its job ends. The proxy refuses it. | R3.4 |
 | V7 | One refresh | Two jobs start at the same time with an expired access token (with `sandboxPer: 'job'`, so that they run at the same time). The MCP server's token endpoint gets one refresh request, and both jobs succeed. | R2.3, R6.2 |
@@ -130,7 +130,7 @@ Version 1 is done when every check below passes. Each check names the requiremen
 | V15 | Read-only access | A job with a real harness and `access: 'read-only'` reads its skill and calls an MCP tool. A command that writes a file fails, and a command that opens a network connection fails. | R5.6 |
 | V16 | Jobs at the same time | With the shared login turned on, one user starts three Codex jobs with three sandbox keys. They run at the same time with one sign-in, and the login works after them. | R1.4, R5.4 |
 
-V1 to V9 and V13 to V16 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11, V12 and the fake-harness tests run on every commit; these include V13, V14 and V16 with the fake harness and a stand-in CLI. In this repository: `npm test` runs V10, V12 and the fake-harness tests, `npm run test:v11` runs V11, and the job `example-todo` runs the to-do example's fake-harness tests (`.github/workflows/ci.yml`). With `E2B_API_KEY` and `DAYTONA_API_KEY` set, `npm test` also runs V4 (`test/v4.test.ts`). `npm run test:e2b` runs V8 on E2B (`test/e2b.test.ts`), and with `DAYTONA_API_KEY` set, `npm test` runs V8 on Daytona (`test/daytona.test.ts`).
+V1 to V9 and V13 to V16 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11, V12 and the fake-harness tests run on every commit; these include V13, V14 and V16 with the fake harness and a stand-in CLI. In this repository: `npm test` runs V10, V12 and the fake-harness tests, `npm run test:v11` runs V11, and the job `example-todo` runs the to-do example's fake-harness tests (`.github/workflows/ci.yml`). With `E2B_API_KEY` and `DAYTONA_API_KEY` set, `npm test` also runs V4 (`test/v4.test.ts`); `BYOA_V4_PROVIDERS=e2b,instabox` runs it on E2B and Instabox. `npm run test:e2b` runs V8 on E2B (`test/e2b.test.ts`), with `DAYTONA_API_KEY` set `npm test` runs V8 on Daytona (`test/daytona.test.ts`), and `npm run test:instabox` runs V8 on Instabox (`test/instabox.test.ts`). On an Instabox plan that allows fewer than three sandboxes (the free plan allows one), V8 there checks one sandbox key alone, not two at the same time.
 
 ## Open questions
 
@@ -139,5 +139,5 @@ V1 to V9 and V13 to V16 run against real providers and real plans, so they cost 
 - Do Anthropic and OpenAI accept the default stored login (R1.4) for apps that run their unmodified CLIs, or does an app need an agreement with them? We will ask them.
 - Does the shared login (R1.4) become the default? Codex also refreshes its login when OpenAI answers 401 to a token that has not run out. Two sandboxes that get that answer at the same time both refresh, and one refresh fails. We do not know how often that occurs, or when Claude Code refreshes.
 - `access: 'read-only'` (R5.6) does not hide files: the agent can read each file that its user can read, also the CLI's own login files. Does byoa need a level that lets the agent read only its job folder, for apps that run on the user's own computer?
-- How long does a user's paused sandbox stay? Today byoa deletes it only at sign-out and when the app calls `deleteSandbox`. E2B keeps a paused sandbox with no time limit; Daytona archives a stopped one after 7 days, and the next job restores it more slowly. Does byoa need a limit for users who stop using an app?
+- How long does a user's paused sandbox stay? Today byoa deletes it only at sign-out and when the app calls `deleteSandbox`. E2B and Instabox keep a paused or stopped sandbox with no time limit; Daytona archives a stopped one after 7 days, and the next job restores it more slowly. Does byoa need a limit for users who stop using an app?
 - Do we write a spec for credential references as an extension of Agent Plugins, and send it to the Agentic AI Foundation?

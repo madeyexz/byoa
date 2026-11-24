@@ -18,6 +18,7 @@
     "agents",
     "sandbox",
     "e2b",
+    "instabox",
     "oauth"
   ],
   "type": "module",
@@ -50,6 +51,14 @@
       ],
       "bun": "./src/sandbox/daytona.ts",
       "default": "./dist/sandbox/daytona.js"
+    },
+    "./sandbox/instabox": {
+      "types": [
+        "./dist/sandbox/instabox.d.ts",
+        "./src/sandbox/instabox.ts"
+      ],
+      "bun": "./src/sandbox/instabox.ts",
+      "default": "./dist/sandbox/instabox.js"
     },
     "./sandbox/local": {
       "types": [
@@ -105,6 +114,7 @@
     "test": "node --test 'test/*.test.ts'",
     "test:v11": "BYOA_V11=1 node --test test/v11.test.ts",
     "test:e2b": "BYOA_E2B=1 node --test test/e2b.test.ts",
+    "test:instabox": "BYOA_INSTABOX=1 node --test test/instabox.test.ts",
     "bench": "node scripts/bench.ts"
   },
   "dependencies": {

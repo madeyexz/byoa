@@ -42,5 +42,5 @@ For example:
 
 Report these to their owners:
 
-- Bugs in a sandbox provider (E2B, Daytona), in Claude Code or Codex, or in an MCP server.
+- Bugs in a sandbox provider (E2B, Daytona, Instabox), in Claude Code or Codex, or in an MCP server.
 - Bugs in an app that uses byoa, for example a leaked encryption key or a database that is open to the internet. The app must keep its encryption key secret and keep the proxy in its own backend.

@@ -1,6 +1,6 @@
 ---
 name: byoa
-description: Adds byoa to an app, so the app runs each user's own Claude Code or Codex in a sandbox (E2B, Daytona or local), on the user's own Claude or ChatGPT plan, with the user's MCP connections. Use when you add AI agent jobs to an app's backend with byoa, write its sign-in, MCP connect, proxy or callback routes, stream agents.run events to a UI, write a byoa store adapter, or test with byoa's fake harness.
+description: Adds byoa to an app, so the app runs each user's own Claude Code or Codex in a sandbox (E2B, Daytona, Instabox or local), on the user's own Claude or ChatGPT plan, with the user's MCP connections. Use when you add AI agent jobs to an app's backend with byoa, write its sign-in, MCP connect, proxy or callback routes, stream agents.run events to a UI, write a byoa store adapter, or test with byoa's fake harness.
 ---
 
 # Add byoa to an app
@@ -20,7 +20,7 @@ npm install github:madeyexz/byoa     # npm builds it on install
 bun add github:madeyexz/byoa        # Bun loads its TypeScript source
 ```
 
-Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona. byoa needs Node 22.18 or later, or Bun. Do not write `npm install byoa`: that package is not byoa until version 1.
+Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona; Instabox needs none. byoa needs Node 22.18 or later, or Bun. Do not write `npm install byoa`: that package is not byoa until version 1.
 
 ## 2. One createAgents
 
@@ -28,7 +28,7 @@ Make one `agents` object in the backend. Do it once per process (or once per Con
 
 ```ts
 import { createAgents } from 'byoa'
-import { e2b } from 'byoa/sandbox/e2b'              // or: daytona from 'byoa/sandbox/daytona'
+import { e2b } from 'byoa/sandbox/e2b'              // or: daytona from 'byoa/sandbox/daytona', instabox from 'byoa/sandbox/instabox'
 import { postgresStore } from 'byoa/store/postgres' // or: convexStore, or the app's own Store
 
 const agents = createAgents({
@@ -43,8 +43,8 @@ const agents = createAgents({
 ```
 
 - **Store.** `postgresStore` needs its table once: run `POSTGRES_SCHEMA` (from `byoa/store/postgres`). For Convex, see reference/api.md. For another database, write a `Store` with four methods: `get`, `put`, `delete`, `cas` (compare-and-set). The example's `sqliteStore` in `examples/todo/todos.ts` is one in 19 lines. A new version on every write is required, and a deleted and rewritten key must never get an old version back.
-- **Sandbox.** `e2b()` and `daytona()` read their API key from `E2B_API_KEY` / `DAYTONA_API_KEY` when you give none. The default E2B template is named `byoa`, and a new E2B account does not have it: the first job then fails with `404: template 'byoa' not found`. Build it one time with `buildE2BTemplate()` from `byoa/sandbox/e2b`, or pass `e2b({ template: 'base' })`: byoa then installs the pinned harness in each new sandbox (about 10 seconds). `localSandbox()` from `byoa/sandbox/local` is a folder on this computer. It isolates nothing: use it only for development and tests.
-- **The sandbox must reach `proxyUrl`.** With E2B or Daytona it must be a public HTTPS URL (in development, a tunnel such as `cloudflared tunnel --url http://localhost:3000`). On Daytona Tier 1 and 2, only allowed domains work, such as `*.convex.site` or `*.workers.dev`.
+- **Sandbox.** `e2b()`, `daytona()` and `instabox()` read their API key from `E2B_API_KEY` / `DAYTONA_API_KEY` / `INSTABOX_API_KEY` when you give none. Instabox has no volumes, so use the default `storedLogin()` there, not `cliLogin`. The default E2B template is named `byoa`, and a new E2B account does not have it: the first job then fails with `404: template 'byoa' not found`. Build it one time with `buildE2BTemplate()` from `byoa/sandbox/e2b`, or pass `e2b({ template: 'base' })`: byoa then installs the pinned harness in each new sandbox (about 10 seconds). `localSandbox()` from `byoa/sandbox/local` is a folder on this computer. It isolates nothing: use it only for development and tests.
+- **The sandbox must reach `proxyUrl`.** With E2B, Daytona or Instabox it must be a public HTTPS URL (in development, a tunnel such as `cloudflared tunnel --url http://localhost:3000`). On Daytona Tier 1 and 2, only allowed domains work, such as `*.convex.site` or `*.workers.dev`.
 
 ## 3. Routes the app must serve
 
