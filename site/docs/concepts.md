@@ -64,7 +64,7 @@ byoa is that layer, as a library, so you do not build it again for each app.
 | | Version 1 | Later |
 |---|---|---|
 | Agents | Claude Code, Codex | Gemini or Antigravity, maybe |
-| User plans | Claude, ChatGPT | |
+| User plans | Claude, ChatGPT, OpenCode Go key (beta) | |
 | Sandboxes | E2B, Daytona, Instabox | other providers |
 | Backends | Node, Convex actions | Cloudflare Workers |
 | Token stores | Convex, Postgres, or your own with get, put, delete and compare-and-set | |

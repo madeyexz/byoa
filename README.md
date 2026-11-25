@@ -21,7 +21,7 @@
 
 **byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend.**
 
-byoa is an open-source library that helps you build AI-native apps fast. Your app runs the user's own Claude Code or Codex in a sandbox. The user signs in with their own ChatGPT or Claude plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
+byoa is an open-source library that helps you build AI-native apps fast. Your app runs the user's own Claude Code or Codex in a sandbox. The user signs in with their own ChatGPT or Claude plan, or gives the key of their OpenCode Go plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
 
 Version 1 supports three sandbox providers: E2B, Daytona and Instabox. More providers come later. To change the provider, you change one adapter.
 
@@ -40,7 +40,7 @@ The [Concepts](https://byoa.rippling.computer/docs/concepts) page explains the d
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/scope-dark.png">
-  <img alt="What version 1 covers. Agents: Claude Code and Codex (v1), Gemini or Antigravity maybe later. User plans: Claude and ChatGPT (v1). Sandboxes: E2B, Daytona and Instabox (v1), other providers planned. Backends: Node and Convex actions (v1), Cloudflare Workers planned. Token stores: Convex and Postgres (v1), or your own with get, put, delete and compare-and-set." src=".github/readme/scope-light.png">
+  <img alt="What version 1 covers. Agents: Claude Code and Codex (v1), Gemini or Antigravity maybe later. User plans: Claude and ChatGPT (v1), an OpenCode Go key (beta). Sandboxes: E2B, Daytona and Instabox (v1), other providers planned. Backends: Node and Convex actions (v1), Cloudflare Workers planned. Token stores: Convex and Postgres (v1), or your own with get, put, delete and compare-and-set." src=".github/readme/scope-light.png">
 </picture>
 
 ## Install
@@ -98,7 +98,7 @@ The docs are at [byoa.rippling.computer/docs](https://byoa.rippling.computer/doc
 
 - [Getting started](https://byoa.rippling.computer/docs/getting-started): install, one `agents` object, two routes, a sign-in and a first job
 - [Concepts](https://byoa.rippling.computer/docs/concepts): who brings what, how a job runs, and why real tokens never go into the sandbox
-- [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions) and the [FAQ](https://byoa.rippling.computer/docs/faq): which Claude and ChatGPT plans work, whether a user's account can get banned, and what a job costs
+- [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions) and the [FAQ](https://byoa.rippling.computer/docs/faq): which Claude, ChatGPT and OpenCode Go (beta) plans work, whether a user's account can get banned, and what a job costs
 - [Give your agent tools](https://byoa.rippling.computer/docs/agent-tools): your app's own tools, MCP servers, skills and plugins, and which one to choose
 - [AI login](https://byoa.rippling.computer/docs/ai-login): the sign-in, where the login stays between jobs, one job step by step, jobs at the same time with one login, and sign-out
 - [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle): every sandbox byoa creates, what each provider does, and what happens when your backend dies
@@ -115,6 +115,7 @@ What version 1 must do, and the checks that prove it, are in [SPEC.md](SPEC.md).
 - We run the real, unmodified `claude` and `codex` binaries. We never pretend to be another client.
 - The user signs in through Anthropic's or OpenAI's own sign-in page.
 - One app's AI login is used only by that app.
+- For OpenCode Go, byoa uses only the user's own key, with OpenCode's documented API and the harness's own user agent, never OpenCode's Console CLI sign-in. OpenCode's terms do not clearly allow an app to run it for its users; each app asks OpenCode first.
 - The labs' terms restrict where an AI login may be stored. byoa keeps it in your database by default, so each app checks those terms and signs its own agreements with the labs. See [Lab rules](https://byoa.rippling.computer/docs/lab-rules) and [SPEC.md](SPEC.md#lab-rules).
 
 ## License

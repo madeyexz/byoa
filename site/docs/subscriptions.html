@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Supported AI subscriptions · byoa docs</title>
-<meta name="description" content="which Claude and ChatGPT plans your users can bring, and what each one gives">
+<meta name="description" content="which Claude, ChatGPT and OpenCode Go (beta) plans your users can bring, and what each one gives">
 <meta property="og:title" content="Supported AI subscriptions · byoa docs">
-<meta property="og:description" content="which Claude and ChatGPT plans your users can bring, and what each one gives">
+<meta property="og:description" content="which Claude, ChatGPT and OpenCode Go (beta) plans your users can bring, and what each one gives">
 <meta name="theme-color" content="#f8f6f0" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1124" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://byoa.rippling.computer/docs/subscriptions">
@@ -316,8 +316,9 @@ footer a { color: #b8bdd8; text-decoration: none; }
     <div class="pagehead"><div class="kick">Start</div><button class="copy-page narrow" type="button" data-md="/docs/subscriptions.md">Copy page</button></div>
     <article>
 <h1>Supported AI subscriptions</h1>
-<p class="lead">Which Claude and ChatGPT plans your users can bring, and what each one gives.</p>
+<p class="lead">Which Claude, ChatGPT and OpenCode Go (beta) plans your users can bring, and what each one gives.</p>
 <p>Your users bring a Claude plan or a ChatGPT plan. byoa signs each user in with the lab&#39;s own CLI, on the lab&#39;s own page, and then runs that CLI for them: Claude Code for a Claude plan, Codex for a ChatGPT plan. So a plan works with byoa when its lab lets it sign in to that CLI.</p>
+<p>In beta, a user can also bring an OpenCode Go plan, with a key in place of a sign-in. It runs in Claude Code or Codex.</p>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -339,8 +340,14 @@ footer a { color: #b8bdd8; text-decoration: none; }
 <td>ChatGPT Plus, Pro, Business, Enterprise and Edu</td>
 <td><a href="/docs/faq#can-my-users-ai-account-get-banned">Read the FAQ</a></td>
 </tr>
+<tr>
+<td><a href="#opencode-go-through-a-key-beta">Claude Code or Codex</a> <strong>(beta)</strong></td>
+<td>OpenCode</td>
+<td>OpenCode Go, Go Plus and Go Teams</td>
+<td><a href="/docs/faq#can-my-users-ai-account-get-banned">Read the FAQ</a></td>
+</tr>
 </tbody></table>
-</div><p>Prices and plan names are from the labs&#39; pages on 25 November 2026, in US dollars a month, before tax. The labs change them often: check <a href="https://claude.com/pricing" rel="noopener">Claude&#39;s plans</a> and <a href="https://chatgpt.com/codex/pricing" rel="noopener">Codex&#39;s pricing</a>.</p>
+</div><p>Prices and plan names are from the labs&#39; pages on 25 November 2026, in US dollars a month, before tax. The labs change them often: check <a href="https://claude.com/pricing" rel="noopener">Claude&#39;s plans</a>, <a href="https://chatgpt.com/codex/pricing" rel="noopener">Codex&#39;s pricing</a> and <a href="https://opencode.ai/docs/console/go" rel="noopener">OpenCode Go</a>.</p>
 <h2 id="claude-plans-through-claude-code"><a class="anchor" href="#claude-plans-through-claude-code" aria-hidden="true" tabindex="-1">#</a>Claude plans, through Claude Code</h2>
 <div class="tbl"><table>
 <thead>
@@ -437,17 +444,61 @@ footer a { color: #b8bdd8; text-decoration: none; }
 </tr>
 </tbody></table>
 </div><p>Sources: <a href="https://help.openai.com/en/articles/11369540" rel="noopener">Using Codex with your ChatGPT plan</a>, <a href="https://learn.chatgpt.com/docs/pricing" rel="noopener">Codex pricing</a>, <a href="https://developers.openai.com/codex/auth" rel="noopener">Codex authentication</a>.</p>
+<h2 id="opencode-go-through-a-key-beta"><a class="anchor" href="#opencode-go-through-a-key-beta" aria-hidden="true" tabindex="-1">#</a>OpenCode Go, through a key (beta)</h2>
+<p><strong>Beta.</strong> No real OpenCode Go key has run this yet. byoa&#39;s tests use a stand-in for OpenCode&#39;s API, with the real Claude Code and Codex, locally and on E2B. The real check (<a href="https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification" rel="noopener">V20</a>) has not run.</p>
+<p>OpenCode Go is a plan, not a harness. It gives open models and others, such as Kimi, GLM, DeepSeek, Qwen and MiniMax, and the job still runs the unmodified <code>claude</code> or <code>codex</code>.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Plan</th>
+<th>Price</th>
+<th>Works with byoa</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Go</td>
+<td>$10</td>
+<td>yes (beta)</td>
+<td></td>
+</tr>
+<tr>
+<td>Go Plus</td>
+<td>$40</td>
+<td>yes (beta)</td>
+<td>More usage than Go.</td>
+</tr>
+<tr>
+<td>Go Teams</td>
+<td>$20 a member</td>
+<td>yes (beta)</td>
+<td></td>
+</tr>
+</tbody></table>
+</div><p>There is no sign-in page. The user creates an API key in <a href="https://opencode.ai/console" rel="noopener">OpenCode&#39;s Console</a> (<code>oc_sk_…</code>), and your app gives it to byoa one time:</p>
+<div class="code"><pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">r</span><span style="color:#666666"> =</span><span style="color:#4D9375"> await</span><span style="color:#BD976A"> agents</span><span style="color:#666666">.</span><span style="color:#80A665">connectKey</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">opencode-go</span><span style="color:#C98A7D77">'</span><span style="color:#666666">,</span><span style="color:#BD976A"> key</span><span style="color:#666666">)</span><span style="color:#758575DD">   // { state: 'signed-in' }; or 'no-plan', or an error</span></span>
+<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">models</span><span style="color:#666666"> =</span><span style="color:#4D9375"> await</span><span style="color:#BD976A"> agents</span><span style="color:#666666">.</span><span style="color:#80A665">listModels</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">opencode-go</span><span style="color:#C98A7D77">'</span><span style="color:#666666">)</span><span style="color:#758575DD">    // the plan's models, from OpenCode's API: no sandbox</span></span>
+<span class="line"><span style="color:#BD976A">agents</span><span style="color:#666666">.</span><span style="color:#80A665">run</span><span style="color:#666666">(</span><span style="color:#BD976A">userId</span><span style="color:#666666">,</span><span style="color:#666666"> { </span><span style="color:#B8A965">harness</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">codex</span><span style="color:#C98A7D77">'</span><span style="color:#666666">, </span><span style="color:#B8A965">plan</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">opencode-go</span><span style="color:#C98A7D77">'</span><span style="color:#666666">, </span><span style="color:#B8A965">model</span><span style="color:#666666">: </span><span style="color:#C98A7D77">'</span><span style="color:#C98A7D">kimi-k3.1-pro</span><span style="color:#C98A7D77">'</span><span style="color:#666666">, </span><span style="color:#BD976A">task</span><span style="color:#666666"> })</span></span></code></pre></div><figure class="flow" aria-label="A job on the user's OpenCode Go key">
+
+<div class="tabp" data-tab="0"><ol class="flow-list"><li class="k-step"><b>Your app gives byoa the key, one time</b><code>connectKey(user, &#39;opencode-go&#39;, key)</code>. byoa checks the key with OpenCode and keeps it encrypted in your store, as it keeps MCP grants.</li><li class="k-step"><b>A job runs with plan &#39;opencode-go&#39;</b>The unmodified Claude Code or Codex, with a Go model, and a config folder with no lab login. Claude Code gets <code>ANTHROPIC_BASE_URL</code>; Codex gets a model provider for this job only.</li><li class="k-step"><b>The harness sends its model requests to your proxy</b>To <code>&lt;proxyUrl&gt;/_plan/opencode-go/…</code>, with the job token. Only the model APIs go through, and only during the job.</li><li class="k-end"><b>The proxy adds the key and sends them on to OpenCode</b>With the harness&#39;s own user agent and session id, as OpenCode asks. The key never goes into the sandbox.</li></ol><div class="flow-draw" data-nodes="[{&quot;id&quot;:&quot;n0&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;Your app gives byoa the key, one time&quot;,&quot;d&quot;:&quot;&lt;code&gt;connectKey(user, &amp;#39;opencode-go&amp;#39;, key)&lt;/code&gt;. byoa checks the key with OpenCode and keeps it encrypted in your store, as it keeps MCP grants.&quot;,&quot;m&quot;:&quot;&quot;},{&quot;id&quot;:&quot;n1&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;A job runs with plan &amp;#39;opencode-go&amp;#39;&quot;,&quot;d&quot;:&quot;The unmodified Claude Code or Codex, with a Go model, and a config folder with no lab login. Claude Code gets &lt;code&gt;ANTHROPIC_BASE_URL&lt;/code&gt;; Codex gets a model provider for this job only.&quot;,&quot;m&quot;:&quot;&quot;},{&quot;id&quot;:&quot;n2&quot;,&quot;k&quot;:&quot;step&quot;,&quot;t&quot;:&quot;The harness sends its model requests to your proxy&quot;,&quot;d&quot;:&quot;To &lt;code&gt;&amp;lt;proxyUrl&amp;gt;/_plan/opencode-go/…&lt;/code&gt;, with the job token. Only the model APIs go through, and only during the job.&quot;,&quot;m&quot;:&quot;&quot;},{&quot;id&quot;:&quot;n3&quot;,&quot;k&quot;:&quot;end&quot;,&quot;t&quot;:&quot;The proxy adds the key and sends them on to OpenCode&quot;,&quot;d&quot;:&quot;With the harness&amp;#39;s own user agent and session id, as OpenCode asks. The key never goes into the sandbox.&quot;,&quot;m&quot;:&quot;&quot;}]"></div></div>
+</figure><ul>
+<li><strong>A model of the plan.</strong> A job with a plan needs a Go model: <code>model</code> in <code>run</code>, or <code>createAgents({ models: { &#39;opencode-go&#39;: { model } } })</code>. <code>listModels(userId, &#39;opencode-go&#39;)</code> lists them from OpenCode&#39;s API with the user&#39;s key, with no sandbox. The free models (<code>…-free</code>) are not in the list: OpenCode serves them only to its own client.</li>
+<li><strong>States.</strong> <code>loginState(userId, &#39;opencode-go&#39;)</code> is <code>signed-in</code>; <code>expired</code> when OpenCode refuses the key (401: a wrong, revoked or expired key; the user makes a new one); or <code>no-plan</code> when the key&#39;s workspace has no Go plan (403). A job that gets one of these from OpenCode gives an <code>error</code> event with that code. <code>signOut(userId, &#39;opencode-go&#39;)</code> deletes the key.</li>
+<li><strong>Jobs at the same time.</strong> A key does not rotate, so a user&#39;s jobs with it run at the same time, with no lease.</li>
+<li><strong>Terms.</strong> OpenCode&#39;s terms say the user uses its services &quot;only for your own internal use, and not on behalf of or for the benefit of any third party&quot;. A job with the user&#39;s own key for the user&#39;s own task is arguably that, but it is not clearly allowed. Ask OpenCode (<a href="mailto:help@anoma.ly">help@anoma.ly</a>) before your app offers it. See <a href="/docs/lab-rules">Lab rules</a>.</li>
+</ul>
+<p>Sources: <a href="https://opencode.ai/docs/console/go" rel="noopener">OpenCode Go</a>, <a href="https://opencode.ai/legal/terms-of-service" rel="noopener">OpenCode Terms of Use</a>.</p>
 <h2 id="what-every-plan-has-in-common"><a class="anchor" href="#what-every-plan-has-in-common" aria-hidden="true" tabindex="-1">#</a>What every plan has in common</h2>
 <ul>
 <li><strong>The user&#39;s plan limits apply.</strong> A job uses the same allowance as the user&#39;s own chats and coding: the five-hour and weekly limits are shared. When the user is at a limit, the CLI refuses, and the job ends with an <code>error</code> event.</li>
-<li><strong>One plan for each harness.</strong> A user can sign in to both, and each job names its harness: <code>harness: &#39;claude&#39;</code> or <code>harness: &#39;codex&#39;</code>.</li>
+<li><strong>One plan for each harness.</strong> A user can sign in to both, and each job names its harness: <code>harness: &#39;claude&#39;</code> or <code>harness: &#39;codex&#39;</code>. A job on the user&#39;s OpenCode Go key also names <code>plan: &#39;opencode-go&#39;</code>.</li>
 <li><strong>The login belongs to your app.</strong> A login that a user made in your app is only for your app. Another app on byoa needs its own sign-in. See <a href="/docs/lab-rules">Lab rules</a>.</li>
 <li><strong>The labs&#39; terms apply.</strong> The labs restrict where an app may store the login, and OpenAI asks paid or hosted apps to apply to be partners. Read <a href="/docs/faq#can-my-users-ai-account-get-banned">the FAQ</a> before you launch.</li>
 </ul>
 <h2 id="what-byoa-does-not-support"><a class="anchor" href="#what-byoa-does-not-support" aria-hidden="true" tabindex="-1">#</a>What byoa does not support</h2>
 <ul>
-<li><strong>API keys.</strong> byoa signs in only with a plan. An app that wants to pay for the AI with its own API key does not need byoa for the login.</li>
-<li><strong>Other labs&#39; plans,</strong> such as Gemini or Kimi memberships. byoa runs only Claude Code and Codex in version 1. Gemini or Antigravity may come later.</li>
+<li><strong>API keys.</strong> byoa signs in only with a plan. The one key it takes is the user&#39;s OpenCode Go key, which is a plan&#39;s key. An app that wants to pay for the AI with its own API key does not need byoa for the login.</li>
+<li><strong>Other labs&#39; plans,</strong> such as Gemini or Kimi memberships. byoa runs only Claude Code and Codex in version 1. Gemini or Antigravity may come later. OpenCode Go runs in Claude Code and Codex, not in OpenCode.</li>
 <li><strong>Sharing one login between apps.</strong> The labs do not allow it, and byoa keeps each app&#39;s logins apart (<code>app</code> in <code>createAgents</code>).</li>
 </ul>
 
@@ -455,7 +506,7 @@ footer a { color: #b8bdd8; text-decoration: none; }
     <nav class="pn" aria-label="Pages"><a class="prev" href="/docs/concepts"><span>Previous</span>Concepts</a><a class="next" href="/docs/faq"><span>Next</span>FAQ</a></nav>
     <p class="edit"><a href="https://github.com/madeyexz/byoa/blob/main/docs/subscriptions.md">Edit this page on GitHub</a> · <a href="/docs/subscriptions.md">This page as Markdown</a></p>
   </main>
-  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#claude-plans-through-claude-code">Claude plans, through Claude Code</a></li><li><a href="#chatgpt-plans-through-codex">ChatGPT plans, through Codex</a></li><li><a href="#what-every-plan-has-in-common">What every plan has in common</a></li><li><a href="#what-byoa-does-not-support">What byoa does not support</a></li></ul>
+  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#claude-plans-through-claude-code">Claude plans, through Claude Code</a></li><li><a href="#chatgpt-plans-through-codex">ChatGPT plans, through Codex</a></li><li><a href="#opencode-go-through-a-key-beta">OpenCode Go, through a key (beta)</a></li><li><a href="#what-every-plan-has-in-common">What every plan has in common</a></li><li><a href="#what-byoa-does-not-support">What byoa does not support</a></li></ul>
     <button class="copy-page" type="button" data-md="/docs/subscriptions.md">Copy page</button>
     <div class="tools"><a href="/docs/subscriptions.md">This page as Markdown</a><a href="/llms.txt">llms.txt</a><a href="/llms-full.txt">llms-full.txt</a></div>
   </aside>

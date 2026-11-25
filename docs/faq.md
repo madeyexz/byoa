@@ -16,10 +16,12 @@ Anthropic's [Claude Code legal and compliance page](https://code.claude.com/docs
 
 OpenAI's [Sign in with ChatGPT Terms](https://openai.com/policies/sign-in-with-chatgpt-terms/) say that stored tokens "must be local and under the user's control, not in a remote or managed environment", and that paid or remotely hosted apps must [apply to be partners](https://openai.com/form/sign-in-with-chatgpt-interest/).
 
+OpenCode's [Terms of Use](https://opencode.ai/legal/terms-of-service) say the user uses its services "only for your own internal use, and not on behalf of or for the benefit of any third party". So an OpenCode Go key (beta) in your app is arguable, not clearly allowed ([Supported AI subscriptions](subscriptions.md#opencode-go-through-a-key-beta)).
+
 So, before you launch:
 
 - Read the [Lab rules](lab-rules.md), and decide where the logins stay: the default stored login, or `cliLogin` in a volume of each user.
-- Apply to OpenAI's partner program if your app is paid or hosted, and ask Anthropic for an agreement if you store Claude logins.
+- Apply to OpenAI's partner program if your app is paid or hosted, and ask Anthropic for an agreement if you store Claude logins. If you offer OpenCode Go, ask OpenCode (help@anoma.ly) first.
 - Keep each user's jobs to the user's own requests, at a pace that a person would use.
 - Tell your users that the jobs use their own plan and its limits.
 
@@ -27,11 +29,11 @@ So, before you launch:
 
 Yes, with one sign-in, for Claude Code and Codex. Give each agent its own sandbox: a `sandboxKey` for each, or `sandboxPer: 'job'`. The jobs then share the user's login while it is not due for a refresh. Jobs in one sandbox wait in line instead, and one job can also carry several messages to one agent. See [Running agents](running-agents.md#jobs-at-the-same-time).
 
-All these jobs use the same plan, so they reach the plan's limits sooner. One risk stays with a shared login: when the lab answers 401 to two sandboxes at the same time, both CLIs refresh, one refresh fails, and the user may have to sign in again. `storedLogin({ parallel: false })` turns sharing off ([AI login](ai-login.md#jobs-at-the-same-time-the-shared-login)).
+All these jobs use the same plan, so they reach the plan's limits sooner. One risk stays with a shared login: when the lab answers 401 to two sandboxes at the same time, both CLIs refresh, one refresh fails, and the user may have to sign in again. `storedLogin({ parallel: false })` turns sharing off ([AI login](ai-login.md#jobs-at-the-same-time-the-shared-login)). Jobs on an OpenCode Go key have no such risk: a key does not rotate.
 
 ## Which model does a job use?
 
-The model and effort that you give `run`, else the harness's default from `createAgents({ models })`, else the CLI's own default. `agents.listModels(userId, harness)` lists the models that the user's plan can use, and the efforts of each, as the CLI lists them with the user's login. Pick from that list, because each plan has its own models. See [Running agents](running-agents.md#models-and-effort).
+The model and effort that you give `run`, else the harness's default from `createAgents({ models })`, else the CLI's own default. `agents.listModels(userId, harness)` lists the models that the user's plan can use, and the efforts of each, as the CLI lists them with the user's login. Pick from that list, because each plan has its own models. A job on an OpenCode Go key (beta) needs a Go model: `agents.listModels(userId, 'opencode-go')` lists them from OpenCode's API, with no sandbox. See [Running agents](running-agents.md#models-and-effort).
 
 ## What does an AI job cost with byoa, and with an API key?
 

@@ -63,6 +63,8 @@ await agents.cancelLogin(userId, 'codex')                     // the user closed
 
 The sign-in's sandbox lives only while your sign-in UI checks in: each `finishLogin` call keeps it for 2 more minutes. For Claude Code, call `finishLogin(userId, 'claude')` with no code about every 30 seconds while the user is on Anthropic's page.
 
+A user with an OpenCode Go plan (beta) gives a key instead: `agents.connectKey(userId, 'opencode-go', key)`. See [Supported AI subscriptions](subscriptions.md#opencode-go-through-a-key-beta).
+
 ## Connect an MCP tool, one time
 
 ```ts

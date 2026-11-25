@@ -8,7 +8,7 @@ This is the API in https://github.com/madeyexz/byoa today (version 0.1, before v
 
 | Import | What it gives |
 |---|---|
-| `@madeyexz/byoa` | `createAgents`, `LoginError`, `ProxyError`, `SandboxGoneError`, `memoryStore`, `storedLogin`, `cliLogin`, `harnessFiles`, `readPlugin`, `JOB_TOKEN_ENV`, `PINS`, `PACKAGES`, `ensureHarness`, `LOGIN_FILES`, `clientMetadataDocument`; types `AgentsOptions`, `RunOptions`, `RunHarness`, `ConnectResult`, `Session`, `SessionOptions`, `JobToken`, `Store`, `Entry`, `Sandbox`, `SandboxProvider`, `AgentEvent`, `Usage`, `AppTools`, `AppTool`, `Access`, `Setup`, `Skill`, `Plugin`, `LoginState`, `LoginStart`, `LoginResult` |
+| `@madeyexz/byoa` | `createAgents`, `LoginError`, `ProxyError`, `SandboxGoneError`, `memoryStore`, `storedLogin`, `cliLogin`, `harnessFiles`, `readPlugin`, `JOB_TOKEN_ENV`, `PINS`, `PACKAGES`, `ensureHarness`, `LOGIN_FILES`, `clientMetadataDocument`, `PLANS`; types `AgentsOptions`, `RunOptions`, `RunHarness`, `ConnectResult`, `Session`, `SessionOptions`, `JobToken`, `Store`, `Entry`, `Sandbox`, `SandboxProvider`, `AgentEvent`, `Usage`, `AppTools`, `AppTool`, `Access`, `Setup`, `Skill`, `Plugin`, `LoginState`, `LoginStart`, `LoginResult`, `PlanName`, `PlanState` |
 | `@madeyexz/byoa/sandbox/e2b` | `e2b({ apiKey?, template?, timeoutMs? })`, `buildE2BTemplate(name?, { apiKey?, pins? })`, `e2bTemplate(pins?)`. Needs the `e2b` package. |
 | `@madeyexz/byoa/sandbox/daytona` | `daytona({ apiKey?, client?, snapshot?, volume?, timeoutMs? })`. Needs `@daytona/sdk`. |
 | `@madeyexz/byoa/sandbox/instabox` | `instabox({ apiKey?, apiUrl?, template?, snapshot?, timeoutMs? })`. Needs no package. No volumes: use `storedLogin()`, not `cliLogin`. |
@@ -33,7 +33,7 @@ interface AgentsOptions {
   jobTimeoutMs?: number                      // default 30 minutes
   sandboxPer?: 'user' | 'job'                // default 'user': kept sandboxes, paused between jobs
   waitMs?: number                            // sandboxPer 'user': how long a job waits in line for its sandbox; default no limit
-  models?: { claude?: { model?: string; effort?: string }; codex?: { model?: string; effort?: string } }  // each harness's default
+  models?: { claude?: { model?: string; effort?: string }; codex?: { model?: string; effort?: string }; 'opencode-go'?: { model?: string; effort?: string } }  // each harness's default; 'opencode-go': jobs with that plan
   grantOrigins?: Record<string, string[]>    // more exact origins for fetchWithGrant, by MCP server origin
   tools?: AppTools                           // the app's own tools: MCP server name → tool name → { description?, input?, run }
 }
@@ -56,8 +56,9 @@ It returns an object with the methods below.
 | `connectLogin(user, 'claude' \| 'codex')` | `{ harness, url, code? }`. `url`: the lab's own sign-in page. `code`: Codex only, the code to enter on OpenAI's page. |
 | `finishLogin(user, h, { code?, waitMs? })` | `{ state: 'signed-in' \| 'signed-out' \| 'expired' \| 'pending', error? }`. Claude: pass `code` (the code Anthropic's page shows); with no code, it only checks in and says `pending`. Codex: no code; `waitMs` waits that long; call again while `pending`. Each call keeps the sign-in's sandbox alive for 2 more minutes; with no call for 2 minutes it ends (on E2B and Daytona; Instabox ends it after 15 minutes). A sign-in lasts 15 minutes at most. |
 | `cancelLogin(user, h)` | `void`. Ends a sign-in that has not finished, and its sandbox, at once. Call it when the user closes the sign-in. |
-| `loginState(user, h)` | `'signed-in' \| 'signed-out' \| 'expired'` |
-| `signOut(user, h)` | `void`. Also deletes the user's sandbox for `h`, and cancels a sign-in that has not finished. |
+| `loginState(user, h)` | `'signed-in' \| 'signed-out' \| 'expired'`. With `h` `'opencode-go'`, also `'no-plan'`. |
+| `signOut(user, h)` | `void`. Also deletes the user's sandbox for `h`, and cancels a sign-in that has not finished. With `h` `'opencode-go'`: deletes the user's key only; the proxy refuses the requests of jobs that still run with it. |
+| `connectKey(user, 'opencode-go', key)` | `{ state, error? }`. Beta: OpenCode Go is not yet checked with a real Go key. Keeps the user's OpenCode Console API key (`oc_sk_…`), encrypted in the store, after it checks the key with OpenCode's usage meter: `'signed-in'`; `'no-plan'` (kept: its workspace has no Go plan yet; jobs work once it has one); or, when OpenCode refuses the key (401: wrong, revoked or expired), the state before and an `error`, and the key is not kept. Throws on another answer. |
 | `deleteSandbox(user, { harness?, sandboxKey? }?)` | `void`. Deletes the user's kept sandboxes of this app at this provider: all of them (when the app deletes the user), or those of one harness or one sandbox key (when it deletes a project). The login and grants stay. |
 
 Login drivers:
@@ -81,7 +82,9 @@ Login drivers:
 
 ## The proxy
 
-`agents.proxy` is a fetch handler (`Request` → `Response`). Serve it at `proxyUrl` and every path below it (`<proxyUrl>/<name>`). It checks the job token, adds the user's real token, and sends the request to the MCP server; for the app's own `tools`, it calls the tool's `run`. It refuses a job token after the job ends. Do not put the app's session check in front of it. Each of its answers has the header `x-byoa-proxy: 1`.
+`agents.proxy` is a fetch handler (`Request` → `Response`). Serve it at `proxyUrl` and every path below it (`<proxyUrl>/<name>`). It checks the job token, adds the user's real token, and sends the request to the MCP server; for the app's own `tools`, it calls the tool's `run`. It refuses a job token after the job ends. Do not put the app's session check in front of it. Each of its MCP answers has the header `x-byoa-proxy: 1`.
+
+It is also the relay of a job with `plan: 'opencode-go'`, at `<proxyUrl>/_plan/opencode-go/anthropic/v1/…` and `…/openai/v1/…`: it checks the job token (of a job with that plan), adds the user's key, and streams the request to `https://opencode.ai/inference/go/…` and the answer back, with the harness's own headers (its user agent and session id; it adds `x-opencode-session` when there is none). It sends on no other path. OpenCode's 401 makes the key `expired`, its 403 "OpenCode Go subscription required" `no-plan`.
 
 ## Jobs
 
@@ -99,9 +102,11 @@ interface RunOptions {
   onWait?: (w: { for: 'sandbox' | 'login'; ahead: number }) => void  // while the job waits in line
   sandboxKey?: string         // sandboxPer 'user': which of the user's kept sandboxes; default the user's one for the harness
   access?: 'full' | 'read-only'  // what the agent may do; default 'full'
+  plan?: 'opencode-go'        // the user's OpenCode Go key (connectKey) in place of the lab login, with claude or codex
 }
 ```
 
+- `plan`: the harness runs with the user's OpenCode Go plan, through the proxy's relay; the key never enters the sandbox. The job needs a model of the plan (`model`, else `models['opencode-go']` of createAgents; `listModels(user, 'opencode-go')` lists them), else `run` gives an `error` (code `sandbox`). Claude Code gets `ANTHROPIC_BASE_URL` (the relay), `ANTHROPIC_AUTH_TOKEN` (the job token), every model alias set to the job's model, and a `CLAUDE_CONFIG_DIR` of its own with no Claude login; Codex gets `-c` overrides for a model provider `opencode-go` (`wire_api = "responses"`, `env_key = "BYOA_JOB_TOKEN"`) and a `CODEX_HOME` of its own. The user's jobs with a key need no lease, so jobs in different sandboxes run at the same time. With no key, `run` gives an `error` with code `signed-out`.
 - `mcp`: names of the user's connected servers and of the app's own `tools`.
 - `access`: `'full'`: every tool of the harness with no approval (Codex: `--dangerously-bypass-approvals-and-sandbox`; Claude Code: `--permission-mode bypassPermissions`), for a sandbox that is the job's alone. `'read-only'`: the job's MCP tools, and reading files, so the harness reads its skills and AGENTS.md; no change to a file, and no network but the job's MCP servers. Codex: `--sandbox read-only` (its shell stays, because it reads a skill with `cat`; a command cannot write or open a connection), with the job's MCP tools approved in its `config.toml`. Claude Code: `--permission-mode dontAsk` with the tools `Read`, `Glob`, `Grep`, `Skill` and the job's MCP servers; each tool it refuses is a `permission` event. It does not hide files: the agent can read each file its user can read.
 - Before the harness starts, byoa sends one MCP `initialize` from the sandbox to each of the job's servers, through the proxy. When no request reaches the proxy, the job does not start: an `error` event with code `mcp`, then `end` with `ok: false`. A server that does not answer gives an `error` event with code `mcp`, and the job runs.
@@ -117,19 +122,21 @@ type AgentEvent =
   | { type: 'tool_call'; id: string; name: string; server?: string; input: unknown }   // server: the MCP server
   | { type: 'tool_result'; id: string; ok: boolean; output: string }
   | { type: 'permission'; tool: string; decision: 'denied'; input?: unknown }
-  | { type: 'error'; message: string; code?: 'signed-out' | 'expired' | 'harness' | 'sandbox' | 'mcp' }
+  | { type: 'error'; message: string; code?: 'signed-out' | 'expired' | 'no-plan' | 'harness' | 'sandbox' | 'mcp' }
   | { type: 'end'; ok: boolean; result?: string; usage?: { input: number; output: number; cached?: number; costUsd?: number } }
 ```
 
-`run` does not throw for job failures: it yields `error` events and then exactly one `end`. `signed-out` / `expired`: ask the user to sign in again (`loginState` says the same). `mcp`: a server is not connected, its grant failed, it did not answer through the proxy, or the sandbox cannot reach the proxy (then the job did not start).
+`run` does not throw for job failures: it yields `error` events and then exactly one `end`. `signed-out` / `expired`: ask the user to sign in again, or for a new key with `plan: 'opencode-go'` (`loginState` says the same). `no-plan`: the key's workspace has no OpenCode Go plan. `mcp`: a server is not connected, its grant failed, it did not answer through the proxy, or the sandbox cannot reach the proxy (then the job did not start).
 
-### listModels(user, h): Promise<ModelInfo[]>
+### listModels(user, h | 'opencode-go'): Promise<ModelInfo[]>
 
 The models the user's plan can use with `h`, as the unmodified CLI lists them with the user's login (Claude Code: its `initialize` answer; Codex: its app server's `model/list`), in a new sandbox that is destroyed after. `ModelInfo`: `{ id, name, description, isDefault, efforts, resolved? }`; `id` is what `model` takes, `efforts` what `effort` takes, `resolved` (Claude Code) the full model name of an alias. Each call starts a sandbox, so keep the list for a while. A Claude Code list waits for the user's running Claude Code jobs. Throws `LoginError` when `h` is not signed in.
 
-### session(user, { harness, setup?, plugins?, mcp?, sandboxKey?, access?, model?, effort?, onWait? }): Promise<Session>
+With `h` `'opencode-go'`: the plan's chat models, from `https://opencode.ai/inference/go/v1/models` with the user's key, in the backend (no sandbox). The free models are left out: OpenCode serves them only to its own client. `efforts` are the model's own, as OpenCode lists them; Claude Code's `--effort` takes `low` to `max`. `isDefault` is false for each: a job names its model. Throws `LoginError` when the user has no key.
 
-For an app that runs its own program around the unmodified harness. Throws `LoginError` when the harness is not signed in, and `ProxyError` when the sandbox cannot reach the proxy. The app starts the harness itself, so `access` changes only the files byoa writes (Codex's MCP config).
+### session(user, { harness, setup?, plugins?, mcp?, sandboxKey?, access?, model?, effort?, onWait?, plan? }): Promise<Session>
+
+For an app that runs its own program around the unmodified harness. It also takes `plan`, as `run` does; `args` then has the plan's flags. Throws `LoginError` when the harness is not signed in (or the user has no key of the plan), and `ProxyError` when the sandbox cannot reach the proxy. The app starts the harness itself, so `access` changes only the files byoa writes (Codex's MCP config).
 
 ```ts
 const s = await agents.session(userId, { harness: 'claude', mcp: ['notion'] })
@@ -138,7 +145,7 @@ try {
 } finally { await s.close() }   // ends the job token, takes the login out, and pauses (or destroys) the sandbox
 ```
 
-`Session`: `sandbox`, `work` (the job folder with byoa's files), `harness`, `bin` (the pinned binary), `version`, `args` (the harness flags for the job's model and effort, for the app's own command line), `env` (login folder, `BYOA_JOB_TOKEN`, and for Claude Code `MCP_TIMEOUT`), `token`, `mcp` (`[{ name, url }]` at the proxy), `missing` (servers not connected), `failing` (`[{ name, message }]`: servers that did not answer through the proxy), `reportLogin('signed-in' | 'expired')`, `close()`.
+`Session`: `sandbox`, `work` (the job folder with byoa's files), `harness`, `bin` (the pinned binary), `version`, `args` (the harness flags for the job's model and effort, for the app's own command line), `env` (login folder, `BYOA_JOB_TOKEN`, and for Claude Code `MCP_TIMEOUT`; with a plan, the plan's settings above), `token`, `mcp` (`[{ name, url }]` at the proxy), `missing` (servers not connected), `failing` (`[{ name, message }]`: servers that did not answer through the proxy), `reportLogin('signed-in' | 'expired')`, `close()`.
 
 ### jobToken(user, { mcp?, ttlMs? }): Promise<JobToken>
 

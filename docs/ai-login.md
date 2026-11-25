@@ -1,6 +1,6 @@
 # AI login
 
-A user's AI login stays encrypted in your app's database, and is in a sandbox only while a sign-in, a job or a sign-out runs. This page shows how byoa signs a user in to Claude Code and Codex, keeps the CLI's own login files, and uses them for each job.
+A user's AI login stays encrypted in your app's database, and is in a sandbox only while a sign-in, a job or a sign-out runs. This page shows how byoa signs a user in to Claude Code and Codex, keeps the CLI's own login files, and uses them for each job. An OpenCode Go plan (beta) has no sign-in: the user gives a key, which never goes into the sandbox ([Supported AI subscriptions](subscriptions.md#opencode-go-through-a-key-beta)).
 
 | The login tokens are in | They are never in |
 |---|---|

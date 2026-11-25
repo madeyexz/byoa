@@ -16,7 +16,7 @@ for await (const ev of agents.run(userId, {
 ```
 
 - The events are the same for Claude Code and Codex. The schema is in the [API reference](api.md#events-one-schema-for-both-harnesses).
-- `run` does not throw when a job fails. It gives `error` events (`code`: `signed-out`, `expired`, `harness`, `sandbox` or `mcp`), and always ends with one `end` event (`ok`, `result`, `usage`). On `signed-out` or `expired`, show the sign-in again.
+- `run` does not throw when a job fails. It gives `error` events (`code`: `signed-out`, `expired`, `no-plan`, `harness`, `sandbox` or `mcp`), and always ends with one `end` event (`ok`, `result`, `usage`). On `signed-out` or `expired`, show the sign-in again (for `plan: 'opencode-go'`, ask for a new key). On `no-plan`, tell the user that the key's workspace has no OpenCode Go plan.
 - byoa writes skills where each harness reads them (`.claude/skills/`, `.agents/skills/`), AGENTS.md (and CLAUDE.md for Claude Code) from one source, and the MCP config in each harness's own format. `plugins` adds the skills and MCP servers of an Agent Plugins package (`readPlugin(readPluginDir(dir))`).
 - byoa installs the pinned version of each harness in each sandbox, so a new pin reaches every user at their next job.
 - If the client goes away, stop the loop (or call `return()` on the generator). byoa still ends the job token, takes the login out, and pauses or destroys the sandbox.
@@ -77,6 +77,8 @@ agents.run(userId, { harness: 'codex', task, model: models[0].id, effort: 'high'
 ```
 
 `agents.listModels(userId, harness)` lists the models that the user's plan can use, as the CLI lists them with the user's login: `[{ id, name, description, isDefault, efforts, resolved? }]`. `id` is what `model` takes, and `efforts` what `effort` takes; `resolved` (Claude Code) is the full name of an alias. Each call starts a sandbox, so keep the list for a while. It throws `LoginError` when the harness is not signed in. With `session`, `s.args` has the flags for the job's model and effort, for your own command line.
+
+A job on the user's OpenCode Go key (beta) passes `plan: 'opencode-go'` and a Go model; `listModels(userId, 'opencode-go')` lists them with no sandbox. See [Supported AI subscriptions](subscriptions.md#opencode-go-through-a-key-beta).
 
 ## A program of your own around the harness
 

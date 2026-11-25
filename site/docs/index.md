@@ -12,7 +12,7 @@ These pages are the Markdown files in [docs/](https://github.com/madeyexz/byoa/t
 
 - [Getting started](https://byoa.rippling.computer/docs/getting-started.md): install byoa, make one `agents` object, serve its two routes, sign a user in and run a first job
 - [Concepts](https://byoa.rippling.computer/docs/concepts.md): who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox
-- [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md): which Claude and ChatGPT plans your users can bring, and what each one gives
+- [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md): which Claude, ChatGPT and OpenCode Go (beta) plans your users can bring, and what each one gives
 - [FAQ](https://byoa.rippling.computer/docs/faq.md): whether a user's AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key
 
 ## Guides
