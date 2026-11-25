@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Prepares a fresh Amp orb for byoa: the npm dependencies of the library, the site and the to-do example (as CI
+# installs them), and the pinned Codex and Grok that V10 runs against. It must stay idempotent and fast on a warm orb.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+step() {
+  local name="$1"; shift
+  local start=$SECONDS
+  echo "==> $name"
+  "$@"
+  echo "<== $name ($((SECONDS - start))s)"
+}
+
+# Install from the lockfile only when node_modules does not match it already (npm ci always deletes node_modules).
+npm_deps() {
+  local dir="$1"
+  if [[ -f "$dir/node_modules/.package-lock.json" && "$dir/node_modules/.package-lock.json" -nt "$dir/package-lock.json" ]] &&
+    (cd "$dir" && npm ls --all >/dev/null 2>&1); then
+    echo "$dir: node_modules matches package-lock.json"
+  else
+    (cd "$dir" && npm ci --no-audit --no-fund)
+  fi
+}
+
+# The library first: its `prepare` script builds dist/, which the to-do example uses through file:../..
+step "npm deps (repo)" npm_deps .
+step "npm deps (site)" npm_deps site
+step "npm deps (examples/todo)" npm_deps examples/todo
+
+# The pinned harness CLIs for V10 (see .github/workflows/ci.yml), installed outside the repository.
+tools="$HOME/.cache/byoa-orb"
+pin() { node -e "import('./src/harness/pins.ts').then((m) => console.log(m.PINS.$1))"; }
+install_pinned() {
+  local name="$1" pkg="$2" version
+  version="$(pin "$name")"
+  if [[ "$(cat "$tools/$name/version" 2>/dev/null)" == "$version" && -x "$tools/$name/node_modules/.bin/$name" ]]; then
+    echo "$pkg@$version is installed"
+    return
+  fi
+  rm -rf "$tools/$name"
+  mkdir -p "$tools/$name"
+  GROK_HOME="$tools/grok-home" npm install --prefix "$tools/$name" --no-audit --no-fund "$pkg@$version"
+  echo "$version" > "$tools/$name/version"
+}
+step "pinned Codex" install_pinned codex @openai/codex
+step "pinned Grok" install_pinned grok @xai-official/grok
+
+# cloudflared gives the proxy a public URL in V4 and V20 when provider keys are set (docs/testing.md).
+install_cloudflared() {
+  if command -v cloudflared >/dev/null; then
+    cloudflared --version
+    return
+  fi
+  local deb
+  deb="$(mktemp --suffix=.deb)"
+  curl -fsSL -o "$deb" "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-$(dpkg --print-architecture).deb"
+  sudo dpkg -i "$deb"
+  rm -f "$deb"
+}
+step "cloudflared" install_cloudflared
+
+# Point V10 at those binaries in every login shell, as CI does with BYOA_CODEX_BIN and BYOA_GROK_BIN.
+marker="# byoa orb: pinned harness CLIs for V10"
+if ! grep -Fqx "$marker" "$HOME/.bash_profile" 2>/dev/null; then
+  cat >> "$HOME/.bash_profile" <<PROFILE
+
+$marker
+export BYOA_CODEX_BIN="$tools/codex/node_modules/.bin/codex"
+export BYOA_GROK_BIN="$tools/grok/node_modules/.bin/grok"
+PROFILE
+fi
