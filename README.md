@@ -99,6 +99,7 @@ The docs are at [byoa.rippling.computer/docs](https://byoa.rippling.computer/doc
 - [Getting started](https://byoa.rippling.computer/docs/getting-started): install, one `agents` object, two routes, a sign-in and a first job
 - [Concepts](https://byoa.rippling.computer/docs/concepts): who brings what, how a job runs, and why real tokens never go into the sandbox
 - [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions) and the [FAQ](https://byoa.rippling.computer/docs/faq): which Claude and ChatGPT plans work, whether a user's account can get banned, and what a job costs
+- [Give your agent tools](https://byoa.rippling.computer/docs/agent-tools): your app's own tools, MCP servers, skills and plugins, and which one to choose
 - [AI login](https://byoa.rippling.computer/docs/ai-login): the sign-in, where the login stays between jobs, one job step by step, the shared Codex login, and sign-out
 - [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle): every sandbox byoa creates, what each provider does, and what happens when your backend dies
 - [MCP tools and the proxy](https://byoa.rippling.computer/docs/mcp): MCP connections, job tokens, your app's own tools, and calls with a user's grant

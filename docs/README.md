@@ -17,6 +17,7 @@ These pages are the Markdown files in [docs/](../docs) of the repository. The si
 
 ## Guides
 
+- [Give your agent tools](agent-tools.md): your app's own tools, the user's MCP servers, skills, AGENTS.md and plugins, which one to choose, and what the agent can do in its sandbox
 - [AI login](ai-login.md): the sign-in on the lab's own page, where the login stays between jobs, one job step by step, the shared Codex login, and sign-out
 - [Sandbox lifecycle](sandbox-lifecycle.md): every sandbox byoa creates, from creation to removal, what each provider does, and what happens when your backend dies
 - [MCP tools and the proxy](mcp.md): connect a user's MCP servers once, the proxy and job tokens, your app's own tools, and calls with a user's grant

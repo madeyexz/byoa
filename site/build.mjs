@@ -169,11 +169,15 @@ function flowHtml(src, inline) {
       return `<li class="k-${o.k}${on && o.k !== 'end' ? ' on' : ''}"><b>${inline(o.title)}</b>${o.text ? inline(o.text) : ''}${chips(o) ? ` <span class="nm">${chips(o)}</span>` : ''}${o.side ? side(o.side) : ''}</li>`
     }).join('')
   }
-  const usesFiles = spec.tabs.some((t) => t.nodes.some((o) => o.files || o.side?.files))
+  const all = spec.tabs.flatMap((t) => t.nodes.flatMap((o) => (o.side ? [o, o.side] : [o])))
+  const usesFiles = all.some((o) => o.files)
+  // the legend has only the keys this diagram uses
+  const legend = [usesFiles && '<span class="lg on">login files in the sandbox</span><span class="lg">no login files</span>',
+    all.some((o) => o.k === 'dec') && '<span class="lg dia">a question</span>', all.some((o) => o.time.length) && '<span class="lg tb">time limit</span>'].filter(Boolean).join('')
   const tabs = spec.tabs.length > 1
     ? `<div class="seg" role="tablist">${spec.tabs.map((t, i) => `<button type="button" role="tab" aria-selected="${i === 0}" data-tab="${i}">${inline(t.tab)}</button>`).join('')}</div>` : ''
   return `<figure class="flow"${spec.title ? ` aria-label="${esc(spec.title)}"` : ''}>
-${usesFiles ? '<div class="legend"><span class="lg on">login files in the sandbox</span><span class="lg">no login files</span><span class="lg dia">a question</span><span class="lg tb">time limit</span></div>' : '<div class="legend"><span class="lg dia">a question</span><span class="lg tb">time limit</span></div>'}
+${legend ? `<div class="legend">${legend}</div>` : ''}
 ${tabs}${spec.tabs.map((t, i) => `<div class="tabp" data-tab="${i}"${i ? ' hidden' : ''}>${t.text ? `<p class="tabnote">${inline(t.text)}</p>` : ''}<ol class="flow-list">${list(t.nodes)}</ol><div class="flow-draw" data-nodes="${esc(JSON.stringify(t.nodes.map(data)))}"></div></div>`).join('')}
 </figure>`
 }
