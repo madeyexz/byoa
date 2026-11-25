@@ -16,8 +16,9 @@
   {{base_css}}
 
   /* hero */
+  :root { --strip: 185px; }  /* the strip under the hero; the 59px is the nav and the three 1px rules */
   .hero { overflow: hidden; }
-  .hero .frame { min-height: min(84vh, 760px); display: grid; place-items: center; text-align: center; padding: 96px 24px 150px; }
+  .hero .frame { min-height: max(560px, calc(100svh - 59px - var(--strip))); display: grid; place-items: center; text-align: center; padding: 96px 24px 150px; }
   .hero .eyebrow { font: 13px var(--pixel); letter-spacing: .08em; color: var(--muted); display: inline-flex; align-items: center; gap: 10px; }
   .hero .eyebrow i { width: 8px; height: 8px; background: var(--butter); display: inline-block; }
   h1 { font-size: clamp(46px, 7.4vw, 108px); line-height: .96; letter-spacing: -.055em; font-weight: 560; margin: 26px 0 30px; }
@@ -45,10 +46,15 @@
   .hero .node { position: absolute; width: 5px; height: 5px; background: var(--ink); z-index: 3; }
 
   /* targets strip */
-  .targets .frame { display: grid; grid-template-columns: repeat(7, 1fr); }
-  .targets .cell { padding: 34px 8px 26px; text-align: center; border-right: 1px solid var(--rule); display: grid; gap: 10px; justify-items: center; }
-  .targets .cell:last-child { border-right: 0; }
-  .targets .nm { font-size: 19px; white-space: nowrap; font-weight: 600; letter-spacing: -.03em; }
+  .targets .frame { display: grid; grid-template-columns: 3fr 3fr 2fr; min-height: var(--strip); }
+  .targets .grp { padding: 22px clamp(14px, 2vw, 28px) 20px; border-right: 1px solid var(--rule); display: grid; align-content: start; gap: 12px; }
+  .targets .grp:last-child { border-right: 0; }
+  .targets .hd { font: 11.5px var(--pixel); letter-spacing: .12em; color: var(--muted); text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
+  .targets .its { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+  .targets .nm { font-size: 19px; white-space: nowrap; font-weight: 600; letter-spacing: -.03em; display: inline-flex; align-items: center; gap: 8px; }
+  .targets .nm img { width: 20px; height: 20px; }
+  .targets .note { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.4; }
+  .targets .note a { color: var(--cobalt); }
 
   /* section heads */
   h2 { font-size: clamp(34px, 4.4vw, 62px); line-height: 1.02; letter-spacing: -.045em; font-weight: 540; margin: 0 0 18px; max-width: 900px; }
@@ -61,6 +67,25 @@
   .center .kick { justify-content: center; }
 
   .strings { background: var(--paper2); }
+
+  /* why: the future of AI-native apps */
+  .whygrid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 40px 64px; align-items: center; }
+  .whygrid p { color: var(--ink2); font-size: 18px; margin: 0 0 18px; max-width: 620px; }
+  .whygrid p b { color: var(--ink); font-weight: 600; }
+  .pack { position: relative; border: 1px solid var(--rule); background: var(--card); padding: 34px 28px 26px; display: grid; justify-items: center; gap: 22px; }
+  .pack .bat { width: 92px; height: auto; }
+  .pack .apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+  .pack .apps { position: relative; }
+  .pack .apps::before { content: ""; position: absolute; left: calc(100% / 6); right: calc(100% / 6); top: -23px; border-top: 2px dashed var(--tomato); }
+  .pack .app { border: 1px solid var(--rule); background: var(--paper); padding: 12px 8px; text-align: center; font-size: 14.5px; position: relative; }
+  .pack .app::before { content: ""; position: absolute; left: 50%; top: -23px; height: 22px; border-left: 2px dashed var(--tomato); }
+  .pack .app i { display: block; font: 11px var(--pixel); font-style: normal; letter-spacing: .1em; color: var(--muted); margin-bottom: 4px; }
+  .pack .cap { font: 11.5px var(--pixel); letter-spacing: .1em; color: var(--muted); text-transform: uppercase; }
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--rule); margin-top: 56px; }
+  .facts div { padding: 22px 24px; border-right: 1px solid var(--rule); }
+  .facts div:last-child { border-right: 0; }
+  .facts b { display: block; font-size: 30px; letter-spacing: -.04em; font-weight: 560; line-height: 1.1; margin-bottom: 6px; }
+  .facts span { color: var(--ink2); font-size: 15.5px; }
 
   /* get started */
   .codegrid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 24px 56px; align-items: end; margin-bottom: 40px; }
@@ -102,9 +127,10 @@
   @media (max-width: 1080px) {
     .codegrid { grid-template-columns: 1fr; }
     nav.top .opt { display: none; }
-    .targets .frame { grid-template-columns: repeat(4, 1fr); }
-    .targets .cell:nth-child(4) { border-right: 0; }
-    .targets .cell:nth-child(-n+4) { border-bottom: 1px solid var(--rule); }
+    .whygrid { grid-template-columns: 1fr; }
+    .targets .frame { grid-template-columns: 1fr 1fr; }
+    .targets .grp:nth-child(2) { border-right: 0; }
+    .targets .grp:last-child { grid-column: 1 / -1; border-top: 1px solid var(--rule); }
   }
   @media (max-width: 720px) {
     .ascii.wide { display: none; } .ascii.narrow { display: block; }
@@ -118,9 +144,13 @@
     .hero .s-plug, .hero .d1, .hero .s-store, .hero .b-r2, .hero .b-l2, .hero .s-agent { display: none; }
     .scope .row { grid-template-columns: 1fr; }
     .scope .k { border-right: 0; border-bottom: 1px solid var(--rule); }
-    .targets .frame { grid-template-columns: 1fr 1fr; }
-    .targets .cell { border-bottom: 1px solid var(--rule); }
-    .targets .cell:nth-child(2n) { border-right: 0; }
+    .targets .frame { grid-template-columns: 1fr; }
+    .targets .grp { border-right: 0; border-bottom: 1px solid var(--rule); }
+    .targets .grp:last-child { border-top: 0; border-bottom: 0; }
+    .facts { grid-template-columns: 1fr; }
+    .facts div { border-right: 0; border-bottom: 1px solid var(--rule); }
+    .facts div:last-child { border-bottom: 0; }
+    .pack .apps { grid-template-columns: 1fr 1fr 1fr; }
   }
   @media (prefers-reduced-motion: reduce) { h1 .spr, .hero .s-agent { animation: none; } html { scroll-behavior: auto; } }
 </style>
@@ -132,6 +162,7 @@
   <div class="row">
     <a class="brand" href="#"><img class="px" src="art/agent.png" alt="">byoa</a>
     <a class="opt" href="#who">Who brings what</a>
+    <a class="opt" href="#why">Why</a>
     <a class="opt" href="#start">Get started</a>
     <a class="opt" href="#works">What works</a>
     <span class="sp"></span>
@@ -153,7 +184,7 @@
   <div class="frame">
     <span class="node" style="left:-3px;bottom:237px"></span><span class="node" style="right:-3px;bottom:237px"></span>
     <div>
-      <span class="eyebrow"><i></i>OPEN SOURCE · APACHE 2.0 · A LIBRARY, NOT A SERVICE</span>
+      <span class="eyebrow"><i></i>OPEN SOURCE</span>
       <h1>Your users bring<br>their own <img class="spr px" src="art/agent.png" alt="">agent.</h1>
       <p class="lead">The simplest way to let your users bring their own <b>AI subscription</b> to power the agents in your app.</p>
       <div class="cta">
@@ -166,13 +197,21 @@
 
 <section class="band targets" aria-label="What byoa works with">
   <div class="frame">
-    <div class="cell"><span class="nm">Claude Code</span><span class="badge v1">SUPPORTED</span></div>
-    <div class="cell"><span class="nm">Codex</span><span class="badge v1">SUPPORTED</span></div>
-    <div class="cell"><span class="nm">Grok Build</span><span class="badge v1">SUPPORTED</span></div>
-    <div class="cell"><span class="nm">E2B · Daytona</span><span class="badge v1">SUPPORTED</span></div>
-    <div class="cell"><span class="nm">Instabox</span><span class="badge v1">SUPPORTED</span></div>
-    <div class="cell"><span class="nm">Node · Convex</span><span class="badge v1">SUPPORTED</span></div>
-    <div class="cell"><span class="nm">CF Workers</span><span class="badge plan">PLANNED</span></div>
+    <div class="grp">
+      <div class="hd">Harnesses · on the user's plan <span class="badge v1">SUPPORTED</span></div>
+      <div class="its"><span class="nm"><img src="art/logo-claude.png" alt="">Claude Code</span><span class="nm"><img src="art/logo-openai.png" alt="">Codex</span><span class="nm"><img src="art/logo-grok.png" alt="">Grok Build</span></div>
+      <p class="note">Do you sell the electricity, an AI plan? <a href="{{repo}}/issues">Reach out to us</a>.</p>
+    </div>
+    <div class="grp">
+      <div class="hd">Sandboxes · on your account <span class="badge v1">SUPPORTED</span></div>
+      <div class="its"><span class="nm"><img src="art/logo-e2b.png" alt="">E2B</span><span class="nm"><img src="art/logo-daytona.png" alt="">Daytona</span><span class="nm"><img src="art/logo-instabox.png" alt="">Instabox</span></div>
+      <p class="note">More sandbox providers are coming soon.</p>
+    </div>
+    <div class="grp">
+      <div class="hd">Backends <span class="badge v1">SUPPORTED</span></div>
+      <div class="its"><span class="nm">Node</span><span class="nm">Convex</span></div>
+      <p class="note">byoa runs inside your own backend.</p>
+    </div>
   </div>
 </section>
 
@@ -182,6 +221,34 @@
     <h2>Your app brings the product.<br>Each user brings the agent.</h2>
     <p class="sub">You build the app and pick the sandbox. Each user brings their plan and their tools. byoa runs inside your backend and runs each job in a new sandbox.</p>
     {{who}}
+  </div>
+</section>
+
+<section id="why" class="band">
+  <div class="frame pad">
+    <div class="whygrid">
+      <div>
+        <div class="kick">The future of AI-native apps</div>
+        <h2>AI is electricity.<br>A plan is a battery pack.</h2>
+        <p>AI-native apps are the future. But an app cannot pay for each user's AI by usage: the numbers do not work. <b>AI subscriptions solve this.</b> We bet on a future where everyone has a $20 AI plan, or the same in another form, and that plan powers every app they use. In that future, every app is AI-native, so nobody says "AI-native app" anymore.</p>
+        <p>Battery packs come in different sizes, and one pack powers all the appliances in your home. This is the economy we bet on. We build byoa to make it come sooner, so that every developer can build on it.</p>
+      </div>
+      <div class="pack" aria-hidden="true">
+        <span class="cap">One user · one plan</span>
+        <img class="bat px" src="art/battery.png" alt="">
+        <div class="apps">
+          <div class="app"><i>APP</i>Your app</div>
+          <div class="app"><i>APP</i>Notes</div>
+          <div class="app"><i>APP</i>Email</div>
+        </div>
+        <span class="cap">powers every app they use</span>
+      </div>
+    </div>
+    <div class="facts">
+      <div><b>Their plan</b><span>Each user signs in to their own AI plan one time. Their plan pays for the AI.</span></div>
+      <div><b>Their agent</b><span>byoa runs the user's own Claude Code, Codex or Grok Build in a sandbox, with their tools.</span></div>
+      <div><b>Your sandbox</b><span>Your app pays only for the sandbox. byoa streams the result back to your app.</span></div>
+    </div>
   </div>
 </section>
 
@@ -236,7 +303,7 @@
 <section class="band end">
   <div class="frame">
     <h2>Bring your own agent.</h2>
-    <p>Every user brings their own battery pack. byoa is open source: read the docs, watch the repository, or tell us what your app needs.</p>
+    <p>One AI plan for each person, and it powers every app they use. Help that future come sooner: read the docs, watch the repository, or tell us what your app needs.</p>
     <div class="cta">
       <a class="btn dark" href="{{repo}}">GitHub <span class="chev"></span></a>
       <a class="btn" href="/docs">Read the docs <span class="chev"></span></a>
@@ -245,7 +312,7 @@
 </section>
 <footer>
   <div class="frame">
-    <span>byoa · bring your own agent · Apache 2.0</span>
+    <span>byoa · bring your own agent · Apache 2.0 · made by <a href="https://www.ianhsiao.me">Ian Hsiao</a></span>
     <span><a href="/docs">Docs</a> · <a href="/docs/getting-started">Getting started</a> · <a href="/llms.txt">llms.txt</a> · <a href="{{repo}}">{{repo}}</a></span>
   </div>
 </footer>

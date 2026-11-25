@@ -1,7 +1,7 @@
 <a href="https://byoa.rippling.computer">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/banner-dark.png">
-  <img alt="byoa: your users bring their own agent. The simplest way to let your users bring their own AI subscription to power the agents in your app. Supported: Claude Code, Codex, Grok Build, E2B, Daytona, Instabox, Node and Convex. Cloudflare Workers is planned." src=".github/readme/banner-light.png">
+  <img alt="byoa: your users bring their own agent. The simplest way to let your users bring their own AI subscription to power the agents in your app. Supported harnesses, on the user's plan: Claude Code, Codex and Grok Build. Supported sandboxes, on your account: E2B, Daytona and Instabox, with more coming soon. Supported backends: Node and Convex." src=".github/readme/banner-light.png">
 </picture>
 </a>
 
