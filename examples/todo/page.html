@@ -19,7 +19,7 @@
 </style>
 <body>
 <h1>AI to-do list</h1>
-<p class="muted">An example app on <a href="https://github.com/madeyexz/byoa">byoa</a>: your own Claude Code or Codex, on your own plan, manages your to-dos.</p>
+<p class="muted">An example app on <a href="https://github.com/madeyexz/byoa">byoa</a>: your own Claude Code, Codex or Grok Build, on your own plan, manages your to-dos.</p>
 <div class="row">You are <input id="user" placeholder="your name" size="14"> <span class="muted">(a stand-in for the app's own sign-in)</span></div>
 
 <h2>1. Sign in to your own plan</h2>
@@ -41,8 +41,8 @@
 <script>
 const $ = (id) => document.getElementById(id)
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
-const PLANS = { claude: 'Claude', codex: 'ChatGPT', 'opencode-go': 'OpenCode Go (beta)' }
-const HARNESSES = { claude: 'Claude Code', codex: 'Codex', fake: 'Fake harness (no model)' }
+const PLANS = { claude: 'Claude', codex: 'ChatGPT', grok: 'Grok', 'opencode-go': 'OpenCode Go (beta)' }
+const HARNESSES = { claude: 'Claude Code', codex: 'Codex', grok: 'Grok Build', fake: 'Fake harness (no model)' }
 const user = $('user')
 user.value = localStorage.user ?? ''
 user.onchange = () => { localStorage.user = user.value.trim(); refresh() }
@@ -116,7 +116,7 @@ $('plans').onclick = async (e) => {
       signingIn.beat = setInterval(() => api('POST', '/api/login/finish', { harness: h }).then((r) => { if (r.state !== 'pending' && signingIn?.h === h) finished(r) }, () => {}), 30_000)
       $('finish').onclick = () => api('POST', '/api/login/finish', { harness: h, code: $('code').value }).then(finished, fail)
     } else {
-      $('signin').innerHTML = `<p>Open <a href="${esc(s.url)}" target="_blank" rel="noopener">OpenAI's sign-in page</a> and enter the code <b>${esc(s.code)}</b>. Waiting for you… ${cancel}</p>`
+      $('signin').innerHTML = `<p>Open <a href="${esc(s.url)}" target="_blank" rel="noopener">${h === 'grok' ? "xAI's" : "OpenAI's"} sign-in page</a> and enter the code <b>${esc(s.code)}</b>. Waiting for you… ${cancel}</p>`
       $('cancel').onclick = cancelSignIn
       // each call waits up to 20 s for the user, and keeps the sign-in alive
       let r

@@ -7,19 +7,20 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { harnessFiles, readPlugin } from '../src/config.ts'
+import type { HarnessName } from '../src/harness/pins.ts'
 import { readPluginDir } from '../src/node.ts'
 
 const FIX = new URL('./fixtures/', import.meta.url).pathname
 const PROXY = 'https://app.example.com/byoa/mcp/'
 
-function write(h: 'claude' | 'codex') {
+function write(h: HarnessName) {
   const plugin = readPlugin(readPluginDir(join(FIX, 'sample-plugin')))
   const setup = { agentsMd: readFileSync(join(FIX, 'AGENTS.md'), 'utf8'), skills: plugin.setup.skills }
   // the job asks for linear itself; the plugin brings notion
   return { plugin, files: harnessFiles(h, setup, { proxyUrl: PROXY, servers: ['notion', 'linear'] }) }
 }
 
-for (const h of ['claude', 'codex'] as const) {
+for (const h of ['claude', 'codex', 'grok'] as const) {
   test(`V10: ${h} files match the expected files byte for byte`, () => {
     const { files } = write(h)
     const expected = readPluginDir(join(FIX, 'expected', h))
@@ -36,9 +37,10 @@ test('V10: the plugin reader takes Streamable HTTP servers and Agent Skills name
   assert.deepEqual(plugin.skipped.sort(), ['mcp server local-files: only Streamable HTTP servers are supported', 'skill Bad_Name: not an Agent Skills name'])
 })
 
-test('config: a job with no MCP servers gets an empty Claude config and no Codex config', () => {
+test('config: a job with no MCP servers gets an empty Claude config and no Codex or Grok config', () => {
   assert.equal(harnessFiles('claude', {}, { proxyUrl: PROXY, servers: [] })['.byoa/mcp.json'], '{\n  "mcpServers": {}\n}\n')
   assert.deepEqual(harnessFiles('codex', {}, { proxyUrl: PROXY, servers: [] }), {})
+  assert.deepEqual(harnessFiles('grok', {}, { proxyUrl: PROXY, servers: [] }), {})
 })
 
 test('config: a skill path that leaves its folder is refused', () => {
@@ -59,4 +61,23 @@ test('V10: the pinned Codex reads the config.toml byoa writes', { skip: !codex &
     ['linear', 'streamable_http', 'https://app.example.com/byoa/mcp/linear', 'BYOA_JOB_TOKEN', 60],
     ['notion', 'streamable_http', 'https://app.example.com/byoa/mcp/notion', 'BYOA_JOB_TOKEN', 60],
   ])
+})
+
+// The real Grok binary reads the job folder byoa writes, with --trust as a job runs it (only when a grok binary is
+// given, as in CI): the MCP servers with the job token from the environment, the skill and AGENTS.md.
+const grok = process.env.BYOA_GROK_BIN
+test('V10: the pinned Grok reads the .grok/config.toml, skills and AGENTS.md byoa writes', { skip: !grok && 'set BYOA_GROK_BIN to check with the real Grok' }, () => {
+  const work = mkdtempSync(join(tmpdir(), 'byoa-v10-')), job = join(work, 'job')
+  for (const [p, text] of Object.entries(write('grok').files)) { mkdirSync(dirname(join(job, p)), { recursive: true }); writeFileSync(join(job, p), text) }
+  const env = { ...process.env, GROK_HOME: join(work, 'grok-home'), BYOA_JOB_TOKEN: 'job-token-1' }
+  const run = (...args: string[]) => JSON.parse(execFileSync(grok!, ['--no-auto-update', '--trust', ...args], { cwd: job, env, encoding: 'utf8' }))
+  const list = run('mcp', 'list', '--json') as { name: string; url: string; headers: Record<string, string>; startup_timeout_sec: number; scope: string }[]
+  assert.deepEqual(list.map((s) => [s.name, s.url, s.headers.Authorization, s.startup_timeout_sec, s.scope]).sort(), [
+    ['linear', 'https://app.example.com/byoa/mcp/linear', 'Bearer job-token-1', 60, 'project'],
+    ['notion', 'https://app.example.com/byoa/mcp/notion', 'Bearer job-token-1', 60, 'project'],
+  ])
+  const seen = run('inspect', '--json') as { projectTrusted: boolean; skills: { name: string; source: { type: string } }[]; projectInstructions: { path: string }[] }
+  assert.equal(seen.projectTrusted, true)
+  assert.deepEqual(seen.skills.filter((s) => s.source.type === 'project').map((s) => s.name), ['summarize'])
+  assert.deepEqual(seen.projectInstructions.map((i) => i.path), [join(job, 'AGENTS.md')])
 })

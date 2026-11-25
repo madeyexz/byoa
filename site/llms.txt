@@ -1,6 +1,6 @@
 # byoa
 
-> byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend.
+> byoa lets your app run each user's own Claude Code, Codex or Grok Build, on their plan and with their tools, in any sandbox, from inside your own backend.
 
 byoa is an open-source library (Apache 2.0). It runs inside the app's own backend; it is not a hosted service. Install byoa from npm. Its package is `@madeyexz/byoa`, because npm does not allow the name `byoa`:
 

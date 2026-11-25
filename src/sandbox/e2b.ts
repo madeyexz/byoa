@@ -2,6 +2,7 @@
 // killed after it (R5.4). With cliLogin, the user's AI login lives in an E2B volume that is mounted into the sandbox
 // (R1.5). Needs the `e2b` package (a peer dependency).
 import { CommandExitError, NotFoundError, Sandbox as E2BSandbox, Template, Volume } from 'e2b'
+import { GROK_INSTALL_ENV } from '../harness/install.ts'
 import { PINS, npmSpec, type Pins } from '../harness/pins.ts'
 import { SandboxGoneError, type CreateOptions, type RunOptions, type Sandbox, type SandboxProvider } from './types.ts'
 
@@ -109,14 +110,15 @@ export function e2b(opts: E2BOptions = {}): SandboxProvider {
   }
 }
 
-/** The E2B template: Node, util-linux (`script`, for the sign-in's terminal), and the pinned, unmodified harnesses
+/** The E2B template: Node, util-linux (`script`, for the sign-in's terminal), and the pinned, unmodified harnesses (all three)
  *  from npm. Build it once per pin change with `buildE2BTemplate()`; a sandbox from an older template still gets the
  *  new pin, installed when its job starts (R5.2), only more slowly. */
 export function e2bTemplate(pins: Pins = PINS) {
   return Template()
     .fromNodeImage('22')
     .aptInstall(['bsdutils', 'ca-certificates'])
-    .runCmd(`npm install -g ${npmSpec('claude', pins)} ${npmSpec('codex', pins)}`, { user: 'root' })
+    // Grok's postinstall also unpacks a second copy of its binary into $GROK_HOME (harness/install.ts)
+    .runCmd(`GROK_HOME=${GROK_INSTALL_ENV.GROK_HOME} npm install -g ${npmSpec('claude', pins)} ${npmSpec('codex', pins)} ${npmSpec('grok', pins)} && rm -rf ${GROK_INSTALL_ENV.GROK_HOME}`, { user: 'root' })
     .runCmd('mkdir -p /home/user/work /home/user/.byoa')
 }
 

@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>byoa: bring your own agent</title>
-<meta name="description" content="byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend.">
+<meta name="description" content="byoa lets your app run each user's own Claude Code, Codex or Grok Build, on their plan and with their tools, in any sandbox, from inside your own backend.">
 <meta property="og:title" content="byoa: bring your own agent">
-<meta property="og:description" content="byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend.">
+<meta property="og:description" content="byoa lets your app run each user's own Claude Code, Codex or Grok Build, on their plan and with their tools, in any sandbox, from inside your own backend.">
 <meta name="theme-color" content="#f8f6f0">
 <link rel="canonical" href="https://byoa.rippling.computer/">
 <link rel="icon" href="art/agent.png">
@@ -98,10 +98,10 @@
   .hero .node { position: absolute; width: 5px; height: 5px; background: var(--ink); z-index: 3; }
 
   /* targets strip */
-  .targets .frame { display: grid; grid-template-columns: repeat(6, 1fr); }
-  .targets .cell { padding: 34px 18px 26px; text-align: center; border-right: 1px solid var(--rule); display: grid; gap: 10px; justify-items: center; }
+  .targets .frame { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .targets .cell { padding: 34px 8px 26px; text-align: center; border-right: 1px solid var(--rule); display: grid; gap: 10px; justify-items: center; }
   .targets .cell:last-child { border-right: 0; }
-  .targets .nm { font-size: 22px; font-weight: 600; letter-spacing: -.03em; }
+  .targets .nm { font-size: 19px; white-space: nowrap; font-weight: 600; letter-spacing: -.03em; }
   .badge { font: 11px var(--pixel); letter-spacing: .08em; padding: 3px 7px 2px; line-height: 1.2; display: inline-block; }
   .badge.v1 { background: var(--cobalt); color: #fff; }
   .badge.plan { background: var(--butter); color: var(--ink); }
@@ -180,9 +180,9 @@
   @media (max-width: 1080px) {
     .codegrid { grid-template-columns: 1fr; }
     nav.top .opt { display: none; }
-    .targets .frame { grid-template-columns: repeat(3, 1fr); }
-    .targets .cell:nth-child(3) { border-right: 0; }
-    .targets .cell:nth-child(-n+3) { border-bottom: 1px solid var(--rule); }
+    .targets .frame { grid-template-columns: repeat(4, 1fr); }
+    .targets .cell:nth-child(4) { border-right: 0; }
+    .targets .cell:nth-child(-n+4) { border-bottom: 1px solid var(--rule); }
   }
   @media (max-width: 720px) {
     .ascii.wide { display: none; } .ascii.narrow { display: block; }
@@ -232,7 +232,7 @@
     <div>
       <span class="eyebrow"><i></i>OPEN SOURCE · APACHE 2.0 · A LIBRARY, NOT A SERVICE</span>
       <h1>Your users bring<br>their own <img class="spr px" src="art/agent.png" alt="">agent.</h1>
-      <p class="lead">byoa lets your app run each user's own <b>Claude Code</b> or <b>Codex</b>, on their plan and with their tools, in any sandbox, from inside your own backend.</p>
+      <p class="lead">byoa lets your app run each user's own <b>Claude Code</b>, <b>Codex</b> or <b>Grok Build</b>, on their plan and with their tools, in any sandbox, from inside your own backend.</p>
       <div class="cta">
         <a class="btn dark" href="#who"><span class="ico"><img class="px" src="art/crate.png" alt=""></span>See how it works <span class="chev"></span></a>
         <a class="btn" href="{{repo}}/blob/main/SPEC.md">Read the spec <span class="chev"></span></a>
@@ -245,6 +245,7 @@
   <div class="frame">
     <div class="cell"><span class="nm">Claude Code</span><span class="badge v1">V1 TARGET</span></div>
     <div class="cell"><span class="nm">Codex</span><span class="badge v1">V1 TARGET</span></div>
+    <div class="cell"><span class="nm">Grok Build</span><span class="badge v1">V1 TARGET</span></div>
     <div class="cell"><span class="nm">E2B · Daytona</span><span class="badge v1">V1 TARGET</span></div>
     <div class="cell"><span class="nm">Instabox</span><span class="badge v1">V1 TARGET</span></div>
     <div class="cell"><span class="nm">Node · Convex</span><span class="badge v1">V1 TARGET</span></div>
@@ -257,11 +258,11 @@
     <div class="kick">Who brings what</div>
     <h2>Your app brings the product.<br>Each user brings the agent.</h2>
     <p class="sub">You build the app and pick the sandbox. Each user brings their plan and their tools. byoa runs inside your backend and runs each job in a new sandbox.</p>
-    <div class="ascii-wrap" role="img" aria-label="You build the app and import byoa. Each user signs in with their own plan and connects their tools once. Your app code calls agents.run. byoa is a library inside your app&#x27;s backend, and keeps AI logins and MCP grants in your database. Below your backend&#x27;s edge, byoa drives three things that run outside it: a new sandbox for each job at E2B or Daytona on your account, where the user&#x27;s own Claude Code or Codex runs; the AI labs, whose model calls the user&#x27;s own plan pays; and the user&#x27;s MCP servers, which get the real token from byoa&#x27;s proxy.">
+    <div class="ascii-wrap" role="img" aria-label="You build the app and import byoa. Each user signs in with their own plan and connects their tools once. Your app code calls agents.run. byoa is a library inside your app&#x27;s backend, and keeps AI logins and MCP grants in your database. Below your backend&#x27;s edge, byoa drives three things that run outside it: a new sandbox for each job at E2B or Daytona on your account, where the user&#x27;s own Claude Code, Codex or Grok Build runs; the AI labs, whose model calls the user&#x27;s own plan pays; and the user&#x27;s MCP servers, which get the real token from byoa&#x27;s proxy.">
 <pre class="ascii wide" style="--cols:96" aria-hidden="true"><span class="l">DEVELOPER · YOU</span>                                           <span class="l">END USER</span>
 <span class="k">┌────────────────────────────────────┐</span>                    <span class="k">┌────────────────────────────────────┐</span>
 <span class="k">│</span> <span class="t">builds the app</span>                     <span class="k">│</span>                    <span class="k">│</span> <span class="t">uses the app</span>                       <span class="k">│</span>
-<span class="k">│</span> <span class="t">picks the sandbox provider</span>         <span class="k">│</span>                    <span class="k">│</span> <span class="t">has a Claude or ChatGPT plan</span>       <span class="k">│</span>
+<span class="k">│</span> <span class="t">picks the sandbox provider</span>         <span class="k">│</span>                    <span class="k">│</span> <span class="t">has a Claude, ChatGPT or Grok plan</span> <span class="k">│</span>
 <span class="k">│</span> <span class="t">owns the database</span>                  <span class="k">│</span>                    <span class="k">│</span> <span class="t">has MCP tools and skills</span>           <span class="k">│</span>
 <span class="k">└──────────────────┬─────────────────┘</span>                    <span class="k">└──────────────────┬─────────────────┘</span>
                    <span class="c">│</span> <span class="m">imports byoa</span>             <span class="m">signs in on the lab&#x27;s own page</span> <span class="c">│</span>
@@ -279,10 +280,11 @@
   <span class="o">┃</span>              <span class="c">│</span> <span class="m">create · run · destroy</span>                         <span class="m">real token</span> <span class="c">│</span>               <span class="o">┃</span>
   <span class="o">┃</span>              <span class="c">▼</span>                                                           <span class="c">▼</span>               <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">┌─</span><span class="l"> SANDBOX </span><span class="k">────────────────┐</span>  <span class="k">┌─</span><span class="l"> AI LABS </span><span class="k">────────────────┐</span>  <span class="k">┌─</span><span class="l"> MCP SERVERS </span><span class="k">────────────┐</span> <span class="o">┃</span>
-  <span class="o">┃</span> <span class="k">│</span> <span class="t">E2B or Daytona,</span>          <span class="k">│</span>  <span class="k">│</span> <span class="t">Anthropic · OpenAI</span>       <span class="k">│</span>  <span class="k">│</span> <span class="t">Notion · Gmail · …</span>       <span class="k">│</span> <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">E2B or Daytona,</span>          <span class="k">│</span>  <span class="k">│</span> <span class="t">Anthropic · OpenAI · xAI</span> <span class="k">│</span>  <span class="k">│</span> <span class="t">Notion · Gmail · …</span>       <span class="k">│</span> <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">│</span> <span class="t">on your account</span>          <span class="k">├</span><span class="c">─▶</span><span class="k">│</span> <span class="t">model calls, paid by</span>     <span class="k">│</span>  <span class="k">│</span> <span class="t">the user&#x27;s own accounts</span>  <span class="k">│</span> <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">│</span> <span class="t">runs the user&#x27;s own</span>      <span class="k">│</span>  <span class="k">│</span> <span class="t">the user&#x27;s own plan</span>      <span class="k">│</span>  <span class="k">│</span>                          <span class="k">│</span> <span class="o">┃</span>
-  <span class="o">┃</span> <span class="k">│</span> <span class="t">Claude Code or Codex</span>     <span class="k">│</span>  <span class="k">│</span>                          <span class="k">│</span>  <span class="k">│</span>                          <span class="k">│</span> <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">Claude Code, Codex or</span>    <span class="k">│</span>  <span class="k">│</span>                          <span class="k">│</span>  <span class="k">│</span>                          <span class="k">│</span> <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">Grok Build</span>               <span class="k">│</span>  <span class="k">│</span>                          <span class="k">│</span>  <span class="k">│</span>                          <span class="k">│</span> <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">└──────────────────────────┘</span>  <span class="k">└──────────────────────────┘</span>  <span class="k">└──────────────────────────┘</span> <span class="o">┃</span>
   <span class="o">┃</span>                                                                                          <span class="o">┃</span>
   <span class="o">┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</span>
@@ -297,7 +299,8 @@
   <span class="c">│</span> <span class="l">END USER</span>
   <span class="c">│</span> <span class="k">┌────────────────────────────────┐</span>
   <span class="c">│</span> <span class="k">│</span> <span class="t">uses the app</span>                   <span class="k">│</span>
-  <span class="c">│</span> <span class="k">│</span> <span class="t">has a Claude or ChatGPT plan</span>   <span class="k">│</span>
+  <span class="c">│</span> <span class="k">│</span> <span class="t">has a Claude, ChatGPT or</span>       <span class="k">│</span>
+  <span class="c">│</span> <span class="k">│</span> <span class="t">Grok plan</span>                      <span class="k">│</span>
   <span class="c">│</span> <span class="k">│</span> <span class="t">has MCP tools and skills</span>       <span class="k">│</span>
   <span class="c">│</span> <span class="k">└────────────────┬───────────────┘</span>
   <span class="c">│</span>                  <span class="c">│</span> <span class="m">signs in once</span>
@@ -319,14 +322,15 @@
   <span class="o">┃</span> <span class="k">│</span> <span class="t">E2B or Daytona,</span>      <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">│</span> <span class="t">on your account</span>      <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">│</span> <span class="t">runs the user&#x27;s own</span>  <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
-  <span class="o">┃</span> <span class="k">│</span> <span class="t">Claude Code or Codex</span> <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">Claude Code, Codex</span>   <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">or Grok Build</span>        <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">└───┬──────────────────┘</span>    <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span>     <span class="c">│</span> <span class="m">model calls</span>           <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span>     <span class="c">▼</span>                       <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">┌─</span><span class="l"> AI LABS </span><span class="k">────────────┐</span>    <span class="c">│</span>  <span class="o">┃</span>
-  <span class="o">┃</span> <span class="k">│</span> <span class="t">Anthropic · OpenAI</span>   <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
-  <span class="o">┃</span> <span class="k">│</span> <span class="t">paid by the user&#x27;s</span>   <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
-  <span class="o">┃</span> <span class="k">│</span> <span class="t">own plan</span>             <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">Anthropic · OpenAI ·</span> <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">xAI, paid by the</span>     <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">user&#x27;s own plan</span>      <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">└──────────────────────┘</span>    <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span>                             <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span>                             <span class="c">▼</span>  <span class="o">┃</span>
@@ -367,13 +371,13 @@
   <div class="frame pad">
     <div class="kick">Version 1</div>
     <h2>What version 1 covers.</h2>
-    <p class="sub">These are the targets in SPEC.md. Claude Code and Codex are both in the first version. Other agents can come later.</p>
+    <p class="sub">These are the targets in SPEC.md. Claude Code and Codex are in the first version, and Grok Build was added to it. Other agents can come later.</p>
     <div class="scope">
       <div class="row"><div class="k"><img class="px" src="art/agent.png" alt="">Agents</div><div class="v">
-        <span class="it">Claude Code <span class="badge v1">V1</span></span><span class="it">Codex <span class="badge v1">V1</span></span><span class="it dash">Gemini / Antigravity <span class="badge maybe">MAYBE LATER</span></span>
+        <span class="it">Claude Code <span class="badge v1">V1</span></span><span class="it">Codex <span class="badge v1">V1</span></span><span class="it">Grok Build <span class="badge v1">V1</span></span><span class="it dash">Gemini / Antigravity <span class="badge maybe">MAYBE LATER</span></span>
       </div></div>
       <div class="row"><div class="k"><img class="px" src="art/key.png" alt="">User plans</div><div class="v">
-        <span class="it">Claude plan <span class="badge v1">V1</span></span><span class="it">ChatGPT plan <span class="badge v1">V1</span></span><span class="it">OpenCode Go key <span class="badge maybe">BETA</span></span>
+        <span class="it">Claude plan <span class="badge v1">V1</span></span><span class="it">ChatGPT plan <span class="badge v1">V1</span></span><span class="it">Grok plan <span class="badge v1">V1</span></span><span class="it">OpenCode Go key <span class="badge maybe">BETA</span></span>
       </div></div>
       <div class="row"><div class="k"><img class="px" src="art/crate.png" alt="">Sandboxes</div><div class="v">
         <span class="it">E2B <span class="badge v1">V1</span></span><span class="it">Daytona <span class="badge v1">V1</span></span><span class="it">Instabox <span class="badge v1">V1</span></span><span class="it">Other providers <span class="badge plan">PLANNED</span></span>

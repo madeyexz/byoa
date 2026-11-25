@@ -1,4 +1,4 @@
-// R1 and the Claude Code and Codex job paths, with stand-in CLIs (test/fixtures/bin) that print what the real ones
+// R1 and the Claude Code, Codex and Grok Build job paths, with stand-in CLIs (test/fixtures/bin) that print what the real ones
 // print. This checks byoa's own side: the sign-in through a terminal and a FIFO, the stored login and the login
 // volume, the login state, and the event schema. It does not prove the real CLIs work; V3 and V11 do.
 import assert from 'node:assert/strict'
@@ -11,6 +11,7 @@ import { collect, running, testApp } from './helpers/app.ts'
 const BIN = new URL('./fixtures/bin/', import.meta.url).pathname
 chmodSync(`${BIN}claude`, 0o755)
 chmodSync(`${BIN}codex`, 0o755)
+chmodSync(`${BIN}grok`, 0o755)
 const env = { PATH: `${BIN}:${process.env.PATH}` }
 const closers: (() => Promise<void>)[] = []
 after(() => Promise.all(closers.map((c) => c())))
@@ -72,7 +73,7 @@ test('R1.2: Codex device sign-in: the page and the code as data; then the same e
 })
 
 test('Lab rules: with cliLogin, the same user in two apps has two login volumes, so one app\'s AI login is never another\'s', async () => {
-  const deps = { sandbox: localSandbox(), store: memoryStore(), pins: { claude: '1', codex: '1' }, encryptionKey: 'unused' }
+  const deps = { sandbox: localSandbox(), store: memoryStore(), pins: { claude: '1', codex: '1', grok: '1' }, encryptionKey: 'unused' }
   const a = await cliLogin({ ...deps, app: 'bookish' }).volumes('u1', 'claude')
   const b = await cliLogin({ ...deps, app: 'margins' }).volumes('u1', 'claude')
   assert.notEqual(a[0].name, b[0].name)
@@ -297,4 +298,59 @@ test('R5.7: listModels lists what the user\'s plan has, as each CLI lists it wit
     { id: 'gpt-6.2-sol', name: 'GPT-6.2-Sol', description: 'Fast', isDefault: true, efforts: ['low', 'ultra'] },
   ], 'both pages, without the hidden model')
   assert.equal(running(sandbox), 0, 'its sandbox is gone')
+})
+
+test('R1.2: Grok Build device sign-in: xAI\'s page and the code as data; a job\'s MCP call through use_tool is the MCP tool itself (R5.5)', async () => {
+  const { agents, sandbox } = await app()
+  assert.deepEqual(await agents.connectLogin('gil', 'grok'), { harness: 'grok', url: 'https://accounts.x.ai/oauth2/device?user_code=WXYZ-2345', code: 'WXYZ-2345' })
+  assert.deepEqual(await agents.finishLogin('gil', 'grok'), { state: 'pending' })
+  assert.deepEqual(await agents.finishLogin('gil', 'grok', { waitMs: 10_000 }), { state: 'signed-in' })
+  const ev = await collect(agents.run('gil', { harness: 'grok', task: 'who am I?', model: 'grok-4.5', effort: 'low' }))
+  assert.deepEqual(ev.map((e) => e.type), ['start', 'text', 'tool_call', 'tool_result', 'end'])
+  assert.match((ev[1] as { text: string }).text, /^args: --trust -p --output-format streaming-messages-json --no-auto-update --no-memory --permission-mode bypassPermissions -m grok-4\.5 --reasoning-effort low; home: \.grok; autoupdater off: 1$/)
+  assert.deepEqual(ev[2], { type: 'tool_call', id: 't1', server: 'notes', name: 'whoami', input: {} })
+  assert.deepEqual(ev[3], { type: 'tool_result', id: 't1', ok: true, output: 'you are alice' }, 'the tool\'s own text, not Grok\'s wrapper')
+  assert.deepEqual(ev[4], { type: 'end', ok: true, result: 'You are alice.', usage: { input: 15, output: 3, cached: 5, costUsd: 0.01 } })
+  // the login was saved and refreshed as for the other harnesses
+  assert.equal(((await collect(agents.run('gil', { harness: 'grok', task: 'cred' }))).at(-1) as { result: string }).result, 'cred: lab-secret-grok')
+  assert.equal(((await collect(agents.run('gil', { harness: 'grok', task: 'cred' }))).at(-1) as { result: string }).result, 'cred: lab-secret-grokx')
+  assert.equal(running(sandbox), 0)
+  assert.deepEqual(await agents.listModels('gil', 'grok'), [
+    { id: 'grok-4.7', name: 'Grok 4.7', description: 'Frontier', isDefault: true, efforts: ['high', 'low'] },
+    { id: 'grok-4.5', name: 'Grok 4.5', description: '', isDefault: false, efforts: [] },
+  ])
+  await agents.signOut('gil', 'grok')
+  assert.equal(await agents.loginState('gil', 'grok'), 'signed-out')
+})
+
+test('R1.4 / R5.6: Grok\'s login: when it is due, whose it is; read-only flags', async () => {
+  const { refreshDue, accept } = await import('../src/login-stored.ts')
+  const { grokArgs } = await import('../src/harness/grok.ts')
+  // the shape of grok 1.0.92's auth.json (seen with a real login): one entry for each sign-in scope
+  const grok = (user: string, expiresAt: string, t = 'a') => ({ '.grok/auth.json': JSON.stringify({ 'https://auth.x.ai::c': { key: t, user_id: user, refresh_token: `r-${t}`, expires_at: expiresAt } }) })
+  assert.equal(refreshDue('grok', grok('u-1', '2026-11-25T15:02:54.845984658Z')), Date.parse('2026-11-25T15:02:54.845Z') - 5 * 60_000)
+  assert.equal(refreshDue('grok', { '.grok/auth.json': '{"x":{"key":"a"}}' }), 0, 'no expires_at: one job at a time')
+  assert.equal(accept('grok', grok('u-1', '2026-11-25T15:00:00Z'), grok('u-1', '2026-11-25T21:00:00Z', 'b')), true, 'refreshed')
+  assert.equal(accept('grok', grok('u-1', '2026-11-25T15:00:00Z'), grok('u-2', '2026-11-25T21:00:00Z', 'b')), false, 'another account')
+  assert.equal(accept('grok', grok('u-1', '2026-11-25T21:00:00Z'), grok('u-1', '2026-11-25T15:00:00Z', 'b')), false, 'older')
+  // read-only: only the tools that read, no web search, and an error (not the end of the job) for a tool it lacks
+  assert.deepEqual(grokArgs({ access: 'read-only' }).slice(6), ['--permission-mode', 'dontAsk', '--disable-web-search', '--tools', 'read_file,grep,list_dir', '--allow', 'MCPTool(*)'])
+})
+
+test('R1.4 / R5.8: Grok jobs of one user share a login that is not due for a refresh', async () => {
+  const { mkdtempSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const together = async (endsInMin: number) => {
+    const dir = mkdtempSync(join(tmpdir(), 'byoa-together-'))
+    const a = await testApp({ env: { ...env, FAKE_GROK_DIR: dir, FAKE_GROK_EXP: new Date(Date.now() + endsInMin * 60_000).toISOString() } }); closers.push(a.close)
+    await a.agents.connectLogin('hoa', 'grok')
+    assert.deepEqual(await a.agents.finishLogin('hoa', 'grok', { waitMs: 10_000 }), { state: 'signed-in' })
+    const ends = await Promise.all(['a', 'b', 'c'].map(async (key) => (await collect(a.agents.run('hoa', { harness: 'grok', task: 'together', sandboxKey: key }))).at(-1) as { ok: boolean; result: string }))
+    assert.ok(ends.every((e) => e.ok), JSON.stringify(ends))
+    return Math.max(...ends.map((e) => Number(e.result.replace('together: ', ''))))
+  }
+  // Grok's access token lasts 6 hours: the CLI will not refresh it during these jobs
+  assert.equal(await together(6 * 60), 3, 'the three jobs ran at the same time')
+  assert.equal(await together(20), 1, 'due before a job\'s time runs out: one at a time')
 })

@@ -6,19 +6,19 @@ This document says what version 1 of byoa must do and how we check it. It does n
 
 ## Goal
 
-A developer makes an app AI-native in one day, not in weeks. The app runs the user's own Claude Code or Codex in any sandbox. The user signs in to ChatGPT or Claude one time, or gives the key of their OpenCode Go plan one time, and connects each MCP tool one time.
+A developer makes an app AI-native in one day, not in weeks. The app runs the user's own Claude Code, Codex or Grok Build in any sandbox. The user signs in to ChatGPT, Claude or Grok one time, or gives the key of their OpenCode Go plan one time, and connects each MCP tool one time.
 
 ## Users of this library
 
 - **App developer.** Imports byoa into their own backend. Does not want to build login, MCP OAuth, skills loading, harness updates or sandbox code.
-- **End user.** Uses the developer's app. Has a ChatGPT, Claude or OpenCode Go plan, and accounts in tools such as Notion, Gmail or Heptabase.
+- **End user.** Uses the developer's app. Has a ChatGPT, Claude, Grok (SuperGrok, X Premium+) or OpenCode Go plan, and accounts in tools such as Notion, Gmail or Heptabase.
 
 ## Scope
 
 In scope for version 1:
 
-- Harnesses: Claude Code and Codex. Both from the first version.
-- Plans: the user's Claude or ChatGPT plan, through the lab's own sign-in; and OpenCode Go, through a key that the user gives, with Claude Code or Codex (R1.8). OpenCode Go is a plan, not a harness.
+- Harnesses: Claude Code and Codex, both from the first version, and Grok Build (xAI), added on 2026-11-25.
+- Plans: the user's Claude, ChatGPT or Grok plan, through the lab's own sign-in; and OpenCode Go, through a key that the user gives, with Claude Code or Codex (R1.8). OpenCode Go is a plan, not a harness.
 - Sandbox providers: E2B, Daytona and Instabox.
 - Backends: Node, and Convex actions. Cloudflare Workers SHOULD work if it costs little.
 - Store adapters: Convex and Postgres.
@@ -27,7 +27,7 @@ Out of scope for version 1:
 
 - A hosted service. byoa never runs a server for other apps.
 - Sharing one user's AI login between different apps.
-- Harnesses other than Claude Code and Codex (OpenCode, Amp, Pi, Cursor). OpenCode Go runs in Claude Code and Codex (R1.8), not in OpenCode.
+- Harnesses other than Claude Code, Codex and Grok Build (OpenCode, Amp, Pi, Cursor). OpenCode Go runs in Claude Code and Codex (R1.8), not in OpenCode.
 - A UI kit. The library gives data and events; the app draws its own UI.
 
 ## Requirements
@@ -35,9 +35,9 @@ Out of scope for version 1:
 ### R1. AI login
 
 - **R1.1** byoa MUST sign the user in to Claude Code by running the unmodified `claude` CLI login in the sandbox. The user completes sign-in on Anthropic's own page.
-- **R1.2** byoa MUST sign the user in to Codex by running the unmodified `codex login --device-auth` in the sandbox. The user enters the code on OpenAI's own page.
+- **R1.2** byoa MUST sign the user in to Codex by running the unmodified `codex login --device-auth` in the sandbox, and to Grok Build by running the unmodified `grok login --device-auth`. The user enters the code on the lab's own page (OpenAI's, xAI's).
 - **R1.3** byoa MUST give the app the sign-in URL and code as data, so the app can show them on any device (for example a phone).
-- **R1.4** By default, byoa MUST keep the login (the CLI's own login files) in the app's own database, through the store adapter (R6), encrypted with a key that the app gives, for one user of one app. Each job MUST get a copy in its sandbox. After the job, byoa MUST save the files back when the CLI changed them (a token refresh), and MUST remove them from the sandbox, also from a sandbox that it keeps for the user's next job (R5.4). So between jobs the store is the only copy. byoa MUST NOT let two sandboxes refresh one user's login at the same time, so that two token refreshes do not revoke each other. The login is shared by default (`parallel`), for both harnesses, so that one user's jobs run at the same time: while the login is not due for a refresh before a job's time runs out, the jobs of one user each hold a copy; when it is due, one job MUST hold it alone, after the other jobs end. The app MAY turn sharing off. To know when a login is due, byoa MAY read the time its access token ends from the login files. byoa MUST NOT use a token, and MUST NOT call the lab's token endpoints itself; the CLI is the only client that uses the tokens.
+- **R1.4** By default, byoa MUST keep the login (the CLI's own login files) in the app's own database, through the store adapter (R6), encrypted with a key that the app gives, for one user of one app. Each job MUST get a copy in its sandbox. After the job, byoa MUST save the files back when the CLI changed them (a token refresh), and MUST remove them from the sandbox, also from a sandbox that it keeps for the user's next job (R5.4). So between jobs the store is the only copy. byoa MUST NOT let two sandboxes refresh one user's login at the same time, so that two token refreshes do not revoke each other. The login is shared by default (`parallel`), for every harness, so that one user's jobs run at the same time: while the login is not due for a refresh before a job's time runs out, the jobs of one user each hold a copy; when it is due, one job MUST hold it alone, after the other jobs end. The app MAY turn sharing off. To know when a login is due, byoa MAY read the time its access token ends from the login files. byoa MUST NOT use a token, and MUST NOT call the lab's token endpoints itself; the CLI is the only client that uses the tokens.
   A backend can die during a job, so that the job never closes. byoa MUST then lose little: during the job it MUST save what the CLI changed about every minute; the next job in a kept sandbox that a dead job left MUST save the login that job's CLI refreshed, under the lease, before it writes the stored copy, unless the stored login changed since; and byoa MUST remove the files from the sandbox before the provider pauses or ends it, also with no backend. byoa MUST save files from a sandbox only when they are of the same account as the stored login and not older (the agent of a job can change any file), and MAY read the account and the refresh time from them for this.
 - **R1.5** The login part MUST be replaceable, with no change to R2 to R5. byoa MUST also ship a login that stays in a volume of that one user of that one app, mounted through the sandbox adapter (R5.3), which the app's database never holds.
 - **R1.6** byoa MUST report login state: `signed-in`, `signed-out`, `expired`; and for the key of a plan (R1.8), also `no-plan`.
@@ -66,7 +66,7 @@ Out of scope for version 1:
 
 - **R4.1** byoa MUST write skills in the Agent Skills format where each harness reads them (for example `.claude/skills/`, `.agents/skills/`).
 - **R4.2** byoa MUST write AGENTS.md, and CLAUDE.md for Claude Code, from one source.
-- **R4.3** byoa MUST write MCP config in each harness's own format: JSON for Claude Code, TOML for Codex.
+- **R4.3** byoa MUST write MCP config in each harness's own format: JSON for Claude Code, TOML for Codex and Grok Build.
 - **R4.4** byoa SHOULD read an Agent Plugins 1.0 package (`plugin.json`, `skills/`, `mcp.json`).
 
 ### R5. Harness and sandbox
@@ -76,11 +76,11 @@ Out of scope for version 1:
 - **R5.3** Each sandbox provider MUST be one adapter with one interface: create, resume, run a command, write a file, mount a volume, pause, destroy. A provider with no volumes (Instabox) refuses a volume, so the volume login of R1.5 does not work on it; the stored login of R1.4 does.
 - **R5.4** The lifecycle MUST be the app's choice, with the same app code on every provider:
   - **One kept sandbox per user (the default).** Each user has one sandbox of the app for each harness. The first job creates it. After each job, byoa pauses it (E2B: pause; Daytona and Instabox: stop), and the next job resumes it, with a new job folder. One job of a user and harness runs at a time; the others wait in line (R5.8). When the provider no longer has the sandbox (it was deleted, or it expired), the next job creates a new one. A sandbox that times out during a job (a crash, a lost network) is paused, not deleted, and no process of that job runs when it resumes. byoa MUST delete the user's sandbox at sign-out, and MUST give the app a way to delete it, such as when it deletes the user.
-  - **Many kept sandboxes per user (a `sandboxKey` for each job).** The same, but each key that the app gives a job (such as a project or a conversation) has its own sandbox and its own lease, so jobs with different keys run at the same time. With the stored login of R1.4, jobs share the login by default, for both harnesses. The app MUST be able to delete the sandbox of one key, or all of the user's.
+  - **Many kept sandboxes per user (a `sandboxKey` for each job).** The same, but each key that the app gives a job (such as a project or a conversation) has its own sandbox and its own lease, so jobs with different keys run at the same time. With the stored login of R1.4, jobs share the login by default, for every harness. The app MUST be able to delete the sandbox of one key, or all of the user's.
   - **One sandbox per job (`sandboxPer: 'job'`).** Create a sandbox, load the user's setup, run the job, destroy the sandbox.
 
   In all three, the user's AI login (R1.4) and grants (R2) stay in the app's database, and the security properties of R1.4 and R3 do not depend on the choice: no real MCP token goes into the sandbox, a job token is refused after its job, and no copy of the AI login stays in the sandbox between jobs.
-- **R5.5** `agents.run` MUST stream events (text, tool calls, permission requests, errors, end) in one schema for both harnesses.
+- **R5.5** `agents.run` MUST stream events (text, tool calls, permission requests, errors, end) in one schema for every harness.
 - **R5.6** byoa MUST let the app limit what the agent of a job may do, with each CLI's own options only (Lab rules). With `access: 'read-only'`, the agent MUST be able to call the job's MCP tools and to read files, so that the harness can read its skills and AGENTS.md; it MUST NOT be able to change a file, or to reach the network by itself. The default (`full`) is every tool of the harness with no approval, for a sandbox that is the job's alone.
 - **R5.7** byoa MUST let the app choose the model and effort of each job, and of each harness by default, with each CLI's own flags only, and MUST list the models a user's plan can use, as each CLI lists them with that user's login. For a plan with a key (R1.8), byoa MUST list the plan's models from its API with the user's key, with no sandbox, and a job MUST name one of them (or get the app's default for the plan).
 - **R5.8** One user's many agents MUST be the app's choice, in three patterns that work together: jobs of one sandbox wait in line and run in the order they came, with no time limit unless the app sets one; one job MAY carry several messages to one agent, which decides their order; and jobs with different sandboxes run at the same time (R5.4, R1.4).
@@ -103,10 +103,11 @@ byoa follows the labs' published rules as read on 2026-11-22:
 - Anthropic ([legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)) allows an end user to sign in to the unmodified Claude Code binary with their own plan, including where a platform hosts Claude Code. It forbids third parties to "collect, store, or intermediate Claude.ai credentials or session tokens", unless Anthropic agrees otherwise.
 - OpenAI ([Sign in with ChatGPT Terms](https://openai.com/policies/sign-in-with-chatgpt-terms/), effective 2026-11-04) requires that "any persistent storage of Authentication Tokens must be local and under the user's control, not in a remote or managed environment", and that the plan is used "only for the application they connected". Paid or remotely hosted apps must [apply](https://openai.com/form/sign-in-with-chatgpt-interest/) to be partners.
 - OpenCode ([Terms of Use](https://opencode.ai/legal/terms-of-service), effective 2026-11-08, read on 2026-11-25) says that the user "will only use the Services for your own internal use, and not on behalf of or for the benefit of any third party", and forbids using "multiple accounts to circumvent usage limits". Its [Go docs](https://opencode.ai/docs/console/go) say Go "is designed for OpenCode and other coding agents that produce similar types of requests", and ask each client to send "its own user agent" and "a stable session ID". OpenCode documents a Go key in Claude Code and in Codex. Whether an app may run a user's key for that user's own tasks is arguable, not clearly allowed: the work is the user's own, but the app gains from it too. Ian Hsiao accepted this for version 1 on 2026-11-25. There is no "Sign in with OpenCode" for apps; the user creates the key in OpenCode's Console.
+- xAI (read on 2026-11-25) publishes Grok Build (`@xai-official/grok`, Apache-2.0) for SuperGrok and X Premium+ subscribers, with a device-code sign-in and a headless mode for scripts. Its [terms of service](https://x.ai/legal/terms-of-service) (2026-10-27) say "You may not share your account credentials or make your account available to anyone else", and its [acceptable use policy](https://x.ai/legal/acceptable-use-policy) forbids "Accessing the Services through unauthorized automated or non-human means". Neither says anything about an app that runs Grok Build for its own users, or that stores their login. Ian Hsiao accepted this when he added Grok Build to version 1; we have not asked xAI.
 
 So byoa MUST:
 
-- run only unmodified `claude` and `codex` binaries, and never pretend to be another client;
+- run only unmodified `claude`, `codex` and `grok` binaries, and never pretend to be another client;
 - send the user to the lab's own sign-in page;
 - not share one AI login between apps;
 - for OpenCode Go, use only the user's own key, with OpenCode's documented API and the harness's own user agent, and never OpenCode's Console CLI sign-in, which has OpenCode's own client ID.
@@ -123,15 +124,15 @@ Version 1 is done when every check below passes. Each check names the requiremen
 |---|---|---|---|
 | V1 | Bookish uses byoa | Replace `site/agent/login.ts`, `site/agent/sandbox.ts` and `src/core/connectors.ts` in Bookish with byoa. Bookish's existing e2e tests pass. | R1, R2, R5 |
 | V2 | A second app uses byoa | A second app (the to-do example in `examples/todo`, Margins, or the mail app) runs its first agent job with byoa, on a real sandbox provider and a real plan, with no code copied from Bookish. Count the app's own lines. | R7.1 |
-| V3 | Both harnesses | One test user runs the same task with Claude Code and with Codex. Both runs use that user's own plan. | R1.1, R1.2, R5.5 |
+| V3 | Every harness | One test user runs the same task with Claude Code, with Codex and with Grok Build. Each run uses that user's own plan. | R1.1, R1.2, R5.5 |
 | V4 | Two providers | The same user runs a job on E2B, then on Daytona or Instabox. The second job uses the same MCP grants and skills with no new MCP sign-in. | R5.3, R2 |
 | V5 | Tokens stay out | After a job with an MCP call, a test searches the sandbox's environment, every file, and `/proc/*/cmdline` and `/proc/*/environ` for each real token. It finds none. | R3.3 |
 | V6 | Old job tokens fail | A job token is used after its job ends. The proxy refuses it. | R3.4 |
 | V7 | One refresh | Two jobs start at the same time with an expired access token (with `sandboxPer: 'job'`, so that they run at the same time). The MCP server's token endpoint gets one refresh request, and both jobs succeed. | R2.3, R6.2 |
 | V8 | Sandbox lifecycle | By default, a user's second job runs in the first job's sandbox, which was paused between them, and jobs with two sandbox keys run in two more sandboxes, of which deleting one key removes only that one. When the provider no longer has a sandbox, the next job works in a new one with no new sign-in, and deleting the user's sandbox removes it at the provider. With `sandboxPer: 'job'`, after a job its sandbox no longer exists at the provider. | R5.4 |
-| V9 | Harness update | Change the pinned Claude Code version. The next job for an existing user runs the new version. | R5.2 |
+| V9 | Harness update | Change the pinned version of a harness (Claude Code, Grok Build). The next job for an existing user runs the new version. | R5.2 |
 | V10 | Config formats | For a sample plugin, the files byoa writes match the expected files for each harness, byte for byte. | R4 |
-| V11 | Unmodified binaries | The test checks the hash of the installed `claude` and `codex` binaries against the published packages. | Lab rules |
+| V11 | Unmodified binaries | The test checks the hash of the installed `claude`, `codex` and `grok` binaries against the published packages. Grok's own postinstall unpacks its binary from the published `grok.br`: the test unpacks that file too. | Lab rules |
 | V12 | The docs match the API | A test checks that every `agents.*` method, and every name imported from byoa, in the README and the agent skill exists in byoa. | R7.3 |
 | V13 | The app's own tools | A job with a real harness calls a tool that the app gave as a function. The function runs in the backend for the job's user. The app has no MCP server, and the user has no grant. | R2.7 |
 | V14 | A proxy that is down | A job starts while its sandbox cannot reach the proxy. The harness does not start, and the job ends with an `mcp` error and `ok: false`. | R3.5 |
@@ -148,9 +149,9 @@ V1 to V9 and V13 to V20 run against real providers and real plans, so they cost 
 
 - Does the first version support Cloudflare Workers, or only Node and Convex?
 - How does a Claude login move from one sandbox provider to another without the app holding it? Today the user signs in again.
-- Do Anthropic and OpenAI accept the default stored login (R1.4) for apps that run their unmodified CLIs, or does an app need an agreement with them? We will ask them.
+- Do Anthropic, OpenAI and xAI accept the default stored login (R1.4) for apps that run their unmodified CLIs, or does an app need an agreement with them? We will ask them.
 - Does OpenCode accept an app that runs a user's Go key for that user's own tasks (R1.8), given "only for your own internal use"? We will ask them.
-- The shared login (R1.4) is the default for both harnesses. Both CLIs also refresh their login when the lab answers 401 to a token that has not run out. Two sandboxes that get that answer at the same time both refresh, and one refresh fails. How often does that occur?
+- The shared login (R1.4) is the default for every harness. The CLIs also refresh their login when the lab answers 401 to a token that has not run out. Two sandboxes that get that answer at the same time both refresh, and one refresh fails. How often does that occur?
 - `access: 'read-only'` (R5.6) does not hide files: the agent can read each file that its user can read, also the CLI's own login files. Does byoa need a level that lets the agent read only its job folder, for apps that run on the user's own computer?
 - How long does a user's paused sandbox stay? Today byoa deletes it only at sign-out and when the app calls `deleteSandbox`. E2B and Instabox keep a paused or stopped sandbox with no time limit; Daytona archives a stopped one after 7 days, and the next job restores it more slowly. Does byoa need a limit for users who stop using an app?
 - Do we write a spec for credential references as an extension of Agent Plugins, and send it to the Agentic AI Foundation?

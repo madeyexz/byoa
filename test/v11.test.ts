@@ -1,7 +1,8 @@
-// V11: the installed claude and codex are the labs' published packages, file for file (Lab rules). The real installer
+// V11: the installed claude, codex and grok are the labs' published packages, file for file (Lab rules). The real installer
 // (ensureHarness) installs the pinned versions from npm into a sandbox; verifyHarness compares every installed file
-// with the tarball npm publishes, after checking that tarball against the registry's integrity hash.
-// It downloads about 600 MB, so it runs only with BYOA_V11=1 (CI runs it on every commit). BYOA_V11_E2B=1 runs it in
+// with the tarball npm publishes, after checking that tarball against the registry's integrity hash. Grok's own
+// postinstall unpacks its native binary from the published `bin/grok.br`: that binary must be the `.br`, unpacked.
+// It downloads about 700 MB, so it runs only with BYOA_V11=1 (CI runs it on every commit). BYOA_V11_E2B=1 runs it in
 // an E2B sandbox (needs E2B_API_KEY) instead of the local one.
 import assert from 'node:assert/strict'
 import { mkdtempSync } from 'node:fs'
@@ -9,12 +10,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, before, test } from 'node:test'
 import { ensureHarness } from '../src/harness/install.ts'
-import { PINS } from '../src/harness/pins.ts'
+import { PACKAGES, PINS, type HarnessName } from '../src/harness/pins.ts'
 import type { Sandbox } from '../src/sandbox/types.ts'
 import { localSandbox } from '../src/sandbox/local.ts'
 import { verifyHarness } from '../src/verify.ts'
 
-const skip = !process.env.BYOA_V11 && 'set BYOA_V11=1 (downloads about 600 MB)'
+const skip = !process.env.BYOA_V11 && 'set BYOA_V11=1 (downloads about 700 MB)'
 let sbx: Sandbox
 before(async () => {
   if (skip) return
@@ -28,8 +29,8 @@ before(async () => {
 })
 after(async () => { await sbx?.destroy() })
 
-for (const h of ['claude', 'codex'] as const) {
-  test(`V11: the installed ${h} is ${h === 'claude' ? '@anthropic-ai/claude-code' : '@openai/codex'}@${PINS[h]} as published`, { skip, timeout: 15 * 60_000 }, async () => {
+for (const h of (process.env.BYOA_V11_ONLY?.split(',') ?? ['claude', 'codex', 'grok']) as HarnessName[]) {
+  test(`V11: the installed ${h} is ${PACKAGES[h]}@${PINS[h]} as published`, { skip, timeout: 15 * 60_000 }, async () => {
     const inst = await ensureHarness(sbx, h)
     assert.equal(inst.version, PINS[h])
     const r = await verifyHarness(sbx, h, inst.bin)
@@ -41,11 +42,20 @@ for (const h of ['claude', 'codex'] as const) {
   })
 }
 
-test('V11: a changed file is found', { skip, timeout: 15 * 60_000 }, async () => {
+test('V11: a changed file is found', { skip: skip || (!!process.env.BYOA_V11_ONLY && !process.env.BYOA_V11_ONLY.includes('codex')), timeout: 15 * 60_000 }, async () => {
   const inst = await ensureHarness(sbx, 'codex')
   // codex's launcher script; one byte more
   await sbx.run(`echo >> "$(readlink -f '${inst.bin}')"`)
   const r = await verifyHarness(sbx, 'codex', inst.bin)
   assert.equal(r.ok, false)
   assert.deepEqual(r.problems, [`@openai/codex@${PINS.codex}: bin/codex.js differs from the published file`])
+})
+
+test('V11: a changed Grok binary is found', { skip: skip || (!!process.env.BYOA_V11_ONLY && !process.env.BYOA_V11_ONLY.includes('grok')), timeout: 15 * 60_000 }, async () => {
+  const inst = await ensureHarness(sbx, 'grok')
+  // the binary that Grok's postinstall unpacked; one byte more
+  await sbx.run(`echo >> "$(readlink -f '${inst.bin}')"`)
+  const r = await verifyHarness(sbx, 'grok', inst.bin)
+  assert.equal(r.ok, false)
+  assert.deepEqual(r.problems, [`@xai-official/grok@${PINS.grok}: bin/grok-native differs from the published file`])
 })

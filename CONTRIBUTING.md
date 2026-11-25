@@ -20,8 +20,8 @@ byoa is at an early stage. The requirements are in [SPEC.md](SPEC.md). The libra
 
 These rules come from the labs' terms and from SPEC.md. A pull request that breaks one is closed.
 
-- Run only the real, unmodified `claude` and `codex` binaries. Do not patch them, change their requests to the labs, or pretend to be another client.
-- Send the user to the lab's own sign-in page. Do not collect a user's Claude or ChatGPT password or session token.
+- Run only the real, unmodified `claude`, `codex` and `grok` binaries. Do not patch them, change their requests to the labs, or pretend to be another client.
+- Send the user to the lab's own sign-in page. Do not collect a user's Claude, ChatGPT or Grok password or session token.
 - Do not share one user's AI login between apps.
 - Do not put a real MCP token in the sandbox. The sandbox gets only a short-lived job token for the proxy (R3).
 - Do not add a hosted service. byoa runs only inside the app's own backend.
@@ -30,7 +30,7 @@ These rules come from the labs' terms and from SPEC.md. A pull request that brea
 
 Version 1 supports only these:
 
-- Harnesses: Claude Code and Codex.
+- Harnesses: Claude Code, Codex and Grok Build.
 - Sandbox providers: E2B, Daytona and Instabox.
 - Backends: Node and Convex. Cloudflare Workers support is planned.
 - Store adapters: Convex and Postgres.

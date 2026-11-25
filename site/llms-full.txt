@@ -1,6 +1,6 @@
 # byoa: the full docs
 
-> byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend.
+> byoa lets your app run each user's own Claude Code, Codex or Grok Build, on their plan and with their tools, in any sandbox, from inside your own backend.
 
 This file has the full text of byoa's docs, for LLMs: README.md, SPEC.md, skills/byoa/SKILL.md, skills/byoa/reference/api.md, examples/todo/README.md, examples/todo/app.ts, from https://github.com/madeyexz/byoa (branch main). The index is https://byoa.rippling.computer/llms.txt.
 
@@ -12,9 +12,9 @@ Image: byoa: your users bring their own agent. byoa lets your app run each user'
 
 # byoa: bring your own agent
 
-**byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend.**
+**byoa lets your app run each user's own Claude Code, Codex or Grok Build, on their plan and with their tools, in any sandbox, from inside your own backend.**
 
-byoa is an open-source library that helps you build AI-native apps fast. Your app runs the user's own Claude Code or Codex in a sandbox. The user signs in with their own ChatGPT or Claude plan, or gives the key of their OpenCode Go plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
+byoa is an open-source library that helps you build AI-native apps fast. Your app runs the user's own Claude Code, Codex or Grok Build in a sandbox. The user signs in with their own ChatGPT, Claude or Grok plan, or gives the key of their OpenCode Go plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
 
 Version 1 supports three sandbox providers: E2B, Daytona and Instabox. More providers come later. To change the provider, you change one adapter.
 
@@ -30,7 +30,7 @@ The same diagram as text
 DEVELOPER · YOU                                           END USER
 ┌────────────────────────────────────┐                    ┌────────────────────────────────────┐
 │ builds the app                     │                    │ uses the app                       │
-│ picks the sandbox provider         │                    │ has a Claude or ChatGPT plan       │
+│ picks the sandbox provider         │                    │ has a Claude, ChatGPT or Grok plan │
 │ owns the database                  │                    │ has MCP tools and skills           │
 └──────────────────┬─────────────────┘                    └──────────────────┬─────────────────┘
                    │ imports byoa             signs in on the lab's own page │
@@ -48,10 +48,11 @@ DEVELOPER · YOU                                           END USER
   ┃              │ create · run · destroy                         real token │               ┃
   ┃              ▼                                                           ▼               ┃
   ┃ ┌─ SANDBOX ────────────────┐  ┌─ AI LABS ────────────────┐  ┌─ MCP SERVERS ────────────┐ ┃
-  ┃ │ E2B or Daytona,          │  │ Anthropic · OpenAI       │  │ Notion · Gmail · …       │ ┃
+  ┃ │ E2B or Daytona,          │  │ Anthropic · OpenAI · xAI │  │ Notion · Gmail · …       │ ┃
   ┃ │ on your account          ├─▶│ model calls, paid by     │  │ the user's own accounts  │ ┃
   ┃ │ runs the user's own      │  │ the user's own plan      │  │                          │ ┃
-  ┃ │ Claude Code or Codex     │  │                          │  │                          │ ┃
+  ┃ │ Claude Code, Codex or    │  │                          │  │                          │ ┃
+  ┃ │ Grok Build               │  │                          │  │                          │ ┃
   ┃ └──────────────────────────┘  └──────────────────────────┘  └──────────────────────────┘ ┃
   ┃                                                                                          ┃
   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
@@ -59,7 +60,7 @@ DEVELOPER · YOU                                           END USER
 
 ## The problem
 
-To make an app AI-native, you run a big lab's harness (Claude Code or Codex) in a sandbox, with the user's own AI plan. For each app, you must build the same connection layer again:
+To make an app AI-native, you run a big lab's harness (Claude Code, Codex or Grok Build) in a sandbox, with the user's own AI plan. For each app, you must build the same connection layer again:
 
 - the user's AI login, through the real CLI;
 - the user's MCP connections and their OAuth tokens, with one refresh owner;
@@ -81,11 +82,11 @@ Image: What version 1 covers. Agents: Claude Code and Codex (v1), Gemini or Anti
 
 ### The user's plan pays.
 
-Each user signs in with their own Claude or ChatGPT plan, on Anthropic's or OpenAI's own sign-in page. The agent work runs on that plan, not on your API bill.
+Each user signs in with their own Claude, ChatGPT or Grok plan, on Anthropic's, OpenAI's or xAI's own sign-in page. The agent work runs on that plan, not on your API bill.
 
 ### The real agents.
 
-Your app runs the real, unmodified Claude Code and Codex. Users get the full harness, with their tools and skills.
+Your app runs the real, unmodified Claude Code, Codex and Grok Build. Users get the full harness, with their tools and skills.
 
 ### Any sandbox.
 
@@ -160,27 +161,28 @@ await agents.finishLogin(userId, 'claude', { code })        // the code that pag
 const codex = await agents.connectLogin(userId, 'codex')    // { url, code }: OpenAI's page and the code to enter
 await agents.finishLogin(userId, 'codex', { waitMs: 20_000 }) // call again while it says 'pending'
 await agents.cancelLogin(userId, 'codex')                   // the user closed the sign-in: its sandbox ends now
+const grok = await agents.connectLogin(userId, 'grok')      // { url, code }: xAI's page and the code; finish as for Codex
 
 const mcp = await agents.connectMcp(userId, 'https://mcp.notion.com/mcp', { name: 'notion' })
 // mcp.signInUrl: the server's sign-in page; your redirectUrl route then calls agents.finishMcp({ state, code })
 
 for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['notion', 'todos'], setup: { agentsMd, skills } })) {
-  // start, text, tool_call, tool_result, permission, error, end: the same events for Claude Code and Codex
+  // start, text, tool_call, tool_result, permission, error, end: the same events for every harness
 }
 ```
 
-The sign-in runs the CLI in a sandbox of its own, which lives only while your sign-in UI checks in: each `finishLogin` call keeps it for 2 more minutes (Claude Code: with no code, the call only checks in; Codex: each call waits up to `waitMs` for the user). When the user closes the sign-in, call `cancelLogin`, and its sandbox ends at once; when your UI stops calling, it ends 2 minutes after the last call, on E2B and Daytona. Instabox cannot change a sandbox's time after it starts, so there a sign-in that is left ends after 15 minutes, as long as Codex's device code lasts, unless you call `cancelLogin`. `signOut` cancels a sign-in that has not finished too.
+The sign-in runs the CLI in a sandbox of its own, which lives only while your sign-in UI checks in: each `finishLogin` call keeps it for 2 more minutes (Claude Code: with no code, the call only checks in; Codex and Grok Build: each call waits up to `waitMs` for the user). When the user closes the sign-in, call `cancelLogin`, and its sandbox ends at once; when your UI stops calling, it ends 2 minutes after the last call, on E2B and Daytona. Instabox cannot change a sandbox's time after it starts, so there a sign-in that is left ends after 15 minutes, as long as Codex's device code lasts, unless you call `cancelLogin`. `signOut` cancels a sign-in that has not finished too.
 
 ### Models and effort
 
-`run(userId, { harness, task, model, effort })` runs the harness with that model and effort: Claude Code's `--model` (an alias such as `opus`, or a full name) and `--effort` (`low` to `max`), Codex's `-m` and `model_reasoning_effort`. Without them, a job gets the harness's default from `createAgents({ models })`, else the CLI's own. `agents.listModels(userId, harness)` lists the models that user's plan can use, as the CLI lists them with the user's login: `[{ id, name, description, isDefault, efforts, resolved? }]`, where `id` is what `model` takes and `efforts` what `effort` takes. Each call starts a sandbox, so keep the list for a while.
+`run(userId, { harness, task, model, effort })` runs the harness with that model and effort: Claude Code's `--model` (an alias such as `opus`, or a full name) and `--effort` (`low` to `max`), Codex's `-m` and `model_reasoning_effort`, Grok Build's `-m` and `--reasoning-effort`. Without them, a job gets the harness's default from `createAgents({ models })`, else the CLI's own. `agents.listModels(userId, harness)` lists the models that user's plan can use, as the CLI lists them with the user's login: `[{ id, name, description, isDefault, efforts, resolved? }]`, where `id` is what `model` takes and `efforts` what `effort` takes. Each call starts a sandbox, so keep the list for a while.
 
 ```ts
 const models = await agents.listModels(userId, 'codex')   // [{ id: 'gpt-6.2-sol', isDefault: true, efforts: ['low', ...] }, ...]
 agents.run(userId, { harness: 'codex', task, model: models[0].id, effort: 'high' })
 ```
 
-An app that runs its own program around the unmodified harness (for example its own server, which starts `claude` or `codex` itself) opens the job with `agents.session` instead. It gets the same sandbox, login, pinned harness and job token, and runs its own command:
+An app that runs its own program around the unmodified harness (for example its own server, which starts `claude`, `codex` or `grok` itself) opens the job with `agents.session` instead. It gets the same sandbox, login, pinned harness and job token, and runs its own command:
 
 ```ts
 const s = await agents.session(userId, { harness: 'claude', mcp: ['notion'] })
@@ -236,7 +238,7 @@ By default (`access: 'full'`), the agent has every tool of its harness, with no 
 agents.run(userId, { harness: 'codex', task, mcp: ['mail'], setup: { skills }, access: 'read-only' })
 ```
 
-The agent can then call the job's MCP tools and read files, so the harness can still read its skills and AGENTS.md. It cannot change a file or reach the network by itself. byoa only sets each CLI's own options: Codex runs in its own `read-only` sandbox, and Claude Code gets only its tools that read. `read-only` does not hide files: the agent can read each file that its user can read. Use it always with `localSandbox()` on a user's own computer, where the sandbox isolates nothing.
+The agent can then call the job's MCP tools and read files, so the harness can still read its skills and AGENTS.md. It cannot change a file or reach the network by itself. byoa only sets each CLI's own options: Codex runs in its own `read-only` sandbox, Claude Code gets only its tools that read, and so does Grok Build, with its web search off. `read-only` does not hide files: the agent can read each file that its user can read. Use it always with `localSandbox()` on a user's own computer, where the sandbox isolates nothing.
 
 ### When the proxy is down
 
@@ -263,7 +265,7 @@ agents.run(userId, { harness: 'codex', task: ['water the plants', 'call mom', 'p
 const jobs = projects.map((p) => agents.run(userId, { harness: 'codex', task, sandboxKey: p.id }))  // read each stream; they run together
 ```
 
-Jobs of one user in different sandboxes run at the same time with one sign-in, for both harnesses (see AI login below).
+Jobs of one user in different sandboxes run at the same time with one sign-in, for every harness (see AI login below).
 
 Either way, the user's AI login stays encrypted in your database, and each job gets a copy, which byoa takes out of the sandbox after the job (see AI login below). The MCP config in the sandbox points to `agents.proxy`, with a token for that one job. The real MCP tokens stay in your database. `agents.signOut` deletes the user's sandbox for that harness; when you delete a user, call `agents.deleteSandbox(userId)`, which deletes all of their sandboxes of your app at that provider, and when you delete a project, `agents.deleteSandbox(userId, { sandboxKey: projectId })`.
 
@@ -275,9 +277,9 @@ For Instabox, use `instabox({ apiKey })` from `@madeyexz/byoa/sandbox/instabox`.
 
 ### AI login
 
-By default, byoa keeps each user's Claude or ChatGPT plan login in your own database, encrypted with your `encryptionKey`, through the store adapter. The sign-in is the unmodified CLI, on the lab's own page. When it ends, byoa keeps the CLI's own login files. Each job writes them into its sandbox. After the job, byoa saves them back when the CLI refreshed them, and removes them from the sandbox, also from the user's sandbox that it keeps, so your database has the only copy between jobs. During the job it saves a refresh every minute or so. When your backend dies during a job, a watcher in the sandbox removes the files before the provider pauses it, and the next job in that sandbox saves a login that the dead job's CLI refreshed. byoa saves files from a sandbox only when they are the same account's login and not older than the stored one. byoa never calls the labs' token endpoints itself. So the sandbox provider needs no volumes.
+By default, byoa keeps each user's Claude, ChatGPT or Grok plan login in your own database, encrypted with your `encryptionKey`, through the store adapter. The sign-in is the unmodified CLI, on the lab's own page. When it ends, byoa keeps the CLI's own login files. Each job writes them into its sandbox. After the job, byoa saves them back when the CLI refreshed them, and removes them from the sandbox, also from the user's sandbox that it keeps, so your database has the only copy between jobs. During the job it saves a refresh every minute or so. When your backend dies during a job, a watcher in the sandbox removes the files before the provider pauses it, and the next job in that sandbox saves a login that the dead job's CLI refreshed. byoa saves files from a sandbox only when they are the same account's login and not older than the stored one. byoa never calls the labs' token endpoints itself. So the sandbox provider needs no volumes.
 
-Both CLIs rotate their refresh tokens, so two sandboxes must not refresh one login. By default, the jobs of one user and harness share the login, each with a copy in its own sandbox (a `sandboxKey` for each, or `sandboxPer: 'job'`), and run at the same time. Both CLIs refresh their login 5 minutes before the access token ends; Codex's token lasts 10 days, Claude Code's 8 hours. byoa reads that time from the login files, and nothing else in them. When the login is due for a refresh before a job's time runs out, one job holds it alone: it waits for the user's other jobs to end, its CLI refreshes the login, byoa saves it, and the next jobs share it again. One risk stays: both CLIs also refresh when the lab answers 401 to a token that has not run out, and two sandboxes that get that answer at the same time both refresh; one of them fails, and the user may have to sign in again. To hold the login one job at a time instead, pass `login: storedLogin({ parallel: false })`.
+The CLIs rotate their refresh tokens, so two sandboxes must not refresh one login. By default, the jobs of one user and harness share the login, each with a copy in its own sandbox (a `sandboxKey` for each, or `sandboxPer: 'job'`), and run at the same time. The CLIs refresh their login 5 minutes before the access token ends; Codex's token lasts 10 days, Claude Code's 8 hours, Grok Build's 6 hours. byoa reads that time from the login files, and nothing else in them. When the login is due for a refresh before a job's time runs out, one job holds it alone: it waits for the user's other jobs to end, its CLI refreshes the login, byoa saves it, and the next jobs share it again. One risk stays: the CLIs also refresh when the lab answers 401 to a token that has not run out, and two sandboxes that get that answer at the same time both refresh; one of them fails, and the user may have to sign in again. To hold the login one job at a time instead, pass `login: storedLogin({ parallel: false })`.
 
 The labs' published terms restrict where these tokens may be stored: Anthropic's say developers may not "collect, store, or intermediate Claude.ai credentials or session tokens", and OpenAI's say stored tokens must be "local and under the user's control, not in a remote or managed environment" (see [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules)). Check them for your app.
 
@@ -341,14 +343,14 @@ To test byoa itself: `npm test` (V10, V12, the fake-harness tests and the unit t
 
 ## Example app
 
-[examples/todo](https://github.com/madeyexz/byoa/blob/main/examples/todo) is an AI-native to-do list on byoa: the user signs in with their own plan, connects their to-dos one time, and asks Claude Code or Codex to change them. Its backend uses byoa in 39 lines. Its tests use the fake harness, and CI runs them on every commit.
+[examples/todo](https://github.com/madeyexz/byoa/blob/main/examples/todo) is an AI-native to-do list on byoa: the user signs in with their own plan, connects their to-dos one time, and asks Claude Code, Codex or Grok Build to change them. Its backend uses byoa in 39 lines. Its tests use the fake harness, and CI runs them on every commit.
 
 ## How we will verify it
 
 We call version 1 done only when all of these checks pass. The full list is in [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification).
 
 1. **Two apps use it.** An existing app moves its own login, connector and sandbox code to byoa. A second app uses byoa with no copied code.
-2. **Two harnesses work.** One user runs the same task with Claude Code and with Codex, each on that user's own plan.
+2. **Every harness works.** One user runs the same task with Claude Code, with Codex and with Grok Build, each on that user's own plan.
 3. **Two providers work.** The same user, with the same MCP grants and skills, runs a job on E2B and then on Daytona or Instabox. Only the adapter changes.
 4. **Tokens stay out of the sandbox.** A test searches the sandbox's environment, files and process list for each real MCP token after a job. It must find none.
 5. **One refresh owner.** Two jobs run at the same time (one sandbox for each job) and both need a token refresh. The provider sees one refresh request, and no grant is revoked.
@@ -356,8 +358,8 @@ We call version 1 done only when all of these checks pass. The full list is in [
 
 ## Rules we follow
 
-- We run the real, unmodified `claude` and `codex` binaries. We never pretend to be another client.
-- The user signs in through Anthropic's or OpenAI's own sign-in page.
+- We run the real, unmodified `claude`, `codex` and `grok` binaries. We never pretend to be another client.
+- The user signs in through Anthropic's, OpenAI's or xAI's own sign-in page.
 - One app's AI login is used only by that app.
 - For OpenCode Go, byoa uses only the user's own key, with OpenCode's documented API and the harness's own user agent, never OpenCode's Console CLI sign-in. OpenCode's terms do not clearly allow an app to run it for its users; each app asks OpenCode first.
 - The labs' terms restrict where an AI login may be stored. byoa keeps it in your database by default, so each app checks those terms and signs its own agreements with the labs. See [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules).
@@ -380,19 +382,19 @@ This document says what version 1 of byoa must do and how we check it. It does n
 
 ## Goal
 
-A developer makes an app AI-native in one day, not in weeks. The app runs the user's own Claude Code or Codex in any sandbox. The user signs in to ChatGPT or Claude one time, or gives the key of their OpenCode Go plan one time, and connects each MCP tool one time.
+A developer makes an app AI-native in one day, not in weeks. The app runs the user's own Claude Code, Codex or Grok Build in any sandbox. The user signs in to ChatGPT, Claude or Grok one time, or gives the key of their OpenCode Go plan one time, and connects each MCP tool one time.
 
 ## Users of this library
 
 - **App developer.** Imports byoa into their own backend. Does not want to build login, MCP OAuth, skills loading, harness updates or sandbox code.
-- **End user.** Uses the developer's app. Has a ChatGPT, Claude or OpenCode Go plan, and accounts in tools such as Notion, Gmail or Heptabase.
+- **End user.** Uses the developer's app. Has a ChatGPT, Claude, Grok (SuperGrok, X Premium+) or OpenCode Go plan, and accounts in tools such as Notion, Gmail or Heptabase.
 
 ## Scope
 
 In scope for version 1:
 
-- Harnesses: Claude Code and Codex. Both from the first version.
-- Plans: the user's Claude or ChatGPT plan, through the lab's own sign-in; and OpenCode Go, through a key that the user gives, with Claude Code or Codex (R1.8). OpenCode Go is a plan, not a harness.
+- Harnesses: Claude Code and Codex, both from the first version, and Grok Build (xAI), added on 2026-11-25.
+- Plans: the user's Claude, ChatGPT or Grok plan, through the lab's own sign-in; and OpenCode Go, through a key that the user gives, with Claude Code or Codex (R1.8). OpenCode Go is a plan, not a harness.
 - Sandbox providers: E2B, Daytona and Instabox.
 - Backends: Node, and Convex actions. Cloudflare Workers SHOULD work if it costs little.
 - Store adapters: Convex and Postgres.
@@ -401,7 +403,7 @@ Out of scope for version 1:
 
 - A hosted service. byoa never runs a server for other apps.
 - Sharing one user's AI login between different apps.
-- Harnesses other than Claude Code and Codex (OpenCode, Amp, Pi, Cursor). OpenCode Go runs in Claude Code and Codex (R1.8), not in OpenCode.
+- Harnesses other than Claude Code, Codex and Grok Build (OpenCode, Amp, Pi, Cursor). OpenCode Go runs in Claude Code and Codex (R1.8), not in OpenCode.
 - A UI kit. The library gives data and events; the app draws its own UI.
 
 ## Requirements
@@ -409,9 +411,9 @@ Out of scope for version 1:
 ### R1. AI login
 
 - **R1.1** byoa MUST sign the user in to Claude Code by running the unmodified `claude` CLI login in the sandbox. The user completes sign-in on Anthropic's own page.
-- **R1.2** byoa MUST sign the user in to Codex by running the unmodified `codex login --device-auth` in the sandbox. The user enters the code on OpenAI's own page.
+- **R1.2** byoa MUST sign the user in to Codex by running the unmodified `codex login --device-auth` in the sandbox, and to Grok Build by running the unmodified `grok login --device-auth`. The user enters the code on the lab's own page (OpenAI's, xAI's).
 - **R1.3** byoa MUST give the app the sign-in URL and code as data, so the app can show them on any device (for example a phone).
-- **R1.4** By default, byoa MUST keep the login (the CLI's own login files) in the app's own database, through the store adapter (R6), encrypted with a key that the app gives, for one user of one app. Each job MUST get a copy in its sandbox. After the job, byoa MUST save the files back when the CLI changed them (a token refresh), and MUST remove them from the sandbox, also from a sandbox that it keeps for the user's next job (R5.4). So between jobs the store is the only copy. byoa MUST NOT let two sandboxes refresh one user's login at the same time, so that two token refreshes do not revoke each other. The login is shared by default (`parallel`), for both harnesses, so that one user's jobs run at the same time: while the login is not due for a refresh before a job's time runs out, the jobs of one user each hold a copy; when it is due, one job MUST hold it alone, after the other jobs end. The app MAY turn sharing off. To know when a login is due, byoa MAY read the time its access token ends from the login files. byoa MUST NOT use a token, and MUST NOT call the lab's token endpoints itself; the CLI is the only client that uses the tokens.
+- **R1.4** By default, byoa MUST keep the login (the CLI's own login files) in the app's own database, through the store adapter (R6), encrypted with a key that the app gives, for one user of one app. Each job MUST get a copy in its sandbox. After the job, byoa MUST save the files back when the CLI changed them (a token refresh), and MUST remove them from the sandbox, also from a sandbox that it keeps for the user's next job (R5.4). So between jobs the store is the only copy. byoa MUST NOT let two sandboxes refresh one user's login at the same time, so that two token refreshes do not revoke each other. The login is shared by default (`parallel`), for every harness, so that one user's jobs run at the same time: while the login is not due for a refresh before a job's time runs out, the jobs of one user each hold a copy; when it is due, one job MUST hold it alone, after the other jobs end. The app MAY turn sharing off. To know when a login is due, byoa MAY read the time its access token ends from the login files. byoa MUST NOT use a token, and MUST NOT call the lab's token endpoints itself; the CLI is the only client that uses the tokens.
   A backend can die during a job, so that the job never closes. byoa MUST then lose little: during the job it MUST save what the CLI changed about every minute; the next job in a kept sandbox that a dead job left MUST save the login that job's CLI refreshed, under the lease, before it writes the stored copy, unless the stored login changed since; and byoa MUST remove the files from the sandbox before the provider pauses or ends it, also with no backend. byoa MUST save files from a sandbox only when they are of the same account as the stored login and not older (the agent of a job can change any file), and MAY read the account and the refresh time from them for this.
 - **R1.5** The login part MUST be replaceable, with no change to R2 to R5. byoa MUST also ship a login that stays in a volume of that one user of that one app, mounted through the sandbox adapter (R5.3), which the app's database never holds.
 - **R1.6** byoa MUST report login state: `signed-in`, `signed-out`, `expired`; and for the key of a plan (R1.8), also `no-plan`.
@@ -440,7 +442,7 @@ Out of scope for version 1:
 
 - **R4.1** byoa MUST write skills in the Agent Skills format where each harness reads them (for example `.claude/skills/`, `.agents/skills/`).
 - **R4.2** byoa MUST write AGENTS.md, and CLAUDE.md for Claude Code, from one source.
-- **R4.3** byoa MUST write MCP config in each harness's own format: JSON for Claude Code, TOML for Codex.
+- **R4.3** byoa MUST write MCP config in each harness's own format: JSON for Claude Code, TOML for Codex and Grok Build.
 - **R4.4** byoa SHOULD read an Agent Plugins 1.0 package (`plugin.json`, `skills/`, `mcp.json`).
 
 ### R5. Harness and sandbox
@@ -450,11 +452,11 @@ Out of scope for version 1:
 - **R5.3** Each sandbox provider MUST be one adapter with one interface: create, resume, run a command, write a file, mount a volume, pause, destroy. A provider with no volumes (Instabox) refuses a volume, so the volume login of R1.5 does not work on it; the stored login of R1.4 does.
 - **R5.4** The lifecycle MUST be the app's choice, with the same app code on every provider:
   - **One kept sandbox per user (the default).** Each user has one sandbox of the app for each harness. The first job creates it. After each job, byoa pauses it (E2B: pause; Daytona and Instabox: stop), and the next job resumes it, with a new job folder. One job of a user and harness runs at a time; the others wait in line (R5.8). When the provider no longer has the sandbox (it was deleted, or it expired), the next job creates a new one. A sandbox that times out during a job (a crash, a lost network) is paused, not deleted, and no process of that job runs when it resumes. byoa MUST delete the user's sandbox at sign-out, and MUST give the app a way to delete it, such as when it deletes the user.
-  - **Many kept sandboxes per user (a `sandboxKey` for each job).** The same, but each key that the app gives a job (such as a project or a conversation) has its own sandbox and its own lease, so jobs with different keys run at the same time. With the stored login of R1.4, jobs share the login by default, for both harnesses. The app MUST be able to delete the sandbox of one key, or all of the user's.
+  - **Many kept sandboxes per user (a `sandboxKey` for each job).** The same, but each key that the app gives a job (such as a project or a conversation) has its own sandbox and its own lease, so jobs with different keys run at the same time. With the stored login of R1.4, jobs share the login by default, for every harness. The app MUST be able to delete the sandbox of one key, or all of the user's.
   - **One sandbox per job (`sandboxPer: 'job'`).** Create a sandbox, load the user's setup, run the job, destroy the sandbox.
 
   In all three, the user's AI login (R1.4) and grants (R2) stay in the app's database, and the security properties of R1.4 and R3 do not depend on the choice: no real MCP token goes into the sandbox, a job token is refused after its job, and no copy of the AI login stays in the sandbox between jobs.
-- **R5.5** `agents.run` MUST stream events (text, tool calls, permission requests, errors, end) in one schema for both harnesses.
+- **R5.5** `agents.run` MUST stream events (text, tool calls, permission requests, errors, end) in one schema for every harness.
 - **R5.6** byoa MUST let the app limit what the agent of a job may do, with each CLI's own options only (Lab rules). With `access: 'read-only'`, the agent MUST be able to call the job's MCP tools and to read files, so that the harness can read its skills and AGENTS.md; it MUST NOT be able to change a file, or to reach the network by itself. The default (`full`) is every tool of the harness with no approval, for a sandbox that is the job's alone.
 - **R5.7** byoa MUST let the app choose the model and effort of each job, and of each harness by default, with each CLI's own flags only, and MUST list the models a user's plan can use, as each CLI lists them with that user's login. For a plan with a key (R1.8), byoa MUST list the plan's models from its API with the user's key, with no sandbox, and a job MUST name one of them (or get the app's default for the plan).
 - **R5.8** One user's many agents MUST be the app's choice, in three patterns that work together: jobs of one sandbox wait in line and run in the order they came, with no time limit unless the app sets one; one job MAY carry several messages to one agent, which decides their order; and jobs with different sandboxes run at the same time (R5.4, R1.4).
@@ -477,10 +479,11 @@ byoa follows the labs' published rules as read on 2026-11-22:
 - Anthropic ([legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)) allows an end user to sign in to the unmodified Claude Code binary with their own plan, including where a platform hosts Claude Code. It forbids third parties to "collect, store, or intermediate Claude.ai credentials or session tokens", unless Anthropic agrees otherwise.
 - OpenAI ([Sign in with ChatGPT Terms](https://openai.com/policies/sign-in-with-chatgpt-terms/), effective 2026-11-04) requires that "any persistent storage of Authentication Tokens must be local and under the user's control, not in a remote or managed environment", and that the plan is used "only for the application they connected". Paid or remotely hosted apps must [apply](https://openai.com/form/sign-in-with-chatgpt-interest/) to be partners.
 - OpenCode ([Terms of Use](https://opencode.ai/legal/terms-of-service), effective 2026-11-08, read on 2026-11-25) says that the user "will only use the Services for your own internal use, and not on behalf of or for the benefit of any third party", and forbids using "multiple accounts to circumvent usage limits". Its [Go docs](https://opencode.ai/docs/console/go) say Go "is designed for OpenCode and other coding agents that produce similar types of requests", and ask each client to send "its own user agent" and "a stable session ID". OpenCode documents a Go key in Claude Code and in Codex. Whether an app may run a user's key for that user's own tasks is arguable, not clearly allowed: the work is the user's own, but the app gains from it too. Ian Hsiao accepted this for version 1 on 2026-11-25. There is no "Sign in with OpenCode" for apps; the user creates the key in OpenCode's Console.
+- xAI (read on 2026-11-25) publishes Grok Build (`@xai-official/grok`, Apache-2.0) for SuperGrok and X Premium+ subscribers, with a device-code sign-in and a headless mode for scripts. Its [terms of service](https://x.ai/legal/terms-of-service) (2026-10-27) say "You may not share your account credentials or make your account available to anyone else", and its [acceptable use policy](https://x.ai/legal/acceptable-use-policy) forbids "Accessing the Services through unauthorized automated or non-human means". Neither says anything about an app that runs Grok Build for its own users, or that stores their login. Ian Hsiao accepted this when he added Grok Build to version 1; we have not asked xAI.
 
 So byoa MUST:
 
-- run only unmodified `claude` and `codex` binaries, and never pretend to be another client;
+- run only unmodified `claude`, `codex` and `grok` binaries, and never pretend to be another client;
 - send the user to the lab's own sign-in page;
 - not share one AI login between apps;
 - for OpenCode Go, use only the user's own key, with OpenCode's documented API and the harness's own user agent, and never OpenCode's Console CLI sign-in, which has OpenCode's own client ID.
@@ -497,15 +500,15 @@ Version 1 is done when every check below passes. Each check names the requiremen
 |---|---|---|---|
 | V1 | Bookish uses byoa | Replace `site/agent/login.ts`, `site/agent/sandbox.ts` and `src/core/connectors.ts` in Bookish with byoa. Bookish's existing e2e tests pass. | R1, R2, R5 |
 | V2 | A second app uses byoa | A second app (the to-do example in `examples/todo`, Margins, or the mail app) runs its first agent job with byoa, on a real sandbox provider and a real plan, with no code copied from Bookish. Count the app's own lines. | R7.1 |
-| V3 | Both harnesses | One test user runs the same task with Claude Code and with Codex. Both runs use that user's own plan. | R1.1, R1.2, R5.5 |
+| V3 | Every harness | One test user runs the same task with Claude Code, with Codex and with Grok Build. Each run uses that user's own plan. | R1.1, R1.2, R5.5 |
 | V4 | Two providers | The same user runs a job on E2B, then on Daytona or Instabox. The second job uses the same MCP grants and skills with no new MCP sign-in. | R5.3, R2 |
 | V5 | Tokens stay out | After a job with an MCP call, a test searches the sandbox's environment, every file, and `/proc/*/cmdline` and `/proc/*/environ` for each real token. It finds none. | R3.3 |
 | V6 | Old job tokens fail | A job token is used after its job ends. The proxy refuses it. | R3.4 |
 | V7 | One refresh | Two jobs start at the same time with an expired access token (with `sandboxPer: 'job'`, so that they run at the same time). The MCP server's token endpoint gets one refresh request, and both jobs succeed. | R2.3, R6.2 |
 | V8 | Sandbox lifecycle | By default, a user's second job runs in the first job's sandbox, which was paused between them, and jobs with two sandbox keys run in two more sandboxes, of which deleting one key removes only that one. When the provider no longer has a sandbox, the next job works in a new one with no new sign-in, and deleting the user's sandbox removes it at the provider. With `sandboxPer: 'job'`, after a job its sandbox no longer exists at the provider. | R5.4 |
-| V9 | Harness update | Change the pinned Claude Code version. The next job for an existing user runs the new version. | R5.2 |
+| V9 | Harness update | Change the pinned version of a harness (Claude Code, Grok Build). The next job for an existing user runs the new version. | R5.2 |
 | V10 | Config formats | For a sample plugin, the files byoa writes match the expected files for each harness, byte for byte. | R4 |
-| V11 | Unmodified binaries | The test checks the hash of the installed `claude` and `codex` binaries against the published packages. | Lab rules |
+| V11 | Unmodified binaries | The test checks the hash of the installed `claude`, `codex` and `grok` binaries against the published packages. Grok's own postinstall unpacks its binary from the published `grok.br`: the test unpacks that file too. | Lab rules |
 | V12 | The docs match the API | A test checks that every `agents.*` method, and every name imported from byoa, in the README and the agent skill exists in byoa. | R7.3 |
 | V13 | The app's own tools | A job with a real harness calls a tool that the app gave as a function. The function runs in the backend for the job's user. The app has no MCP server, and the user has no grant. | R2.7 |
 | V14 | A proxy that is down | A job starts while its sandbox cannot reach the proxy. The harness does not start, and the job ends with an `mcp` error and `ok: false`. | R3.5 |
@@ -522,9 +525,9 @@ V1 to V9 and V13 to V20 run against real providers and real plans, so they cost 
 
 - Does the first version support Cloudflare Workers, or only Node and Convex?
 - How does a Claude login move from one sandbox provider to another without the app holding it? Today the user signs in again.
-- Do Anthropic and OpenAI accept the default stored login (R1.4) for apps that run their unmodified CLIs, or does an app need an agreement with them? We will ask them.
+- Do Anthropic, OpenAI and xAI accept the default stored login (R1.4) for apps that run their unmodified CLIs, or does an app need an agreement with them? We will ask them.
 - Does OpenCode accept an app that runs a user's Go key for that user's own tasks (R1.8), given "only for your own internal use"? We will ask them.
-- The shared login (R1.4) is the default for both harnesses. Both CLIs also refresh their login when the lab answers 401 to a token that has not run out. Two sandboxes that get that answer at the same time both refresh, and one refresh fails. How often does that occur?
+- The shared login (R1.4) is the default for every harness. The CLIs also refresh their login when the lab answers 401 to a token that has not run out. Two sandboxes that get that answer at the same time both refresh, and one refresh fails. How often does that occur?
 - `access: 'read-only'` (R5.6) does not hide files: the agent can read each file that its user can read, also the CLI's own login files. Does byoa need a level that lets the agent read only its job folder, for apps that run on the user's own computer?
 - How long does a user's paused sandbox stay? Today byoa deletes it only at sign-out and when the app calls `deleteSandbox`. E2B and Instabox keep a paused or stopped sandbox with no time limit; Daytona archives a stopped one after 7 days, and the next job restores it more slowly. Does byoa need a limit for users who stop using an app?
 - Do we write a spec for credential references as an extension of Agent Plugins, and send it to the Agentic AI Foundation?
@@ -535,7 +538,7 @@ Source: https://github.com/madeyexz/byoa/blob/main/skills/byoa/SKILL.md
 
 ---
 name: byoa
-description: Adds byoa to an app, so the app runs each user's own Claude Code or Codex in a sandbox (E2B, Daytona, Instabox or local), on the user's own Claude, ChatGPT or OpenCode Go plan, with the user's MCP connections. Use when you add AI agent jobs to an app's backend with byoa, write its sign-in, MCP connect, proxy or callback routes, stream agents.run events to a UI, write a byoa store adapter, or test with byoa's fake harness.
+description: Adds byoa to an app, so the app runs each user's own Claude Code, Codex or Grok Build in a sandbox (E2B, Daytona, Instabox or local), on the user's own Claude, ChatGPT, Grok or OpenCode Go plan, with the user's MCP connections. Use when you add AI agent jobs to an app's backend with byoa, write its sign-in, MCP connect, proxy or callback routes, stream agents.run events to a UI, write a byoa store adapter, or test with byoa's fake harness.
 ---
 
 # Add byoa to an app
@@ -600,7 +603,7 @@ if (url.pathname === '/byoa/callback') {                               // the MC
 
 ## 4. Sign the user in to their plan
 
-The sign-in runs the unmodified CLI in a sandbox. The user signs in on the lab's own page. byoa gives the app only that page's URL (and, for Codex, a code).
+The sign-in runs the unmodified CLI in a sandbox. The user signs in on the lab's own page. byoa gives the app only that page's URL (and, for Codex and Grok Build, a code).
 
 ```ts
 // Claude: show the URL; the user signs in and pastes the code that Anthropic's page shows
@@ -611,6 +614,10 @@ const r = await agents.finishLogin(userId, 'claude', { code })            // r.s
 const { url, code } = await agents.connectLogin(userId, 'codex')
 const r = await agents.finishLogin(userId, 'codex', { waitMs: 20_000 })  // call again while r.state === 'pending'
 
+// Grok (Grok Build, for SuperGrok and X Premium+): the same as Codex, on xAI's page
+const { url, code } = await agents.connectLogin(userId, 'grok')
+const r = await agents.finishLogin(userId, 'grok', { waitMs: 20_000 })
+
 await agents.cancelLogin(userId, 'codex')  // the user closed the sign-in: its sandbox ends now
 await agents.loginState(userId, 'claude')  // 'signed-in' | 'signed-out' | 'expired'
 await agents.signOut(userId, 'claude')
@@ -618,7 +625,7 @@ await agents.signOut(userId, 'claude')
 
 Show `url` as a link or a QR code, so the user can sign in on another device. Keep each request short (for example `waitMs: 20_000`) and let the page call `finishLogin` again while the state is `pending`. This also works from short-lived backends such as Convex actions. The sign-in's sandbox lives only while the page checks in: each `finishLogin` keeps it 2 more minutes. For Claude, have the page call `finishLogin(userId, 'claude')` with no code every 30 seconds while the user is on Anthropic's page. When the user closes the sign-in, call `cancelLogin`. Copy the example's `page.html`.
 
-**Where the login stays.** With no `login` option, byoa keeps the CLI's own login files encrypted in the app's store (`storedLogin()`, the default). Each job gets a copy in its sandbox; after the job, byoa saves it back when the CLI refreshed it and removes it from the sandbox. A user's jobs in different sandboxes share the login, for both harnesses. Options:
+**Where the login stays.** With no `login` option, byoa keeps the CLI's own login files encrypted in the app's store (`storedLogin()`, the default). Each job gets a copy in its sandbox; after the job, byoa saves it back when the CLI refreshed it and removes it from the sandbox. A user's jobs in different sandboxes share the login, for every harness. Options:
 
 - `login: storedLogin({ store: loginStore, encryptionKey: loginKey })`: a table and a key of their own.
 - `login: cliLogin`: a volume of that user, behind the sandbox adapter. The app's database never holds the login. It needs a provider with volumes (E2B volumes must be turned on for the team).
@@ -677,7 +684,7 @@ agents.run(userId, { harness, task, mcp: ['todos'] })
 
 ```ts
 for await (const ev of agents.run(userId, {
-  harness: 'claude',                   // 'claude' | 'codex' | 'fake'
+  harness: 'claude',                   // 'claude' | 'codex' | 'grok' | 'fake'
   task,                                // the user's request
   mcp: ['notion'],                     // the servers this job gets; default none
   setup: { agentsMd, skills },         // AGENTS.md (and CLAUDE.md for Claude Code); skills: [{ name, files: { 'SKILL.md': '...' } }]
@@ -689,7 +696,7 @@ for await (const ev of agents.run(userId, {
 }
 ```
 
-- The events are the same for Claude Code and Codex. The full schema is in reference/api.md.
+- The events are the same for every harness. The full schema is in reference/api.md.
 - `run` never throws for job failures. It yields `error` events (`code`: `signed-out`, `expired`, `no-plan`, `harness`, `sandbox` or `mcp`) and always ends with one `end` event (`ok`, `result`, `usage`). On `signed-out` or `expired`, show the sign-in again (for `plan: 'opencode-go'`, ask for a new key); on `no-plan`, tell the user that the key's workspace has no Go plan.
 - A server in `mcp` that the user has not connected gives an `error` with code `mcp`, and the job runs without it.
 - **The proxy check.** Before the harness starts, byoa checks from the sandbox that each of the job's servers answers through the proxy. When the sandbox cannot reach the proxy, the job does not start: an `error` with code `mcp`, then `end` with `ok: false` (`session` throws `ProxyError`). A server that does not answer gives an `error` with code `mcp`, and the job runs. Show these errors: they mean a wrong `proxyUrl`, a tunnel that ended, or a server that is down.
@@ -697,7 +704,7 @@ for await (const ev of agents.run(userId, {
 - **The sandbox.** By default (`sandboxPer: 'user'`), each user has one sandbox of the app for each harness: the first job creates it, byoa pauses it after each job and resumes it for the next, with a new job folder. One job of a user and harness runs at a time; the others wait in line, in the order they came, with no limit unless `waitMs` sets one (set it on short-lived backends such as Convex actions). A sandbox the provider lost is replaced by a new one. When one user has many workspaces (projects, conversations), pass `sandboxKey` in `run` or `session`: each key gets its own kept sandbox and lease. `sandboxPer: 'job'` gives each job a new sandbox and destroys it after the job; use it when nothing may stay between jobs. - **Many agents of one user.** Three ways, which an app can mix; ask the developer which they want:
   1. A queue: jobs of one sandbox run one after the other. `onWait: ({ for, ahead })` tells the app how many are ahead.
   2. Several messages to one agent: `task: ['first', 'second']`. The agent reads them all and decides the order.
-  3. Several sandboxes at once: a `sandboxKey` for each agent, or `sandboxPer: 'job'`. The jobs share the user's login and run at the same time, for both harnesses. Tell the developer the risk that stays with a shared login (reference/api.md, `storedLogin`); `storedLogin({ parallel: false })` turns sharing off.
+  3. Several sandboxes at once: a `sandboxKey` for each agent, or `sandboxPer: 'job'`. The jobs share the user's login and run at the same time, for every harness. Tell the developer the risk that stays with a shared login (reference/api.md, `storedLogin`); `storedLogin({ parallel: false })` turns sharing off.
 - **Models.** `agents.listModels(userId, harness)` lists what the user's plan can use (`id`, `efforts`); pass `model` and `effort` in `run`, or defaults in `createAgents({ models })`. Each call starts a sandbox, so keep the list for a while. With `plan: 'opencode-go'`, a job needs a model of the plan: `agents.listModels(userId, 'opencode-go')` lists them from OpenCode's API with no sandbox, and `createAgents({ models: { 'opencode-go': { model } } })` sets the default.
 - `agents.signOut` deletes the user's sandbox for that harness. When the app deletes a user, call `agents.deleteSandbox(userId)` too; when it deletes a project that had a key, `agents.deleteSandbox(userId, { sandboxKey })`.
 - If the client goes away, stop the loop (or call `return()` on the generator): byoa then closes the job token and pauses (or destroys) the sandbox. The example's `ndjson()` in `app.ts` streams the events as JSON lines and does this on `cancel`.
@@ -711,13 +718,13 @@ Use `harness: 'fake'`, `localSandbox()` from `@madeyexz/byoa/sandbox/local` and 
 
 Every app on byoa must follow these rules. If a request breaks one, stop and tell the developer.
 
-- Run only the unmodified `claude` and `codex` binaries that byoa installs (pinned, and checked in byoa's own tests). Do not patch them, wrap them to change what they send, or set headers or a user agent to pretend to be another client.
+- Run only the unmodified `claude`, `codex` and `grok` binaries that byoa installs (pinned, and checked in byoa's own tests). Do not patch them, wrap them to change what they send, or set headers or a user agent to pretend to be another client.
 - Send the user to the lab's own sign-in page, from `connectLogin`. Do not embed, proxy or copy that page, and never ask the user for a password or an API key in place of it. The one key byoa takes is an OpenCode Go key, with `connectKey`, which OpenCode's Console makes for this.
 - For OpenCode Go, never use OpenCode's Console CLI sign-in (`npx @opencode/console`): it has OpenCode's own client ID. OpenCode's terms say "only for your own internal use, and not on behalf of or for the benefit of any third party", so it is not clearly allowed for an app: tell the developer to ask OpenCode (help@anoma.ly) first.
 - Never read, export or call the labs' APIs with the user's AI tokens. The CLI is the only client that uses them. Do not call the labs' token endpoints.
 - One app's AI login is only for that app. Give each app its own `app` name and its own store. Never share a login between apps.
 - Real MCP tokens never go into the sandbox. Give a job its servers with `mcp: [...]`. Never put a grant's token in `setup`, the task, environment variables or files.
-- The labs' terms restrict where AI logins may be stored. Anthropic says third parties may not "collect, store, or intermediate Claude.ai credentials or session tokens" without its agreement. OpenAI says stored tokens must be "local and under the user's control", and paid or hosted apps must apply to be partners. byoa's default keeps the login in the app's database; `cliLogin` keeps it in a per-user volume. Each app checks the terms and makes its own agreements: https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules
+- The labs' terms restrict where AI logins may be stored. Anthropic says third parties may not "collect, store, or intermediate Claude.ai credentials or session tokens" without its agreement. OpenAI says stored tokens must be "local and under the user's control", and paid or hosted apps must apply to be partners. xAI's terms forbid sharing an account and "unauthorized automated" access, and say nothing about an app that runs Grok Build for its users. byoa's default keeps the login in the app's database; `cliLogin` keeps it in a per-user volume. Each app checks the terms and makes its own agreements: https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules
 
 ## Check your work
 
@@ -757,12 +764,12 @@ interface AgentsOptions {
   encryptionKey: string       // 32 random bytes as base64. Encrypts MCP grants and, by default, AI logins.
   proxyUrl: string            // public URL where the app serves agents.proxy; each server is at <proxyUrl>/<name>
   oauth: { redirectUrl: string; clientMetadataUrl?: string; clientName?: string }
-  pins?: { claude: string; codex: string }   // default PINS
+  pins?: { claude?: string; codex?: string; grok?: string }   // default PINS; a harness left out gets its PINS version
   login?: (deps) => LoginDriver              // default storedLogin(); or cliLogin
   jobTimeoutMs?: number                      // default 30 minutes
   sandboxPer?: 'user' | 'job'                // default 'user': kept sandboxes, paused between jobs
   waitMs?: number                            // sandboxPer 'user': how long a job waits in line for its sandbox; default no limit
-  models?: { claude?: { model?: string; effort?: string }; codex?: { model?: string; effort?: string }; 'opencode-go'?: { model?: string; effort?: string } }  // each harness's default; 'opencode-go': jobs with that plan
+  models?: { claude?: ModelChoice; codex?: ModelChoice; grok?: ModelChoice; 'opencode-go'?: ModelChoice }  // each harness's default: { model?, effort? }; 'opencode-go': jobs with that plan
   grantOrigins?: Record<string, string[]>    // more exact origins for fetchWithGrant, by MCP server origin
   tools?: AppTools                           // the app's own tools: MCP server name → tool name → { description?, input?, run }
 }
@@ -771,7 +778,7 @@ interface AgentsOptions {
 - `oauth.redirectUrl`: the app's route that calls `finishMcp`.
 - `oauth.clientMetadataUrl`: an HTTPS URL where the app serves `agents.clientMetadata()` (a Client ID Metadata Document). Without it, byoa uses only Dynamic Client Registration.
 - `oauth.clientName`: the name the MCP server shows on its consent page. Default: `app`.
-- `sandboxPer`: `'user'` (the default): the first job of a user and harness creates the user's sandbox; byoa pauses it after each job (E2B pause, Daytona and Instabox stop) and resumes it for the next, with a new job folder. One job of a user and harness at a time; the others wait in line, in the order they came. A job's `sandboxKey` (in `run` and `session`) gives the user one kept sandbox, with its own lease, for each key. A sandbox the provider no longer has is replaced by a new one. `'job'`: a new sandbox for each job, destroyed after it. With the default `storedLogin()`, a user's jobs in different sandboxes run at the same time with one login, for both harnesses.
+- `sandboxPer`: `'user'` (the default): the first job of a user and harness creates the user's sandbox; byoa pauses it after each job (E2B pause, Daytona and Instabox stop) and resumes it for the next, with a new job folder. One job of a user and harness at a time; the others wait in line, in the order they came. A job's `sandboxKey` (in `run` and `session`) gives the user one kept sandbox, with its own lease, for each key. A sandbox the provider no longer has is replaced by a new one. `'job'`: a new sandbox for each job, destroyed after it. With the default `storedLogin()`, a user's jobs in different sandboxes run at the same time with one login, for every harness.
 - `models`: the model and effort a job of each harness gets when it names none. Default: the CLI's own. See `listModels`.
 
 - `tools`: the app's own tools, as functions in the backend. `{ todos: { add_todo: { description, input, run } } }` is an MCP server `todos` with one tool. `input`: the JSON Schema of the arguments (an object schema; default: no arguments). `run(args, { user, job })` runs for the user of the job; what it returns goes to the agent (a string as it is, other values as JSON), and what it throws goes to the agent as a failed call. byoa does not check the arguments against `input`. A job gets the server by its name in `mcp`; the proxy serves it at `<proxyUrl>/<name>`. Server names: lower-case letters, digits and -, at most 32; tool names: letters, digits, _ and -, at most 64. `listMcp` does not list them, and `connectMcp` refuses their names.
@@ -782,8 +789,8 @@ It returns an object with the methods below.
 
 | Method | Returns |
 |---|---|
-| `connectLogin(user, 'claude' \| 'codex')` | `{ harness, url, code? }`. `url`: the lab's own sign-in page. `code`: Codex only, the code to enter on OpenAI's page. |
-| `finishLogin(user, h, { code?, waitMs? })` | `{ state: 'signed-in' \| 'signed-out' \| 'expired' \| 'pending', error? }`. Claude: pass `code` (the code Anthropic's page shows); with no code, it only checks in and says `pending`. Codex: no code; `waitMs` waits that long; call again while `pending`. Each call keeps the sign-in's sandbox alive for 2 more minutes; with no call for 2 minutes it ends (on E2B and Daytona; Instabox ends it after 15 minutes). A sign-in lasts 15 minutes at most. |
+| `connectLogin(user, 'claude' \| 'codex' \| 'grok')` | `{ harness, url, code? }`. `url`: the lab's own sign-in page. `code`: Codex and Grok, the code to enter on OpenAI's or xAI's page. |
+| `finishLogin(user, h, { code?, waitMs? })` | `{ state: 'signed-in' \| 'signed-out' \| 'expired' \| 'pending', error? }`. Claude: pass `code` (the code Anthropic's page shows); with no code, it only checks in and says `pending`. Codex and Grok: no code; `waitMs` waits that long; call again while `pending`. Each call keeps the sign-in's sandbox alive for 2 more minutes; with no call for 2 minutes it ends (on E2B and Daytona; Instabox ends it after 15 minutes). A sign-in lasts 15 minutes at most. |
 | `cancelLogin(user, h)` | `void`. Ends a sign-in that has not finished, and its sandbox, at once. Call it when the user closes the sign-in. |
 | `loginState(user, h)` | `'signed-in' \| 'signed-out' \| 'expired'`. With `h` `'opencode-go'`, also `'no-plan'`. |
 | `signOut(user, h)` | `void`. Also deletes the user's sandbox for `h`, and cancels a sign-in that has not finished. With `h` `'opencode-go'`: deletes the user's key only; the proxy refuses the requests of jobs that still run with it. |
@@ -792,7 +799,7 @@ It returns an object with the methods below.
 
 Login drivers:
 
-- `storedLogin({ store?, encryptionKey?, waitMs?, parallel? })` (default): the CLI's own login files, encrypted in the store. `store` and `encryptionKey` default to the app's. During a job byoa saves a refresh every minute or so; when the backend dies during a job, a watcher in the sandbox removes the files before the provider pauses it, and the next job in that sandbox saves a login that the dead job's CLI refreshed. It saves files from a sandbox only of the same account and not older than the stored login. `waitMs`: how long a job waits in line for the login (default no limit). `parallel` (default true): the jobs of one user and harness share the login, each with a copy in its own sandbox, while the CLI will not refresh it before the job's time runs out (byoa reads the time the access token ends from the login files: both CLIs refresh 5 minutes before it; Codex's token lasts 10 days, Claude Code's 8 hours). When it is due for a refresh, one job holds it alone: it waits for the other jobs, and the jobs after it wait for it. The risk that stays: both CLIs also refresh when the lab answers 401 to a token that has not run out; two sandboxes that get that answer at the same time both refresh, one fails, and the user may have to sign in again. `parallel: false`: one job of a user and harness holds the login at a time.
+- `storedLogin({ store?, encryptionKey?, waitMs?, parallel? })` (default): the CLI's own login files, encrypted in the store. `store` and `encryptionKey` default to the app's. During a job byoa saves a refresh every minute or so; when the backend dies during a job, a watcher in the sandbox removes the files before the provider pauses it, and the next job in that sandbox saves a login that the dead job's CLI refreshed. It saves files from a sandbox only of the same account and not older than the stored login. `waitMs`: how long a job waits in line for the login (default no limit). `parallel` (default true): the jobs of one user and harness share the login, each with a copy in its own sandbox, while the CLI will not refresh it before the job's time runs out (byoa reads the time the access token ends from the login files: the CLIs refresh 5 minutes before it; Codex's token lasts 10 days, Claude Code's 8 hours, Grok's 6 hours). When it is due for a refresh, one job holds it alone: it waits for the other jobs, and the jobs after it wait for it. The risk that stays: the CLIs also refresh when the lab answers 401 to a token that has not run out; two sandboxes that get that answer at the same time both refresh, one fails, and the user may have to sign in again. `parallel: false`: one job of a user and harness holds the login at a time.
 - `cliLogin`: the login stays in a volume of the user, mounted through the sandbox adapter. Needs a provider with volumes.
 
 ## MCP connections
@@ -821,13 +828,13 @@ It is also the relay of a job with `plan: 'opencode-go'`, at `<proxyUrl>/_plan/o
 
 ```ts
 interface RunOptions {
-  harness: 'claude' | 'codex' | 'fake'
+  harness: 'claude' | 'codex' | 'grok' | 'fake'
   task: string | string[]     // several messages: one agent gets them all and decides the order
   setup?: { agentsMd?: string; skills?: { name: string; files: Record<string, string> }[] }  // files must have 'SKILL.md'
   plugins?: Plugin[]          // from readPlugin(readPluginDir(dir)); their skills and MCP servers are added
   mcp?: string[]              // the connected servers this job gets; default none
-  model?: string              // Claude Code: an alias (opus, sonnet, ...) or a full name; Codex: a model name. Default: createAgents' models, else the CLI's
-  effort?: string             // Claude Code --effort (low ... max); Codex model_reasoning_effort. Each model's own are in listModels
+  model?: string              // Claude Code: an alias (opus, sonnet, ...) or a full name; Codex, Grok: a model name. Default: createAgents' models, else the CLI's
+  effort?: string             // Claude Code --effort (low ... max); Codex model_reasoning_effort; Grok --reasoning-effort. Each model's own are in listModels
   onWait?: (w: { for: 'sandbox' | 'login'; ahead: number }) => void  // while the job waits in line
   sandboxKey?: string         // sandboxPer 'user': which of the user's kept sandboxes; default the user's one for the harness
   access?: 'full' | 'read-only'  // what the agent may do; default 'full'
@@ -837,12 +844,12 @@ interface RunOptions {
 
 - `plan`: the harness runs with the user's OpenCode Go plan, through the proxy's relay; the key never enters the sandbox. The job needs a model of the plan (`model`, else `models['opencode-go']` of createAgents; `listModels(user, 'opencode-go')` lists them), else `run` gives an `error` (code `sandbox`). Claude Code gets `ANTHROPIC_BASE_URL` (the relay), `ANTHROPIC_AUTH_TOKEN` (the job token), every model alias set to the job's model, and a `CLAUDE_CONFIG_DIR` of its own with no Claude login; Codex gets `-c` overrides for a model provider `opencode-go` (`wire_api = "responses"`, `env_key = "BYOA_JOB_TOKEN"`) and a `CODEX_HOME` of its own. The user's jobs with a key need no lease, so jobs in different sandboxes run at the same time. With no key, `run` gives an `error` with code `signed-out`.
 - `mcp`: names of the user's connected servers and of the app's own `tools`.
-- `access`: `'full'`: every tool of the harness with no approval (Codex: `--dangerously-bypass-approvals-and-sandbox`; Claude Code: `--permission-mode bypassPermissions`), for a sandbox that is the job's alone. `'read-only'`: the job's MCP tools, and reading files, so the harness reads its skills and AGENTS.md; no change to a file, and no network but the job's MCP servers. Codex: `--sandbox read-only` (its shell stays, because it reads a skill with `cat`; a command cannot write or open a connection), with the job's MCP tools approved in its `config.toml`. Claude Code: `--permission-mode dontAsk` with the tools `Read`, `Glob`, `Grep`, `Skill` and the job's MCP servers; each tool it refuses is a `permission` event. It does not hide files: the agent can read each file its user can read.
+- `access`: `'full'`: every tool of the harness with no approval (Codex: `--dangerously-bypass-approvals-and-sandbox`; Claude Code and Grok: `--permission-mode bypassPermissions`), for a sandbox that is the job's alone. `'read-only'`: the job's MCP tools, and reading files, so the harness reads its skills and AGENTS.md; no change to a file, and no network but the job's MCP servers. Codex: `--sandbox read-only` (its shell stays, because it reads a skill with `cat`; a command cannot write or open a connection), with the job's MCP tools approved in its `config.toml`. Claude Code: `--permission-mode dontAsk` with the tools `Read`, `Glob`, `Grep`, `Skill` and the job's MCP servers; each tool it refuses is a `permission` event. Grok: `--permission-mode dontAsk --disable-web-search` with the tools `read_file`, `grep`, `list_dir` (it loads skills with its own skill tool) and `--allow MCPTool(*)` (Grok sees only the job's MCP servers; a call to a tool it does not have then gets an error, where a refusal would end the job). It does not hide files: the agent can read each file its user can read.
 - Before the harness starts, byoa sends one MCP `initialize` from the sandbox to each of the job's servers, through the proxy. When no request reaches the proxy, the job does not start: an `error` event with code `mcp`, then `end` with `ok: false`. A server that does not answer gives an `error` event with code `mcp`, and the job runs.
 
 Each run: the user's sandbox (resumed, or created for the first job; with `sandboxPer: 'job'`, a new one), the user's login, the pinned harness, the setup files in a new job folder, the task; then the login is taken out and the sandbox is paused (or destroyed). Stop the loop (or call `return()`) to end a job early; byoa still cleans up.
 
-### Events (one schema for both harnesses)
+### Events (one schema for every harness)
 
 ```ts
 type AgentEvent =
@@ -859,7 +866,7 @@ type AgentEvent =
 
 ### listModels(user, h | 'opencode-go'): Promise<ModelInfo[]>
 
-The models the user's plan can use with `h`, as the unmodified CLI lists them with the user's login (Claude Code: its `initialize` answer; Codex: its app server's `model/list`), in a new sandbox that is destroyed after. `ModelInfo`: `{ id, name, description, isDefault, efforts, resolved? }`; `id` is what `model` takes, `efforts` what `effort` takes, `resolved` (Claude Code) the full model name of an alias. Each call starts a sandbox, so keep the list for a while. A Claude Code list waits for the user's running Claude Code jobs. Throws `LoginError` when `h` is not signed in.
+The models the user's plan can use with `h`, as the unmodified CLI lists them with the user's login (Claude Code: its `initialize` answer; Codex: its app server's `model/list`; Grok: the `initialize` answer of `grok agent stdio`), in a new sandbox that is destroyed after. `ModelInfo`: `{ id, name, description, isDefault, efforts, resolved? }`; `id` is what `model` takes, `efforts` what `effort` takes, `resolved` (Claude Code) the full model name of an alias. Each call starts a sandbox, so keep the list for a while. A Claude Code list waits for the user's running Claude Code jobs. Throws `LoginError` when `h` is not signed in.
 
 With `h` `'opencode-go'`: the plan's chat models, from `https://opencode.ai/inference/go/v1/models` with the user's key, in the backend (no sandbox). The free models are left out: OpenCode serves them only to its own client. `efforts` are the model's own, as OpenCode lists them; Claude Code's `--effort` takes `low` to `max`. `isDefault` is false for each: a job names its model. Throws `LoginError` when the user has no key.
 
@@ -936,7 +943,7 @@ Source: https://github.com/madeyexz/byoa/blob/main/examples/todo/README.md
 
 # AI-native to-do list: an example app on byoa
 
-A small to-do app. The user signs in with their own Claude or ChatGPT plan (or saves the key of their OpenCode Go plan), connects their to-dos one time, and then asks the agent to change them ("add buy milk, and mark the oldest one done"). Each request is one job: byoa resumes the user's sandbox (or creates it for the first job), runs the user's own, unmodified Claude Code or Codex in it, and pauses the sandbox after the job.
+A small to-do app. The user signs in with their own Claude, ChatGPT or Grok (SuperGrok, X Premium+) plan (or saves the key of their OpenCode Go plan), connects their to-dos one time, and then asks the agent to change them ("add buy milk, and mark the oldest one done"). Each request is one job: byoa resumes the user's sandbox (or creates it for the first job), runs the user's own, unmodified Claude Code, Codex or Grok Build in it, and pauses the sandbox after the job.
 
 The app has no code from Bookish. It is the second app for check V2 in [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification).
 
@@ -944,18 +951,18 @@ The app has no code from Bookish. It is the second app for check V2 in [SPEC.md]
 
 | File | What it does | Lines of code |
 |---|---|---|
-| [app.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/app.ts) | The backend, as one fetch handler. All of the app's byoa code is here. | 91 |
+| [app.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/app.ts) | The backend, as one fetch handler. All of the app's byoa code is here. | 92 |
 | [todos.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/todos.ts) | The app's own data (SQLite), its MCP server with four to-do tools, and byoa's store adapter for SQLite. | 60 |
 | [main.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/main.ts) | Starts the server on Node and selects the sandbox provider. | 25 |
 | [page.html](https://github.com/madeyexz/byoa/blob/main/examples/todo/page.html) | The page: sign in, connect, ask, and the list. | 145 |
 | [todo.test.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/todo.test.ts) | Tests with byoa's fake harness. | 103 |
 
-"Lines of code" does not count empty lines and comments. Of the backend's 176 lines, 39 in app.ts use byoa: `createAgents`, the routes that call `agents.*`, the MCP callback, and the stream of events to the page. The SQLite store adapter is 19 more; with byoa's own Postgres or Convex adapter, it is one line. The rest is the to-do app itself.
+"Lines of code" does not count empty lines and comments. Of the backend's 177 lines, 39 in app.ts use byoa: `createAgents`, the routes that call `agents.*`, the MCP callback, and the stream of events to the page. The SQLite store adapter is 19 more; with byoa's own Postgres or Convex adapter, it is one line. The rest is the to-do app itself.
 
 ## How the app uses byoa
 
 1. **One `createAgents`** ([app.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/app.ts)). The app gives byoa its sandbox provider, its own database (through `sqliteStore`, 19 lines in [todos.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/todos.ts)), an encryption key, and the URLs where it serves byoa's MCP proxy and the MCP sign-in callback. The app gives no `login` option, so byoa keeps each user's plan login (the CLI's own login files) encrypted in the app's database, and writes a copy into each job's sandbox. After the job, byoa saves the files back when the CLI refreshed them, and removes them from the sandbox. No sandbox volumes are needed. With `login: cliLogin`, the login stays in a volume of the user instead, and the app's database never holds it. The labs' terms restrict where these tokens may be stored: see [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules), and check them for your own app.
-2. **Sign in to the plan.** `agents.connectLogin(user, 'claude')` runs the real `claude auth login` in a sandbox and gives the URL of Anthropic's own sign-in page. The user signs in there and pastes the code that page shows; `agents.finishLogin` types it into the CLI. For ChatGPT, `codex login --device-auth` gives OpenAI's page and a code to enter there. For OpenCode Go, the user makes an API key in OpenCode's Console and saves it on the page: `agents.connectKey(user, 'opencode-go', key)` checks it with OpenCode and keeps it encrypted, and a job with `plan: 'opencode-go'` and a model from `agents.listModels(user, 'opencode-go')` runs Claude Code or Codex on it. The key never goes into the sandbox.
+2. **Sign in to the plan.** `agents.connectLogin(user, 'claude')` runs the real `claude auth login` in a sandbox and gives the URL of Anthropic's own sign-in page. The user signs in there and pastes the code that page shows; `agents.finishLogin` types it into the CLI. For ChatGPT, `codex login --device-auth` gives OpenAI's page and a code to enter there; for Grok, `grok login --device-auth` gives xAI's page and a code. For OpenCode Go, the user makes an API key in OpenCode's Console and saves it on the page: `agents.connectKey(user, 'opencode-go', key)` checks it with OpenCode and keeps it encrypted, and a job with `plan: 'opencode-go'` and a model from `agents.listModels(user, 'opencode-go')` runs Claude Code or Codex on it. The key never goes into the sandbox.
 3. **Connect the to-dos, one time.** `agents.connectMcp(user, '<app>/mcp', { name: 'todos', bearer })` keeps the user's token for the app's own MCP server as an encrypted grant. The user can also connect any remote MCP server (for example Notion) with its own sign-in page; byoa does the OAuth and calls `/byoa/callback`.
 4. **Ask.** `agents.run(user, { harness, task, mcp, setup: { agentsMd } })` gives a stream of events (`start`, `text`, `tool_call`, `tool_result`, `error`, `end`) in one schema for both harnesses. The app sends them to the page as they come, one JSON object for each line.
 5. **The proxy.** The harness in the sandbox gets only a job token. Its MCP calls go to `agents.proxy`, which adds the user's real token and sends them to the MCP server. The real token never goes into the sandbox.
@@ -985,7 +992,7 @@ In your own app, install byoa with `npm install @madeyexz/byoa` instead.
 | `DB` | `.data/todo.db` | The SQLite file. |
 | `FAKE` | off | `1` lets jobs use the fake harness. |
 
-The local sandbox is a folder on your computer. It isolates nothing, so use it only on your own computer. With Claude Code or Codex in it, the harness runs on your computer with your login.
+The local sandbox is a folder on your computer. It isolates nothing, so use it only on your own computer. With Claude Code, Codex or Grok Build in it, the harness runs on your computer with your login.
 
 With E2B or Daytona, the sandbox must reach the proxy, so `PUBLIC_URL` must be a public HTTPS URL, for example from `cloudflared tunnel --url http://localhost:3000`. On Daytona Tier 1 and Tier 2, a sandbox reaches only [allowed domains](https://www.daytona.io/docs/en/network-limits).
 
@@ -1009,10 +1016,10 @@ Source: https://github.com/madeyexz/byoa/blob/main/examples/todo/app.ts
 
 ```ts
 // The to-do app's backend, as one fetch handler. Everything the app does with byoa is in this file: the sign-in to
-// the user's own Claude or ChatGPT plan (or the key of their OpenCode Go plan), the MCP connections, and the agent job.
+// the user's own Claude, ChatGPT or Grok plan (or the key of their OpenCode Go plan), the MCP connections, and the agent job.
 import { readFileSync } from 'node:fs'
 import type { DatabaseSync } from 'node:sqlite'
-import { createAgents, type AgentEvent, type RunHarness, type SandboxProvider } from '@madeyexz/byoa'
+import { createAgents, type AgentEvent, type HarnessName, type RunHarness, type SandboxProvider } from '@madeyexz/byoa'
 import { sqliteStore, todoList, todoMcp } from './todos.ts'
 
 const AGENTS_MD = `# To-do assistant
@@ -1046,21 +1053,22 @@ export function todoApp(o: TodoAppOptions): (req: Request) => Promise<Response> 
     proxyUrl: `${o.publicUrl}/byoa/mcp`,
     oauth: { redirectUrl: `${o.publicUrl}/byoa/callback`, clientName: 'byoa to-do example' },
   })
-  const harnesses: RunHarness[] = ['claude', 'codex', ...(o.fake ? ['fake' as const] : [])]
+  const harnesses: RunHarness[] = [...LABS, ...(o.fake ? ['fake' as const] : [])]
 
   async function api(user: string, route: string, b: any): Promise<Response> {
     switch (route) {
       case 'GET /api/state': return json({
         todos: todos.list(user),
-        login: { claude: await agents.loginState(user, 'claude'), codex: await agents.loginState(user, 'codex'), 'opencode-go': await agents.loginState(user, 'opencode-go') },
+        login: { ...Object.fromEntries(await Promise.all(LABS.map(async (h) => [h, await agents.loginState(user, h)]))), 'opencode-go': await agents.loginState(user, 'opencode-go') },
         mcp: await agents.listMcp(user),
         harnesses,
       })
-      // The lab's own sign-in page. Claude: a URL, then the code that page shows. ChatGPT: a URL and a code to enter.
+      // The lab's own sign-in page. Claude: a URL, then the code that page shows. ChatGPT and Grok: a URL and a code to
+      // enter there.
       case 'POST /api/login': return json(await agents.connectLogin(user, plan(b.harness)))
-      // Claude: with the code, it finishes; with none, it only checks in. Codex: it waits up to 20 s for the user. Each
+      // Claude: with the code, it finishes; with none, it only checks in. Codex, Grok: it waits up to 20 s for the user. Each
       // call keeps the sign-in alive; with no call for 2 minutes, byoa ends it.
-      case 'POST /api/login/finish': return json(await agents.finishLogin(user, plan(b.harness), { code: b.code, waitMs: b.harness === 'codex' ? 20_000 : undefined }))
+      case 'POST /api/login/finish': return json(await agents.finishLogin(user, plan(b.harness), { code: b.code, waitMs: b.harness === 'claude' ? undefined : 20_000 }))
       // The user closed the sign-in: its sandbox ends now.
       case 'POST /api/login/cancel': return json(await agents.cancelLogin(user, plan(b.harness)) ?? {})
       // OpenCode Go: the key the user made in OpenCode's Console. byoa checks it with OpenCode and keeps it encrypted; it
@@ -1108,9 +1116,11 @@ export function todoApp(o: TodoAppOptions): (req: Request) => Promise<Response> 
   }
 }
 
-function plan(h: unknown): 'claude' | 'codex' {
-  if (h !== 'claude' && h !== 'codex') throw new Error('harness: claude or codex')
-  return h
+// the labs whose own CLI sign-in the page shows
+const LABS: HarnessName[] = ['claude', 'codex', 'grok']
+function plan(h: unknown): HarnessName {
+  if (!LABS.includes(h as HarnessName)) throw new Error(`harness: one of ${LABS.join(', ')}`)
+  return h as HarnessName
 }
 
 const json = (body: unknown, status = 200) => Response.json(body, { status })

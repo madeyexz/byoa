@@ -6,6 +6,7 @@ import { ACCESS, CLAUDE_MCP_CONFIG, JOB_TOKEN_ENV, MCP_STARTUP_SEC, SERVER_NAME,
 import { importKey, open, randomToken, seal, sha256hex } from './crypto.ts'
 import { claudeArgs, claudeModelArgs, claudeReader } from './harness/claude.ts'
 import { codexArgs, codexModelArgs, codexReader } from './harness/codex.ts'
+import { grokArgs, grokModelArgs, grokReader } from './harness/grok.ts'
 import type { AgentEvent, EventReader } from './harness/events.ts'
 import { FAKE_JS, fakeReader } from './harness/fake.ts'
 import { MODELS_JS, readModels, type ModelInfo } from './harness/models.ts'
@@ -36,7 +37,8 @@ export interface AgentsOptions {
    *  is at `<proxyUrl>/<name>`. */
   proxyUrl: string
   oauth: { redirectUrl: string; clientMetadataUrl?: string; clientName?: string }
-  pins?: Pins
+  /** The harness versions (R5.1). Default: PINS; a harness that you leave out gets its PINS version. */
+  pins?: Partial<Pins>
   /** Where the AI login stays (R1.5). Default: storedLogin(), encrypted in `store` (R1.4). `cliLogin`: in a volume
    *  of the user, through the sandbox adapter. */
   login?: (deps: LoginDeps) => LoginDriver
@@ -67,9 +69,9 @@ export interface AgentsOptions {
 
 export type RunHarness = HarnessName | 'fake'
 
-/** `model`: Claude Code's alias (`opus`, `sonnet`, ...) or a full model name; Codex's model name. `effort`: Claude
- *  Code's `--effort` (low, medium, high, xhigh, max); Codex's `model_reasoning_effort`. Each model's own efforts are
- *  in listModels. */
+/** `model`: Claude Code's alias (`opus`, `sonnet`, ...) or a full model name; Codex's or Grok's model name. `effort`:
+ *  Claude Code's `--effort` (low, medium, high, xhigh, max); Codex's `model_reasoning_effort`; Grok's
+ *  `--reasoning-effort`. Each model's own efforts are in listModels. */
 export interface ModelChoice { model?: string; effort?: string }
 
 /** A job waits in line (R5.8): for the user's sandbox, or for the AI login; `ahead` jobs came before it. */
@@ -225,7 +227,7 @@ export function createAgents(o: AgentsOptions) {
   const key = importKey(o.encryptionKey)
   key.catch(() => {}) // reported where it is used
   const oauth: OAuthConfig = { redirectUrl: o.oauth.redirectUrl, clientMetadataUrl: o.oauth.clientMetadataUrl, clientName: o.oauth.clientName ?? o.app }
-  const pins = o.pins ?? PINS
+  const pins: Pins = { ...PINS, ...o.pins }
   const grants = new Grants(o.store, key, oauth)
   const jobs = new JobTokens(o.store)
   const plans = planKeys(o.store, key)
@@ -238,7 +240,7 @@ export function createAgents(o: AgentsOptions) {
   const modelArgs = (h: RunHarness, r: ModelChoice): string[] => {
     if (h === 'fake') return []
     const m = { ...o.models?.[h], ...(r.model ? { model: r.model } : {}), ...(r.effort ? { effort: r.effort } : {}) }
-    return h === 'claude' ? claudeModelArgs(m) : codexModelArgs(m)
+    return h === 'claude' ? claudeModelArgs(m) : h === 'grok' ? grokModelArgs(m) : codexModelArgs(m)
   }
   const grantOrigins = new Map(Object.entries(o.grantOrigins ?? {}).map(([mcp, extra]) => [exactOrigin(mcp), extra.map(exactOrigin)]))
   const tools: AppTools = o.tools ?? {}
@@ -424,7 +426,7 @@ export function createAgents(o: AgentsOptions) {
   }
 
   /** Opens one job (R5.4) for an app that runs its own program around the unmodified harness (Bookish runs its own
-   *  core, which starts `claude` or `codex`): the user's sandbox (or, with `sandboxPer: 'job'`, a new one) with the
+   *  core, which starts `claude`, `codex` or `grok`): the user's sandbox (or, with `sandboxPer: 'job'`, a new one) with the
    *  user's AI login, the pinned harness, the user's setup in a new `work` folder, and a job token for the MCP
    *  servers this job gets. `close` ends the job token, saves the login and removes it from the sandbox, and pauses
    *  the sandbox (or destroys it); call it in a `finally`. Throws LoginError when the harness is not signed in. */
@@ -466,7 +468,7 @@ export function createAgents(o: AgentsOptions) {
     }
     try {
       const setup: Setup = { agentsMd: r.setup?.agentsMd, skills: [...(r.setup?.skills ?? []), ...plugins.flatMap((p) => p.setup.skills ?? [])] }
-      const files = harnessFiles(h === 'codex' ? 'codex' : 'claude', setup, { proxyUrl: o.proxyUrl, servers: t.mcp.map((m) => m.name), access: r.access })
+      const files = harnessFiles(h === 'fake' ? 'claude' : h, setup, { proxyUrl: o.proxyUrl, servers: t.mcp.map((m) => m.name), access: r.access })
       if (keep) {
         slot = await takeSlot(user, h, key, (ahead) => r.onWait?.({ for: 'sandbox', ahead }))
         if (slot.sandbox) {
@@ -580,11 +582,13 @@ export function createAgents(o: AgentsOptions) {
         if (h === 'fake') { cmd = `node ${q(s.bin)}`; reader = fakeReader() }
         else {
           // the model and effort flags come from s.args: the job's own, else the app's default (R5.7)
-          const args = h === 'claude' ? claudeArgs({ mcpConfig: CLAUDE_MCP_CONFIG, access: r.access, servers: s.mcp.map((m) => m.name) }) : codexArgs({ work: s.work, access: r.access })
+          const servers = s.mcp.map((m) => m.name)
+          const args = h === 'claude' ? claudeArgs({ mcpConfig: CLAUDE_MCP_CONFIG, access: r.access, servers })
+            : h === 'grok' ? grokArgs({ access: r.access }) : codexArgs({ work: s.work, access: r.access })
           if (h === 'codex') args.splice(args.length - 1, 0, ...s.args)
           else args.push(...s.args)
           cmd = [s.bin, ...args].map(q).join(' ')
-          reader = h === 'claude' ? claudeReader() : codexReader()
+          reader = h === 'claude' ? claudeReader() : h === 'grok' ? grokReader() : codexReader()
         }
         await s.sandbox.writeFile(`${s.work}/.byoa/task.md`, taskText(r.task))
         yield { type: 'start', harness: h, version: s.version, sandbox: o.sandbox.name }

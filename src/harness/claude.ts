@@ -39,7 +39,8 @@ const mcpName = (n: string): { name: string; server?: string } => {
 }
 const textOf = (c: unknown): string => Array.isArray(c) ? c.map((x: any) => x?.text ?? '').join('') : String(c ?? '')
 
-export function claudeReader(): EventReader {
+/** `name`: the CLI, in the message when it exits with no result (Grok's reader uses this one too). */
+export function claudeReader(name = 'claude'): EventReader {
   let ended = false
   return {
     line(l) {
@@ -79,7 +80,7 @@ export function claudeReader(): EventReader {
     },
     exit(code, stderr) {
       if (ended) return []
-      const msg = stderr.trim().split('\n').slice(-3).join(' ') || `claude exited with code ${code}`
+      const msg = stderr.trim().split('\n').slice(-3).join(' ') || `${name} exited with code ${code}`
       return [{ type: 'error', message: clip(msg, 500), code: AUTH_FAILED.test(msg) ? 'expired' : 'harness' }, { type: 'end', ok: false }]
     },
   }

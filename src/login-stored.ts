@@ -10,14 +10,15 @@
 // job in that kept sandbox saves what the dead job left there before it writes the stored copy; and a watcher in the
 // sandbox removes the files just before the provider pauses or ends it. byoa saves files only of the same account,
 // and not older than the stored login (accept): the agent of a job can change any file, so byoa never trusts more.
-// Both CLIs rotate their refresh tokens, so two sandboxes must not refresh one login. A job takes a lease with
+// The CLIs rotate their refresh tokens, so two sandboxes must not refresh one login. A job takes a lease with
 // compare-and-set, and waits in line (queue.ts) for the jobs before it. By default (`parallel`), the jobs of one user
 // share the login, each with a copy in its own sandbox, while the CLI will not refresh it by itself before the job's
-// time runs out. Both CLIs refresh 5 minutes before their access token ends: Codex 0.171.0's lasts 10 days
+// time runs out. The CLIs refresh 5 minutes before their access token ends: Codex 0.171.0's lasts 10 days
 // (login/src/auth/manager.rs, proactive_refresh_reason), Claude Code 2.1.330's 8 hours (it refreshes when
-// now + 300000 >= expiresAt; checked on E2B with a real login: not at 10 minutes before, yes at 4). When the login is
+// now + 300000 >= expiresAt; checked on E2B with a real login: not at 10 minutes before, yes at 4), grok 1.0.92's 6
+// hours (`expires_at`; checked on E2B with a real login: not at 10 minutes before, yes at 4, with a new refresh token). When the login is
 // due, one job holds it alone: it waits for the others to end, the CLI refreshes, byoa saves the new login, and the jobs
-// after it share again. For this byoa reads the time the access token ends, and nothing else in it. What stays: both
+// after it share again. For this byoa reads the time the access token ends, and nothing else in it. What stays: the
 // CLIs also refresh when the lab answers 401 to a token that has not run out; two sandboxes that get that answer at the
 // same time both refresh, and one refresh fails. `parallel: false` turns sharing off.
 // The labs' published terms restrict where these tokens may be stored (SPEC.md, Lab rules); each app checks them.
@@ -25,7 +26,7 @@
 import { importKey, open, randomToken, seal } from './crypto.ts'
 import type { HarnessName } from './harness/pins.ts'
 import { ensureHarness } from './harness/install.ts'
-import { cliLogin, loginEnv, type JobLogin, type LoginDeps, type LoginDriver } from './login.ts'
+import { cliLogin, loginEnv, logoutCmd, type JobLogin, type LoginDeps, type LoginDriver } from './login.ts'
 import { inLine } from './queue.ts'
 import type { Sandbox } from './sandbox/types.ts'
 import { q } from './sh.ts'
@@ -46,7 +47,7 @@ export interface StoredLoginOptions {
 }
 
 /** The CLI's own login files, relative to the home folder. */
-export const LOGIN_FILES: Record<HarnessName, string[]> = { claude: ['.claude/.credentials.json', '.claude/.claude.json'], codex: ['.codex/auth.json'] }
+export const LOGIN_FILES: Record<HarnessName, string[]> = { claude: ['.claude/.credentials.json', '.claude/.claude.json'], codex: ['.codex/auth.json'], grok: ['.grok/auth.json'] }
 
 /** Copies of the login files that the CLI makes by itself, as shell globs relative to the home folder: byoa removes them
  *  with the login files and does not store them. Claude Code 2.1.330 writes a backup of `.claude.json` (the account:
@@ -62,12 +63,17 @@ const lineKey = (user: string, h: HarnessName) => `ailoginline/${enc(user)}/${h}
 const loanKey = (user: string, h: HarnessName, sbx: string) => `ailoginloan/${enc(user)}/${h}/${enc(sbx)}`
 const fromB64 = (s: string) => new TextDecoder().decode(Uint8Array.from(atob(s), (c) => c.charCodeAt(0)))
 
-/** Both CLIs refresh their login this long before its access token ends. */
+/** The CLIs refresh their login this long before its access token ends. */
 const REFRESH_WINDOW_MS = 5 * 60_000
 
 /** When the CLI will refresh this login by itself, in ms since 1970, from the times in its own login files; 0 when
  *  byoa does not know (then one job holds the login at a time). byoa reads the time only, and uses no token. */
 export function refreshDue(h: HarnessName, files: Record<string, string>): number {
+  if (h === 'grok') {
+    // the first of the logins to end (grok 1.0.92 refreshes 5 minutes before, GROK_AUTH_EARLY_INVALIDATION_SECS)
+    const ends = grokLogins(files).map((l) => Date.parse(l.expires_at ?? ''))
+    return ends.length && ends.every((t) => t > 0) ? Math.min(...ends) - REFRESH_WINDOW_MS : 0
+  }
   if (h === 'claude') {
     try {
       const at = Number(JSON.parse(files['.claude/.credentials.json'] ?? '')?.claudeAiOauth?.expiresAt)
@@ -86,12 +92,29 @@ export function refreshDue(h: HarnessName, files: Record<string, string>): numbe
   } catch { return 0 }
 }
 
+/** Grok's `auth.json` (1.0.92): one login for each sign-in scope, keyed by `<issuer>::<client id>`, each with its
+ *  `user_id` and the time its access token ends (`expires_at`). byoa reads these two fields only. */
+function grokLogins(files: Record<string, string>): { user_id?: unknown; expires_at?: string }[] {
+  try {
+    const doc = JSON.parse(files[LOGIN_FILES.grok[0]!] ?? '')
+    return Object.values(doc ?? {}).filter((v): v is { user_id?: unknown; expires_at?: string } => !!v && typeof v === 'object' && !Array.isArray(v))
+  } catch { return [] }
+}
+
 /** Who a login belongs to, and how new it is, from the CLI's own login files: the account id, and the time of the
- *  last refresh (Codex: `last_refresh`, else when its access token ends; Claude Code: when its access token ends). 0
+ *  last refresh (Codex: `last_refresh`, else when its access token ends; Claude Code and Grok: when its access token
+ *  ends). 0
  *  when byoa does not know. byoa reads no token. */
 export function loginFacts(h: HarnessName, files: Record<string, string>): { account?: string; fresh: number } {
   const json = (p: string) => { try { return JSON.parse(files[p] ?? '') } catch { return undefined } }
   const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined)
+  if (h === 'grok') {
+    // Grok: the account is `user_id`, and a refresh moves `expires_at` (its access token lasts 6 hours)
+    const logins = grokLogins(files)
+    const ids = [...new Set(logins.map((l) => str(l.user_id)))]
+    const ends = logins.map((l) => Date.parse(l.expires_at ?? ''))
+    return { account: ids.length && ids.every(Boolean) ? ids.sort().join(',') : undefined, fresh: ends.length && ends.every((t) => t > 0) ? Math.min(...ends) : 0 }
+  }
   if (h === 'codex') {
     const doc = json('.codex/auth.json')
     const last = Date.parse(doc?.last_refresh ?? '')
@@ -281,7 +304,7 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
             try {
               await load(sbx, user, h, { alone: true })
               const { bin } = await ensureHarness(sbx, h, d.pins)
-              await sbx.run(`${q(bin)} ${h === 'claude' ? 'auth logout' : 'logout'} >/dev/null 2>&1; true`, { env: loginEnv(sbx, h), timeoutMs: 60_000 })
+              await sbx.run(`${logoutCmd(bin, h)} >/dev/null 2>&1; true`, { env: loginEnv(sbx, h), timeoutMs: 60_000 })
             } finally {
               const x = held.get(sbx.id)
               held.delete(sbx.id)
