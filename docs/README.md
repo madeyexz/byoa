@@ -6,6 +6,30 @@ Each user signs in to their own Claude or ChatGPT plan one time. When your app h
 
 byoa is an open-source library (Apache 2.0). It runs inside your app's own backend. It is not a hosted service. Start with [Getting started](getting-started.md). To learn the parts first, read [Concepts](concepts.md). To see which plans work, read [Supported AI subscriptions](subscriptions.md).
 
+## Why and when you need byoa
+
+You want your app to have an AI agent that does real work for each user: it reads and changes the user's data, calls the user's tools, and writes files. To build this yourself, you need many parts:
+
+- an agent loop as good as Claude Code or Codex, and its updates;
+- a sandbox for each user, which starts, pauses and ends at the right times;
+- a sign-in to each user's AI plan, and safe storage of that login;
+- an OAuth connection to each of the user's MCP tools, with the tokens kept out of the agent's reach.
+
+And with your own API key, your app pays for every token. byoa gives you all of these parts as one library, and the user's own plan pays for the AI.
+
+Use byoa when:
+
+- your users already pay for Claude, ChatGPT or OpenCode Go, and you do not want to pay for their AI or sell them AI credits;
+- your app's AI work is agent work, with many steps, tools and files, not one chat answer;
+- you want Claude Code and Codex as your agent, not a loop of your own;
+- you want each user's tools, such as Notion or Gmail, in each job, after one connection.
+
+You do not need byoa when:
+
+- your app needs only one model call at a time, such as a summary or a chat reply: an API key costs less there ([FAQ](faq.md#what-does-an-ai-job-cost-with-byoa-and-with-an-api-key));
+- your app pays for the AI itself and does not want the user's plan;
+- your users do not have an AI plan.
+
 These pages are the Markdown files in [docs/](../docs) of the repository. The site at https://byoa.rippling.computer/docs shows the same pages, and serves each page as Markdown for LLMs (add `.md` to its address) and all of them in [llms-full.txt](https://byoa.rippling.computer/llms-full.txt).
 
 ## Start

@@ -272,7 +272,8 @@ for (const [i, p] of PAGES.entries()) {
   const title = source.match(/^# (.+)$/m)?.[1]
   if (!title) throw new Error(`docs/${p.file}.md has no "# " title`)
   // under the title, as a lead: what the page has, from its line in the list of pages (docs/README.md)
-  const lead = p.file === 'README' ? '' : `<p class="lead">${md.parseInline(sentence(p.about))}</p>\n`
+  // no lead on the docs home, and on Getting started, whose first paragraph says it
+  const lead = ['README', 'getting-started'].includes(p.file) ? '' : `<p class="lead">${md.parseInline(sentence(p.about))}</p>\n`
   const content = md.parse(escapeTypes(source).replace(DIAGRAM, '\n@@who@@\n\n'))
     .replace('<p>@@who@@</p>', `<figure class="diagram strings">${who}</figure>`)
     .replace('</h1>\n', () => `</h1>\n${lead}`)

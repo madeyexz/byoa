@@ -319,6 +319,28 @@ footer a { color: #b8bdd8; text-decoration: none; }
 <p><strong>byoa, short for &quot;bring your own agent&quot;, is the simplest way to let your users power the AI in your app with their own AI subscription.</strong></p>
 <p>Each user signs in to their own Claude or ChatGPT plan one time. When your app has work for the AI, byoa runs that user&#39;s own Claude Code or Codex in a sandbox, with the user&#39;s tools, and streams the result back. The user&#39;s plan pays for the AI. Your app pays only for the sandbox.</p>
 <p>byoa is an open-source library (Apache 2.0). It runs inside your app&#39;s own backend. It is not a hosted service. Start with <a href="/docs/getting-started">Getting started</a>. To learn the parts first, read <a href="/docs/concepts">Concepts</a>. To see which plans work, read <a href="/docs/subscriptions">Supported AI subscriptions</a>.</p>
+<h2 id="why-and-when-you-need-byoa"><a class="anchor" href="#why-and-when-you-need-byoa" aria-hidden="true" tabindex="-1">#</a>Why and when you need byoa</h2>
+<p>You want your app to have an AI agent that does real work for each user: it reads and changes the user&#39;s data, calls the user&#39;s tools, and writes files. To build this yourself, you need many parts:</p>
+<ul>
+<li>an agent loop as good as Claude Code or Codex, and its updates;</li>
+<li>a sandbox for each user, which starts, pauses and ends at the right times;</li>
+<li>a sign-in to each user&#39;s AI plan, and safe storage of that login;</li>
+<li>an OAuth connection to each of the user&#39;s MCP tools, with the tokens kept out of the agent&#39;s reach.</li>
+</ul>
+<p>And with your own API key, your app pays for every token. byoa gives you all of these parts as one library, and the user&#39;s own plan pays for the AI.</p>
+<p>Use byoa when:</p>
+<ul>
+<li>your users already pay for Claude, ChatGPT or OpenCode Go, and you do not want to pay for their AI or sell them AI credits;</li>
+<li>your app&#39;s AI work is agent work, with many steps, tools and files, not one chat answer;</li>
+<li>you want Claude Code and Codex as your agent, not a loop of your own;</li>
+<li>you want each user&#39;s tools, such as Notion or Gmail, in each job, after one connection.</li>
+</ul>
+<p>You do not need byoa when:</p>
+<ul>
+<li>your app needs only one model call at a time, such as a summary or a chat reply: an API key costs less there (<a href="/docs/faq#what-does-an-ai-job-cost-with-byoa-and-with-an-api-key">FAQ</a>);</li>
+<li>your app pays for the AI itself and does not want the user&#39;s plan;</li>
+<li>your users do not have an AI plan.</li>
+</ul>
 <p>These pages are the Markdown files in <a href="https://github.com/madeyexz/byoa/tree/main/docs" rel="noopener">docs/</a> of the repository. The site at <a href="https://byoa.rippling.computer/docs">https://byoa.rippling.computer/docs</a> shows the same pages, and serves each page as Markdown for LLMs (add <code>.md</code> to its address) and all of them in <a href="https://byoa.rippling.computer/llms-full.txt">llms-full.txt</a>.</p>
 <h2 id="start"><a class="anchor" href="#start" aria-hidden="true" tabindex="-1">#</a>Start</h2>
 <ul>
@@ -349,7 +371,7 @@ footer a { color: #b8bdd8; text-decoration: none; }
     <nav class="pn" aria-label="Pages"><a class="next" href="/docs/getting-started"><span>Next</span>Getting started</a></nav>
     <p class="edit"><a href="https://github.com/madeyexz/byoa/blob/main/docs/README.md">Edit this page on GitHub</a> · <a href="/docs/index.md">This page as Markdown</a></p>
   </main>
-  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#start">Start</a></li><li><a href="#guides">Guides</a></li><li><a href="#reference">Reference</a></li></ul>
+  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#why-and-when-you-need-byoa">Why and when you need byoa</a></li><li><a href="#start">Start</a></li><li><a href="#guides">Guides</a></li><li><a href="#reference">Reference</a></li></ul>
     <button class="copy-page" type="button" data-md="/docs/index.md">Copy page</button>
     <div class="tools"><a href="/docs/index.md">This page as Markdown</a><a href="/llms.txt">llms.txt</a><a href="/llms-full.txt">llms-full.txt</a></div>
   </aside>

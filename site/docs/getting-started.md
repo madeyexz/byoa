@@ -1,6 +1,8 @@
 # Getting started
 
-This page takes you from `npm install` to a first agent job. Your app's backend makes one `agents` object, serves two routes, signs a user in to their own plan, and runs a job. A new app needs fewer than 50 lines of its own code for this. The [to-do example](https://github.com/madeyexz/byoa/tree/main/examples/todo) uses byoa in 35.
+New to byoa? Read the [Overview](https://byoa.rippling.computer/docs/index.md) first. In short: byoa is a library in your app's backend. Each user signs in to their own Claude or ChatGPT plan one time, and connects each MCP tool one time. When your app has work for the AI, byoa runs that user's own Claude Code or Codex in a sandbox, with the user's tools, and streams the events back to your app. The user's plan pays for the AI, and your app pays for the sandbox.
+
+This page takes you from `npm install` to a first agent job: one `agents` object, two routes, a sign-in and a job. A new app needs fewer than 50 lines of its own code for this. The [to-do example](https://github.com/madeyexz/byoa/tree/main/examples/todo) uses byoa in 39.
 
 ## Install
 

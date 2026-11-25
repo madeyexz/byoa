@@ -316,8 +316,8 @@ footer a { color: #b8bdd8; text-decoration: none; }
     <div class="pagehead"><div class="kick">Start</div><button class="copy-page narrow" type="button" data-md="/docs/getting-started.md">Copy page</button></div>
     <article>
 <h1>Getting started</h1>
-<p class="lead">Install byoa, make one <code>agents</code> object, serve its two routes, sign a user in and run a first job.</p>
-<p>This page takes you from <code>npm install</code> to a first agent job. Your app&#39;s backend makes one <code>agents</code> object, serves two routes, signs a user in to their own plan, and runs a job. A new app needs fewer than 50 lines of its own code for this. The <a href="https://github.com/madeyexz/byoa/tree/main/examples/todo" rel="noopener">to-do example</a> uses byoa in 35.</p>
+<p>New to byoa? Read the <a href="/docs">Overview</a> first. In short: byoa is a library in your app&#39;s backend. Each user signs in to their own Claude or ChatGPT plan one time, and connects each MCP tool one time. When your app has work for the AI, byoa runs that user&#39;s own Claude Code or Codex in a sandbox, with the user&#39;s tools, and streams the events back to your app. The user&#39;s plan pays for the AI, and your app pays for the sandbox.</p>
+<p>This page takes you from <code>npm install</code> to a first agent job: one <code>agents</code> object, two routes, a sign-in and a job. A new app needs fewer than 50 lines of its own code for this. The <a href="https://github.com/madeyexz/byoa/tree/main/examples/todo" rel="noopener">to-do example</a> uses byoa in 39.</p>
 <h2 id="install"><a class="anchor" href="#install" aria-hidden="true" tabindex="-1">#</a>Install</h2>
 <p>Install byoa from npm. Its package is <code>@madeyexz/byoa</code>, because npm does not allow the name <code>byoa</code>:</p>
 <div class="code"><pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#80A665">npm</span><span style="color:#C98A7D"> install</span><span style="color:#C98A7D"> @madeyexz/byoa</span></span>
