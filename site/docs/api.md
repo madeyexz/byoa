@@ -32,7 +32,8 @@ interface AgentsOptions {
   login?: (deps) => LoginDriver              // default storedLogin(); or cliLogin
   jobTimeoutMs?: number                      // default 30 minutes
   sandboxPer?: 'user' | 'job'                // default 'user': kept sandboxes, paused between jobs
-  waitMs?: number                            // sandboxPer 'user': how long a job waits for another job of its sandbox; default 10 minutes
+  waitMs?: number                            // sandboxPer 'user': how long a job waits in line for its sandbox; default no limit
+  models?: { claude?: { model?: string; effort?: string }; codex?: { model?: string; effort?: string } }  // each harness's default
   grantOrigins?: Record<string, string[]>    // more exact origins for fetchWithGrant, by MCP server origin
   tools?: AppTools                           // the app's own tools: MCP server name → tool name → { description?, input?, run }
 }
@@ -41,7 +42,8 @@ interface AgentsOptions {
 - `oauth.redirectUrl`: the app's route that calls `finishMcp`.
 - `oauth.clientMetadataUrl`: an HTTPS URL where the app serves `agents.clientMetadata()` (a Client ID Metadata Document). Without it, byoa uses only Dynamic Client Registration.
 - `oauth.clientName`: the name the MCP server shows on its consent page. Default: `app`.
-- `sandboxPer`: `'user'` (the default): the first job of a user and harness creates the user's sandbox; byoa pauses it after each job (E2B pause, Daytona and Instabox stop) and resumes it for the next, with a new job folder. One job of a user and harness at a time. A job's `sandboxKey` (in `run` and `session`) gives the user one kept sandbox, with its own lease, for each key. A sandbox the provider no longer has is replaced by a new one. `'job'`: a new sandbox for each job, destroyed after it. With the default `storedLogin()`, one job of a user and harness holds the AI login at a time, so the user's Claude Code or Codex jobs run one after the other in both modes, also with different sandbox keys; `storedLogin({ parallel: true })` lets a user's Codex jobs run at the same time.
+- `sandboxPer`: `'user'` (the default): the first job of a user and harness creates the user's sandbox; byoa pauses it after each job (E2B pause, Daytona and Instabox stop) and resumes it for the next, with a new job folder. One job of a user and harness at a time; the others wait in line, in the order they came. A job's `sandboxKey` (in `run` and `session`) gives the user one kept sandbox, with its own lease, for each key. A sandbox the provider no longer has is replaced by a new one. `'job'`: a new sandbox for each job, destroyed after it. With the default `storedLogin()`, a user's jobs in different sandboxes run at the same time with one login, for both harnesses.
+- `models`: the model and effort a job of each harness gets when it names none. Default: the CLI's own. See `listModels`.
 
 - `tools`: the app's own tools, as functions in the backend. `{ todos: { add_todo: { description, input, run } } }` is an MCP server `todos` with one tool. `input`: the JSON Schema of the arguments (an object schema; default: no arguments). `run(args, { user, job })` runs for the user of the job; what it returns goes to the agent (a string as it is, other values as JSON), and what it throws goes to the agent as a failed call. byoa does not check the arguments against `input`. A job gets the server by its name in `mcp`; the proxy serves it at `<proxyUrl>/<name>`. Server names: lower-case letters, digits and -, at most 32; tool names: letters, digits, _ and -, at most 64. `listMcp` does not list them, and `connectMcp` refuses their names.
 
@@ -52,14 +54,15 @@ It returns an object with the methods below.
 | Method | Returns |
 |---|---|
 | `connectLogin(user, 'claude' \| 'codex')` | `{ harness, url, code? }`. `url`: the lab's own sign-in page. `code`: Codex only, the code to enter on OpenAI's page. |
-| `finishLogin(user, h, { code?, waitMs? })` | `{ state: 'signed-in' \| 'signed-out' \| 'expired' \| 'pending', error? }`. Claude: pass `code` (the code Anthropic's page shows). Codex: no code; `waitMs` waits that long; call again while `pending`. |
+| `finishLogin(user, h, { code?, waitMs? })` | `{ state: 'signed-in' \| 'signed-out' \| 'expired' \| 'pending', error? }`. Claude: pass `code` (the code Anthropic's page shows); with no code, it only checks in and says `pending`. Codex: no code; `waitMs` waits that long; call again while `pending`. Each call keeps the sign-in's sandbox alive for 2 more minutes; with no call for 2 minutes it ends (on E2B and Daytona; Instabox ends it after 15 minutes). A sign-in lasts 15 minutes at most. |
+| `cancelLogin(user, h)` | `void`. Ends a sign-in that has not finished, and its sandbox, at once. Call it when the user closes the sign-in. |
 | `loginState(user, h)` | `'signed-in' \| 'signed-out' \| 'expired'` |
-| `signOut(user, h)` | `void`. Also deletes the user's sandbox for `h`. |
+| `signOut(user, h)` | `void`. Also deletes the user's sandbox for `h`, and cancels a sign-in that has not finished. |
 | `deleteSandbox(user, { harness?, sandboxKey? }?)` | `void`. Deletes the user's kept sandboxes of this app at this provider: all of them (when the app deletes the user), or those of one harness or one sandbox key (when it deletes a project). The login and grants stay. |
 
 Login drivers:
 
-- `storedLogin({ store?, encryptionKey?, waitMs?, parallel? })` (default): the CLI's own login files, encrypted in the store. `store` and `encryptionKey` default to the app's. One job of a user and harness holds the login at a time, and another waits for it. `waitMs`: how long a job waits for the login (default 10 minutes). `parallel: true`: the Codex jobs of one user share the login, each with a copy in its own sandbox, while Codex will not refresh it before the job's time runs out (byoa reads the time the access token ends from the login files: Codex refreshes 5 minutes before it, and its token lasts 10 days). When it is due for a refresh, one job holds it alone: it waits for the other jobs, and the jobs after it wait for it. The risk that stays: Codex also refreshes when OpenAI answers 401 to a token that has not run out; two sandboxes that get that answer at the same time both refresh, one fails, and the user may have to sign in again. Claude Code jobs always run one at a time.
+- `storedLogin({ store?, encryptionKey?, waitMs?, parallel? })` (default): the CLI's own login files, encrypted in the store. `store` and `encryptionKey` default to the app's. During a job byoa saves a refresh every minute or so; when the backend dies during a job, a watcher in the sandbox removes the files before the provider pauses it, and the next job in that sandbox saves a login that the dead job's CLI refreshed. It saves files from a sandbox only of the same account and not older than the stored login. `waitMs`: how long a job waits in line for the login (default no limit). `parallel` (default true): the jobs of one user and harness share the login, each with a copy in its own sandbox, while the CLI will not refresh it before the job's time runs out (byoa reads the time the access token ends from the login files: both CLIs refresh 5 minutes before it; Codex's token lasts 10 days, Claude Code's 8 hours). When it is due for a refresh, one job holds it alone: it waits for the other jobs, and the jobs after it wait for it. The risk that stays: both CLIs also refresh when the lab answers 401 to a token that has not run out; two sandboxes that get that answer at the same time both refresh, one fails, and the user may have to sign in again. `parallel: false`: one job of a user and harness holds the login at a time.
 - `cliLogin`: the login stays in a volume of the user, mounted through the sandbox adapter. Needs a provider with volumes.
 
 ## MCP connections
@@ -87,11 +90,13 @@ Login drivers:
 ```ts
 interface RunOptions {
   harness: 'claude' | 'codex' | 'fake'
-  task: string
+  task: string | string[]     // several messages: one agent gets them all and decides the order
   setup?: { agentsMd?: string; skills?: { name: string; files: Record<string, string> }[] }  // files must have 'SKILL.md'
   plugins?: Plugin[]          // from readPlugin(readPluginDir(dir)); their skills and MCP servers are added
   mcp?: string[]              // the connected servers this job gets; default none
-  model?: string
+  model?: string              // Claude Code: an alias (opus, sonnet, ...) or a full name; Codex: a model name. Default: createAgents' models, else the CLI's
+  effort?: string             // Claude Code --effort (low ... max); Codex model_reasoning_effort. Each model's own are in listModels
+  onWait?: (w: { for: 'sandbox' | 'login'; ahead: number }) => void  // while the job waits in line
   sandboxKey?: string         // sandboxPer 'user': which of the user's kept sandboxes; default the user's one for the harness
   access?: 'full' | 'read-only'  // what the agent may do; default 'full'
 }
@@ -118,7 +123,11 @@ type AgentEvent =
 
 `run` does not throw for job failures: it yields `error` events and then exactly one `end`. `signed-out` / `expired`: ask the user to sign in again (`loginState` says the same). `mcp`: a server is not connected, its grant failed, it did not answer through the proxy, or the sandbox cannot reach the proxy (then the job did not start).
 
-### session(user, { harness, setup?, plugins?, mcp?, sandboxKey?, access? }): Promise<Session>
+### listModels(user, h): Promise<ModelInfo[]>
+
+The models the user's plan can use with `h`, as the unmodified CLI lists them with the user's login (Claude Code: its `initialize` answer; Codex: its app server's `model/list`), in a new sandbox that is destroyed after. `ModelInfo`: `{ id, name, description, isDefault, efforts, resolved? }`; `id` is what `model` takes, `efforts` what `effort` takes, `resolved` (Claude Code) the full model name of an alias. Each call starts a sandbox, so keep the list for a while. A Claude Code list waits for the user's running Claude Code jobs. Throws `LoginError` when `h` is not signed in.
+
+### session(user, { harness, setup?, plugins?, mcp?, sandboxKey?, access?, model?, effort?, onWait? }): Promise<Session>
 
 For an app that runs its own program around the unmodified harness. Throws `LoginError` when the harness is not signed in, and `ProxyError` when the sandbox cannot reach the proxy. The app starts the harness itself, so `access` changes only the files byoa writes (Codex's MCP config).
 
@@ -129,7 +138,7 @@ try {
 } finally { await s.close() }   // ends the job token, takes the login out, and pauses (or destroys) the sandbox
 ```
 
-`Session`: `sandbox`, `work` (the job folder with byoa's files), `harness`, `bin` (the pinned binary), `version`, `env` (login folder, `BYOA_JOB_TOKEN`, and for Claude Code `MCP_TIMEOUT`), `token`, `mcp` (`[{ name, url }]` at the proxy), `missing` (servers not connected), `failing` (`[{ name, message }]`: servers that did not answer through the proxy), `reportLogin('signed-in' | 'expired')`, `close()`.
+`Session`: `sandbox`, `work` (the job folder with byoa's files), `harness`, `bin` (the pinned binary), `version`, `args` (the harness flags for the job's model and effort, for the app's own command line), `env` (login folder, `BYOA_JOB_TOKEN`, and for Claude Code `MCP_TIMEOUT`), `token`, `mcp` (`[{ name, url }]` at the proxy), `missing` (servers not connected), `failing` (`[{ name, message }]`: servers that did not answer through the proxy), `reportLogin('signed-in' | 'expired')`, `close()`.
 
 ### jobToken(user, { mcp?, ttlMs? }): Promise<JobToken>
 
@@ -162,6 +171,7 @@ interface SandboxProvider {
   resume(id: string, opts?: { timeoutMs?: number }): Promise<Sandbox>  // starts a paused one; throws SandboxGoneError when it is gone
   destroy(id: string): Promise<void>                                   // by id, running or paused
   deleteVolume(name: string): Promise<void>
+  keepAlive?(id: string, ms: number): Promise<void>  // optional: a sandbox that is not kept ends ms from now (the sign-in's check-ins)
 }
 interface Sandbox {
   readonly id: string

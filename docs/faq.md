@@ -23,6 +23,16 @@ So, before you launch:
 - Keep each user's jobs to the user's own requests, at a pace that a person would use.
 - Tell your users that the jobs use their own plan and its limits.
 
+## Can one user run many agents at the same time?
+
+Yes, with one sign-in, for Claude Code and Codex. Give each agent its own sandbox: a `sandboxKey` for each, or `sandboxPer: 'job'`. The jobs then share the user's login while it is not due for a refresh. Jobs in one sandbox wait in line instead, and one job can also carry several messages to one agent. See [Running agents](running-agents.md#jobs-at-the-same-time).
+
+All these jobs use the same plan, so they reach the plan's limits sooner. One risk stays with a shared login: when the lab answers 401 to two sandboxes at the same time, both CLIs refresh, one refresh fails, and the user may have to sign in again. `storedLogin({ parallel: false })` turns sharing off ([AI login](ai-login.md#jobs-at-the-same-time-the-shared-login)).
+
+## Which model does a job use?
+
+The model and effort that you give `run`, else the harness's default from `createAgents({ models })`, else the CLI's own default. `agents.listModels(userId, harness)` lists the models that the user's plan can use, and the efforts of each, as the CLI lists them with the user's login. Pick from that list, because each plan has its own models. See [Running agents](running-agents.md#models-and-effort).
+
 ## What does an AI job cost with byoa, and with an API key?
 
 With byoa, the user's plan pays for the model, and your app pays for the sandbox. With an API key, your app pays for every token. The model is by far the larger cost, so for an agent that runs small tasks, byoa costs your app about 18 to 300 times less.

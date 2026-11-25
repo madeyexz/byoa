@@ -35,31 +35,48 @@ The agent can then call the job's MCP tools and read files, so the harness can s
 
 | | Where a job runs | Jobs of one user and harness at the same time |
 |---|---|---|
-| `sandboxPer: 'user'` (the default) | the user's one kept sandbox for that harness, paused between jobs | one; another job waits (`waitMs`, default 10 minutes) |
-| a `sandboxKey` for each job | one kept sandbox for each key, such as a project or a conversation, each with its own lease | one for each key, but see the AI login below |
-| `sandboxPer: 'job'` | a new sandbox, destroyed after the job | see the AI login below |
+| `sandboxPer: 'user'` (the default) | the user's one kept sandbox for that harness, paused between jobs | one; the others wait in line, in the order they came |
+| a `sandboxKey` for each job | one kept sandbox for each key, such as a project or a conversation, each with its own lease | one for each key |
+| `sandboxPer: 'job'` | a new sandbox, destroyed after the job | all of them |
 
 ```ts
 agents.run(userId, { harness: 'claude', task, sandboxKey: projectId })  // one kept sandbox for each project
 const agents = createAgents({ ...options, sandboxPer: 'job' })          // a new sandbox for each job; default 'user'
 ```
 
-[Sandbox lifecycle](sandbox-lifecycle.md) shows each step of each mode, and what each provider does.
+A job waits in line with no time limit. To make it fail after a time, set `createAgents({ waitMs })`, for example on a short-lived backend such as a Convex action. [Sandbox lifecycle](sandbox-lifecycle.md) shows each step of each mode, and what each provider does.
 
 ## Jobs at the same time
 
-With the default stored login, one job of a user and harness holds the AI login at a time, and another job waits for it. So a user's Claude Code or Codex jobs run one after the other in every mode, also with different sandbox keys. Only the fake harness runs them at the same time.
-
-For many Codex agents of one user at the same time, each on its own machine, with one sign-in, turn on the shared login and give each agent its own sandbox:
+Your app chooses how one user's agents run. It can mix the three ways:
 
 ```ts
-import { createAgents, storedLogin } from '@madeyexz/byoa'
+// 1. A queue: jobs of one sandbox run one after the other, in the order they came
+agents.run(userId, { harness: 'claude', task, onWait: ({ for: what, ahead }) => show(`${ahead} jobs before yours (${what})`) })
 
-const agents = createAgents({ ...options, login: storedLogin({ parallel: true }) })
-await Promise.all(tasks.map((task, i) => drain(agents.run(userId, { harness: 'codex', task, sandboxKey: `agent-${i}` }))))
+// 2. Several messages to one agent, which reads them all and decides the order itself
+agents.run(userId, { harness: 'codex', task: ['water the plants', 'call mom', 'plan the week'] })
+
+// 3. Several sandboxes at once: a sandbox key for each agent (or sandboxPer: 'job')
+const jobs = projects.map((p) => agents.run(userId, { harness: 'codex', task, sandboxKey: p.id }))  // read each stream; they run together
 ```
 
-(`drain` is your own function that reads each job's events.) The jobs then share the login while it is not due for a refresh. One risk stays, and Claude Code jobs of one user always run one at a time: see [AI login](ai-login.md#codex-jobs-at-the-same-time-the-shared-login).
+- **A queue.** `onWait` gets `{ for, ahead }` each time the number of jobs ahead changes. `for` is `'sandbox'` while the job waits for its sandbox, and `'login'` while it waits for the AI login.
+- **Several messages.** byoa gives the agent all of them in one task, with a line that tells it to read them all first and then decide the order. It is one job, in one sandbox.
+- **Several sandboxes.** Jobs of one user in different sandboxes run at the same time with one sign-in, for Claude Code and Codex. They share the login while it is not due for a refresh. One risk stays, and `storedLogin({ parallel: false })` turns sharing off: see [AI login](ai-login.md#jobs-at-the-same-time-the-shared-login).
+
+## Models and effort
+
+`run(userId, { harness, task, model, effort })` runs the harness with that model and effort, with each CLI's own flags: Claude Code's `--model` (an alias such as `opus`, or a full name) and `--effort` (`low` to `max`), Codex's `-m` and `model_reasoning_effort`. Without them, a job gets the harness's default from `createAgents({ models })`, else the CLI's own.
+
+```ts
+const agents = createAgents({ ...options, models: { claude: { model: 'opus' }, codex: { effort: 'high' } } })
+
+const models = await agents.listModels(userId, 'codex')   // [{ id: 'gpt-6.2-sol', isDefault: true, efforts: ['low', ...] }, ...]
+agents.run(userId, { harness: 'codex', task, model: models[0].id, effort: 'high' })
+```
+
+`agents.listModels(userId, harness)` lists the models that the user's plan can use, as the CLI lists them with the user's login: `[{ id, name, description, isDefault, efforts, resolved? }]`. `id` is what `model` takes, and `efforts` what `effort` takes; `resolved` (Claude Code) is the full name of an alias. Each call starts a sandbox, so keep the list for a while. It throws `LoginError` when the harness is not signed in. With `session`, `s.args` has the flags for the job's model and effort, for your own command line.
 
 ## A program of your own around the harness
 

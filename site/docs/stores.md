@@ -45,7 +45,7 @@ import { convexStore } from '@madeyexz/byoa/store/convex'
 const agents = createAgents({ ...options, store: convexStore(ctx, internal.byoa) })
 ```
 
-A Convex action has a time limit, so set `waitMs` shorter than the default 10 minutes. On Daytona Tier 1 and 2, `*.convex.site` is an allowed domain for the proxy.
+A Convex action has a time limit, and a job waits in line with no limit by default, so set `waitMs` shorter than the action's limit. On Daytona Tier 1 and 2, `*.convex.site` is an allowed domain for the proxy.
 
 ## A table of its own for the AI logins
 

@@ -15,6 +15,7 @@ const agents = createAgents({ ...options, sandbox: e2b({ apiKey }) })   // or da
 | Package to install | `e2b` | `@daytona/sdk` | none | none |
 | Between jobs, a kept sandbox is | paused | stopped | stopped | a folder |
 | Volumes for `cliLogin` | yes, when volumes are on for your team | one shared volume, a subpath for each login | none: use `storedLogin()` | folders |
+| A sign-in with no check-in ends | 2 min after the last `finishLogin` | 2 min after the last `finishLogin` | after 15 min (no keepAlive) | 2 min after the last `finishLogin` |
 | Network | every public domain | Tier 1 and 2: allowed domains only | every public domain | this computer |
 
 ## E2B
@@ -49,7 +50,7 @@ Use `instabox({ apiKey?, apiUrl?, template?, snapshot?, timeoutMs? })`. It calls
 
 ## Write an adapter
 
-An adapter implements one interface ([src/sandbox/types.ts](../src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy, and delete a volume.
+An adapter implements one interface ([src/sandbox/types.ts](../src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy, delete a volume, and optionally keepAlive (a new end time for a sandbox that is not kept: byoa uses it to end a sign-in 2 minutes after the app's last check-in).
 
 ```ts
 interface SandboxProvider {
@@ -58,6 +59,7 @@ interface SandboxProvider {
   resume(id: string, opts?: { timeoutMs?: number }): Promise<Sandbox>  // starts a paused one; throws SandboxGoneError when it is gone
   destroy(id: string): Promise<void>                                   // by id, running or paused
   deleteVolume(name: string): Promise<void>
+  keepAlive?(id: string, ms: number): Promise<void>  // optional: a sandbox that is not kept ends ms from now (the sign-in's check-ins)
 }
 ```
 

@@ -100,10 +100,10 @@ The docs are at [byoa.rippling.computer/docs](https://byoa.rippling.computer/doc
 - [Concepts](https://byoa.rippling.computer/docs/concepts): who brings what, how a job runs, and why real tokens never go into the sandbox
 - [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions) and the [FAQ](https://byoa.rippling.computer/docs/faq): which Claude and ChatGPT plans work, whether a user's account can get banned, and what a job costs
 - [Give your agent tools](https://byoa.rippling.computer/docs/agent-tools): your app's own tools, MCP servers, skills and plugins, and which one to choose
-- [AI login](https://byoa.rippling.computer/docs/ai-login): the sign-in, where the login stays between jobs, one job step by step, the shared Codex login, and sign-out
+- [AI login](https://byoa.rippling.computer/docs/ai-login): the sign-in, where the login stays between jobs, one job step by step, jobs at the same time with one login, and sign-out
 - [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle): every sandbox byoa creates, what each provider does, and what happens when your backend dies
 - [MCP tools and the proxy](https://byoa.rippling.computer/docs/mcp): MCP connections, job tokens, your app's own tools, and calls with a user's grant
-- [Running agents](https://byoa.rippling.computer/docs/running-agents): `agents.run` and its events, `access`, sandbox modes, jobs at the same time, `session` and `jobToken`
+- [Running agents](https://byoa.rippling.computer/docs/running-agents): `agents.run` and its events, `access`, sandbox modes, jobs at the same time, models and effort, `session` and `jobToken`
 - [Sandbox providers](https://byoa.rippling.computer/docs/providers) and [Stores and Convex](https://byoa.rippling.computer/docs/stores): E2B, Daytona, Instabox, Postgres, Convex, and your own
 - [Testing](https://byoa.rippling.computer/docs/testing): the fake harness, the local sandbox and the memory store, and byoa's own tests
 - [API reference](https://byoa.rippling.computer/docs/api), [Lab rules](https://byoa.rippling.computer/docs/lab-rules) and [Security](https://byoa.rippling.computer/docs/security)

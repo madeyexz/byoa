@@ -64,8 +64,11 @@ The sign-in runs the unmodified CLI in a sandbox. The user signs in on the lab's
 const claude = await agents.connectLogin(userId, 'claude')  // { url }: Anthropic's own sign-in page
 await agents.finishLogin(userId, 'claude', { code })        // the code that page shows
 const codex = await agents.connectLogin(userId, 'codex')    // { url, code }: OpenAI's page and the code to enter
-await agents.finishLogin(userId, 'codex', { waitMs: 60_000 })  // call again while the state is 'pending'
+await agents.finishLogin(userId, 'codex', { waitMs: 20_000 })  // call again while the state is 'pending'
+await agents.cancelLogin(userId, 'codex')                     // the user closed the sign-in: its sandbox ends now
 ```
+
+The sign-in's sandbox lives only while your sign-in UI checks in: each `finishLogin` call keeps it for 2 more minutes. For Claude Code, call `finishLogin(userId, 'claude')` with no code about every 30 seconds while the user is on Anthropic's page.
 
 ## Connect an MCP tool, one time
 

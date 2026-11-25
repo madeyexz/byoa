@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FAQ · byoa docs</title>
-<meta name="description" content="whether a user's AI account can get banned, and what an AI job costs with byoa and with an API key">
+<meta name="description" content="whether a user's AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key">
 <meta property="og:title" content="FAQ · byoa docs">
-<meta property="og:description" content="whether a user's AI account can get banned, and what an AI job costs with byoa and with an API key">
+<meta property="og:description" content="whether a user's AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key">
 <meta name="theme-color" content="#f8f6f0" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1124" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://byoa.rippling.computer/docs/faq">
@@ -316,7 +316,7 @@ footer a { color: #b8bdd8; text-decoration: none; }
     <div class="pagehead"><div class="kick">Start</div><button class="copy-page narrow" type="button" data-md="/docs/faq.md">Copy page</button></div>
     <article>
 <h1>FAQ</h1>
-<p class="lead">Whether a user&#39;s AI account can get banned, and what an AI job costs with byoa and with an API key.</p>
+<p class="lead">Whether a user&#39;s AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key.</p>
 <h2 id="can-my-users-ai-account-get-banned"><a class="anchor" href="#can-my-users-ai-account-get-banned" aria-hidden="true" tabindex="-1">#</a>Can my user&#39;s AI account get banned?</h2>
 <p>It can. byoa cannot promise that it will not, because the labs decide, and their terms allow parts of what byoa does but not all of it. byoa is built to stay inside the parts that the labs allow:</p>
 <ul>
@@ -338,6 +338,11 @@ footer a { color: #b8bdd8; text-decoration: none; }
 <li>Keep each user&#39;s jobs to the user&#39;s own requests, at a pace that a person would use.</li>
 <li>Tell your users that the jobs use their own plan and its limits.</li>
 </ul>
+<h2 id="can-one-user-run-many-agents-at-the-same-time"><a class="anchor" href="#can-one-user-run-many-agents-at-the-same-time" aria-hidden="true" tabindex="-1">#</a>Can one user run many agents at the same time?</h2>
+<p>Yes, with one sign-in, for Claude Code and Codex. Give each agent its own sandbox: a <code>sandboxKey</code> for each, or <code>sandboxPer: &#39;job&#39;</code>. The jobs then share the user&#39;s login while it is not due for a refresh. Jobs in one sandbox wait in line instead, and one job can also carry several messages to one agent. See <a href="/docs/running-agents#jobs-at-the-same-time">Running agents</a>.</p>
+<p>All these jobs use the same plan, so they reach the plan&#39;s limits sooner. One risk stays with a shared login: when the lab answers 401 to two sandboxes at the same time, both CLIs refresh, one refresh fails, and the user may have to sign in again. <code>storedLogin({ parallel: false })</code> turns sharing off (<a href="/docs/ai-login#jobs-at-the-same-time-the-shared-login">AI login</a>).</p>
+<h2 id="which-model-does-a-job-use"><a class="anchor" href="#which-model-does-a-job-use" aria-hidden="true" tabindex="-1">#</a>Which model does a job use?</h2>
+<p>The model and effort that you give <code>run</code>, else the harness&#39;s default from <code>createAgents({ models })</code>, else the CLI&#39;s own default. <code>agents.listModels(userId, harness)</code> lists the models that the user&#39;s plan can use, and the efforts of each, as the CLI lists them with the user&#39;s login. Pick from that list, because each plan has its own models. See <a href="/docs/running-agents#models-and-effort">Running agents</a>.</p>
 <h2 id="what-does-an-ai-job-cost-with-byoa-and-with-an-api-key"><a class="anchor" href="#what-does-an-ai-job-cost-with-byoa-and-with-an-api-key" aria-hidden="true" tabindex="-1">#</a>What does an AI job cost with byoa, and with an API key?</h2>
 <p>With byoa, the user&#39;s plan pays for the model, and your app pays for the sandbox. With an API key, your app pays for every token. The model is by far the larger cost, so for an agent that runs small tasks, byoa costs your app about 18 to 300 times less.</p>
 <h3 id="one-small-task"><a class="anchor" href="#one-small-task" aria-hidden="true" tabindex="-1">#</a>One small task</h3>
@@ -449,7 +454,7 @@ footer a { color: #b8bdd8; text-decoration: none; }
     <nav class="pn" aria-label="Pages"><a class="prev" href="/docs/subscriptions"><span>Previous</span>Supported AI subscriptions</a><a class="next" href="/docs/agent-tools"><span>Next</span>Give your agent tools</a></nav>
     <p class="edit"><a href="https://github.com/madeyexz/byoa/blob/main/docs/faq.md">Edit this page on GitHub</a> · <a href="/docs/faq.md">This page as Markdown</a></p>
   </main>
-  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#can-my-users-ai-account-get-banned">Can my user&#39;s AI account get banned?</a></li><li><a href="#what-does-an-ai-job-cost-with-byoa-and-with-an-api-key">What does an AI job cost with byoa, and with an API key?</a></li></ul>
+  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#can-my-users-ai-account-get-banned">Can my user&#39;s AI account get banned?</a></li><li><a href="#can-one-user-run-many-agents-at-the-same-time">Can one user run many agents at the same time?</a></li><li><a href="#which-model-does-a-job-use">Which model does a job use?</a></li><li><a href="#what-does-an-ai-job-cost-with-byoa-and-with-an-api-key">What does an AI job cost with byoa, and with an API key?</a></li></ul>
     <button class="copy-page" type="button" data-md="/docs/faq.md">Copy page</button>
     <div class="tools"><a href="/docs/faq.md">This page as Markdown</a><a href="/llms.txt">llms.txt</a><a href="/llms-full.txt">llms-full.txt</a></div>
   </aside>
