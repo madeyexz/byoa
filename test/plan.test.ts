@@ -126,11 +126,14 @@ test('R1.8: a Codex job with OpenCode Go: a model provider for this job only, wh
     ])
     assert.equal(s.env.CODEX_HOME, `${s.sandbox.home}/.byoa/plan/codex`)
     assert.equal((await s.sandbox.run('test -d "$CODEX_HOME"', { env: s.env })).exitCode, 0)
-    const call = (path: string, token = '$BYOA_JOB_TOKEN') => s.sandbox.run(`node -e "fetch('${proxyUrl}/_plan/opencode-go/' + process.argv[1], { method: 'POST', headers: { authorization: 'Bearer ' + process.argv[2], 'user-agent': 'codex_exec/0.171.0', 'session-id': 'codex-1' }, body: '{}' }).then(async (r) => console.log(r.status, await r.text()))" ${path} "${token}"`, { env: s.env })
+    const call = (path: string, token = '$BYOA_JOB_TOKEN') => s.sandbox.run(`node -e "fetch('${proxyUrl}/_plan/opencode-go/' + process.argv[1], { method: 'POST', headers: { authorization: 'Bearer ' + process.argv[2], 'user-agent': 'codex_exec/0.171.0', 'session-id': 'codex-1', 'x-gateway-auth': 'app-secret', cookie: 'a=b' }, body: '{}' }).then(async (r) => console.log(r.status, await r.text()))" ${path} "${token}"`, { env: s.env })
     const n = go.seen.length
     assert.match((await call('openai/v1/responses')).stdout, /^200 .*pong/)
     assert.equal(go.seen[n]!.headers.authorization, 'Bearer oc_sk_good')
     assert.equal(go.seen[n]!.headers['session-id'], 'codex-1')
+    // only the harness's own headers go on: not what the app's gateway added, and no cookie
+    assert.equal(go.seen[n]!.headers['x-gateway-auth'], undefined)
+    assert.equal(go.seen[n]!.headers.cookie, undefined)
     // the relay sends only the model APIs on, and only for a job with the plan
     assert.match((await call('v1/usage')).stdout, /^404 /)
     const other = await agents.jobToken('ann')

@@ -3,8 +3,8 @@
 // BYOA_V4_PROVIDERS picks the two providers (default `e2b,daytona`; for example `e2b,instabox`), each with its key.
 // The jobs use the fake harness: it calls the MCP tool through the real proxy as a harness would, so V4 needs no AI
 // plan. A real sandbox must reach the proxy, so the test serves it through a Cloudflare quick tunnel (`cloudflared`
-// on PATH, or BYOA_CLOUDFLARED). Needs the two providers' keys (E2B_API_KEY and DAYTONA_API_KEY by default), and
-// costs a little, so it runs before a release, not on every commit. BYOA_E2B_TEMPLATE: any template with Node
+// on PATH, or BYOA_CLOUDFLARED). Needs BYOA_V4=1 and the two providers' keys (E2B_API_KEY and DAYTONA_API_KEY by
+// default), and costs a little, so it runs only when asked (npm run test:v4), before a release, not on every commit. BYOA_E2B_TEMPLATE: any template with Node
 // (default: E2B's `base`). Instabox sandboxes reach every public domain, so they need no relay.
 // A Daytona org on Tier 1 or 2 lets its sandboxes reach only allowed domains, and the quick tunnel is not one. There,
 // set BYOA_V4_RELAY to a relay on an allowed domain (such as a Convex HTTP action on *.convex.site) that sends
@@ -35,7 +35,7 @@ const PROVIDERS: Record<string, { key: string; make: () => SandboxProvider }> = 
 const names = (process.env.BYOA_V4_PROVIDERS ?? 'e2b,daytona').split(',').map((n) => n.trim())
 for (const n of names) if (!PROVIDERS[n]) throw new Error(`BYOA_V4_PROVIDERS: no provider ${n}`)
 const [first, second] = names as [string, string]
-const skip = names.some((n) => !process.env[PROVIDERS[n]!.key]) && `set ${names.map((n) => PROVIDERS[n]!.key).join(' and ')} to run V4`
+const skip = (!process.env.BYOA_V4 || names.some((n) => !process.env[PROVIDERS[n]!.key])) && `set BYOA_V4=1, ${names.map((n) => PROVIDERS[n]!.key).join(' and ')} to run V4`
 const FIXTURES = join(import.meta.dirname, 'fixtures')
 /** The files of the job's folder that come from the setup, which must be the same in both providers. */
 const SETUP_FILES = ['AGENTS.md', 'CLAUDE.md', '.claude/skills/summarize/SKILL.md', '.claude/skills/summarize/references/checklist.md']

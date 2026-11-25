@@ -72,11 +72,13 @@ export const PLAN_HARNESS: Partial<Record<HarnessName, (o: { base: string; token
   },
 }
 
-/** Request headers the relay does not send on: the job token, and what a tunnel or a proxy added. The harness's own
- *  headers (its user agent, its session id, the API version) go on. */
-const DROP_UP = new Set(['host', 'authorization', 'x-api-key', 'cookie', 'content-length', 'connection', 'keep-alive', 'proxy-authorization',
-  'proxy-connection', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'accept-encoding', 'forwarded', 'via', 'cdn-loop', 'true-client-ip', 'x-real-ip'])
-const dropUp = (k: string) => DROP_UP.has(k) || k.startsWith('x-forwarded-') || k.startsWith('cf-')
+/** Request headers the relay sends on: the harness's own (its user agent, its session id, the API version and betas),
+ *  as Claude Code 2.1.330 and Codex 0.171.0 send them (seen at a stand-in API). Every other header stays behind, as at
+ *  the MCP proxy (mcp/proxy.ts): the job token, cookies, and anything the app's own gateway or a tunnel added. */
+const UP = new Set(['accept', 'content-type', 'user-agent', 'x-app', 'originator', 'session-id', 'session_id', 'thread-id',
+  'x-client-request-id', 'x-opencode-session'])
+const UP_PREFIX = ['anthropic-', 'x-stainless-', 'x-claude-code-', 'x-codex-', 'openai-']
+const sendUp = (k: string) => UP.has(k) || UP_PREFIX.some((p) => k.startsWith(p))
 /** fetch has decoded the body already. */
 const DROP_DOWN = new Set(['content-encoding', 'content-length', 'transfer-encoding', 'connection', 'keep-alive', 'set-cookie'])
 
@@ -153,7 +155,7 @@ export function planKeys(store: Store, key: Promise<CryptoKey>) {
       const apiKey = await get(job.user, p)
       if (!apiKey) return fail(401, `the user has no ${p} key; connect it again`)
       const h = new Headers()
-      req.headers.forEach((v, k) => { if (!dropUp(k)) h.set(k, v) })
+      req.headers.forEach((v, k) => { if (sendUp(k)) h.set(k, v) })
       h.set('authorization', `Bearer ${apiKey}`)
       // OpenCode Go routes and caches by a session id of each conversation; Claude Code and Codex send their own,
       // which OpenCode knows. A job is one conversation.

@@ -82,7 +82,7 @@ Login drivers:
 
 `agents.proxy` is a fetch handler (`Request` → `Response`). Serve it at `proxyUrl` and every path below it (`<proxyUrl>/<name>`). It checks the job token, adds the user's real token, and sends the request to the MCP server; for the app's own `tools`, it calls the tool's `run`. It refuses a job token after the job ends. Do not put the app's session check in front of it. Each of its MCP answers has the header `x-byoa-proxy: 1`.
 
-It is also the relay of a job with `plan: 'opencode-go'`, at `<proxyUrl>/_plan/opencode-go/anthropic/v1/…` and `…/openai/v1/…`: it checks the job token (of a job with that plan), adds the user's key, and streams the request to `https://opencode.ai/inference/go/…` and the answer back, with the harness's own headers (its user agent and session id; it adds `x-opencode-session` when there is none). It sends on no other path. OpenCode's 401 makes the key `expired`, its 403 "OpenCode Go subscription required" `no-plan`.
+It is also the relay of a job with `plan: 'opencode-go'`, at `<proxyUrl>/_plan/opencode-go/anthropic/v1/…` and `…/openai/v1/…`: it checks the job token (of a job with that plan), adds the user's key, and streams the request to `https://opencode.ai/inference/go/…` and the answer back, with only the harness's own headers (its user agent, session id, API version and betas; it adds `x-opencode-session` when there is none). It sends on no other header, so a header that the app's own gateway adds stays behind, and no other path. OpenCode's 401 makes the key `expired`, its 403 "OpenCode Go subscription required" `no-plan`.
 
 ## Jobs
 
