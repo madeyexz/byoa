@@ -1,8 +1,16 @@
 # byoa docs
 
-**byoa, short for "bring your own agent", is the simplest way to let your users power the AI in your app with their own AI subscription.**
+**byoa, short for "bring your own agent", is the simplest way to let your users bring their own AI subscription to power the agents in your app.**
 
-Each user signs in to their own Claude or ChatGPT plan one time. When your app has work for the AI, byoa runs that user's own Claude Code or Codex in a sandbox, with the user's tools, and streams the result back. The user's plan pays for the AI. Your app pays only for the sandbox.
+## The future of AI-native apps
+
+AI-native apps are the future. But an app cannot pay for each user's AI by usage: the numbers do not work. AI subscriptions solve this. We bet on a future where everyone has a $20 AI plan, or the same in another form, and that plan powers every app they use. In that future, every app is AI-native, so nobody says "AI-native app" anymore.
+
+AI is like electricity, and an AI subscription is like a portable battery pack. Battery packs come in different sizes, and one pack powers all the appliances in your home. This is the economy we bet on. We build byoa to make it come sooner, so that every developer can build on it.
+
+## What byoa does
+
+Each user powers the agent features of your app with their own AI subscription: they sign in to it one time. Today byoa supports Claude (in Claude Code), ChatGPT (in Codex) and OpenCode Go (beta), and more are coming soon, starting with Grok. When your app has work for the AI, byoa runs that user's own Claude Code or Codex in a sandbox, with the user's tools, and streams the result back. The user's plan pays for the AI. Your app pays only for the sandbox.
 
 byoa is an open-source library (Apache 2.0). It runs inside your app's own backend. It is not a hosted service. Start with [Getting started](getting-started.md). To learn the parts first, read [Concepts](concepts.md). To see which plans work, read [Supported AI subscriptions](subscriptions.md).
 

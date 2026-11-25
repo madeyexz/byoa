@@ -2,6 +2,8 @@
 
 **Your app brings the product. Each user brings the agent.** You build the app and pick the sandbox. Each user brings their plan and their tools. byoa runs inside your backend and runs each job in that user's own sandbox.
 
+Think of the user's AI subscription as a battery pack, and of your app as an appliance. The user brings the battery. byoa is the plug: it connects the user's plan, and the user's tools, to the agent features of your app. Your app supplies only the place where the agent runs, the sandbox.
+
 ## Who brings what
 
 Diagram: You build the app and import byoa. Each user signs in with their own plan and connects their tools once. Your app code calls agents.run. byoa is a library inside your app&#x27;s backend, and keeps AI logins and MCP grants in your database. Below your backend&#x27;s edge, byoa drives three things that run outside it: a new sandbox for each job at E2B or Daytona on your account, where the user&#x27;s own Claude Code or Codex runs; the AI labs, whose model calls the user&#x27;s own plan pays; and the user&#x27;s MCP servers, which get the real token from byoa&#x27;s proxy.

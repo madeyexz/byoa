@@ -2,6 +2,8 @@
 
 **Your app brings the product. Each user brings the agent.** You build the app and pick the sandbox. Each user brings their plan and their tools. byoa runs inside your backend and runs each job in that user's own sandbox.
 
+Think of the user's AI subscription as a battery pack, and of your app as an appliance. The user brings the battery. byoa is the plug: it connects the user's plan, and the user's tools, to the agent features of your app. Your app supplies only the place where the agent runs, the sandbox.
+
 ## Who brings what
 
 <!-- diagram: who -->
