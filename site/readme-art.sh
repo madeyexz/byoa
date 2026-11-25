@@ -63,7 +63,7 @@ for theme in light dark; do
   page "$theme"
   shot "banner-$theme" '#readme-banner'
   shot "who-$theme" '#who .ascii-wrap'
-  shot "scope-$theme" '#scope .scope'
+  shot "scope-$theme" '#works .scope'
 done
 
 # The same in both themes: the closing band.

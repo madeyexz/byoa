@@ -1,7 +1,7 @@
 <a href="https://byoa.rippling.computer">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/banner-dark.png">
-  <img alt="byoa: your users bring their own agent. The simplest way to let your users bring their own AI subscription to power the agents in your app. Version 1 targets: Claude Code, Codex, Grok Build, E2B, Daytona, Instabox, Node and Convex. Cloudflare Workers is planned." src=".github/readme/banner-light.png">
+  <img alt="byoa: your users bring their own agent. The simplest way to let your users bring their own AI subscription to power the agents in your app. Supported: Claude Code, Codex, Grok Build, E2B, Daytona, Instabox, Node and Convex. Cloudflare Workers is planned." src=".github/readme/banner-light.png">
 </picture>
 </a>
 
@@ -38,11 +38,11 @@ Version 1 supports three sandbox providers: E2B, Daytona and Instabox. More prov
 
 The [Concepts](https://byoa.rippling.computer/docs/concepts) page explains the diagram, how a job runs, and why real tokens never go into the sandbox.
 
-## What version 1 covers
+## What works today
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/scope-dark.png">
-  <img alt="What version 1 covers. Agents: Claude Code, Codex and Grok Build (v1), Gemini or Antigravity maybe later. User plans: Claude, ChatGPT and Grok (v1), an OpenCode Go key (beta). Sandboxes: E2B, Daytona and Instabox (v1), other providers planned. Backends: Node and Convex actions (v1), Cloudflare Workers planned. Token stores: Convex and Postgres (v1), or your own with get, put, delete and compare-and-set." src=".github/readme/scope-light.png">
+  <img alt="What byoa works with today. Agents: Claude Code, Codex and Grok Build (supported), Gemini or Antigravity maybe later. User plans: Claude, ChatGPT and Grok (supported), an OpenCode Go key (beta). Sandboxes: E2B, Daytona and Instabox (supported), other providers planned. Backends: Node and Convex actions (supported), Cloudflare Workers planned. Token stores: Convex and Postgres (supported), or your own with get, put, delete and compare-and-set." src=".github/readme/scope-light.png">
 </picture>
 
 ## Install
