@@ -74,7 +74,7 @@ const groups = index.split(/^## /m).slice(1).map((s) => ({
   name: s.slice(0, s.indexOf('\n')).trim(),
   pages: [...s.matchAll(/^- \[([^\]]+)\]\(([\w-]+)\.md\): (.+)$/gm)].map(([, title, file, about]) => ({ title, file, about })),
 })).filter((g) => g.pages.length)
-const PAGES = [{ title: 'Overview', file: 'README', about: index.match(/^# .+\n\n(.+)$/m)?.[1] ?? '', group: '' },
+const PAGES = [{ title: 'Introduction', file: 'README', about: index.match(/^# .+\n\n(.+)$/m)?.[1] ?? '', group: '' },
   ...groups.flatMap((g) => g.pages.map((p) => ({ ...p, group: g.name })))]
 const onDisk = readdirSync(new URL('../docs/', import.meta.url)).filter((f) => f.endsWith('.md')).map((f) => f.slice(0, -3))
 for (const f of onDisk) if (!PAGES.some((p) => p.file === f)) throw new Error(`docs/${f}.md is not in the list of pages in docs/README.md`)
@@ -278,7 +278,7 @@ for (const [i, p] of PAGES.entries()) {
     .replace('<p>@@who@@</p>', `<figure class="diagram strings">${who}</figure>`)
     .replace('</h1>\n', () => `</h1>\n${lead}`)
   const nav = groups.map((g) => `<div class="ng">${esc(g.name)}</div><ul>${g.pages.map((x) => `<li><a href="${pageUrl(x.file)}"${x.file === p.file ? ' aria-current="page"' : ''}>${esc(x.title)}</a></li>`).join('')}</ul>`).join('')
-  const navAll = `<ul><li><a href="/docs"${p.file === 'README' ? ' aria-current="page"' : ''}>Overview</a></li></ul>${nav}`
+  const navAll = `<ul><li><a href="/docs"${p.file === 'README' ? ' aria-current="page"' : ''}>Introduction</a></li></ul>${nav}`
   const prev = PAGES[i - 1], next = PAGES[i + 1]
   const pn = [prev && `<a class="prev" href="${pageUrl(prev.file)}"><span>Previous</span>${esc(prev.title)}</a>`, next && `<a class="next" href="${pageUrl(next.file)}"><span>Next</span>${esc(next.title)}</a>`].filter(Boolean).join('')
   const plainTitle = plainText(md.parseInline(title))

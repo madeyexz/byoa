@@ -36,7 +36,7 @@ Version 1 supports three sandbox providers: E2B, Daytona and Instabox. More prov
   <img alt="Who brings what: you, the developer, build the app, pick the sandbox provider and own the database, and import byoa into your app's backend. The end user uses the app, signs in on the lab's own page and connects each MCP tool once. Your app code calls agents.run on byoa, which keeps AI logins and MCP grants in your database. byoa's box reaches past your backend's edge: outside it, byoa creates, runs and destroys a sandbox for each job at E2B or Daytona on your account, where the user's own Claude Code, Codex or Grok Build runs; the AI labs get the model calls, paid by the user's own plan; and the user's MCP servers get the real token from byoa's proxy." src=".github/readme/who-light.png">
 </picture>
 
-The [Concepts](https://byoa.rippling.computer/docs/concepts) page explains the diagram, how a job runs, and why real tokens never go into the sandbox.
+The [Overview](https://byoa.rippling.computer/docs/concepts) page explains the diagram, how a job runs, and why real tokens never go into the sandbox.
 
 ## What works today
 
@@ -99,7 +99,7 @@ For LLMs, the site also serves the docs as [llms.txt](https://byoa.rippling.comp
 The docs are at [byoa.rippling.computer/docs](https://byoa.rippling.computer/docs), from the Markdown files in [docs/](docs):
 
 - [Getting started](https://byoa.rippling.computer/docs/getting-started): install, one `agents` object, two routes, a sign-in and a first job
-- [Concepts](https://byoa.rippling.computer/docs/concepts): who brings what, how a job runs, and why real tokens never go into the sandbox
+- [Overview](https://byoa.rippling.computer/docs/concepts): who brings what, how a job runs, and why real tokens never go into the sandbox
 - [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions) and the [FAQ](https://byoa.rippling.computer/docs/faq): which Claude, ChatGPT, Grok and OpenCode Go (beta) plans work, whether a user's account can get banned, and what a job costs
 - [Give your agent tools](https://byoa.rippling.computer/docs/agent-tools): your app's own tools, MCP servers, skills and plugins, and which one to choose
 - [AI login](https://byoa.rippling.computer/docs/ai-login): the sign-in, where the login stays between jobs, one job step by step, jobs at the same time with one login, and sign-out

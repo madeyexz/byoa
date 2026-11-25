@@ -12,7 +12,7 @@ AI is like electricity, and an AI subscription is like a portable battery pack. 
 
 Each user powers the agent features of your app with their own AI subscription: they sign in to it one time. Today byoa supports Claude (in Claude Code), ChatGPT (in Codex), Grok (in Grok Build) and OpenCode Go (beta), and more are coming soon. When your app has work for the AI, byoa runs that user's own Claude Code, Codex or Grok Build in a sandbox, with the user's tools, and streams the result back. The user's plan pays for the AI. Your app pays only for the sandbox.
 
-byoa is an open-source library (Apache 2.0). It runs inside your app's own backend. It is not a hosted service. Start with [Getting started](getting-started.md). To learn the parts first, read [Concepts](concepts.md). To see which plans work, read [Supported AI subscriptions](subscriptions.md).
+byoa is an open-source library (Apache 2.0). It runs inside your app's own backend. It is not a hosted service. Start with [Getting started](getting-started.md). To learn the parts first, read the [Overview](concepts.md). To see which plans work, read [Supported AI subscriptions](subscriptions.md).
 
 ## Why and when you need byoa
 
@@ -40,26 +40,33 @@ You do not need byoa when:
 
 These pages are the Markdown files in [docs/](../docs) of the repository. The site at https://byoa.rippling.computer/docs shows the same pages, and serves each page as Markdown for LLMs (add `.md` to its address) and all of them in [llms-full.txt](https://byoa.rippling.computer/llms-full.txt).
 
-## Start
+## Learn
 
+- [Overview](concepts.md): who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox
 - [Getting started](getting-started.md): install byoa, make one `agents` object, serve its two routes, sign a user in and run a first job
-- [Concepts](concepts.md): who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox
-- [Supported AI subscriptions](subscriptions.md): which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned
-- [FAQ](faq.md): whether a user's AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key
 
-## Guides
+## How it works
 
-- [Give your agent tools](agent-tools.md): your app's own tools, the user's MCP servers, skills, AGENTS.md and plugins, which one to choose, and what the agent can do in its sandbox
-- [AI login](ai-login.md): the sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out
 - [Sandbox lifecycle](sandbox-lifecycle.md): every sandbox byoa creates, from creation to removal, what each provider does, and what byoa does when your backend dies
 - [MCP tools and the proxy](mcp.md): connect a user's MCP servers once, the proxy and job tokens, your app's own tools, and calls with a user's grant
-- [Running agents](running-agents.md): `agents.run` and its events, what the agent may do, sandbox modes, jobs at the same time, models and effort, `session` and `jobToken`
-- [Sandbox providers](providers.md): E2B, Daytona, Instabox and the local sandbox, and how to write an adapter
-- [Stores and Convex](stores.md): the store adapter, Postgres, Convex, your own database, and a table of its own for the AI logins
-- [Testing](testing.md): test your app with the fake harness, the local sandbox and the memory store, and run byoa's own tests
+- [Security](security.md): where each secret is kept, and how to report a problem
+
+## How to
+
+- [Sign users in](ai-login.md): the sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out
+- [Give the agent tools](agent-tools.md): your app's own tools, the user's MCP servers, skills, AGENTS.md and plugins, which one to choose, and what the agent can do in its sandbox
+- [Run agents](running-agents.md): `agents.run` and its events, what the agent may do, sandbox modes, jobs at the same time, models and effort, `session` and `jobToken`
+- [Pick a sandbox provider](providers.md): E2B, Daytona, Instabox and the local sandbox, and how to write an adapter
+- [Store logins and grants](stores.md): the store adapter, Postgres, Convex, your own database, and a table of its own for the AI logins
+- [Test your app](testing.md): test your app with the fake harness, the local sandbox and the memory store, and run byoa's own tests
+
+## Plans and rules
+
+- [Supported AI subscriptions](subscriptions.md): which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned
+- [Lab rules](lab-rules.md): what Anthropic's, OpenAI's, xAI's and OpenCode's terms allow, and what byoa and each app must do
+- [FAQ](faq.md): whether a user's AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key
 
 ## Reference
 
 - [API reference](api.md): every import, method, option and event
-- [Lab rules](lab-rules.md): what Anthropic's, OpenAI's, xAI's and OpenCode's terms allow, and what byoa and each app must do
-- [Security](security.md): where each secret is kept, and how to report a problem
+

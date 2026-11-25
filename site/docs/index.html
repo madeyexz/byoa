@@ -329,7 +329,7 @@ footer a { color: #b8bdd8; text-decoration: none; }
 </nav>
 
 <div class="frame docs">
-  <aside class="side" id="side" aria-label="Docs"><ul><li><a href="/docs" aria-current="page">Overview</a></li></ul><div class="ng">Start</div><ul><li><a href="/docs/getting-started">Getting started</a></li><li><a href="/docs/concepts">Concepts</a></li><li><a href="/docs/subscriptions">Supported AI subscriptions</a></li><li><a href="/docs/faq">FAQ</a></li></ul><div class="ng">Guides</div><ul><li><a href="/docs/agent-tools">Give your agent tools</a></li><li><a href="/docs/ai-login">AI login</a></li><li><a href="/docs/sandbox-lifecycle">Sandbox lifecycle</a></li><li><a href="/docs/mcp">MCP tools and the proxy</a></li><li><a href="/docs/running-agents">Running agents</a></li><li><a href="/docs/providers">Sandbox providers</a></li><li><a href="/docs/stores">Stores and Convex</a></li><li><a href="/docs/testing">Testing</a></li></ul><div class="ng">Reference</div><ul><li><a href="/docs/api">API reference</a></li><li><a href="/docs/lab-rules">Lab rules</a></li><li><a href="/docs/security">Security</a></li></ul></aside>
+  <aside class="side" id="side" aria-label="Docs"><ul><li><a href="/docs" aria-current="page">Introduction</a></li></ul><div class="ng">Learn</div><ul><li><a href="/docs/concepts">Overview</a></li><li><a href="/docs/getting-started">Getting started</a></li></ul><div class="ng">How it works</div><ul><li><a href="/docs/sandbox-lifecycle">Sandbox lifecycle</a></li><li><a href="/docs/mcp">MCP tools and the proxy</a></li><li><a href="/docs/security">Security</a></li></ul><div class="ng">How to</div><ul><li><a href="/docs/ai-login">Sign users in</a></li><li><a href="/docs/agent-tools">Give the agent tools</a></li><li><a href="/docs/running-agents">Run agents</a></li><li><a href="/docs/providers">Pick a sandbox provider</a></li><li><a href="/docs/stores">Store logins and grants</a></li><li><a href="/docs/testing">Test your app</a></li></ul><div class="ng">Plans and rules</div><ul><li><a href="/docs/subscriptions">Supported AI subscriptions</a></li><li><a href="/docs/lab-rules">Lab rules</a></li><li><a href="/docs/faq">FAQ</a></li></ul><div class="ng">Reference</div><ul><li><a href="/docs/api">API reference</a></li></ul></aside>
   <main>
     <div class="pagehead"><div class="kick">Docs</div><button class="copy-page narrow" type="button" data-md="/docs/index.md">Copy page</button></div>
     <article>
@@ -340,7 +340,7 @@ footer a { color: #b8bdd8; text-decoration: none; }
 <p>AI is like electricity, and an AI subscription is like a portable battery pack. Battery packs come in different sizes, and one pack powers all the appliances in your home. This is the economy we bet on. We build byoa to make it come sooner, so that every developer can build on it.</p>
 <h2 id="what-byoa-does"><a class="anchor" href="#what-byoa-does" aria-hidden="true" tabindex="-1">#</a>What byoa does</h2>
 <p>Each user powers the agent features of your app with their own AI subscription: they sign in to it one time. Today byoa supports Claude (in Claude Code), ChatGPT (in Codex), Grok (in Grok Build) and OpenCode Go (beta), and more are coming soon. When your app has work for the AI, byoa runs that user&#39;s own Claude Code, Codex or Grok Build in a sandbox, with the user&#39;s tools, and streams the result back. The user&#39;s plan pays for the AI. Your app pays only for the sandbox.</p>
-<p>byoa is an open-source library (Apache 2.0). It runs inside your app&#39;s own backend. It is not a hosted service. Start with <a href="/docs/getting-started">Getting started</a>. To learn the parts first, read <a href="/docs/concepts">Concepts</a>. To see which plans work, read <a href="/docs/subscriptions">Supported AI subscriptions</a>.</p>
+<p>byoa is an open-source library (Apache 2.0). It runs inside your app&#39;s own backend. It is not a hosted service. Start with <a href="/docs/getting-started">Getting started</a>. To learn the parts first, read the <a href="/docs/concepts">Overview</a>. To see which plans work, read <a href="/docs/subscriptions">Supported AI subscriptions</a>.</p>
 <h2 id="why-and-when-you-need-byoa"><a class="anchor" href="#why-and-when-you-need-byoa" aria-hidden="true" tabindex="-1">#</a>Why and when you need byoa</h2>
 <p>You want your app to have an AI agent that does real work for each user: it reads and changes the user&#39;s data, calls the user&#39;s tools, and writes files. To build this yourself, you need many parts:</p>
 <ul>
@@ -364,36 +364,42 @@ footer a { color: #b8bdd8; text-decoration: none; }
 <li>your users do not have an AI plan.</li>
 </ul>
 <p>These pages are the Markdown files in <a href="https://github.com/madeyexz/byoa/tree/main/docs" rel="noopener">docs/</a> of the repository. The site at <a href="https://byoa.rippling.computer/docs">https://byoa.rippling.computer/docs</a> shows the same pages, and serves each page as Markdown for LLMs (add <code>.md</code> to its address) and all of them in <a href="https://byoa.rippling.computer/llms-full.txt">llms-full.txt</a>.</p>
-<h2 id="start"><a class="anchor" href="#start" aria-hidden="true" tabindex="-1">#</a>Start</h2>
+<h2 id="learn"><a class="anchor" href="#learn" aria-hidden="true" tabindex="-1">#</a>Learn</h2>
 <ul>
+<li><a href="/docs/concepts">Overview</a>: who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox</li>
 <li><a href="/docs/getting-started">Getting started</a>: install byoa, make one <code>agents</code> object, serve its two routes, sign a user in and run a first job</li>
-<li><a href="/docs/concepts">Concepts</a>: who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox</li>
-<li><a href="/docs/subscriptions">Supported AI subscriptions</a>: which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned</li>
-<li><a href="/docs/faq">FAQ</a>: whether a user&#39;s AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key</li>
 </ul>
-<h2 id="guides"><a class="anchor" href="#guides" aria-hidden="true" tabindex="-1">#</a>Guides</h2>
+<h2 id="how-it-works"><a class="anchor" href="#how-it-works" aria-hidden="true" tabindex="-1">#</a>How it works</h2>
 <ul>
-<li><a href="/docs/agent-tools">Give your agent tools</a>: your app&#39;s own tools, the user&#39;s MCP servers, skills, AGENTS.md and plugins, which one to choose, and what the agent can do in its sandbox</li>
-<li><a href="/docs/ai-login">AI login</a>: the sign-in on the lab&#39;s own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out</li>
 <li><a href="/docs/sandbox-lifecycle">Sandbox lifecycle</a>: every sandbox byoa creates, from creation to removal, what each provider does, and what byoa does when your backend dies</li>
 <li><a href="/docs/mcp">MCP tools and the proxy</a>: connect a user&#39;s MCP servers once, the proxy and job tokens, your app&#39;s own tools, and calls with a user&#39;s grant</li>
-<li><a href="/docs/running-agents">Running agents</a>: <code>agents.run</code> and its events, what the agent may do, sandbox modes, jobs at the same time, models and effort, <code>session</code> and <code>jobToken</code></li>
-<li><a href="/docs/providers">Sandbox providers</a>: E2B, Daytona, Instabox and the local sandbox, and how to write an adapter</li>
-<li><a href="/docs/stores">Stores and Convex</a>: the store adapter, Postgres, Convex, your own database, and a table of its own for the AI logins</li>
-<li><a href="/docs/testing">Testing</a>: test your app with the fake harness, the local sandbox and the memory store, and run byoa&#39;s own tests</li>
+<li><a href="/docs/security">Security</a>: where each secret is kept, and how to report a problem</li>
+</ul>
+<h2 id="how-to"><a class="anchor" href="#how-to" aria-hidden="true" tabindex="-1">#</a>How to</h2>
+<ul>
+<li><a href="/docs/ai-login">Sign users in</a>: the sign-in on the lab&#39;s own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out</li>
+<li><a href="/docs/agent-tools">Give the agent tools</a>: your app&#39;s own tools, the user&#39;s MCP servers, skills, AGENTS.md and plugins, which one to choose, and what the agent can do in its sandbox</li>
+<li><a href="/docs/running-agents">Run agents</a>: <code>agents.run</code> and its events, what the agent may do, sandbox modes, jobs at the same time, models and effort, <code>session</code> and <code>jobToken</code></li>
+<li><a href="/docs/providers">Pick a sandbox provider</a>: E2B, Daytona, Instabox and the local sandbox, and how to write an adapter</li>
+<li><a href="/docs/stores">Store logins and grants</a>: the store adapter, Postgres, Convex, your own database, and a table of its own for the AI logins</li>
+<li><a href="/docs/testing">Test your app</a>: test your app with the fake harness, the local sandbox and the memory store, and run byoa&#39;s own tests</li>
+</ul>
+<h2 id="plans-and-rules"><a class="anchor" href="#plans-and-rules" aria-hidden="true" tabindex="-1">#</a>Plans and rules</h2>
+<ul>
+<li><a href="/docs/subscriptions">Supported AI subscriptions</a>: which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned</li>
+<li><a href="/docs/lab-rules">Lab rules</a>: what Anthropic&#39;s, OpenAI&#39;s, xAI&#39;s and OpenCode&#39;s terms allow, and what byoa and each app must do</li>
+<li><a href="/docs/faq">FAQ</a>: whether a user&#39;s AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key</li>
 </ul>
 <h2 id="reference"><a class="anchor" href="#reference" aria-hidden="true" tabindex="-1">#</a>Reference</h2>
 <ul>
 <li><a href="/docs/api">API reference</a>: every import, method, option and event</li>
-<li><a href="/docs/lab-rules">Lab rules</a>: what Anthropic&#39;s, OpenAI&#39;s, xAI&#39;s and OpenCode&#39;s terms allow, and what byoa and each app must do</li>
-<li><a href="/docs/security">Security</a>: where each secret is kept, and how to report a problem</li>
 </ul>
 
     </article>
-    <nav class="pn" aria-label="Pages"><a class="next" href="/docs/getting-started"><span>Next</span>Getting started</a></nav>
+    <nav class="pn" aria-label="Pages"><a class="next" href="/docs/concepts"><span>Next</span>Overview</a></nav>
     <p class="edit"><a href="https://github.com/madeyexz/byoa/blob/main/docs/README.md">Edit this page on GitHub</a> · <a href="/docs/index.md">This page as Markdown</a></p>
   </main>
-  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#the-future-of-ai-native-apps">The future of AI-native apps</a></li><li><a href="#what-byoa-does">What byoa does</a></li><li><a href="#why-and-when-you-need-byoa">Why and when you need byoa</a></li><li><a href="#start">Start</a></li><li><a href="#guides">Guides</a></li><li><a href="#reference">Reference</a></li></ul>
+  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#the-future-of-ai-native-apps">The future of AI-native apps</a></li><li><a href="#what-byoa-does">What byoa does</a></li><li><a href="#why-and-when-you-need-byoa">Why and when you need byoa</a></li><li><a href="#learn">Learn</a></li><li><a href="#how-it-works">How it works</a></li><li><a href="#how-to">How to</a></li><li><a href="#plans-and-rules">Plans and rules</a></li><li><a href="#reference">Reference</a></li></ul>
     <button class="copy-page" type="button" data-md="/docs/index.md">Copy page</button>
     <div class="tools"><a href="/docs/index.md">This page as Markdown</a><a href="/llms.txt">llms.txt</a><a href="/llms-full.txt">llms-full.txt</a></div>
   </aside>
