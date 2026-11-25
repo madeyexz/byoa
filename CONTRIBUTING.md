@@ -62,6 +62,21 @@ We will add other sandbox providers (for example Modal or Vercel) after version 
 - In the description, write the requirement and the check that your change is about, and how you tested it.
 - Do not mix a refactor with a behavior change.
 
+## Releases
+
+Maintainers release byoa. A tag `v<version>` that matches `version` in package.json starts `.github/workflows/release.yml`. It runs the tests and publishes `@madeyexz/byoa` to npm after a maintainer approves the run in the `npm` environment. A version that is on npm already is not published again.
+
+- A normal version, such as `1.1.0`, goes to the npm dist-tag `latest`. `npm install @madeyexz/byoa` gets it.
+- A prerelease version, such as `1.1.0-beta.1`, goes to the dist-tag `next`. `npm install @madeyexz/byoa` does not get it; `npm install @madeyexz/byoa@next` does.
+
+To release a beta:
+
+1. On `main`, set the version without a tag: `npm version 1.1.0-beta.1 --no-git-tag-version`. Commit package.json and package-lock.json, and merge.
+2. Tag that commit and push the tag: `git tag -a v1.1.0-beta.1 -m "byoa 1.1.0-beta.1" && git push origin v1.1.0-beta.1`.
+3. Approve the `release` run in GitHub Actions. Then check it: `npm view @madeyexz/byoa dist-tags` shows the beta at `next` and the last normal version at `latest`.
+
+The next beta is `1.1.0-beta.2`. For the normal release, set `1.1.0` and tag `v1.1.0` in the same way. After it, `next` still points to the last beta; to point it to the release too, run `npm dist-tag add @madeyexz/byoa@1.1.0 next`.
+
 ## Security problems
 
 Do not open a public issue for a security problem. See [SECURITY.md](SECURITY.md).
