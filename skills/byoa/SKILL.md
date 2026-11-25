@@ -90,7 +90,7 @@ Show `url` as a link or a QR code, so the user can sign in on another device. Ke
 
 Tell the developer that the labs' terms restrict where these tokens may be stored (see Lab rules), and let them choose. Do not choose for them in silence.
 
-**OpenCode Go (a key, not a sign-in).** A user with an OpenCode Go plan runs Claude Code or Codex on it with an API key that they create in OpenCode's Console (`oc_sk_…`). The app takes the key one time (a password field; never in a URL or a log) and gives it to byoa:
+**OpenCode Go (beta; a key, not a sign-in).** No real Go key has run it yet: tell the developer it is in beta. A user with an OpenCode Go plan runs Claude Code or Codex on it with an API key that they create in OpenCode's Console (`oc_sk_…`). The app takes the key one time (a password field; never in a URL or a log) and gives it to byoa:
 
 ```ts
 const r = await agents.connectKey(userId, 'opencode-go', key)  // r.state: 'signed-in', or 'no-plan' (no Go plan yet); with r.error when OpenCode refused it

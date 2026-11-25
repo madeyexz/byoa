@@ -334,7 +334,9 @@ const agents = createAgents({ ...options, login: storedLogin({ store: loginStore
 
 To keep each login in a volume of that user and app instead, behind the sandbox adapter, pass `login: cliLogin` (from `@madeyexz/byoa`). Your database then never holds the login. This needs a provider with volumes; on E2B, volumes must be turned on for your team.
 
-### OpenCode Go
+### OpenCode Go (beta)
+
+**Beta.** No real OpenCode Go key has run this yet. byoa's tests use a stand-in for OpenCode's API, and the real Claude Code and Codex were checked only against that stand-in, locally and on E2B. The real check (V20 in [SPEC.md](SPEC.md#verification)) has not run.
 
 A user with an [OpenCode Go](https://opencode.ai/docs/console/go) plan (from $10 a month, for models such as Kimi, GLM, DeepSeek, Qwen and MiniMax) can run Claude Code or Codex on it, in place of a Claude or ChatGPT plan. OpenCode Go is a plan, not a harness: the job still runs the unmodified `claude` or `codex`. The user creates an API key in OpenCode's Console (`oc_sk_…`), and your app gives it to byoa one time:
 

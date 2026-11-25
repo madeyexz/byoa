@@ -1,4 +1,5 @@
-// A plan that the user brings as an API key (R1.8): OpenCode Go. It is not a harness and not a lab sign-in: the user
+// A plan that the user brings as an API key (R1.8): OpenCode Go. Beta: checked only against a stand-in for OpenCode's
+// API (test/plan.test.ts, and the real CLIs locally and on E2B); V20, with a real Go key, has not run yet. It is not a harness and not a lab sign-in: the user
 // creates a key in OpenCode's Console (`oc_sk_…`), the app gives it to connectKey, and byoa keeps it encrypted in the
 // app's store (R6), as it keeps MCP grants (R2.4). A job of the unmodified Claude Code or Codex then runs with it
 // instead of the lab's login.

@@ -6,7 +6,7 @@
 <style>
   body { font: 15px/1.5 system-ui, sans-serif; max-width: 680px; margin: 2rem auto; padding: 0 1rem; color: #222; }
   h1 { font-size: 1.4rem; margin-bottom: .2rem } h2 { font-size: 1rem; margin: 1.6rem 0 .4rem }
-  .muted { color: #777 } .ok { color: #187a3a } .bad { color: #b3261e } .plan { width: 7.5rem; white-space: nowrap }
+  .muted { color: #777 } .ok { color: #187a3a } .bad { color: #b3261e } .plan { width: 9.5rem; white-space: nowrap }
   .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin: .35rem 0 }
   input, select, textarea, button { font: inherit }
   input, select, textarea { padding: .35rem .5rem; border: 1px solid #ccc; border-radius: 6px; background: #fff }
@@ -41,7 +41,7 @@
 <script>
 const $ = (id) => document.getElementById(id)
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
-const PLANS = { claude: 'Claude', codex: 'ChatGPT', 'opencode-go': 'OpenCode Go' }
+const PLANS = { claude: 'Claude', codex: 'ChatGPT', 'opencode-go': 'OpenCode Go (beta)' }
 const HARNESSES = { claude: 'Claude Code', codex: 'Codex', fake: 'Fake harness (no model)' }
 const user = $('user')
 user.value = localStorage.user ?? ''
