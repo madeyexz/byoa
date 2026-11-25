@@ -9,6 +9,13 @@ import { PINS, npmSpec, type HarnessName, type Pins } from './pins.ts'
 
 export interface Installed { bin: string; version: string; installed: boolean }
 
+/** Grok's own postinstall (1.0.92) unpacks its native binary twice: beside its launcher (`bin/grok` becomes a link to
+ *  `bin/grok-native`, which V11 checks) and into `$GROK_HOME/bin`, with a `config.toml` there. The second copy is for
+ *  Grok's own updater, which byoa turns off, so it goes to a folder that byoa removes after the install, not into the
+ *  user's `~/.grok`, where the login is. */
+export const GROK_INSTALL_ENV = { GROK_HOME: '/tmp/byoa-grok-install' }
+const GROK_INSTALL_END = ` && rm -rf ${GROK_INSTALL_ENV.GROK_HOME}`
+
 const versionOf = (s: string) => /\b(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)\b/.exec(s)?.[1]
 
 export async function ensureHarness(sbx: Sandbox, h: HarnessName, pins: Pins = PINS): Promise<Installed> {
@@ -24,7 +31,8 @@ export async function ensureHarness(sbx: Sandbox, h: HarnessName, pins: Pins = P
   }
   const have = await find()
   if (have) return { ...have, installed: false }
-  const r = await sbx.run(`npm install -g --prefix ${q(prefix)} --no-audit --no-fund --loglevel=error ${q(npmSpec(h, pins))}`, { timeoutMs: 10 * 60_000 })
+  const r = await sbx.run(`npm install -g --prefix ${q(prefix)} --no-audit --no-fund --loglevel=error ${q(npmSpec(h, pins))}${h === 'grok' ? GROK_INSTALL_END : ''}`,
+    { timeoutMs: 10 * 60_000, ...(h === 'grok' ? { env: GROK_INSTALL_ENV } : {}) })
   if (r.exitCode !== 0) throw new Error(`byoa: could not install ${npmSpec(h, pins)}: ${(r.stderr || r.stdout).trim().split('\n').slice(-3).join(' ')}`)
   const now = await find()
   if (!now || now.bin !== own) throw new Error(`byoa: installed ${npmSpec(h, pins)}, but ${own} does not report version ${want}`)

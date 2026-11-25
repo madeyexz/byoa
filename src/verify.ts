@@ -4,7 +4,7 @@
 import { createHash } from 'node:crypto'
 import { Readable, Transform, Writable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import { createGunzip } from 'node:zlib'
+import { brotliDecompressSync, createGunzip } from 'node:zlib'
 import { PACKAGES, PINS, type HarnessName, type Pins } from './harness/pins.ts'
 import type { Sandbox } from './sandbox/types.ts'
 import { q } from './sh.ts'
@@ -22,8 +22,9 @@ export interface VerifyResult {
 const REGISTRY = 'https://registry.npmjs.org'
 
 /** path in the package (without the tarball's top folder) → SHA-256, hex. Throws if the tarball does not match the
- *  registry's integrity hash. */
-export async function publishedFiles(name: string, version: string): Promise<Map<string, string>> {
+ *  registry's integrity hash. `unpacked`: also the SHA-256 of each Brotli file (`*.br`) unpacked, by its path without
+ *  `.br` (Grok's native binary ships as `bin/grok.br`). */
+export async function publishedFiles(name: string, version: string, unpacked?: Map<string, string>): Promise<Map<string, string>> {
   const meta = await fetch(`${REGISTRY}/${name.replace('/', '%2f')}/${encodeURIComponent(version)}`)
   if (!meta.ok) throw new Error(`byoa: npm has no ${name}@${version} (${meta.status})`)
   const { tarball, integrity } = ((await meta.json()) as { dist: { tarball: string; integrity: string } }).dist
@@ -37,21 +38,22 @@ export async function publishedFiles(name: string, version: string): Promise<Map
     Readable.fromWeb(res.body as any),
     new Transform({ transform(c, _e, cb) { whole.update(c); cb(null, c) } }),
     createGunzip(),
-    tarHashes(files),
+    tarHashes(files, unpacked),
   )
   if (whole.digest('base64') !== want) throw new Error(`byoa: ${tarball} does not match the registry's integrity hash`)
   return files
 }
 
 /** A tar reader that keeps only each regular file's SHA-256. */
-function tarHashes(files: Map<string, string>): Writable {
+function tarHashes(files: Map<string, string>, unpacked?: Map<string, string>): Writable {
   let head = Buffer.alloc(0), remain = 0, pad = 0, done = false
   let kind: 'file' | 'meta' | 'skip' = 'skip', path = '', next = ''
-  let hash = createHash('sha256'), meta: Buffer[] = []
+  let hash = createHash('sha256'), meta: Buffer[] = [], body: Buffer[] | undefined
   const strip = (p: string) => p.replace(/^\.?\/?[^/]+\//, '')
   const str = (b: Buffer, a: number, z: number) => b.subarray(a, z).toString('utf8').replace(/\0.*$/s, '')
   const endEntry = () => {
     if (kind === 'file') files.set(strip(path), hash.digest('hex'))
+    if (kind === 'file' && body) unpacked!.set(strip(path).replace(/\.br$/, ''), createHash('sha256').update(brotliDecompressSync(Buffer.concat(body))).digest('hex'))
     if (kind === 'meta') {
       const m = Buffer.concat(meta).toString('utf8')
       if (path === 'L') next = m.replace(/\0.*$/s, '')
@@ -65,7 +67,10 @@ function tarHashes(files: Map<string, string>): Writable {
     const prefix = str(h, 257, 263).startsWith('ustar') ? str(h, 345, 500) : ''
     const name = next || (prefix ? `${prefix}/${str(h, 0, 100)}` : str(h, 0, 100))
     if (type === 'x' || type === 'L') { kind = 'meta'; path = type === 'L' ? 'L' : 'x'; meta = [] }
-    else { next = ''; path = name; kind = type === '0' || type === '7' ? 'file' : 'skip'; hash = createHash('sha256') }
+    else {
+      next = ''; path = name; kind = type === '0' || type === '7' ? 'file' : 'skip'; hash = createHash('sha256')
+      body = kind === 'file' && unpacked && name.endsWith('.br') ? [] : undefined
+    }
     remain = size
     pad = (512 - (size % 512)) % 512
     if (remain === 0) endEntry()
@@ -76,7 +81,7 @@ function tarHashes(files: Map<string, string>): Writable {
       while (off < chunk.length && !done) {
         if (remain > 0) {
           const n = Math.min(remain, chunk.length - off), part = chunk.subarray(off, off + n)
-          if (kind === 'file') hash.update(part)
+          if (kind === 'file') { hash.update(part); body?.push(Buffer.from(part)) }
           else if (kind === 'meta') meta.push(Buffer.from(part))
           off += n; remain -= n
           if (remain === 0) endEntry()
@@ -96,7 +101,7 @@ function tarHashes(files: Map<string, string>): Writable {
 }
 
 /** The npm package of the native binary for each harness, by package folder name prefix. */
-const PLATFORM_PREFIX: Record<HarnessName, string> = { claude: 'claude-code-', codex: 'codex-' }
+const PLATFORM_PREFIX: Record<HarnessName, string> = { claude: 'claude-code-', codex: 'codex-', grok: 'grok-' }
 
 /** Checks the harness that `bin` (the path ensureHarness returned) runs, in the sandbox. */
 export async function verifyHarness(sbx: Sandbox, h: HarnessName, bin: string, pins: Pins = PINS): Promise<VerifyResult> {
@@ -109,14 +114,18 @@ export async function verifyHarness(sbx: Sandbox, h: HarnessName, bin: string, p
     `  [ -f "$d/package.json" ] || continue`,
     `  echo "== platform $d"; node -p 'const p=require(process.argv[1]); p.name+"@"+p.version' "$d/package.json"; (cd "$d" && ${hashes})`,
     `done`,
+    // Grok's postinstall makes bin/grok a link to the binary it unpacks beside it
+    ...(h === 'grok' ? [`echo "== link"; readlink "$root/bin/grok"; true`] : []),
   ].join('\n'), { timeoutMs: 5 * 60_000 })
   const problems: string[] = []
   if (r.exitCode !== 0) return { harness: h, ok: false, packages: [], files: 0, problems: [`could not read the installed files: ${r.stderr.trim()}`] }
 
   type Pkg = { role: 'package' | 'platform'; spec: string; files: Map<string, string> }
   const pkgs: Pkg[] = []
+  let link: string | undefined
   for (const part of r.stdout.split(/^== /m).slice(1)) {
     const [head, spec, ...lines] = part.split('\n')
+    if (head === 'link') { link = (spec ?? '').trim(); continue }
     const files = new Map<string, string>()
     for (const l of lines) { const m = /^([0-9a-f]{64})\s+\.\/(.+)$/.exec(l); if (m) files.set(m[2]!, m[1]!) }
     pkgs.push({ role: head!.startsWith('package') ? 'package' : 'platform', spec: (spec ?? '').trim(), files })
@@ -143,13 +152,16 @@ export async function verifyHarness(sbx: Sandbox, h: HarnessName, bin: string, p
   }
   const pubMain = await publishedFiles(PACKAGES[h], pins[h])
   const nativeClaude = new Set<string>()
+  /** Grok: each published native package's `bin/grok.br`, unpacked, by its path without `.br`. */
+  const nativeGrok = new Map<string, string>()
   for (const plat of plats) {
     const at = plat.spec.lastIndexOf('@')
     const [platName, platVersion] = [plat.spec.slice(0, at), plat.spec.slice(at + 1)]
     // Claude Code's platform packages have their own names; Codex's are versions of @openai/codex (0.171.0-linux-x64)
-    const platOk = h === 'claude' ? platName.startsWith(`${PACKAGES.claude}-`) && platVersion === pins.claude : platName === PACKAGES.codex && platVersion.startsWith(`${pins.codex}-`)
+    // Grok's are @xai-official/grok-linux-x64@1.0.92
+    const platOk = h === 'codex' ? platName === PACKAGES.codex && platVersion.startsWith(`${pins.codex}-`) : platName.startsWith(`${PACKAGES[h]}-`) && platVersion === pins[h]
     if (!platOk) { problems.push(`the native package ${plat.spec} is not one of ${wantMain}`); continue }
-    const pubPlat = await publishedFiles(platName, platVersion)
+    const pubPlat = await publishedFiles(platName, platVersion, h === 'grok' ? nativeGrok : undefined)
     compare(plat.spec, plat.files, pubPlat)
     if (pubPlat.has('claude')) nativeClaude.add(pubPlat.get('claude')!)
   }
@@ -158,6 +170,14 @@ export async function verifyHarness(sbx: Sandbox, h: HarnessName, bin: string, p
   const exe = main!.files.get('bin/claude.exe')
   const replaced: Record<string, string> = h === 'claude' && exe && nativeClaude.has(exe) ? { 'bin/claude.exe': exe } : {}
   if (h === 'claude' && !replaced['bin/claude.exe']) problems.push(`${main!.spec}: bin/claude.exe is not the binary of a published native package`)
+  if (h === 'grok' && main!.files.has('bin/grok-native')) {
+    // Grok's own postinstall unpacked a native package's bin/grok.br to bin/grok-native and made bin/grok, the
+    // published launcher, a link to it: the binary must be the published one, unpacked
+    const want = nativeGrok.get('bin/grok')
+    if (link !== './grok-native') problems.push(`${main!.spec}: bin/grok is not a link to ./grok-native`)
+    if (!want) problems.push(`${main!.spec}: no published native package has bin/grok.br`)
+    else { pubMain.delete('bin/grok'); pubMain.set('bin/grok-native', want) }
+  }
   compare(main!.spec, main!.files, pubMain, replaced)
   return { harness: h, ok: problems.length === 0, packages: pkgs.map((p) => p.spec), files, problems }
 }

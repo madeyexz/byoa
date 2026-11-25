@@ -21,6 +21,12 @@ jobs:
           v=$(node -e "import('./src/harness/pins.ts').then((m) => console.log(m.PINS.codex))")
           npm install --prefix "$RUNNER_TEMP/codex" --no-audit --no-fund "@openai/codex@$v"
           echo "BYOA_CODEX_BIN=$RUNNER_TEMP/codex/node_modules/.bin/codex" >> "$GITHUB_ENV"
+      # and that the pinned, real Grok reads the .grok/config.toml, skills and AGENTS.md byoa writes
+      - name: Install the pinned Grok for V10
+        run: |
+          v=$(node -e "import('./src/harness/pins.ts').then((m) => console.log(m.PINS.grok))")
+          GROK_HOME="$RUNNER_TEMP/grok-install" npm install --prefix "$RUNNER_TEMP/grok" --no-audit --no-fund "@xai-official/grok@$v"
+          echo "BYOA_GROK_BIN=$RUNNER_TEMP/grok/node_modules/.bin/grok" >> "$GITHUB_ENV"
       - run: npm test
 
   v11:

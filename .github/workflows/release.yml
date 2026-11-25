@@ -1,4 +1,6 @@
 # Publishes byoa to npm, with provenance, when a maintainer pushes a tag v<version> that matches package.json.
+# A prerelease version (v1.1.0-beta.1) goes to the npm dist-tag `next`, any other version to `latest`; see
+# "Releases" in CONTRIBUTING.md.
 # It runs in the `npm` environment: set required reviewers on it (Settings → Environments), so nothing is published
 # until a maintainer approves the run. Auth: trusted publishing for this workflow, set up on npmjs.com in the package's
 # settings (npm sets it up only for a package that exists, so 1.0.0 was published by hand), or the NPM_TOKEN secret of
@@ -21,7 +23,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, registry-url: 'https://registry.npmjs.org' }
       - name: The tag matches package.json
-        run: test "v$(node -p 'require(\"./package.json\").version')" = "$GITHUB_REF_NAME"
+        run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
       - run: npm ci
       - run: npm run typecheck
       - name: Install the pinned Codex for V10
@@ -29,14 +31,23 @@ jobs:
           v=$(node -e "import('./src/harness/pins.ts').then((m) => console.log(m.PINS.codex))")
           npm install --prefix "$RUNNER_TEMP/codex" --no-audit --no-fund "@openai/codex@$v"
           echo "BYOA_CODEX_BIN=$RUNNER_TEMP/codex/node_modules/.bin/codex" >> "$GITHUB_ENV"
+      - name: Install the pinned Grok for V10
+        run: |
+          v=$(node -e "import('./src/harness/pins.ts').then((m) => console.log(m.PINS.grok))")
+          GROK_HOME="$RUNNER_TEMP/grok-install" npm install --prefix "$RUNNER_TEMP/grok" --no-audit --no-fund "@xai-official/grok@$v"
+          echo "BYOA_GROK_BIN=$RUNNER_TEMP/grok/node_modules/.bin/grok" >> "$GITHUB_ENV"
       - run: npm test
       - run: npm run test:v11
-      - name: Is this version on npm already?
+      - name: Which dist-tag, and is this version on npm already?
         id: npm
         run: |
           n=$(node -p 'require("./package.json").name'); v=$(node -p 'require("./package.json").version')
+          # a prerelease such as 1.1.0-beta.1 goes to `next`, so `npm install` never gets a beta
+          case "$v" in *-*) tag=next ;; *) tag=latest ;; esac
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"; echo "$n@$v goes to the dist-tag $tag"
           if curl -sf "https://registry.npmjs.org/${n/\//%2f}/$v" >/dev/null; then echo "$n@$v is on npm already"; echo "published=true" >> "$GITHUB_OUTPUT"; fi
-      - run: npm publish
+      - run: npm publish --tag "$DIST_TAG"
         if: steps.npm.outputs.published != 'true'
         env:
+          DIST_TAG: ${{ steps.npm.outputs.tag }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -20,8 +20,8 @@ byoa is at an early stage. The requirements are in [SPEC.md](SPEC.md). The libra
 
 These rules come from the labs' terms and from SPEC.md. A pull request that breaks one is closed.
 
-- Run only the real, unmodified `claude` and `codex` binaries. Do not patch them, change their requests to the labs, or pretend to be another client.
-- Send the user to the lab's own sign-in page. Do not collect a user's Claude or ChatGPT password or session token.
+- Run only the real, unmodified `claude`, `codex` and `grok` binaries. Do not patch them, change their requests to the labs, or pretend to be another client.
+- Send the user to the lab's own sign-in page. Do not collect a user's Claude, ChatGPT or Grok password or session token.
 - Do not share one user's AI login between apps.
 - Do not put a real MCP token in the sandbox. The sandbox gets only a short-lived job token for the proxy (R3).
 - Do not add a hosted service. byoa runs only inside the app's own backend.
@@ -30,7 +30,7 @@ These rules come from the labs' terms and from SPEC.md. A pull request that brea
 
 Version 1 supports only these:
 
-- Harnesses: Claude Code and Codex.
+- Harnesses: Claude Code, Codex and Grok Build.
 - Sandbox providers: E2B, Daytona and Instabox.
 - Backends: Node and Convex. Cloudflare Workers support is planned.
 - Store adapters: Convex and Postgres.
@@ -82,6 +82,21 @@ A flow can also have `tabs:`, each `{ tab, text, nodes }`, as in `docs/sandbox-l
 - Keep each pull request to one change.
 - In the description, write the requirement and the check that your change is about, and how you tested it.
 - Do not mix a refactor with a behavior change.
+
+## Releases
+
+Maintainers release byoa. A tag `v<version>` that matches `version` in package.json starts `.github/workflows/release.yml`. It runs the tests and publishes `@madeyexz/byoa` to npm after a maintainer approves the run in the `npm` environment. A version that is on npm already is not published again.
+
+- A normal version, such as `1.1.0`, goes to the npm dist-tag `latest`. `npm install @madeyexz/byoa` gets it.
+- A prerelease version, such as `1.1.0-beta.1`, goes to the dist-tag `next`. `npm install @madeyexz/byoa` does not get it; `npm install @madeyexz/byoa@next` does.
+
+To release a beta:
+
+1. On `main`, set the version without a tag: `npm version 1.1.0-beta.1 --no-git-tag-version`. Commit package.json and package-lock.json, and merge.
+2. Tag that commit and push the tag: `git tag -a v1.1.0-beta.1 -m "byoa 1.1.0-beta.1" && git push origin v1.1.0-beta.1`.
+3. Approve the `release` run in GitHub Actions. Then check it: `npm view @madeyexz/byoa dist-tags` shows the beta at `next` and the last normal version at `latest`.
+
+The next beta is `1.1.0-beta.2`. For the normal release, set `1.1.0` and tag `v1.1.0` in the same way. After it, `next` still points to the last beta; to point it to the release too, run `npm dist-tag add @madeyexz/byoa@1.1.0 next`.
 
 ## Security problems
 

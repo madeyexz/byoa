@@ -1,0 +1,51 @@
+#!/bin/bash
+# A stand-in for the grok CLI in byoa's own tests only: it prints what grok 1.0.92 prints for the commands byoa runs,
+# and writes an auth.json of the same shape as the real one (with no real token). It is never installed in a sandbox;
+# the real checks (V3, V11) use the real binary.
+auth="$GROK_HOME/auth.json"
+# FAKE_GROK_EXP: when the access token ends (ISO time), as `expires_at` in the real file says; default 6 hours from now
+login() {
+  local exp=${FAKE_GROK_EXP:-$(date -u -d '+6 hours' +%Y-%m-%dT%H:%M:%S.000000000Z)}
+  mkdir -p "$GROK_HOME"
+  echo "{\"https://auth.x.ai::test-client\":{\"key\":\"$1\",\"user_id\":\"${FAKE_GROK_USER:-user-1}\",\"refresh_token\":\"r-$1\",\"expires_at\":\"$exp\"}}" > "$auth"
+}
+case "$*" in
+  --version) echo "grok 1.0.92 (b06756fd6256)" ;;
+  "login --device-auth")
+    printf '\r\nTo sign in, open this URL in your browser:\r\n\r\n  https://accounts.x.ai/oauth2/device?user_code=WXYZ-2345\r\n\r\n'
+    printf 'Confirm this code in your browser:\r\n\r\n  WXYZ-2345\r\n\r\nWaiting for authorization...\r\n'
+    sleep 1 # the user approves the code on xAI's page
+    login lab-secret-grok ;;
+  logout) rm -f "$auth" ;;
+  "--no-auto-update agent stdio")
+    # ACP: the initialize answer of grok 1.0.92 holds the models this login may use
+    read -r line
+    echo '{"jsonrpc":"2.0","id":"byoa-models","result":{"protocolVersion":1,"_meta":{"modelState":{"currentModelId":"grok-4.7","availableModels":[{"modelId":"grok-4.7","name":"Grok 4.7","description":"Frontier","_meta":{"supportsReasoningEffort":true,"reasoningEfforts":[{"id":"high","value":"high"},{"id":"low","value":"low"}]}},{"modelId":"grok-4.5","name":"Grok 4.5","description":null,"_meta":{"supportsReasoningEffort":false}}]}}}}'
+    cat >/dev/null ;;
+  --trust\ -p*)
+    task=$(cat)
+    echo '{"type":"system","subtype":"init","session_id":"s1","model":"grok-4.7","tools":[]}'
+    if [ ! -s "$auth" ]; then
+      echo '{"type":"result","subtype":"error_during_execution","is_error":true,"usage":{"input_tokens":0,"output_tokens":0},"errors":["Not signed in. To authenticate without a browser, run:\n  grok login --device-code"]}'
+      exit 0
+    fi
+    if [[ "$task" == *cred* ]]; then
+      # like a token refresh: report the login it found, then replace it with a newer one
+      t=$(sed -E 's/.*"key":"([^"]*)".*/\1/' "$auth")
+      echo "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"cred: $t\",\"usage\":{\"input_tokens\":0,\"output_tokens\":0}}"
+      FAKE_GROK_EXP=$(date -u -d '+7 hours' +%Y-%m-%dT%H:%M:%S.000000000Z) login "${t}x"
+      exit 0
+    fi
+    if [[ "$task" == *together* ]]; then
+      # how many jobs run now: each one leaves a file in FAKE_GROK_DIR while it runs
+      mkdir -p "$FAKE_GROK_DIR"; touch "$FAKE_GROK_DIR/$$"; sleep 1
+      n=$(ls "$FAKE_GROK_DIR" | wc -l | tr -d ' '); rm -f "$FAKE_GROK_DIR/$$"
+      echo "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"together: $n\",\"usage\":{}}"
+      exit 0
+    fi
+    # an MCP tool, called through Grok's use_tool, and its output wrapped in Grok's own JSON
+    echo "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"args: $*; home: ${GROK_HOME##*/}; autoupdater off: $GROK_DISABLE_AUTOUPDATER\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"use_tool\",\"input\":{\"tool_name\":\"notes__whoami\",\"tool_input\":{}}}]}}"
+    echo '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"{\"type\":\"MCP\",\"tool_name\":\"whoami\",\"server_name\":\"notes\",\"output\":{\"OkayOutput\":\"you are alice\"}}","is_error":false}]}}'
+    echo '{"type":"result","subtype":"success","is_error":false,"result":"You are alice.","usage":{"input_tokens":10,"cache_read_input_tokens":5,"output_tokens":3},"total_cost_usd":0.01}'
+    ;;
+esac

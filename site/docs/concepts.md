@@ -6,13 +6,13 @@ Think of the user's AI subscription as a battery pack, and of your app as an app
 
 ## Who brings what
 
-Diagram: You build the app and import byoa. Each user signs in with their own plan and connects their tools once. Your app code calls agents.run. byoa is a library inside your app&#x27;s backend, and keeps AI logins and MCP grants in your database. Below your backend&#x27;s edge, byoa drives three things that run outside it: a new sandbox for each job at E2B or Daytona on your account, where the user&#x27;s own Claude Code or Codex runs; the AI labs, whose model calls the user&#x27;s own plan pays; and the user&#x27;s MCP servers, which get the real token from byoa&#x27;s proxy.
+Diagram: You build the app and import byoa. Each user signs in with their own plan and connects their tools once. Your app code calls agents.run. byoa is a library inside your app&#x27;s backend, and keeps AI logins and MCP grants in your database. Below your backend&#x27;s edge, byoa drives three things that run outside it: a new sandbox for each job at E2B or Daytona on your account, where the user&#x27;s own Claude Code, Codex or Grok Build runs; the AI labs, whose model calls the user&#x27;s own plan pays; and the user&#x27;s MCP servers, which get the real token from byoa&#x27;s proxy.
 
 ```text
 DEVELOPER · YOU                                           END USER
 ┌────────────────────────────────────┐                    ┌────────────────────────────────────┐
 │ builds the app                     │                    │ uses the app                       │
-│ picks the sandbox provider         │                    │ has a Claude or ChatGPT plan       │
+│ picks the sandbox provider         │                    │ has a Claude, ChatGPT or Grok plan │
 │ owns the database                  │                    │ has MCP tools and skills           │
 └──────────────────┬─────────────────┘                    └──────────────────┬─────────────────┘
                    │ imports byoa             signs in on the lab&#x27;s own page │
@@ -30,10 +30,11 @@ DEVELOPER · YOU                                           END USER
   ┃              │ create · run · destroy                         real token │               ┃
   ┃              ▼                                                           ▼               ┃
   ┃ ┌─ SANDBOX ────────────────┐  ┌─ AI LABS ────────────────┐  ┌─ MCP SERVERS ────────────┐ ┃
-  ┃ │ E2B or Daytona,          │  │ Anthropic · OpenAI       │  │ Notion · Gmail · …       │ ┃
+  ┃ │ E2B or Daytona,          │  │ Anthropic · OpenAI · xAI │  │ Notion · Gmail · …       │ ┃
   ┃ │ on your account          ├─▶│ model calls, paid by     │  │ the user&#x27;s own accounts  │ ┃
   ┃ │ runs the user&#x27;s own      │  │ the user&#x27;s own plan      │  │                          │ ┃
-  ┃ │ Claude Code or Codex     │  │                          │  │                          │ ┃
+  ┃ │ Claude Code, Codex or    │  │                          │  │                          │ ┃
+  ┃ │ Grok Build               │  │                          │  │                          │ ┃
   ┃ └──────────────────────────┘  └──────────────────────────┘  └──────────────────────────┘ ┃
   ┃                                                                                          ┃
   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛

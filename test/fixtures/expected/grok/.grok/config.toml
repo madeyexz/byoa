@@ -1,0 +1,9 @@
+[mcp_servers.linear]
+url = "https://app.example.com/byoa/mcp/linear"
+headers = { Authorization = "Bearer ${BYOA_JOB_TOKEN}" }
+startup_timeout_sec = 60
+
+[mcp_servers.notion]
+url = "https://app.example.com/byoa/mcp/notion"
+headers = { Authorization = "Bearer ${BYOA_JOB_TOKEN}" }
+startup_timeout_sec = 60

@@ -1,8 +1,8 @@
 // The to-do app's backend, as one fetch handler. Everything the app does with byoa is in this file: the sign-in to
-// the user's own Claude or ChatGPT plan (or the key of their OpenCode Go plan), the MCP connections, and the agent job.
+// the user's own Claude, ChatGPT or Grok plan (or the key of their OpenCode Go plan), the MCP connections, and the agent job.
 import { readFileSync } from 'node:fs'
 import type { DatabaseSync } from 'node:sqlite'
-import { createAgents, type AgentEvent, type RunHarness, type SandboxProvider } from '@madeyexz/byoa'
+import { createAgents, type AgentEvent, type HarnessName, type RunHarness, type SandboxProvider } from '@madeyexz/byoa'
 import { sqliteStore, todoList, todoMcp } from './todos.ts'
 
 const AGENTS_MD = `# To-do assistant
@@ -36,21 +36,22 @@ export function todoApp(o: TodoAppOptions): (req: Request) => Promise<Response> 
     proxyUrl: `${o.publicUrl}/byoa/mcp`,
     oauth: { redirectUrl: `${o.publicUrl}/byoa/callback`, clientName: 'byoa to-do example' },
   })
-  const harnesses: RunHarness[] = ['claude', 'codex', ...(o.fake ? ['fake' as const] : [])]
+  const harnesses: RunHarness[] = [...LABS, ...(o.fake ? ['fake' as const] : [])]
 
   async function api(user: string, route: string, b: any): Promise<Response> {
     switch (route) {
       case 'GET /api/state': return json({
         todos: todos.list(user),
-        login: { claude: await agents.loginState(user, 'claude'), codex: await agents.loginState(user, 'codex'), 'opencode-go': await agents.loginState(user, 'opencode-go') },
+        login: { ...Object.fromEntries(await Promise.all(LABS.map(async (h) => [h, await agents.loginState(user, h)]))), 'opencode-go': await agents.loginState(user, 'opencode-go') },
         mcp: await agents.listMcp(user),
         harnesses,
       })
-      // The lab's own sign-in page. Claude: a URL, then the code that page shows. ChatGPT: a URL and a code to enter.
+      // The lab's own sign-in page. Claude: a URL, then the code that page shows. ChatGPT and Grok: a URL and a code to
+      // enter there.
       case 'POST /api/login': return json(await agents.connectLogin(user, plan(b.harness)))
-      // Claude: with the code, it finishes; with none, it only checks in. Codex: it waits up to 20 s for the user. Each
+      // Claude: with the code, it finishes; with none, it only checks in. Codex, Grok: it waits up to 20 s for the user. Each
       // call keeps the sign-in alive; with no call for 2 minutes, byoa ends it.
-      case 'POST /api/login/finish': return json(await agents.finishLogin(user, plan(b.harness), { code: b.code, waitMs: b.harness === 'codex' ? 20_000 : undefined }))
+      case 'POST /api/login/finish': return json(await agents.finishLogin(user, plan(b.harness), { code: b.code, waitMs: b.harness === 'claude' ? undefined : 20_000 }))
       // The user closed the sign-in: its sandbox ends now.
       case 'POST /api/login/cancel': return json(await agents.cancelLogin(user, plan(b.harness)) ?? {})
       // OpenCode Go: the key the user made in OpenCode's Console. byoa checks it with OpenCode and keeps it encrypted; it
@@ -98,9 +99,11 @@ export function todoApp(o: TodoAppOptions): (req: Request) => Promise<Response> 
   }
 }
 
-function plan(h: unknown): 'claude' | 'codex' {
-  if (h !== 'claude' && h !== 'codex') throw new Error('harness: claude or codex')
-  return h
+// the labs whose own CLI sign-in the page shows
+const LABS: HarnessName[] = ['claude', 'codex', 'grok']
+function plan(h: unknown): HarnessName {
+  if (!LABS.includes(h as HarnessName)) throw new Error(`harness: one of ${LABS.join(', ')}`)
+  return h as HarnessName
 }
 
 const json = (body: unknown, status = 200) => Response.json(body, { status })

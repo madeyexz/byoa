@@ -320,11 +320,11 @@ footer a { color: #b8bdd8; text-decoration: none; }
 <p><strong>Your app brings the product. Each user brings the agent.</strong> You build the app and pick the sandbox. Each user brings their plan and their tools. byoa runs inside your backend and runs each job in that user&#39;s own sandbox.</p>
 <p>Think of the user&#39;s AI subscription as a battery pack, and of your app as an appliance. The user brings the battery. byoa is the plug: it connects the user&#39;s plan, and the user&#39;s tools, to the agent features of your app. Your app supplies only the place where the agent runs, the sandbox.</p>
 <h2 id="who-brings-what"><a class="anchor" href="#who-brings-what" aria-hidden="true" tabindex="-1">#</a>Who brings what</h2>
-<figure class="diagram strings"><div class="ascii-wrap" role="img" aria-label="You build the app and import byoa. Each user signs in with their own plan and connects their tools once. Your app code calls agents.run. byoa is a library inside your app&#x27;s backend, and keeps AI logins and MCP grants in your database. Below your backend&#x27;s edge, byoa drives three things that run outside it: a new sandbox for each job at E2B or Daytona on your account, where the user&#x27;s own Claude Code or Codex runs; the AI labs, whose model calls the user&#x27;s own plan pays; and the user&#x27;s MCP servers, which get the real token from byoa&#x27;s proxy.">
+<figure class="diagram strings"><div class="ascii-wrap" role="img" aria-label="You build the app and import byoa. Each user signs in with their own plan and connects their tools once. Your app code calls agents.run. byoa is a library inside your app&#x27;s backend, and keeps AI logins and MCP grants in your database. Below your backend&#x27;s edge, byoa drives three things that run outside it: a new sandbox for each job at E2B or Daytona on your account, where the user&#x27;s own Claude Code, Codex or Grok Build runs; the AI labs, whose model calls the user&#x27;s own plan pays; and the user&#x27;s MCP servers, which get the real token from byoa&#x27;s proxy.">
 <pre class="ascii wide" style="--cols:96" aria-hidden="true"><span class="l">DEVELOPER · YOU</span>                                           <span class="l">END USER</span>
 <span class="k">┌────────────────────────────────────┐</span>                    <span class="k">┌────────────────────────────────────┐</span>
 <span class="k">│</span> <span class="t">builds the app</span>                     <span class="k">│</span>                    <span class="k">│</span> <span class="t">uses the app</span>                       <span class="k">│</span>
-<span class="k">│</span> <span class="t">picks the sandbox provider</span>         <span class="k">│</span>                    <span class="k">│</span> <span class="t">has a Claude or ChatGPT plan</span>       <span class="k">│</span>
+<span class="k">│</span> <span class="t">picks the sandbox provider</span>         <span class="k">│</span>                    <span class="k">│</span> <span class="t">has a Claude, ChatGPT or Grok plan</span> <span class="k">│</span>
 <span class="k">│</span> <span class="t">owns the database</span>                  <span class="k">│</span>                    <span class="k">│</span> <span class="t">has MCP tools and skills</span>           <span class="k">│</span>
 <span class="k">└──────────────────┬─────────────────┘</span>                    <span class="k">└──────────────────┬─────────────────┘</span>
                    <span class="c">│</span> <span class="m">imports byoa</span>             <span class="m">signs in on the lab&#x27;s own page</span> <span class="c">│</span>
@@ -342,10 +342,11 @@ footer a { color: #b8bdd8; text-decoration: none; }
   <span class="o">┃</span>              <span class="c">│</span> <span class="m">create · run · destroy</span>                         <span class="m">real token</span> <span class="c">│</span>               <span class="o">┃</span>
   <span class="o">┃</span>              <span class="c">▼</span>                                                           <span class="c">▼</span>               <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">┌─</span><span class="l"> SANDBOX </span><span class="k">────────────────┐</span>  <span class="k">┌─</span><span class="l"> AI LABS </span><span class="k">────────────────┐</span>  <span class="k">┌─</span><span class="l"> MCP SERVERS </span><span class="k">────────────┐</span> <span class="o">┃</span>
-  <span class="o">┃</span> <span class="k">│</span> <span class="t">E2B or Daytona,</span>          <span class="k">│</span>  <span class="k">│</span> <span class="t">Anthropic · OpenAI</span>       <span class="k">│</span>  <span class="k">│</span> <span class="t">Notion · Gmail · …</span>       <span class="k">│</span> <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">E2B or Daytona,</span>          <span class="k">│</span>  <span class="k">│</span> <span class="t">Anthropic · OpenAI · xAI</span> <span class="k">│</span>  <span class="k">│</span> <span class="t">Notion · Gmail · …</span>       <span class="k">│</span> <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">│</span> <span class="t">on your account</span>          <span class="k">├</span><span class="c">─▶</span><span class="k">│</span> <span class="t">model calls, paid by</span>     <span class="k">│</span>  <span class="k">│</span> <span class="t">the user&#x27;s own accounts</span>  <span class="k">│</span> <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">│</span> <span class="t">runs the user&#x27;s own</span>      <span class="k">│</span>  <span class="k">│</span> <span class="t">the user&#x27;s own plan</span>      <span class="k">│</span>  <span class="k">│</span>                          <span class="k">│</span> <span class="o">┃</span>
-  <span class="o">┃</span> <span class="k">│</span> <span class="t">Claude Code or Codex</span>     <span class="k">│</span>  <span class="k">│</span>                          <span class="k">│</span>  <span class="k">│</span>                          <span class="k">│</span> <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">Claude Code, Codex or</span>    <span class="k">│</span>  <span class="k">│</span>                          <span class="k">│</span>  <span class="k">│</span>                          <span class="k">│</span> <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">Grok Build</span>               <span class="k">│</span>  <span class="k">│</span>                          <span class="k">│</span>  <span class="k">│</span>                          <span class="k">│</span> <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">└──────────────────────────┘</span>  <span class="k">└──────────────────────────┘</span>  <span class="k">└──────────────────────────┘</span> <span class="o">┃</span>
   <span class="o">┃</span>                                                                                          <span class="o">┃</span>
   <span class="o">┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</span>
@@ -360,7 +361,8 @@ footer a { color: #b8bdd8; text-decoration: none; }
   <span class="c">│</span> <span class="l">END USER</span>
   <span class="c">│</span> <span class="k">┌────────────────────────────────┐</span>
   <span class="c">│</span> <span class="k">│</span> <span class="t">uses the app</span>                   <span class="k">│</span>
-  <span class="c">│</span> <span class="k">│</span> <span class="t">has a Claude or ChatGPT plan</span>   <span class="k">│</span>
+  <span class="c">│</span> <span class="k">│</span> <span class="t">has a Claude, ChatGPT or</span>       <span class="k">│</span>
+  <span class="c">│</span> <span class="k">│</span> <span class="t">Grok plan</span>                      <span class="k">│</span>
   <span class="c">│</span> <span class="k">│</span> <span class="t">has MCP tools and skills</span>       <span class="k">│</span>
   <span class="c">│</span> <span class="k">└────────────────┬───────────────┘</span>
   <span class="c">│</span>                  <span class="c">│</span> <span class="m">signs in once</span>
@@ -382,14 +384,15 @@ footer a { color: #b8bdd8; text-decoration: none; }
   <span class="o">┃</span> <span class="k">│</span> <span class="t">E2B or Daytona,</span>      <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">│</span> <span class="t">on your account</span>      <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">│</span> <span class="t">runs the user&#x27;s own</span>  <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
-  <span class="o">┃</span> <span class="k">│</span> <span class="t">Claude Code or Codex</span> <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">Claude Code, Codex</span>   <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">or Grok Build</span>        <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">└───┬──────────────────┘</span>    <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span>     <span class="c">│</span> <span class="m">model calls</span>           <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span>     <span class="c">▼</span>                       <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">┌─</span><span class="l"> AI LABS </span><span class="k">────────────┐</span>    <span class="c">│</span>  <span class="o">┃</span>
-  <span class="o">┃</span> <span class="k">│</span> <span class="t">Anthropic · OpenAI</span>   <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
-  <span class="o">┃</span> <span class="k">│</span> <span class="t">paid by the user&#x27;s</span>   <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
-  <span class="o">┃</span> <span class="k">│</span> <span class="t">own plan</span>             <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">Anthropic · OpenAI ·</span> <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">xAI, paid by the</span>     <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
+  <span class="o">┃</span> <span class="k">│</span> <span class="t">user&#x27;s own plan</span>      <span class="k">│</span>    <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span> <span class="k">└──────────────────────┘</span>    <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span>                             <span class="c">│</span>  <span class="o">┃</span>
   <span class="o">┃</span>                             <span class="c">▼</span>  <span class="o">┃</span>

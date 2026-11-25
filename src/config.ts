@@ -1,5 +1,6 @@
 // The files byoa writes into the job's folder for each harness (R4), from one setup: skills in the Agent Skills
-// format, AGENTS.md (and CLAUDE.md for Claude Code), and the MCP config in each harness's own format. Each MCP server
+// format, AGENTS.md (and CLAUDE.md for Claude Code), and the MCP config in each harness's own format (JSON for Claude
+// Code, TOML for Codex and Grok). Each MCP server
 // points to the app's proxy (R3.1); the token is the job's, read from an environment variable, never a real one.
 // A pure function, so V10 can compare its output with the expected files byte for byte.
 import type { HarnessName } from './harness/pins.ts'
@@ -29,7 +30,7 @@ export const MCP_STARTUP_SEC = 60
 /** Where the Claude Code MCP config goes, relative to the job's folder. */
 export const CLAUDE_MCP_CONFIG = '.byoa/mcp.json'
 
-/** A name both harnesses take as an MCP server name and a tool prefix. */
+/** A name every harness takes as an MCP server name and a tool prefix. */
 export const SERVER_NAME = /^[a-z0-9][a-z0-9-]{0,31}$/
 /** Agent Skills names: lower-case letters, digits and single hyphens, at most 64. */
 const SKILL_NAME = /^[a-z0-9](?:[a-z0-9]|-(?!-)){0,62}[a-z0-9]?$/
@@ -56,6 +57,7 @@ export function harnessFiles(harness: HarnessName, setup: Setup, o: { proxyUrl: 
     if (harness === 'claude') files['CLAUDE.md'] = setup.agentsMd
   }
 
+  // Codex and Grok read `.agents/skills` (Grok only in a trusted folder: it runs with --trust, harness/grok.ts)
   const skillsDir = harness === 'claude' ? '.claude/skills' : '.agents/skills'
   for (const sk of setup.skills ?? []) {
     if (!SKILL_NAME.test(sk.name)) throw new Error(`byoa: skill name ${JSON.stringify(sk.name)}: lower-case letters, digits and -, at most 64`)
@@ -73,6 +75,11 @@ export function harnessFiles(harness: HarnessName, setup: Setup, o: { proxyUrl: 
       headers: { Authorization: `Bearer \${${JOB_TOKEN_ENV}}` },
     }]))
     files[CLAUDE_MCP_CONFIG] = JSON.stringify({ mcpServers }, null, 2) + '\n'
+  } else if (harness === 'grok') {
+    // a project `.grok/config.toml`, read in a trusted folder. Grok expands `${VAR}` in a server's headers, and waits
+    // `startup_timeout_sec` for it to start (its own default is 30). Checked with grok 1.0.92.
+    if (servers.length) files['.grok/config.toml'] = servers.map((s) =>
+      `[mcp_servers.${s}]\nurl = ${tomlString(serverUrl(o.proxyUrl, s))}\nheaders = { Authorization = "Bearer \${${JOB_TOKEN_ENV}}" }\nstartup_timeout_sec = ${MCP_STARTUP_SEC}\n`).join('\n')
   } else if (servers.length) {
     // with its sandbox on, Codex asks before each MCP tool call, and `codex exec` has nobody to ask: it refuses the
     // call. The job's servers are the ones the app chose for it (R2.5), so their tools need no approval.
