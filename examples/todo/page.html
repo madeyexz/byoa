@@ -6,7 +6,7 @@
 <style>
   body { font: 15px/1.5 system-ui, sans-serif; max-width: 680px; margin: 2rem auto; padding: 0 1rem; color: #222; }
   h1 { font-size: 1.4rem; margin-bottom: .2rem } h2 { font-size: 1rem; margin: 1.6rem 0 .4rem }
-  .muted { color: #777 } .ok { color: #187a3a } .bad { color: #b3261e } .plan { width: 5rem }
+  .muted { color: #777 } .ok { color: #187a3a } .bad { color: #b3261e } .plan { width: 7.5rem; white-space: nowrap }
   .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin: .35rem 0 }
   input, select, textarea, button { font: inherit }
   input, select, textarea { padding: .35rem .5rem; border: 1px solid #ccc; border-radius: 6px; background: #fff }
@@ -32,7 +32,7 @@
 
 <h2>3. Ask the agent</h2>
 <textarea id="task" rows="4" placeholder="Add 'buy milk' and 'call mom', then mark the oldest to-do done"></textarea>
-<div class="row"><select id="harness"></select><button id="ask">Ask</button></div>
+<div class="row"><select id="harness"></select><select id="model" hidden></select><button id="ask">Ask</button></div>
 <pre id="log" hidden></pre>
 
 <h2>Your to-dos</h2>
@@ -41,7 +41,7 @@
 <script>
 const $ = (id) => document.getElementById(id)
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
-const PLANS = { claude: 'Claude', codex: 'ChatGPT' }
+const PLANS = { claude: 'Claude', codex: 'ChatGPT', 'opencode-go': 'OpenCode Go' }
 const HARNESSES = { claude: 'Claude Code', codex: 'Codex', fake: 'Fake harness (no model)' }
 const user = $('user')
 user.value = localStorage.user ?? ''
@@ -58,13 +58,20 @@ const fail = (e) => { $('signin').innerHTML = `<p class="bad">${esc(e.message)}<
 async function refresh() {
   if (!user.value.trim()) return
   const s = await api('GET', '/api/state')
+  const typed = $('gokey')?.value ?? ''
   $('plans').innerHTML = Object.entries(s.login).map(([h, st]) => `<div class="row"><b class="plan">${PLANS[h]}</b>
     <span class="${st === 'signed-in' ? 'ok' : 'bad'}">${st}</span>
-    <button class="quiet" data-login="${h}">${st === 'signed-in' ? 'Sign in again' : 'Sign in'}</button></div>`).join('')
+    ${h === 'opencode-go'
+      // OpenCode Go has no sign-in page for apps: the user makes an API key in OpenCode's Console and pastes it here
+      ? `<input id="gokey" type="password" autocomplete="off" placeholder="oc_sk_…" size="22"><button class="quiet" data-key="save">Save key</button><a class="muted" href="https://opencode.ai/console" target="_blank" rel="noopener">make a key</a>${st === 'signed-out' ? '' : '<button class="quiet" data-key="remove">Remove key</button>'}`
+      : `<button class="quiet" data-login="${h}">${st === 'signed-in' ? 'Sign in again' : 'Sign in'}</button>`}</div>`).join('')
+  $('gokey').value = typed
   $('mcp').textContent = s.mcp.length ? `Connected: ${s.mcp.map((m) => m.name).join(', ')}` : 'Nothing connected yet'
   const pick = $('harness').value
-  $('harness').innerHTML = s.harnesses.map((h) => `<option value="${h}">${HARNESSES[h]}</option>`).join('')
-  if (pick) $('harness').value = pick
+  const go = s.login['opencode-go'] === 'signed-out' ? [] : ['claude', 'codex'].map((h) => `<option value="${h}+go">${HARNESSES[h]} on OpenCode Go</option>`)
+  $('harness').innerHTML = [...s.harnesses.map((h) => `<option value="${h}">${HARNESSES[h]}</option>`), ...go].join('')
+  if (pick && [...$('harness').options].some((x) => x.value === pick)) $('harness').value = pick
+  pickModel()
   $('todos').innerHTML = s.todos.map((t) => `<li class="${t.done ? 'done' : ''}">${esc(t.title)}</li>`).join('')
     || '<li class="muted">No to-dos yet. Ask the agent to add some.</li>'
 }
@@ -84,6 +91,15 @@ const cancelSignIn = () => {
 }
 addEventListener('pagehide', () => { if (signingIn) navigator.sendBeacon(`/api/login/cancel?user=${encodeURIComponent(user.value.trim())}`, JSON.stringify({ harness: signingIn.h })) })
 $('plans').onclick = async (e) => {
+  if (e.target.dataset.key === 'save') {
+    return api('POST', '/api/key', { key: $('gokey').value }).then((r) => {
+      $('gokey').value = ''
+      $('signin').innerHTML = r.error ? `<p class="bad">${esc(r.error)}</p>` : ''
+      models = undefined
+      refresh()
+    }, fail)
+  }
+  if (e.target.dataset.key === 'remove') return api('POST', '/api/key/remove', {}).then(refresh, fail)
   const h = e.target.dataset.login
   if (!h) return
   e.target.disabled = true
@@ -110,6 +126,17 @@ $('plans').onclick = async (e) => {
   } catch (err) { endSignIn(); fail(err) }
 }
 
+// a job on OpenCode Go needs a model of that plan: byoa lists them from OpenCode's API, with no sandbox
+let models
+async function pickModel() {
+  const on = $('harness').value.endsWith('+go')
+  $('model').hidden = !on
+  if (!on || models) return
+  models = await api('GET', '/api/models').catch((e) => { models = undefined; fail(e); return [] })
+  $('model').innerHTML = models.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('')
+}
+$('harness').onchange = pickModel
+
 $('connect').onclick = () => api('POST', '/api/connect', {}).then(refresh, fail)
 $('other').onclick = () => api('POST', '/api/connect', { url: $('mcpurl').value, name: $('mcpname').value })
   .then((r) => r.connected ? refresh() : (location.href = r.signInUrl), fail)
@@ -130,7 +157,8 @@ $('ask').onclick = async () => {
   log.textContent = ''
   $('ask').disabled = true
   try {
-    const r = await call('POST', '/api/ask', { harness: $('harness').value, task: $('task').value })
+    const [harness, go] = $('harness').value.split('+')
+    const r = await call('POST', '/api/ask', { harness, task: $('task').value, ...(go ? { plan: 'opencode-go', model: $('model').value } : {}) })
     const reader = r.body.pipeThrough(new TextDecoderStream()).getReader()
     let buf = ''
     for (;;) {

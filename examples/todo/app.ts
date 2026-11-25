@@ -1,5 +1,5 @@
 // The to-do app's backend, as one fetch handler. Everything the app does with byoa is in this file: the sign-in to
-// the user's own Claude or ChatGPT plan, the MCP connections, and the agent job.
+// the user's own Claude or ChatGPT plan (or the key of their OpenCode Go plan), the MCP connections, and the agent job.
 import { readFileSync } from 'node:fs'
 import type { DatabaseSync } from 'node:sqlite'
 import { createAgents, type AgentEvent, type RunHarness, type SandboxProvider } from '@madeyexz/byoa'
@@ -42,7 +42,7 @@ export function todoApp(o: TodoAppOptions): (req: Request) => Promise<Response> 
     switch (route) {
       case 'GET /api/state': return json({
         todos: todos.list(user),
-        login: { claude: await agents.loginState(user, 'claude'), codex: await agents.loginState(user, 'codex') },
+        login: { claude: await agents.loginState(user, 'claude'), codex: await agents.loginState(user, 'codex'), 'opencode-go': await agents.loginState(user, 'opencode-go') },
         mcp: await agents.listMcp(user),
         harnesses,
       })
@@ -53,6 +53,11 @@ export function todoApp(o: TodoAppOptions): (req: Request) => Promise<Response> 
       case 'POST /api/login/finish': return json(await agents.finishLogin(user, plan(b.harness), { code: b.code, waitMs: b.harness === 'codex' ? 20_000 : undefined }))
       // The user closed the sign-in: its sandbox ends now.
       case 'POST /api/login/cancel': return json(await agents.cancelLogin(user, plan(b.harness)) ?? {})
+      // OpenCode Go: the key the user made in OpenCode's Console. byoa checks it with OpenCode and keeps it encrypted; it
+      // never goes into a sandbox. Remove it with signOut.
+      case 'POST /api/key': return json(await agents.connectKey(user, 'opencode-go', String(b.key ?? '')))
+      case 'POST /api/key/remove': return json(await agents.signOut(user, 'opencode-go') ?? {})
+      case 'GET /api/models': return json(await agents.listModels(user, 'opencode-go'))
       // One time per user: the app's own to-do server with this user's token, or any MCP server with its own sign-in.
       case 'POST /api/connect': return json(b.url
         ? await agents.connectMcp(user, String(b.url), { name: String(b.name) })
@@ -60,7 +65,9 @@ export function todoApp(o: TodoAppOptions): (req: Request) => Promise<Response> 
       case 'POST /api/ask': {
         if (!harnesses.includes(b.harness)) throw new Error(`harness: one of ${harnesses.join(', ')}`)
         const mcp = (await agents.listMcp(user)).map((g) => g.name)
-        return ndjson(agents.run(user, { harness: b.harness, task: String(b.task ?? ''), mcp, setup: { agentsMd: AGENTS_MD } }))
+        // with plan 'opencode-go', the harness runs on the user's Go key, with a model of that plan
+        const go = b.plan === 'opencode-go' ? { plan: 'opencode-go' as const, model: String(b.model ?? '') || undefined } : {}
+        return ndjson(agents.run(user, { harness: b.harness, task: String(b.task ?? ''), mcp, setup: { agentsMd: AGENTS_MD }, ...go }))
       }
     }
     return json({ error: 'not found' }, 404)

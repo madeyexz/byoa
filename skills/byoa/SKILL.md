@@ -186,6 +186,6 @@ Every app on byoa must follow these rules. If a request breaks one, stop and tel
 
 ## Check your work
 
-- The app's byoa code is small: the example's backend uses byoa in 35 lines. If you write sign-in, OAuth, token refresh or sandbox code yourself, you are rebuilding byoa: use its API.
+- The app's byoa code is small: the example's backend uses byoa in 39 lines. If you write sign-in, OAuth, token refresh or sandbox code yourself, you are rebuilding byoa: use its API.
 - Run the app's tests with the fake harness and the local sandbox.
 - Every API name you use is in reference/api.md. If a name is not there, read the source (`src/agents.ts` in https://github.com/madeyexz/byoa) before you use it. The API can change before version 1.

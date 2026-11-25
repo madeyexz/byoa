@@ -376,7 +376,7 @@ To test byoa itself: `npm test` (V10, V12, the fake-harness tests and the unit t
 
 ## Example app
 
-[examples/todo](examples/todo) is an AI-native to-do list on byoa: the user signs in with their own plan, connects their to-dos one time, and asks Claude Code or Codex to change them. Its backend uses byoa in 35 lines. Its tests use the fake harness, and CI runs them on every commit.
+[examples/todo](examples/todo) is an AI-native to-do list on byoa: the user signs in with their own plan, connects their to-dos one time, and asks Claude Code or Codex to change them. Its backend uses byoa in 39 lines. Its tests use the fake harness, and CI runs them on every commit.
 
 ## How we will verify it
 

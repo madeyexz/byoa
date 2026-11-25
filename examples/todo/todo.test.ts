@@ -96,7 +96,7 @@ test('Claude Code with no sign-in: the job ends with signed-out, and the state s
   const ev = await app.ask('alice', 'claude', 'add buy milk')
   assert.deepEqual(ev.map((e) => [e.type, e.code]), [['error', 'signed-out'], ['end', undefined]])
   assert.equal(ev.at(-1).ok, false)
-  assert.deepEqual((await app.state('alice')).login, { claude: 'signed-out', codex: 'signed-out' })
+  assert.deepEqual((await app.state('alice')).login, { claude: 'signed-out', codex: 'signed-out', 'opencode-go': 'signed-out' })
   assert.deepEqual([...app.sandbox.paused], [...app.sandbox.live], 'no sandbox runs')
   const bad = await app.send('alice', 'POST', '/api/ask', { harness: 'gpt', task: 'x' })
   assert.equal(bad.status, 400)
