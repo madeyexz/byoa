@@ -10,16 +10,16 @@
 // job in that kept sandbox saves what the dead job left there before it writes the stored copy; and a watcher in the
 // sandbox removes the files just before the provider pauses or ends it. byoa saves files only of the same account,
 // and not older than the stored login (accept): the agent of a job can change any file, so byoa never trusts more.
-// Both CLIs rotate their refresh tokens, so two sandboxes must not refresh one login. Claude Code jobs of one user hold
-// the login one at a time: a job takes a lease with compare-and-set and waits in line (queue.ts) for the jobs before it.
-// Codex jobs of one user share the login by default (`parallel`), each with a copy in its own sandbox, while Codex will
-// not refresh it by itself before the job's time runs out: Codex 0.171.0 refreshes 5 minutes before its access token
-// ends (login/src/auth/manager.rs, proactive_refresh_reason), and that token lasts 10 days. When the login is due, one
-// job holds it alone: it waits for the others to end, the CLI refreshes, byoa saves the new login, and the jobs after
-// it share again. For this byoa reads the time the access token ends, and nothing else in it. What stays: Codex also
-// refreshes when OpenAI answers 401 to a token that has not run out; two sandboxes that get that answer at the same
-// time both refresh, and one refresh fails. `parallel: false` turns sharing off. Claude Code jobs never share: when it
-// refreshes is not checked yet.
+// Both CLIs rotate their refresh tokens, so two sandboxes must not refresh one login. A job takes a lease with
+// compare-and-set, and waits in line (queue.ts) for the jobs before it. By default (`parallel`), the jobs of one user
+// share the login, each with a copy in its own sandbox, while the CLI will not refresh it by itself before the job's
+// time runs out. Both CLIs refresh 5 minutes before their access token ends: Codex 0.171.0's lasts 10 days
+// (login/src/auth/manager.rs, proactive_refresh_reason), Claude Code 2.1.330's 8 hours (it refreshes when
+// now + 300000 >= expiresAt; checked on E2B with a real login: not at 10 minutes before, yes at 4). When the login is
+// due, one job holds it alone: it waits for the others to end, the CLI refreshes, byoa saves the new login, and the jobs
+// after it share again. For this byoa reads the time the access token ends, and nothing else in it. What stays: both
+// CLIs also refresh when the lab answers 401 to a token that has not run out; two sandboxes that get that answer at the
+// same time both refresh, and one refresh fails. `parallel: false` turns sharing off.
 // The labs' published terms restrict where these tokens may be stored (SPEC.md, Lab rules); each app checks them.
 // cliLogin (login.ts) keeps the login in a volume of the user instead.
 import { importKey, open, randomToken, seal } from './crypto.ts'
@@ -39,9 +39,9 @@ export interface StoredLoginOptions {
   /** How long a job waits in line for the login, when other jobs of the same user and harness hold it. Default: no
    *  limit; the job waits its turn (R5.8). */
   waitMs?: number
-  /** Default true: Codex jobs of one user share the login while it is not due for a refresh, so they run at the same
-   *  time (in different sandboxes: a `sandboxKey` for each, or `sandboxPer: 'job'`). False: one Codex job of a user at
-   *  a time. Claude Code jobs always run one at a time. */
+  /** Default true: the jobs of one user and harness share the login while it is not due for a refresh, so they run at
+   *  the same time (in different sandboxes: a `sandboxKey` for each, or `sandboxPer: 'job'`). False: one job of a user
+   *  and harness holds the login at a time. */
   parallel?: boolean
 }
 
@@ -62,14 +62,18 @@ const lineKey = (user: string, h: HarnessName) => `ailoginline/${enc(user)}/${h}
 const loanKey = (user: string, h: HarnessName, sbx: string) => `ailoginloan/${enc(user)}/${h}/${enc(sbx)}`
 const fromB64 = (s: string) => new TextDecoder().decode(Uint8Array.from(atob(s), (c) => c.charCodeAt(0)))
 
-/** Codex refreshes its login this long before its access token ends. */
+/** Both CLIs refresh their login this long before its access token ends. */
 const REFRESH_WINDOW_MS = 5 * 60_000
 
 /** When the CLI will refresh this login by itself, in ms since 1970, from the times in its own login files; 0 when
  *  byoa does not know (then one job holds the login at a time). byoa reads the time only, and uses no token. */
 export function refreshDue(h: HarnessName, files: Record<string, string>): number {
-  // Claude Code: when it refreshes is not checked yet
-  if (h !== 'codex') return 0
+  if (h === 'claude') {
+    try {
+      const at = Number(JSON.parse(files['.claude/.credentials.json'] ?? '')?.claudeAiOauth?.expiresAt)
+      return at > 0 ? at - REFRESH_WINDOW_MS : 0
+    } catch { return 0 }
+  }
   try {
     const doc = JSON.parse(files[LOGIN_FILES[h][0]!] ?? '')
     // the `exp` of the access token (a JWT); a token with no `exp` is refreshed 8 days after the last refresh
@@ -94,7 +98,7 @@ export function loginFacts(h: HarnessName, files: Record<string, string>): { acc
     return { account: str(doc?.tokens?.account_id), fresh: last > 0 ? last : Math.max(0, refreshDue(h, files) + REFRESH_WINDOW_MS) }
   }
   const at = Number(json('.claude/.credentials.json')?.claudeAiOauth?.expiresAt)
-  return { account: str(json('.claude/.claude.json')?.oauthAccount?.accountUuid), fresh: at > 0 ? at : 0 }
+  return { account: str(json('.claude/.credentials.json')?.claudeAiOauth?.accountUuid) ?? str(json('.claude/.claude.json')?.oauthAccount?.accountUuid), fresh: at > 0 ? at : 0 }
 }
 
 /** Whether byoa saves the files it found in a sandbox over `stored`: the CLI changed them, and they are the same
@@ -160,7 +164,7 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
         const login = await store.get(loginKey(user, h))
         if (!login) throw new Error(`byoa: ${h} is not signed in for this user`)
         const text = await open(await key, login.value, loginKey(user, h))
-        const share = parallel && h === 'codex' && !alone && refreshDue(h, JSON.parse(text)) - Date.now() > leaseMs
+        const share = parallel && !alone && refreshDue(h, JSON.parse(text)) - Date.now() > leaseMs
         const e = await store.get(k), l = readLease(e?.value)
         const free = !l.alone && (share ? !l.want : !Object.keys(l.shared ?? {}).length)
         if (free) {

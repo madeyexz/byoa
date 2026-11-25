@@ -14,7 +14,8 @@ case "$1" in
         read -r code
         if [ "$code" = "good-code" ]; then
           mkdir -p "$CLAUDE_CONFIG_DIR"
-          echo '{"claudeAiOauth":{"accessToken":"lab-secret-claude"}}' > "$CLAUDE_CONFIG_DIR/.credentials.json"
+          # FAKE_CLAUDE_EXP: the access token ends then (ms since 1970), as expiresAt in the real file says
+          echo "{\"claudeAiOauth\":{\"accessToken\":\"lab-secret-claude\"${FAKE_CLAUDE_EXP:+,\"expiresAt\":$FAKE_CLAUDE_EXP}}}" > "$CLAUDE_CONFIG_DIR/.credentials.json"
           echo "Login successful."
         else
           echo "Couldn't log in: invalid code"
@@ -40,6 +41,13 @@ case "$1" in
       sleep 0.3
       [ -n "$t" ] && echo "{\"claudeAiOauth\":{\"accessToken\":\"${t}x\"}}" > "$CLAUDE_CONFIG_DIR/.credentials.json"
       mkdir -p "$CLAUDE_CONFIG_DIR/backups" && echo '{"oauthAccount":{"emailAddress":"lab-account@example.com"}}' > "$CLAUDE_CONFIG_DIR/backups/.claude.json.backup.$$"
+      exit 0
+    fi
+    if [[ "$task" == *together* ]]; then
+      # how many jobs run now: each one leaves a file in FAKE_CLAUDE_DIR while it runs
+      mkdir -p "$FAKE_CLAUDE_DIR"; touch "$FAKE_CLAUDE_DIR/$$"; sleep 1
+      n=$(ls "$FAKE_CLAUDE_DIR" | wc -l | tr -d ' '); rm -f "$FAKE_CLAUDE_DIR/$$"
+      echo "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"together: $n\",\"usage\":{}}"
       exit 0
     fi
     if [[ "$task" == *expire* ]]; then

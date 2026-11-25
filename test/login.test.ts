@@ -126,25 +126,27 @@ test('R1.4: the stored login works the same for Codex, also with a store and key
   assert.ok(own.keys().some((k) => k.startsWith('ailogin/')) && !a.store.keys().some((k) => k.startsWith('ailogin/')), 'in the login\'s own store')
 })
 
-test('R1.4 / R5.8: by default, Codex jobs of one user share a login that is not due for a refresh, and hold alone a login that is', async () => {
+test('R1.4 / R5.8: by default, the jobs of one user share a login that is not due for a refresh, and hold alone a login that is', async () => {
   const { mkdtempSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
   const { storedLogin } = await import('../src/index.ts')
+  let h: 'codex' | 'claude' = 'codex'
   const signedIn = async (endsInSec: number, login?: ReturnType<typeof storedLogin>) => {
     const dir = mkdtempSync(join(tmpdir(), 'byoa-together-'))
-    const a = await testApp({ env: { ...env, FAKE_CODEX_EXP: String(Math.floor(Date.now() / 1000) + endsInSec), FAKE_CODEX_DIR: dir }, ...(login ? { login } : {}) }); closers.push(a.close)
-    await a.agents.connectLogin('fay', 'codex')
-    assert.deepEqual(await a.agents.finishLogin('fay', 'codex', { waitMs: 10_000 }), { state: 'signed-in' })
+    const ends = { FAKE_CODEX_EXP: String(Math.floor(Date.now() / 1000) + endsInSec), FAKE_CLAUDE_EXP: String(Date.now() + endsInSec * 1000) }
+    const a = await testApp({ env: { ...env, ...ends, FAKE_CODEX_DIR: dir, FAKE_CLAUDE_DIR: dir }, ...(login ? { login } : {}) }); closers.push(a.close)
+    await a.agents.connectLogin('fay', h)
+    assert.deepEqual(await a.agents.finishLogin('fay', h, h === 'claude' ? { code: 'good-code', waitMs: 10_000 } : { waitMs: 10_000 }), { state: 'signed-in' })
     return a
   }
   // three agents of one user, each on its own machine (a sandbox key), started together; each job takes 1 s
   const together = async (a: Awaited<ReturnType<typeof signedIn>>) => {
-    const ends = await Promise.all(['a', 'b', 'c'].map(async (key) => (await collect(a.agents.run('fay', { harness: 'codex', task: 'together', sandboxKey: key }))).at(-1) as { ok: boolean; result: string }))
+    const ends = await Promise.all(['a', 'b', 'c'].map(async (key) => (await collect(a.agents.run('fay', { harness: h, task: 'together', sandboxKey: key }))).at(-1) as { ok: boolean; result: string }))
     assert.ok(ends.every((e) => e.ok), JSON.stringify(ends))
     assert.equal(running(a.sandbox), 0)
     assert.equal(a.sandbox.paused.size, 3, 'one kept sandbox for each key')
-    const lease = JSON.parse((await a.store.get('ailoginlease/fay/codex'))!.value)
+    const lease = JSON.parse((await a.store.get(`ailoginlease/fay/${h}`))!.value)
     assert.deepEqual([lease.alone, Object.keys(lease.shared ?? {})], [undefined, []], 'every job gave the login back')
     return Math.max(...ends.map((e) => Number(e.result.replace('together: ', ''))))
   }
@@ -154,6 +156,10 @@ test('R1.4 / R5.8: by default, Codex jobs of one user share a login that is not 
   assert.equal(await together(await signedIn(20 * 60)), 1)
   // parallel: false: one job holds the login at a time, and the others wait their turn
   assert.equal(await together(await signedIn(10 * 24 * 3600, storedLogin({ parallel: false }))), 1)
+  // Claude Code the same: its access token lasts 8 hours, and it also refreshes 5 minutes before the end
+  h = 'claude'
+  assert.equal(await together(await signedIn(8 * 3600)), 3, 'the three Claude Code jobs ran at the same time')
+  assert.equal(await together(await signedIn(20 * 60)), 1)
 })
 
 test('R1.4: when a login is due, byoa reads only the time its access token ends', async () => {
@@ -163,10 +169,12 @@ test('R1.4: when a login is due, byoa reads only the time its access token ends'
   assert.equal(refreshDue('codex', { '.codex/auth.json': JSON.stringify({ tokens: { access_token: jwt({ exp: 2_000_000_000 }) }, last_refresh: '2020-01-01T00:00:00Z' }) }), 2_000_000_000_000 - 5 * min)
   // a token with no end time: Codex refreshes it 8 days after the last refresh
   assert.equal(refreshDue('codex', { '.codex/auth.json': JSON.stringify({ tokens: { access_token: 'opaque' }, last_refresh: '2026-11-23T00:00:00Z' }) }), Date.parse('2026-12-01T00:00:00Z'))
-  // files that do not say, and Claude Code (not checked yet): 0, so one job holds the login at a time
+  // Claude Code refreshes 5 minutes before expiresAt too (checked on E2B with a real login)
+  assert.equal(refreshDue('claude', { '.claude/.credentials.json': JSON.stringify({ claudeAiOauth: { accessToken: 'x', expiresAt: 1_900_000_000_000 } }) }), 1_900_000_000_000 - 5 * min)
+  // files that do not say: 0, so one job holds the login at a time
   assert.equal(refreshDue('codex', { '.codex/auth.json': '{"tokens":{"access_token":"lab-secret-codex"}}' }), 0)
   assert.equal(refreshDue('codex', { '.codex/auth.json': 'not json' }), 0)
-  assert.equal(refreshDue('claude', { '.claude/.credentials.json': JSON.stringify({ claudeAiOauth: { accessToken: 'x', expiresAt: 1_900_000_000_000 } }) }), 0)
+  assert.equal(refreshDue('claude', { '.claude/.credentials.json': '{"claudeAiOauth":{"accessToken":"x"}}' }), 0)
 })
 
 test('R5.6: access read-only starts each CLI with its own limits, and the job\'s MCP tools stay', async () => {
@@ -238,6 +246,9 @@ test('R1.4: byoa saves a login from a sandbox only when it is the same account a
   assert.equal(accept('claude', claude('u-1', 1000), claude('u-1', 2000, 'b')), true)
   assert.equal(accept('claude', claude('u-1', 1000), claude('u-2', 2000, 'b')), false)
   assert.equal(accept('claude', claude('u-1', 2000), claude('u-1', 1000, 'b')), false)
+  // the account in .credentials.json counts first, as Claude Code 2.1.330 writes it there too
+  const moved = { ...claude('u-1', 2000, 'b'), '.claude/.credentials.json': JSON.stringify({ claudeAiOauth: { accessToken: 'b', expiresAt: 2000, accountUuid: 'u-2' } }) }
+  assert.equal(accept('claude', claude('u-1', 1000), moved), false)
 })
 
 test('R1.7: cancelLogin ends a sign-in and its sandbox at once; signOut does too', async () => {
