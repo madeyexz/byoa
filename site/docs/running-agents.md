@@ -6,7 +6,7 @@ Your app runs a job with `agents.run`. byoa takes the user's sandbox, loads the 
 
 ```ts
 for await (const ev of agents.run(userId, {
-  harness: 'claude',                   // 'claude' | 'codex' | 'fake'
+  harness: 'claude',                   // 'claude' | 'codex' | 'grok' | 'fake'
   task,                                // the user's request
   mcp: ['notion', 'todos'],            // the servers this job gets; default none
   setup: { agentsMd, skills },         // AGENTS.md (and CLAUDE.md for Claude Code); skills: [{ name, files: { 'SKILL.md': '...' } }]
@@ -15,7 +15,7 @@ for await (const ev of agents.run(userId, {
 }
 ```
 
-- The events are the same for Claude Code and Codex. The schema is in the [API reference](https://byoa.rippling.computer/docs/api.md#events-one-schema-for-both-harnesses).
+- The events are the same for every harness. The schema is in the [API reference](https://byoa.rippling.computer/docs/api.md#events-one-schema-for-every-harness).
 - `run` does not throw when a job fails. It gives `error` events (`code`: `signed-out`, `expired`, `no-plan`, `harness`, `sandbox` or `mcp`), and always ends with one `end` event (`ok`, `result`, `usage`). On `signed-out` or `expired`, show the sign-in again (for `plan: 'opencode-go'`, ask for a new key). On `no-plan`, tell the user that the key's workspace has no OpenCode Go plan.
 - byoa writes skills where each harness reads them (`.claude/skills/`, `.agents/skills/`), AGENTS.md (and CLAUDE.md for Claude Code) from one source, and the MCP config in each harness's own format. `plugins` adds the skills and MCP servers of an Agent Plugins package (`readPlugin(readPluginDir(dir))`).
 - byoa installs the pinned version of each harness in each sandbox, so a new pin reaches every user at their next job.
@@ -29,7 +29,7 @@ By default (`access: 'full'`), the agent has every tool of its harness, with no 
 agents.run(userId, { harness: 'codex', task, mcp: ['mail'], setup: { skills }, access: 'read-only' })
 ```
 
-The agent can then call the job's MCP tools and read files, so the harness can still read its skills and AGENTS.md. It cannot change a file or reach the network by itself. byoa only sets each CLI's own options: Codex runs in its own `read-only` sandbox, and Claude Code gets only its tools that read; each tool it refuses is a `permission` event. `read-only` does not hide files: the agent can read each file that its user can read. Use it always with `localSandbox()` on a user's own computer, where the sandbox isolates nothing.
+The agent can then call the job's MCP tools and read files, so the harness can still read its skills and AGENTS.md. It cannot change a file or reach the network by itself. byoa only sets each CLI's own options: Codex runs in its own `read-only` sandbox, and Claude Code and Grok Build get only their tools that read (Grok Build with its web search off); each tool it refuses is a `permission` event. `read-only` does not hide files: the agent can read each file that its user can read. Use it always with `localSandbox()` on a user's own computer, where the sandbox isolates nothing.
 
 ## Sandbox modes
 
@@ -63,11 +63,11 @@ const jobs = projects.map((p) => agents.run(userId, { harness: 'codex', task, sa
 
 - **A queue.** `onWait` gets `{ for, ahead }` each time the number of jobs ahead changes. `for` is `'sandbox'` while the job waits for its sandbox, and `'login'` while it waits for the AI login.
 - **Several messages.** byoa gives the agent all of them in one task, with a line that tells it to read them all first and then decide the order. It is one job, in one sandbox.
-- **Several sandboxes.** Jobs of one user in different sandboxes run at the same time with one sign-in, for Claude Code and Codex. They share the login while it is not due for a refresh. One risk stays, and `storedLogin({ parallel: false })` turns sharing off: see [AI login](https://byoa.rippling.computer/docs/ai-login.md#jobs-at-the-same-time-the-shared-login).
+- **Several sandboxes.** Jobs of one user in different sandboxes run at the same time with one sign-in, for every harness. They share the login while it is not due for a refresh. One risk stays, and `storedLogin({ parallel: false })` turns sharing off: see [AI login](https://byoa.rippling.computer/docs/ai-login.md#jobs-at-the-same-time-the-shared-login).
 
 ## Models and effort
 
-`run(userId, { harness, task, model, effort })` runs the harness with that model and effort, with each CLI's own flags: Claude Code's `--model` (an alias such as `opus`, or a full name) and `--effort` (`low` to `max`), Codex's `-m` and `model_reasoning_effort`. Without them, a job gets the harness's default from `createAgents({ models })`, else the CLI's own.
+`run(userId, { harness, task, model, effort })` runs the harness with that model and effort, with each CLI's own flags: Claude Code's `--model` (an alias such as `opus`, or a full name) and `--effort` (`low` to `max`), Codex's `-m` and `model_reasoning_effort`, Grok Build's `-m` and `--reasoning-effort`. Without them, a job gets the harness's default from `createAgents({ models })`, else the CLI's own.
 
 ```ts
 const agents = createAgents({ ...options, models: { claude: { model: 'opus' }, codex: { effort: 'high' } } })
@@ -82,7 +82,7 @@ A job on the user's OpenCode Go key (beta) passes `plan: 'opencode-go'` and a Go
 
 ## A program of your own around the harness
 
-An app that runs its own program around the unmodified harness (for example its own server, which starts `claude` or `codex` itself) opens the job with `agents.session` instead. It gets the same sandbox, login, pinned harness and job token, and runs its own command:
+An app that runs its own program around the unmodified harness (for example its own server, which starts `claude`, `codex` or `grok` itself) opens the job with `agents.session` instead. It gets the same sandbox, login, pinned harness and job token, and runs its own command:
 
 ```ts
 const s = await agents.session(userId, { harness: 'claude', mcp: ['notion'] })

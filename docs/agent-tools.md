@@ -1,6 +1,6 @@
 # Give your agent tools
 
-The agent in each job is the user's own Claude Code or Codex. You decide what it can do in that job: which tools it can call, what it knows, and what it may do in its sandbox. This page shows each way, and which one to choose.
+The agent in each job is the user's own Claude Code, Codex or Grok Build. You decide what it can do in that job: which tools it can call, what it knows, and what it may do in its sandbox. This page shows each way, and which one to choose.
 
 | The agent needs | Give it | Where it runs | Who connects it |
 |---|---|---|---|
@@ -143,8 +143,9 @@ byoa writes them into a new job folder, where each harness reads them:
 ├── AGENTS.md                   setup.agentsMd
 ├── CLAUDE.md                   the same text, for Claude Code
 ├── .claude/skills/<name>/      the skills, for Claude Code
-├── .agents/skills/<name>/      the skills, for Codex
+├── .agents/skills/<name>/      the skills, for Codex and Grok Build
 ├── .codex/config.toml          Codex's MCP config: each server at the proxy, with the job token
+├── .grok/config.toml           Grok Build's MCP config: the same (it reads the folder with --trust)
 └── .byoa/
     ├── mcp.json                Claude Code's MCP config: the same
     └── task.md                 the task

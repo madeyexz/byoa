@@ -4,7 +4,7 @@
 
 It can. byoa cannot promise that it will not, because the labs decide, and their terms allow parts of what byoa does but not all of it. byoa is built to stay inside the parts that the labs allow:
 
-- **It runs the labs' own CLIs, unmodified.** The agent is the real Claude Code or Codex, installed from the labs' own npm packages, and a test checks the binaries against those packages (V11). byoa never pretends to be another client, and never calls the labs' APIs with the user's tokens.
+- **It runs the labs' own CLIs, unmodified.** The agent is the real Claude Code, Codex or Grok Build, installed from the labs' own npm packages, and a test checks the binaries against those packages (V11). byoa never pretends to be another client, and never calls the labs' APIs with the user's tokens.
 - **The user signs in on the lab's own page,** with the CLI's own sign-in. byoa never sees a password.
 - **Each user uses their own plan, for their own work,** and one app's login is only for that app.
 
@@ -15,6 +15,8 @@ Anthropic's [Claude Code legal and compliance page](https://code.claude.com/docs
 - Anthropic "reserves the right to take measures to enforce these restrictions and may do so without prior notice."
 
 OpenAI's [Sign in with ChatGPT Terms](https://openai.com/policies/sign-in-with-chatgpt-terms/) say that stored tokens "must be local and under the user's control, not in a remote or managed environment", and that paid or remotely hosted apps must [apply to be partners](https://openai.com/form/sign-in-with-chatgpt-interest/).
+
+xAI's [terms of service](https://x.ai/legal/terms-of-service) say "You may not share your account credentials or make your account available to anyone else", and its [acceptable use policy](https://x.ai/legal/acceptable-use-policy) forbids "Accessing the Services through unauthorized automated or non-human means". Neither says anything about an app that runs Grok Build for its users, or that stores their login. So for Grok, the answer is unclear.
 
 OpenCode's [Terms of Use](https://opencode.ai/legal/terms-of-service) say the user uses its services "only for your own internal use, and not on behalf of or for the benefit of any third party". So an OpenCode Go key (beta) in your app is arguable, not clearly allowed ([AI login](ai-login.md#opencode-go-a-key-not-a-sign-in-beta)).
 
@@ -27,7 +29,7 @@ So, before you launch:
 
 ## Can one user run many agents at the same time?
 
-Yes, with one sign-in, for Claude Code and Codex. Give each agent its own sandbox: a `sandboxKey` for each, or `sandboxPer: 'job'`. The jobs then share the user's login while it is not due for a refresh. Jobs in one sandbox wait in line instead, and one job can also carry several messages to one agent. See [Running agents](running-agents.md#jobs-at-the-same-time).
+Yes, with one sign-in, for Claude Code, Codex and Grok Build. Give each agent its own sandbox: a `sandboxKey` for each, or `sandboxPer: 'job'`. The jobs then share the user's login while it is not due for a refresh. Jobs in one sandbox wait in line instead, and one job can also carry several messages to one agent. See [Running agents](running-agents.md#jobs-at-the-same-time).
 
 All these jobs use the same plan, so they reach the plan's limits sooner. One risk stays with a shared login: when the lab answers 401 to two sandboxes at the same time, both CLIs refresh, one refresh fails, and the user may have to sign in again. `storedLogin({ parallel: false })` turns sharing off ([AI login](ai-login.md#jobs-at-the-same-time-the-shared-login)). Jobs on an OpenCode Go key have no such risk: a key does not rotate.
 

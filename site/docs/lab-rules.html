@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lab rules · byoa docs</title>
-<meta name="description" content="what Anthropic's and OpenAI's terms allow, and what byoa and each app must do">
+<meta name="description" content="what Anthropic's, OpenAI's, xAI's and OpenCode's terms allow, and what byoa and each app must do">
 <meta property="og:title" content="Lab rules · byoa docs">
-<meta property="og:description" content="what Anthropic's and OpenAI's terms allow, and what byoa and each app must do">
+<meta property="og:description" content="what Anthropic's, OpenAI's, xAI's and OpenCode's terms allow, and what byoa and each app must do">
 <meta name="theme-color" content="#f8f6f0" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1124" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://byoa.rippling.computer/docs/lab-rules">
@@ -316,12 +316,12 @@ footer a { color: #b8bdd8; text-decoration: none; }
     <div class="pagehead"><div class="kick">Reference</div><button class="copy-page narrow" type="button" data-md="/docs/lab-rules.md">Copy page</button></div>
     <article>
 <h1>Lab rules</h1>
-<p class="lead">What Anthropic&#39;s and OpenAI&#39;s terms allow, and what byoa and each app must do.</p>
+<p class="lead">What Anthropic&#39;s, OpenAI&#39;s, xAI&#39;s and OpenCode&#39;s terms allow, and what byoa and each app must do.</p>
 <p>byoa runs the labs&#39; own CLIs on each user&#39;s own plan, so byoa and every app on it follow the labs&#39; published rules. This page has the rules from <a href="https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules" rel="noopener">SPEC.md</a>, and what each app must do.</p>
 <h2 id="rules-we-follow"><a class="anchor" href="#rules-we-follow" aria-hidden="true" tabindex="-1">#</a>Rules we follow</h2>
 <ul>
-<li>We run the real, unmodified <code>claude</code> and <code>codex</code> binaries. We never pretend to be another client. A test checks the hash of the installed binaries against the published packages (V11).</li>
-<li>The user signs in through Anthropic&#39;s or OpenAI&#39;s own sign-in page.</li>
+<li>We run the real, unmodified <code>claude</code>, <code>codex</code> and <code>grok</code> binaries. We never pretend to be another client. A test checks the hash of the installed binaries against the published packages (V11).</li>
+<li>The user signs in through Anthropic&#39;s, OpenAI&#39;s or xAI&#39;s own sign-in page.</li>
 <li>One app&#39;s AI login is used only by that app.</li>
 <li>For OpenCode Go (beta), byoa uses only the user&#39;s own key, with OpenCode&#39;s documented API and the harness&#39;s own user agent, never OpenCode&#39;s Console CLI sign-in. OpenCode&#39;s terms do not clearly allow an app to run it for its users, so each app asks OpenCode first.</li>
 <li>The labs&#39; terms restrict where an AI login may be stored. byoa keeps it in your database by default, so each app checks those terms and signs its own agreements with the labs.</li>

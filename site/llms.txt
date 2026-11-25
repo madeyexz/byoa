@@ -13,7 +13,7 @@ bun add @madeyexz/byoa
 
 - [Getting started](https://byoa.rippling.computer/docs/getting-started.md): install byoa, make one `agents` object, serve its two routes, sign a user in and run a first job
 - [Concepts](https://byoa.rippling.computer/docs/concepts.md): who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox
-- [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md): which Claude, ChatGPT and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned
+- [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md): which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned
 - [FAQ](https://byoa.rippling.computer/docs/faq.md): whether a user's AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key
 
 ## Guides
@@ -30,7 +30,7 @@ bun add @madeyexz/byoa
 ## Reference
 
 - [API reference](https://byoa.rippling.computer/docs/api.md): every import, method, option and event
-- [Lab rules](https://byoa.rippling.computer/docs/lab-rules.md): what Anthropic's and OpenAI's terms allow, and what byoa and each app must do
+- [Lab rules](https://byoa.rippling.computer/docs/lab-rules.md): what Anthropic's, OpenAI's, xAI's and OpenCode's terms allow, and what byoa and each app must do
 - [Security](https://byoa.rippling.computer/docs/security.md): where each secret is kept, and how to report a problem
 
 ## Spec

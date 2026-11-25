@@ -1,7 +1,7 @@
 <a href="https://byoa.rippling.computer">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/banner-dark.png">
-  <img alt="byoa: your users bring their own agent. The simplest way to let your users bring their own AI subscription to power the agents in your app. Version 1 targets: Claude Code, Codex, E2B, Daytona, Instabox, Node and Convex. Cloudflare Workers is planned." src=".github/readme/banner-light.png">
+  <img alt="byoa: your users bring their own agent. The simplest way to let your users bring their own AI subscription to power the agents in your app. Version 1 targets: Claude Code, Codex, Grok Build, E2B, Daytona, Instabox, Node and Convex. Cloudflare Workers is planned." src=".github/readme/banner-light.png">
 </picture>
 </a>
 
@@ -11,7 +11,7 @@
 
 [![CI](https://github.com/madeyexz/byoa/actions/workflows/ci.yml/badge.svg)](https://github.com/madeyexz/byoa/actions/workflows/ci.yml)
 ![License: Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-2f4cff?style=flat-square)
-![Agents: Claude Code · Codex](https://img.shields.io/badge/agents-Claude_Code_%C2%B7_Codex-9db6ff?style=flat-square)
+![Agents: Claude Code · Codex · Grok Build](https://img.shields.io/badge/agents-Claude_Code_%C2%B7_Codex_%C2%B7_Grok_Build-9db6ff?style=flat-square)
 ![Sandboxes: E2B · Daytona · Instabox](https://img.shields.io/badge/sandboxes-E2B_%C2%B7_Daytona_%C2%B7_Instabox-ffc93c?style=flat-square)
 ![Not a hosted service](https://img.shields.io/badge/a_library-not_a_hosted_service-ff5a36?style=flat-square)
 
@@ -23,7 +23,7 @@
 
 AI is like electricity, and an AI subscription is like a portable battery pack: one pack powers every app its user uses. We bet that everyone will have one, and that every app will run on it. [The future of AI-native apps](https://byoa.rippling.computer/docs#the-future-of-ai-native-apps) explains why.
 
-byoa is an open-source library that helps you build these apps fast. Your app runs the user's own Claude Code or Codex in a sandbox. The user signs in with their own ChatGPT or Claude plan, or gives the key of their OpenCode Go plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
+byoa is an open-source library that helps you build these apps fast. Your app runs the user's own Claude Code, Codex or Grok Build in a sandbox. The user signs in with their own ChatGPT, Claude or Grok plan, or gives the key of their OpenCode Go plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
 
 Version 1 supports three sandbox providers: E2B, Daytona and Instabox. More providers come later. To change the provider, you change one adapter.
 
@@ -33,7 +33,7 @@ Version 1 supports three sandbox providers: E2B, Daytona and Instabox. More prov
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/who-dark.png">
-  <img alt="Who brings what: you, the developer, build the app, pick the sandbox provider and own the database, and import byoa into your app's backend. The end user uses the app, signs in on the lab's own page and connects each MCP tool once. Your app code calls agents.run on byoa, which keeps AI logins and MCP grants in your database. byoa's box reaches past your backend's edge: outside it, byoa creates, runs and destroys a sandbox for each job at E2B or Daytona on your account, where the user's own Claude Code or Codex runs; the AI labs get the model calls, paid by the user's own plan; and the user's MCP servers get the real token from byoa's proxy." src=".github/readme/who-light.png">
+  <img alt="Who brings what: you, the developer, build the app, pick the sandbox provider and own the database, and import byoa into your app's backend. The end user uses the app, signs in on the lab's own page and connects each MCP tool once. Your app code calls agents.run on byoa, which keeps AI logins and MCP grants in your database. byoa's box reaches past your backend's edge: outside it, byoa creates, runs and destroys a sandbox for each job at E2B or Daytona on your account, where the user's own Claude Code, Codex or Grok Build runs; the AI labs get the model calls, paid by the user's own plan; and the user's MCP servers get the real token from byoa's proxy." src=".github/readme/who-light.png">
 </picture>
 
 The [Concepts](https://byoa.rippling.computer/docs/concepts) page explains the diagram, how a job runs, and why real tokens never go into the sandbox.
@@ -42,7 +42,7 @@ The [Concepts](https://byoa.rippling.computer/docs/concepts) page explains the d
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/scope-dark.png">
-  <img alt="What version 1 covers. Agents: Claude Code and Codex (v1), Gemini or Antigravity maybe later. User plans: Claude and ChatGPT (v1), an OpenCode Go key (beta). Sandboxes: E2B, Daytona and Instabox (v1), other providers planned. Backends: Node and Convex actions (v1), Cloudflare Workers planned. Token stores: Convex and Postgres (v1), or your own with get, put, delete and compare-and-set." src=".github/readme/scope-light.png">
+  <img alt="What version 1 covers. Agents: Claude Code, Codex and Grok Build (v1), Gemini or Antigravity maybe later. User plans: Claude, ChatGPT and Grok (v1), an OpenCode Go key (beta). Sandboxes: E2B, Daytona and Instabox (v1), other providers planned. Backends: Node and Convex actions (v1), Cloudflare Workers planned. Token stores: Convex and Postgres (v1), or your own with get, put, delete and compare-and-set." src=".github/readme/scope-light.png">
 </picture>
 
 ## Install
@@ -77,7 +77,7 @@ await agents.finishLogin(userId, 'claude', { code })         // the code that pa
 const mcp = await agents.connectMcp(userId, 'https://mcp.notion.com/mcp', { name: 'notion' })  // once for each user
 
 for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['notion'], setup: { agentsMd, skills } })) {
-  // start, text, tool_call, tool_result, permission, error, end: the same events for Claude Code and Codex
+  // start, text, tool_call, tool_result, permission, error, end: the same events for every harness
 }
 ```
 
@@ -100,7 +100,7 @@ The docs are at [byoa.rippling.computer/docs](https://byoa.rippling.computer/doc
 
 - [Getting started](https://byoa.rippling.computer/docs/getting-started): install, one `agents` object, two routes, a sign-in and a first job
 - [Concepts](https://byoa.rippling.computer/docs/concepts): who brings what, how a job runs, and why real tokens never go into the sandbox
-- [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions) and the [FAQ](https://byoa.rippling.computer/docs/faq): which Claude, ChatGPT and OpenCode Go (beta) plans work, whether a user's account can get banned, and what a job costs
+- [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions) and the [FAQ](https://byoa.rippling.computer/docs/faq): which Claude, ChatGPT, Grok and OpenCode Go (beta) plans work, whether a user's account can get banned, and what a job costs
 - [Give your agent tools](https://byoa.rippling.computer/docs/agent-tools): your app's own tools, MCP servers, skills and plugins, and which one to choose
 - [AI login](https://byoa.rippling.computer/docs/ai-login): the sign-in, where the login stays between jobs, one job step by step, jobs at the same time with one login, and sign-out
 - [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle): every sandbox byoa creates, what each provider does, and what happens when your backend dies
@@ -114,8 +114,8 @@ What version 1 must do, and the checks that prove it, are in [SPEC.md](SPEC.md).
 
 ## Rules we follow
 
-- We run the real, unmodified `claude` and `codex` binaries. We never pretend to be another client.
-- The user signs in through Anthropic's or OpenAI's own sign-in page.
+- We run the real, unmodified `claude`, `codex` and `grok` binaries. We never pretend to be another client.
+- The user signs in through Anthropic's, OpenAI's or xAI's own sign-in page.
 - One app's AI login is used only by that app.
 - For OpenCode Go, byoa uses only the user's own key, with OpenCode's documented API and the harness's own user agent, never OpenCode's Console CLI sign-in. OpenCode's terms do not clearly allow an app to run it for its users; each app asks OpenCode first.
 - The labs' terms restrict where an AI login may be stored. byoa keeps it in your database by default, so each app checks those terms and signs its own agreements with the labs. See [Lab rules](https://byoa.rippling.computer/docs/lab-rules) and [SPEC.md](SPEC.md#lab-rules).

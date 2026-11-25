@@ -406,13 +406,13 @@ footer a { color: #b8bdd8; text-decoration: none; }
 </figure>
 <ul>
 <li><strong>You, the developer</strong>, build the app, pick the sandbox provider (E2B, Daytona or Instabox, on your own account) and own the database. You import byoa into your app&#39;s backend.</li>
-<li><strong>The end user</strong> uses your app. They have a Claude or ChatGPT plan, and accounts in tools such as Notion or Gmail. They sign in on the lab&#39;s own page one time, and connect each MCP tool one time.</li>
-<li><strong>byoa</strong> is a library in your backend. It keeps the user&#39;s AI login and MCP grants in your database, encrypted with your key. For each job, it gets a sandbox at your provider and runs the user&#39;s own, unmodified Claude Code or Codex there.</li>
+<li><strong>The end user</strong> uses your app. They have a Claude, ChatGPT or Grok plan, and accounts in tools such as Notion or Gmail. They sign in on the lab&#39;s own page one time, and connect each MCP tool one time.</li>
+<li><strong>byoa</strong> is a library in your backend. It keeps the user&#39;s AI login and MCP grants in your database, encrypted with your key. For each job, it gets a sandbox at your provider and runs the user&#39;s own, unmodified Claude Code, Codex or Grok Build there.</li>
 <li><strong>The AI labs</strong> (Anthropic, OpenAI) get the model calls. The user&#39;s own plan pays for them, not your API bill.</li>
 <li><strong>The MCP servers</strong> get the real token from byoa&#39;s proxy in your backend, never from the sandbox.</li>
 </ul>
 <h2 id="the-problem"><a class="anchor" href="#the-problem" aria-hidden="true" tabindex="-1">#</a>The problem</h2>
-<p>To make an app AI-native, you run a big lab&#39;s harness (Claude Code or Codex) in a sandbox, with the user&#39;s own AI plan. For each app, you must build the same connection layer again:</p>
+<p>To make an app AI-native, you run a big lab&#39;s harness (Claude Code, Codex or Grok Build) in a sandbox, with the user&#39;s own AI plan. For each app, you must build the same connection layer again:</p>
 <ul>
 <li>the user&#39;s AI login, through the real CLI;</li>
 <li>the user&#39;s MCP connections and their OAuth tokens, with one refresh owner;</li>
@@ -437,12 +437,12 @@ footer a { color: #b8bdd8; text-decoration: none; }
 </thead>
 <tbody><tr>
 <td>Agents</td>
-<td>Claude Code, Codex</td>
+<td>Claude Code, Codex, Grok Build</td>
 <td>Gemini or Antigravity, maybe</td>
 </tr>
 <tr>
 <td>User plans</td>
-<td>Claude, ChatGPT, OpenCode Go key (beta)</td>
+<td>Claude, ChatGPT, Grok, OpenCode Go key (beta)</td>
 <td></td>
 </tr>
 <tr>

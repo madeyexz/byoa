@@ -317,7 +317,7 @@ footer a { color: #b8bdd8; text-decoration: none; }
     <article>
 <h1>Give your agent tools</h1>
 <p class="lead">Your app&#39;s own tools, the user&#39;s MCP servers, skills, AGENTS.md and plugins, which one to choose, and what the agent can do in its sandbox.</p>
-<p>The agent in each job is the user&#39;s own Claude Code or Codex. You decide what it can do in that job: which tools it can call, what it knows, and what it may do in its sandbox. This page shows each way, and which one to choose.</p>
+<p>The agent in each job is the user&#39;s own Claude Code, Codex or Grok Build. You decide what it can do in that job: which tools it can call, what it knows, and what it may do in its sandbox. This page shows each way, and which one to choose.</p>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -409,8 +409,9 @@ footer a { color: #b8bdd8; text-decoration: none; }
 <span class="line"><span>├── AGENTS.md                   setup.agentsMd</span></span>
 <span class="line"><span>├── CLAUDE.md                   the same text, for Claude Code</span></span>
 <span class="line"><span>├── .claude/skills/&#x3C;name>/      the skills, for Claude Code</span></span>
-<span class="line"><span>├── .agents/skills/&#x3C;name>/      the skills, for Codex</span></span>
+<span class="line"><span>├── .agents/skills/&#x3C;name>/      the skills, for Codex and Grok Build</span></span>
 <span class="line"><span>├── .codex/config.toml          Codex's MCP config: each server at the proxy, with the job token</span></span>
+<span class="line"><span>├── .grok/config.toml           Grok Build's MCP config: the same (it reads the folder with --trust)</span></span>
 <span class="line"><span>└── .byoa/</span></span>
 <span class="line"><span>    ├── mcp.json                Claude Code's MCP config: the same</span></span>
 <span class="line"><span>    └── task.md                 the task</span></span></code></pre></div><h2 id="plugins"><a class="anchor" href="#plugins" aria-hidden="true" tabindex="-1">#</a>Plugins</h2>

@@ -10,7 +10,7 @@ AI is like electricity, and an AI subscription is like a portable battery pack. 
 
 ## What byoa does
 
-Each user powers the agent features of your app with their own AI subscription: they sign in to it one time. Today byoa supports Claude (in Claude Code), ChatGPT (in Codex) and OpenCode Go (beta), and more are coming soon, starting with Grok. When your app has work for the AI, byoa runs that user's own Claude Code or Codex in a sandbox, with the user's tools, and streams the result back. The user's plan pays for the AI. Your app pays only for the sandbox.
+Each user powers the agent features of your app with their own AI subscription: they sign in to it one time. Today byoa supports Claude (in Claude Code), ChatGPT (in Codex), Grok (in Grok Build) and OpenCode Go (beta), and more are coming soon. When your app has work for the AI, byoa runs that user's own Claude Code, Codex or Grok Build in a sandbox, with the user's tools, and streams the result back. The user's plan pays for the AI. Your app pays only for the sandbox.
 
 byoa is an open-source library (Apache 2.0). It runs inside your app's own backend. It is not a hosted service. Start with [Getting started](getting-started.md). To learn the parts first, read [Concepts](concepts.md). To see which plans work, read [Supported AI subscriptions](subscriptions.md).
 
@@ -18,7 +18,7 @@ byoa is an open-source library (Apache 2.0). It runs inside your app's own backe
 
 You want your app to have an AI agent that does real work for each user: it reads and changes the user's data, calls the user's tools, and writes files. To build this yourself, you need many parts:
 
-- an agent loop as good as Claude Code or Codex, and its updates;
+- an agent loop as good as Claude Code, Codex or Grok Build, and its updates;
 - a sandbox for each user, which starts, pauses and ends at the right times;
 - a sign-in to each user's AI plan, and safe storage of that login;
 - an OAuth connection to each of the user's MCP tools, with the tokens kept out of the agent's reach.
@@ -27,9 +27,9 @@ And with your own API key, your app pays for every token. byoa gives you all of 
 
 Use byoa when:
 
-- your users already pay for Claude, ChatGPT or OpenCode Go, and you do not want to pay for their AI or sell them AI credits;
+- your users already pay for Claude, ChatGPT, Grok or OpenCode Go, and you do not want to pay for their AI or sell them AI credits;
 - your app's AI work is agent work, with many steps, tools and files, not one chat answer;
-- you want Claude Code and Codex as your agent, not a loop of your own;
+- you want Claude Code, Codex or Grok Build as your agent, not a loop of your own;
 - you want each user's tools, such as Notion or Gmail, in each job, after one connection.
 
 You do not need byoa when:
@@ -44,7 +44,7 @@ These pages are the Markdown files in [docs/](../docs) of the repository. The si
 
 - [Getting started](getting-started.md): install byoa, make one `agents` object, serve its two routes, sign a user in and run a first job
 - [Concepts](concepts.md): who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox
-- [Supported AI subscriptions](subscriptions.md): which Claude, ChatGPT and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned
+- [Supported AI subscriptions](subscriptions.md): which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned
 - [FAQ](faq.md): whether a user's AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key
 
 ## Guides
@@ -61,5 +61,5 @@ These pages are the Markdown files in [docs/](../docs) of the repository. The si
 ## Reference
 
 - [API reference](api.md): every import, method, option and event
-- [Lab rules](lab-rules.md): what Anthropic's and OpenAI's terms allow, and what byoa and each app must do
+- [Lab rules](lab-rules.md): what Anthropic's, OpenAI's, xAI's and OpenCode's terms allow, and what byoa and each app must do
 - [Security](security.md): where each secret is kept, and how to report a problem

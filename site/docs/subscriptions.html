@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Supported AI subscriptions · byoa docs</title>
-<meta name="description" content="which Claude, ChatGPT and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned">
+<meta name="description" content="which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned">
 <meta property="og:title" content="Supported AI subscriptions · byoa docs">
-<meta property="og:description" content="which Claude, ChatGPT and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned">
+<meta property="og:description" content="which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned">
 <meta name="theme-color" content="#f8f6f0" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1124" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://byoa.rippling.computer/docs/subscriptions">
@@ -316,8 +316,8 @@ footer a { color: #b8bdd8; text-decoration: none; }
     <div class="pagehead"><div class="kick">Start</div><button class="copy-page narrow" type="button" data-md="/docs/subscriptions.md">Copy page</button></div>
     <article>
 <h1>Supported AI subscriptions</h1>
-<p class="lead">Which Claude, ChatGPT and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned.</p>
-<p>Your users bring an AI subscription that they already pay for. byoa runs it in the lab&#39;s own, unmodified CLI: Claude Code or Codex.</p>
+<p class="lead">Which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned.</p>
+<p>Your users bring an AI subscription that they already pay for. byoa runs it in the lab&#39;s own, unmodified CLI: Claude Code, Codex or Grok Build.</p>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -337,6 +337,11 @@ footer a { color: #b8bdd8; text-decoration: none; }
 <td>It can. OpenAI&#39;s terms want the login kept where the user controls it, and paid or hosted apps must apply to be partners.</td>
 </tr>
 <tr>
+<td><a href="https://x.ai/grok" rel="noopener">Grok</a>, in Grok Build</td>
+<td>SuperGrok and X Premium+</td>
+<td>Unclear. xAI&#39;s terms forbid sharing an account and &quot;unauthorized automated&quot; access, and say nothing about apps that run Grok Build for their users.</td>
+</tr>
+<tr>
 <td><a href="https://opencode.ai/docs/console/go" rel="noopener">OpenCode Go</a> <strong>(beta)</strong>, in Claude Code or Codex</td>
 <td>Go, Go Plus and Go Teams</td>
 <td>It can. OpenCode&#39;s terms say &quot;only for your own internal use&quot;.</td>
@@ -344,21 +349,21 @@ footer a { color: #b8bdd8; text-decoration: none; }
 </tbody></table>
 </div><p>Why, and what to do before you launch: <a href="/docs/faq#can-my-users-ai-account-get-banned">Can my user&#39;s AI account get banned?</a></p>
 <ul>
-<li><strong>Claude and ChatGPT:</strong> the user signs in on the lab&#39;s own page. See <a href="/docs/ai-login">AI login</a>.</li>
+<li><strong>Claude, ChatGPT and Grok:</strong> the user signs in on the lab&#39;s own page. See <a href="/docs/ai-login">AI login</a>.</li>
 <li><strong>OpenCode Go (beta):</strong> the user gives a key from OpenCode&#39;s Console, and the key never goes into the sandbox. No real Go key has run it yet. See <a href="/docs/ai-login#opencode-go-a-key-not-a-sign-in-beta">AI login</a>.</li>
 <li><strong>Prices and limits:</strong> the labs change them often, so read their own pages, linked in the table.</li>
 </ul>
 <h2 id="what-every-plan-has-in-common"><a class="anchor" href="#what-every-plan-has-in-common" aria-hidden="true" tabindex="-1">#</a>What every plan has in common</h2>
 <ul>
 <li><strong>The user&#39;s plan limits apply.</strong> A job uses the same allowance as the user&#39;s own chats and coding: the five-hour and weekly limits are shared. When the user is at a limit, the CLI refuses, and the job ends with an <code>error</code> event.</li>
-<li><strong>One plan for each harness.</strong> A user can sign in to both, and each job names its harness: <code>harness: &#39;claude&#39;</code> or <code>harness: &#39;codex&#39;</code>. A job on the user&#39;s OpenCode Go key also names <code>plan: &#39;opencode-go&#39;</code>.</li>
+<li><strong>One plan for each harness.</strong> A user can sign in to each of them, and each job names its harness: <code>harness: &#39;claude&#39;</code>, <code>&#39;codex&#39;</code> or <code>&#39;grok&#39;</code>. A job on the user&#39;s OpenCode Go key also names <code>plan: &#39;opencode-go&#39;</code>.</li>
 <li><strong>The login belongs to your app.</strong> A login that a user made in your app is only for your app. Another app on byoa needs its own sign-in. See <a href="/docs/lab-rules">Lab rules</a>.</li>
 <li><strong>The labs&#39; terms apply.</strong> The labs restrict where an app may store the login, and OpenAI asks paid or hosted apps to apply to be partners. Read <a href="/docs/faq#can-my-users-ai-account-get-banned">the FAQ</a> before you launch.</li>
 </ul>
 <h2 id="what-byoa-does-not-support"><a class="anchor" href="#what-byoa-does-not-support" aria-hidden="true" tabindex="-1">#</a>What byoa does not support</h2>
 <ul>
 <li><strong>API keys.</strong> byoa signs in only with a plan. The one key it takes is the user&#39;s OpenCode Go key, which is a plan&#39;s key. An app that wants to pay for the AI with its own API key does not need byoa for the login.</li>
-<li><strong>Other labs&#39; plans,</strong> such as Gemini or Kimi memberships. byoa runs only Claude Code and Codex in version 1. Gemini or Antigravity may come later. OpenCode is also an agent itself (the <code>opencode</code> CLI), but byoa does not run it in version 1: an OpenCode Go plan runs in Claude Code or Codex.</li>
+<li><strong>Other labs&#39; plans,</strong> such as Gemini or Kimi memberships. byoa runs only Claude Code, Codex and Grok Build in version 1. Gemini or Antigravity may come later. OpenCode is also an agent itself (the <code>opencode</code> CLI), but byoa does not run it in version 1: an OpenCode Go plan runs in Claude Code or Codex.</li>
 <li><strong>Sharing one login between apps.</strong> The labs do not allow it, and byoa keeps each app&#39;s logins apart (<code>app</code> in <code>createAgents</code>).</li>
 </ul>
 

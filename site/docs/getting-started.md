@@ -1,6 +1,6 @@
 # Getting started
 
-New to byoa? Read the [Overview](https://byoa.rippling.computer/docs/index.md) first. In short: byoa is a library in your app's backend. Each user signs in to their own Claude or ChatGPT plan one time, and connects each MCP tool one time. When your app has work for the AI, byoa runs that user's own Claude Code or Codex in a sandbox, with the user's tools, and streams the events back to your app. The user's plan pays for the AI, and your app pays for the sandbox.
+New to byoa? Read the [Overview](https://byoa.rippling.computer/docs/index.md) first. In short: byoa is a library in your app's backend. Each user signs in to their own Claude, ChatGPT or Grok plan one time, and connects each MCP tool one time. When your app has work for the AI, byoa runs that user's own Claude Code, Codex or Grok Build in a sandbox, with the user's tools, and streams the events back to your app. The user's plan pays for the AI, and your app pays for the sandbox.
 
 This page takes you from `npm install` to a first agent job: one `agents` object, two routes, a sign-in and a job. A new app needs fewer than 50 lines of its own code for this. The [to-do example](https://github.com/madeyexz/byoa/tree/main/examples/todo) uses byoa in 39.
 
@@ -60,7 +60,7 @@ if (url.pathname === '/byoa/callback') {                               // the MC
 
 ## Sign the user in to their plan
 
-The sign-in runs the unmodified CLI in a sandbox. The user signs in on the lab's own page. byoa gives your app only that page's URL and, for Codex, a code. See [AI login](https://byoa.rippling.computer/docs/ai-login.md) for each step.
+The sign-in runs the unmodified CLI in a sandbox. The user signs in on the lab's own page. byoa gives your app only that page's URL and, for Codex and Grok Build, a code. See [AI login](https://byoa.rippling.computer/docs/ai-login.md) for each step.
 
 ```ts
 const claude = await agents.connectLogin(userId, 'claude')  // { url }: Anthropic's own sign-in page
@@ -68,6 +68,7 @@ await agents.finishLogin(userId, 'claude', { code })        // the code that pag
 const codex = await agents.connectLogin(userId, 'codex')    // { url, code }: OpenAI's page and the code to enter
 await agents.finishLogin(userId, 'codex', { waitMs: 20_000 })  // call again while the state is 'pending'
 await agents.cancelLogin(userId, 'codex')                     // the user closed the sign-in: its sandbox ends now
+const grok = await agents.connectLogin(userId, 'grok')      // { url, code }: xAI's page and the code; finish as for Codex
 ```
 
 The sign-in's sandbox lives only while your sign-in UI checks in: each `finishLogin` call keeps it for 2 more minutes. For Claude Code, call `finishLogin(userId, 'claude')` with no code about every 30 seconds while the user is on Anthropic's page.
@@ -87,7 +88,7 @@ Every later job of this user can have this server. Your app's own data needs no 
 
 ```ts
 for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['notion'], setup: { agentsMd, skills } })) {
-  // start, text, tool_call, tool_result, permission, error, end: the same events for Claude Code and Codex
+  // start, text, tool_call, tool_result, permission, error, end: the same events for every harness
 }
 ```
 

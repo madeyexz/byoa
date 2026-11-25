@@ -20,7 +20,7 @@ AI is like electricity, and an AI subscription is like a portable battery pack. 
 
 ## What byoa does
 
-Each user powers the agent features of your app with their own AI subscription: they sign in to it one time. Today byoa supports Claude (in Claude Code), ChatGPT (in Codex) and OpenCode Go (beta), and more are coming soon, starting with Grok. When your app has work for the AI, byoa runs that user's own Claude Code or Codex in a sandbox, with the user's tools, and streams the result back. The user's plan pays for the AI. Your app pays only for the sandbox.
+Each user powers the agent features of your app with their own AI subscription: they sign in to it one time. Today byoa supports Claude (in Claude Code), ChatGPT (in Codex), Grok (in Grok Build) and OpenCode Go (beta), and more are coming soon. When your app has work for the AI, byoa runs that user's own Claude Code, Codex or Grok Build in a sandbox, with the user's tools, and streams the result back. The user's plan pays for the AI. Your app pays only for the sandbox.
 
 byoa is an open-source library (Apache 2.0). It runs inside your app's own backend. It is not a hosted service. Start with [Getting started](https://byoa.rippling.computer/docs/getting-started.md). To learn the parts first, read [Concepts](https://byoa.rippling.computer/docs/concepts.md). To see which plans work, read [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md).
 
@@ -28,7 +28,7 @@ byoa is an open-source library (Apache 2.0). It runs inside your app's own backe
 
 You want your app to have an AI agent that does real work for each user: it reads and changes the user's data, calls the user's tools, and writes files. To build this yourself, you need many parts:
 
-- an agent loop as good as Claude Code or Codex, and its updates;
+- an agent loop as good as Claude Code, Codex or Grok Build, and its updates;
 - a sandbox for each user, which starts, pauses and ends at the right times;
 - a sign-in to each user's AI plan, and safe storage of that login;
 - an OAuth connection to each of the user's MCP tools, with the tokens kept out of the agent's reach.
@@ -37,9 +37,9 @@ And with your own API key, your app pays for every token. byoa gives you all of 
 
 Use byoa when:
 
-- your users already pay for Claude, ChatGPT or OpenCode Go, and you do not want to pay for their AI or sell them AI credits;
+- your users already pay for Claude, ChatGPT, Grok or OpenCode Go, and you do not want to pay for their AI or sell them AI credits;
 - your app's AI work is agent work, with many steps, tools and files, not one chat answer;
-- you want Claude Code and Codex as your agent, not a loop of your own;
+- you want Claude Code, Codex or Grok Build as your agent, not a loop of your own;
 - you want each user's tools, such as Notion or Gmail, in each job, after one connection.
 
 You do not need byoa when:
@@ -54,7 +54,7 @@ These pages are the Markdown files in [docs/](https://github.com/madeyexz/byoa/t
 
 - [Getting started](https://byoa.rippling.computer/docs/getting-started.md): install byoa, make one `agents` object, serve its two routes, sign a user in and run a first job
 - [Concepts](https://byoa.rippling.computer/docs/concepts.md): who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox
-- [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md): which Claude, ChatGPT and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned
+- [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md): which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned
 - [FAQ](https://byoa.rippling.computer/docs/faq.md): whether a user's AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key
 
 ## Guides
@@ -71,7 +71,7 @@ These pages are the Markdown files in [docs/](https://github.com/madeyexz/byoa/t
 ## Reference
 
 - [API reference](https://byoa.rippling.computer/docs/api.md): every import, method, option and event
-- [Lab rules](https://byoa.rippling.computer/docs/lab-rules.md): what Anthropic's and OpenAI's terms allow, and what byoa and each app must do
+- [Lab rules](https://byoa.rippling.computer/docs/lab-rules.md): what Anthropic's, OpenAI's, xAI's and OpenCode's terms allow, and what byoa and each app must do
 - [Security](https://byoa.rippling.computer/docs/security.md): where each secret is kept, and how to report a problem
 
 ---
@@ -80,7 +80,7 @@ Source: https://byoa.rippling.computer/docs/getting-started
 
 # Getting started
 
-New to byoa? Read the [Overview](https://byoa.rippling.computer/docs/index.md) first. In short: byoa is a library in your app's backend. Each user signs in to their own Claude or ChatGPT plan one time, and connects each MCP tool one time. When your app has work for the AI, byoa runs that user's own Claude Code or Codex in a sandbox, with the user's tools, and streams the events back to your app. The user's plan pays for the AI, and your app pays for the sandbox.
+New to byoa? Read the [Overview](https://byoa.rippling.computer/docs/index.md) first. In short: byoa is a library in your app's backend. Each user signs in to their own Claude, ChatGPT or Grok plan one time, and connects each MCP tool one time. When your app has work for the AI, byoa runs that user's own Claude Code, Codex or Grok Build in a sandbox, with the user's tools, and streams the events back to your app. The user's plan pays for the AI, and your app pays for the sandbox.
 
 This page takes you from `npm install` to a first agent job: one `agents` object, two routes, a sign-in and a job. A new app needs fewer than 50 lines of its own code for this. The [to-do example](https://github.com/madeyexz/byoa/tree/main/examples/todo) uses byoa in 39.
 
@@ -140,7 +140,7 @@ if (url.pathname === '/byoa/callback') {                               // the MC
 
 ## Sign the user in to their plan
 
-The sign-in runs the unmodified CLI in a sandbox. The user signs in on the lab's own page. byoa gives your app only that page's URL and, for Codex, a code. See [AI login](https://byoa.rippling.computer/docs/ai-login.md) for each step.
+The sign-in runs the unmodified CLI in a sandbox. The user signs in on the lab's own page. byoa gives your app only that page's URL and, for Codex and Grok Build, a code. See [AI login](https://byoa.rippling.computer/docs/ai-login.md) for each step.
 
 ```ts
 const claude = await agents.connectLogin(userId, 'claude')  // { url }: Anthropic's own sign-in page
@@ -148,6 +148,7 @@ await agents.finishLogin(userId, 'claude', { code })        // the code that pag
 const codex = await agents.connectLogin(userId, 'codex')    // { url, code }: OpenAI's page and the code to enter
 await agents.finishLogin(userId, 'codex', { waitMs: 20_000 })  // call again while the state is 'pending'
 await agents.cancelLogin(userId, 'codex')                     // the user closed the sign-in: its sandbox ends now
+const grok = await agents.connectLogin(userId, 'grok')      // { url, code }: xAI's page and the code; finish as for Codex
 ```
 
 The sign-in's sandbox lives only while your sign-in UI checks in: each `finishLogin` call keeps it for 2 more minutes. For Claude Code, call `finishLogin(userId, 'claude')` with no code about every 30 seconds while the user is on Anthropic's page.
@@ -167,7 +168,7 @@ Every later job of this user can have this server. Your app's own data needs no 
 
 ```ts
 for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['notion'], setup: { agentsMd, skills } })) {
-  // start, text, tool_call, tool_result, permission, error, end: the same events for Claude Code and Codex
+  // start, text, tool_call, tool_result, permission, error, end: the same events for every harness
 }
 ```
 
@@ -238,14 +239,14 @@ DEVELOPER · YOU                                           END USER
 ```
 
 - **You, the developer**, build the app, pick the sandbox provider (E2B, Daytona or Instabox, on your own account) and own the database. You import byoa into your app's backend.
-- **The end user** uses your app. They have a Claude or ChatGPT plan, and accounts in tools such as Notion or Gmail. They sign in on the lab's own page one time, and connect each MCP tool one time.
-- **byoa** is a library in your backend. It keeps the user's AI login and MCP grants in your database, encrypted with your key. For each job, it gets a sandbox at your provider and runs the user's own, unmodified Claude Code or Codex there.
+- **The end user** uses your app. They have a Claude, ChatGPT or Grok plan, and accounts in tools such as Notion or Gmail. They sign in on the lab's own page one time, and connect each MCP tool one time.
+- **byoa** is a library in your backend. It keeps the user's AI login and MCP grants in your database, encrypted with your key. For each job, it gets a sandbox at your provider and runs the user's own, unmodified Claude Code, Codex or Grok Build there.
 - **The AI labs** (Anthropic, OpenAI) get the model calls. The user's own plan pays for them, not your API bill.
 - **The MCP servers** get the real token from byoa's proxy in your backend, never from the sandbox.
 
 ## The problem
 
-To make an app AI-native, you run a big lab's harness (Claude Code or Codex) in a sandbox, with the user's own AI plan. For each app, you must build the same connection layer again:
+To make an app AI-native, you run a big lab's harness (Claude Code, Codex or Grok Build) in a sandbox, with the user's own AI plan. For each app, you must build the same connection layer again:
 
 - the user's AI login, through the real CLI;
 - the user's MCP connections and their OAuth tokens, with one refresh owner;
@@ -263,8 +264,8 @@ byoa is that layer, as a library, so you do not build it again for each app.
 
 | | Version 1 | Later |
 |---|---|---|
-| Agents | Claude Code, Codex | Gemini or Antigravity, maybe |
-| User plans | Claude, ChatGPT, OpenCode Go key (beta) | |
+| Agents | Claude Code, Codex, Grok Build | Gemini or Antigravity, maybe |
+| User plans | Claude, ChatGPT, Grok, OpenCode Go key (beta) | |
 | Sandboxes | E2B, Daytona, Instabox | other providers |
 | Backends | Node, Convex actions | Cloudflare Workers |
 | Token stores | Convex, Postgres, or your own with get, put, delete and compare-and-set | |
@@ -304,31 +305,32 @@ Source: https://byoa.rippling.computer/docs/subscriptions
 
 # Supported AI subscriptions
 
-Your users bring an AI subscription that they already pay for. byoa runs it in the lab's own, unmodified CLI: Claude Code or Codex.
+Your users bring an AI subscription that they already pay for. byoa runs it in the lab's own, unmodified CLI: Claude Code, Codex or Grok Build.
 
 | Subscription | Plans that work | Can the user's account get banned? |
 |---|---|---|
 | [Claude](https://claude.com/pricing), in Claude Code | Pro, Max, Ultra, Team and Enterprise. Not Free. | It can. Anthropic's terms forbid apps to store Claude logins, and Anthropic may act without notice. |
 | [ChatGPT](https://chatgpt.com/codex/pricing), in Codex | Plus, Pro, Business, Enterprise and Edu. Not Free or Go. | It can. OpenAI's terms want the login kept where the user controls it, and paid or hosted apps must apply to be partners. |
+| [Grok](https://x.ai/grok), in Grok Build | SuperGrok and X Premium+ | Unclear. xAI's terms forbid sharing an account and "unauthorized automated" access, and say nothing about apps that run Grok Build for their users. |
 | [OpenCode Go](https://opencode.ai/docs/console/go) **(beta)**, in Claude Code or Codex | Go, Go Plus and Go Teams | It can. OpenCode's terms say "only for your own internal use". |
 
 Why, and what to do before you launch: [Can my user's AI account get banned?](https://byoa.rippling.computer/docs/faq.md#can-my-users-ai-account-get-banned)
 
-- **Claude and ChatGPT:** the user signs in on the lab's own page. See [AI login](https://byoa.rippling.computer/docs/ai-login.md).
+- **Claude, ChatGPT and Grok:** the user signs in on the lab's own page. See [AI login](https://byoa.rippling.computer/docs/ai-login.md).
 - **OpenCode Go (beta):** the user gives a key from OpenCode's Console, and the key never goes into the sandbox. No real Go key has run it yet. See [AI login](https://byoa.rippling.computer/docs/ai-login.md#opencode-go-a-key-not-a-sign-in-beta).
 - **Prices and limits:** the labs change them often, so read their own pages, linked in the table.
 
 ## What every plan has in common
 
 - **The user's plan limits apply.** A job uses the same allowance as the user's own chats and coding: the five-hour and weekly limits are shared. When the user is at a limit, the CLI refuses, and the job ends with an `error` event.
-- **One plan for each harness.** A user can sign in to both, and each job names its harness: `harness: 'claude'` or `harness: 'codex'`. A job on the user's OpenCode Go key also names `plan: 'opencode-go'`.
+- **One plan for each harness.** A user can sign in to each of them, and each job names its harness: `harness: 'claude'`, `'codex'` or `'grok'`. A job on the user's OpenCode Go key also names `plan: 'opencode-go'`.
 - **The login belongs to your app.** A login that a user made in your app is only for your app. Another app on byoa needs its own sign-in. See [Lab rules](https://byoa.rippling.computer/docs/lab-rules.md).
 - **The labs' terms apply.** The labs restrict where an app may store the login, and OpenAI asks paid or hosted apps to apply to be partners. Read [the FAQ](https://byoa.rippling.computer/docs/faq.md#can-my-users-ai-account-get-banned) before you launch.
 
 ## What byoa does not support
 
 - **API keys.** byoa signs in only with a plan. The one key it takes is the user's OpenCode Go key, which is a plan's key. An app that wants to pay for the AI with its own API key does not need byoa for the login.
-- **Other labs' plans,** such as Gemini or Kimi memberships. byoa runs only Claude Code and Codex in version 1. Gemini or Antigravity may come later. OpenCode is also an agent itself (the `opencode` CLI), but byoa does not run it in version 1: an OpenCode Go plan runs in Claude Code or Codex.
+- **Other labs' plans,** such as Gemini or Kimi memberships. byoa runs only Claude Code, Codex and Grok Build in version 1. Gemini or Antigravity may come later. OpenCode is also an agent itself (the `opencode` CLI), but byoa does not run it in version 1: an OpenCode Go plan runs in Claude Code or Codex.
 - **Sharing one login between apps.** The labs do not allow it, and byoa keeps each app's logins apart (`app` in `createAgents`).
 
 ---
@@ -341,7 +343,7 @@ Source: https://byoa.rippling.computer/docs/faq
 
 It can. byoa cannot promise that it will not, because the labs decide, and their terms allow parts of what byoa does but not all of it. byoa is built to stay inside the parts that the labs allow:
 
-- **It runs the labs' own CLIs, unmodified.** The agent is the real Claude Code or Codex, installed from the labs' own npm packages, and a test checks the binaries against those packages (V11). byoa never pretends to be another client, and never calls the labs' APIs with the user's tokens.
+- **It runs the labs' own CLIs, unmodified.** The agent is the real Claude Code, Codex or Grok Build, installed from the labs' own npm packages, and a test checks the binaries against those packages (V11). byoa never pretends to be another client, and never calls the labs' APIs with the user's tokens.
 - **The user signs in on the lab's own page,** with the CLI's own sign-in. byoa never sees a password.
 - **Each user uses their own plan, for their own work,** and one app's login is only for that app.
 
@@ -352,6 +354,8 @@ Anthropic's [Claude Code legal and compliance page](https://code.claude.com/docs
 - Anthropic "reserves the right to take measures to enforce these restrictions and may do so without prior notice."
 
 OpenAI's [Sign in with ChatGPT Terms](https://openai.com/policies/sign-in-with-chatgpt-terms/) say that stored tokens "must be local and under the user's control, not in a remote or managed environment", and that paid or remotely hosted apps must [apply to be partners](https://openai.com/form/sign-in-with-chatgpt-interest/).
+
+xAI's [terms of service](https://x.ai/legal/terms-of-service) say "You may not share your account credentials or make your account available to anyone else", and its [acceptable use policy](https://x.ai/legal/acceptable-use-policy) forbids "Accessing the Services through unauthorized automated or non-human means". Neither says anything about an app that runs Grok Build for its users, or that stores their login. So for Grok, the answer is unclear.
 
 OpenCode's [Terms of Use](https://opencode.ai/legal/terms-of-service) say the user uses its services "only for your own internal use, and not on behalf of or for the benefit of any third party". So an OpenCode Go key (beta) in your app is arguable, not clearly allowed ([AI login](https://byoa.rippling.computer/docs/ai-login.md#opencode-go-a-key-not-a-sign-in-beta)).
 
@@ -364,7 +368,7 @@ So, before you launch:
 
 ## Can one user run many agents at the same time?
 
-Yes, with one sign-in, for Claude Code and Codex. Give each agent its own sandbox: a `sandboxKey` for each, or `sandboxPer: 'job'`. The jobs then share the user's login while it is not due for a refresh. Jobs in one sandbox wait in line instead, and one job can also carry several messages to one agent. See [Running agents](https://byoa.rippling.computer/docs/running-agents.md#jobs-at-the-same-time).
+Yes, with one sign-in, for Claude Code, Codex and Grok Build. Give each agent its own sandbox: a `sandboxKey` for each, or `sandboxPer: 'job'`. The jobs then share the user's login while it is not due for a refresh. Jobs in one sandbox wait in line instead, and one job can also carry several messages to one agent. See [Running agents](https://byoa.rippling.computer/docs/running-agents.md#jobs-at-the-same-time).
 
 All these jobs use the same plan, so they reach the plan's limits sooner. One risk stays with a shared login: when the lab answers 401 to two sandboxes at the same time, both CLIs refresh, one refresh fails, and the user may have to sign in again. `storedLogin({ parallel: false })` turns sharing off ([AI login](https://byoa.rippling.computer/docs/ai-login.md#jobs-at-the-same-time-the-shared-login)). Jobs on an OpenCode Go key have no such risk: a key does not rotate.
 
@@ -428,7 +432,7 @@ Source: https://byoa.rippling.computer/docs/agent-tools
 
 # Give your agent tools
 
-The agent in each job is the user's own Claude Code or Codex. You decide what it can do in that job: which tools it can call, what it knows, and what it may do in its sandbox. This page shows each way, and which one to choose.
+The agent in each job is the user's own Claude Code, Codex or Grok Build. You decide what it can do in that job: which tools it can call, what it knows, and what it may do in its sandbox. This page shows each way, and which one to choose.
 
 | The agent needs | Give it | Where it runs | Who connects it |
 |---|---|---|---|
@@ -533,8 +537,9 @@ byoa writes them into a new job folder, where each harness reads them:
 ├── AGENTS.md                   setup.agentsMd
 ├── CLAUDE.md                   the same text, for Claude Code
 ├── .claude/skills/<name>/      the skills, for Claude Code
-├── .agents/skills/<name>/      the skills, for Codex
+├── .agents/skills/<name>/      the skills, for Codex and Grok Build
 ├── .codex/config.toml          Codex's MCP config: each server at the proxy, with the job token
+├── .grok/config.toml           Grok Build's MCP config: the same (it reads the folder with --trust)
 └── .byoa/
     ├── mcp.json                Claude Code's MCP config: the same
     └── task.md                 the task
@@ -569,7 +574,7 @@ Source: https://byoa.rippling.computer/docs/ai-login
 
 # AI login
 
-A user's AI login stays encrypted in your app's database, and is in a sandbox only while a sign-in, a job or a sign-out runs. This page shows how byoa signs a user in to Claude Code and Codex, keeps the CLI's own login files, and uses them for each job. An OpenCode Go plan (beta) has no sign-in: the user gives a key, which never goes into the sandbox ([below](#opencode-go-a-key-not-a-sign-in-beta)).
+A user's AI login stays encrypted in your app's database, and is in a sandbox only while a sign-in, a job or a sign-out runs. This page shows how byoa signs a user in to Claude Code, Codex and Grok Build, keeps the CLI's own login files, and uses them for each job. An OpenCode Go plan (beta) has no sign-in: the user gives a key, which never goes into the sandbox ([below](#opencode-go-a-key-not-a-sign-in-beta)).
 
 | The login tokens are in | They are never in |
 |---|---|
@@ -582,30 +587,30 @@ This is for the default login, `storedLogin()`. With `cliLogin`, the tokens stay
 
 ## Sign-in
 
-Your app calls `agents.connectLogin(user, harness)`. byoa starts a new sandbox, installs the pinned CLI and runs its own sign-in. The user signs in on the lab's page. byoa gives your app only that page's address and, for Codex, a code.
+Your app calls `agents.connectLogin(user, harness)`. byoa starts a new sandbox, installs the pinned CLI and runs its own sign-in. The user signs in on the lab's page. byoa gives your app only that page's address and, for Codex and Grok Build, a code.
 
-The sign-in sandbox lives only while your sign-in UI checks in. Each `finishLogin` call keeps it for 2 more minutes. A sign-in lasts 15 minutes at most, as long as Codex's device code.
+The sign-in sandbox lives only while your sign-in UI checks in. Each `finishLogin` call keeps it for 2 more minutes. A sign-in lasts 15 minutes at most, as long as Codex's device code (Grok's code lasts at least 9 minutes).
 
-| | Claude Code | Codex |
-|---|---|---|
-| The CLI's sign-in | `claude auth login` | `codex login --device-auth` |
-| What your app shows | a link on claude.com | a link on auth.openai.com, and a one-time code |
-| What the user does | signs in; Anthropic's page shows a code | enters the code on OpenAI's page |
-| How your app finishes | `finishLogin(user, 'claude', { code })` with that code; byoa types it into the CLI and waits up to 60 s | `finishLogin(user, 'codex', { waitMs })`, again until the state is no longer `pending` |
-| How your app checks in | `finishLogin(user, 'claude')` with no code, about every 30 s while the user is on Anthropic's page; it answers `pending` | each `finishLogin` call; keep `waitMs` short, such as 20 s |
-| When the user closes the sign-in | `cancelLogin(user, 'claude')` | `cancelLogin(user, 'codex')` |
-| The files the CLI writes | in `~/.claude` (`CLAUDE_CONFIG_DIR`): `.credentials.json` (the tokens) and `.claude.json` (the account: email, organization, plan) | in `~/.codex` (`CODEX_HOME`): `auth.json` (access token, refresh token, last refresh time) |
+| | Claude Code | Codex | Grok Build |
+|---|---|---|---|
+| The CLI's sign-in | `claude auth login` | `codex login --device-auth` | `grok login --device-auth` |
+| What your app shows | a link on claude.com | a link on auth.openai.com, and a one-time code | a link on accounts.x.ai, and a one-time code |
+| What the user does | signs in; Anthropic's page shows a code | enters the code on OpenAI's page | enters the code on xAI's page |
+| How your app finishes | `finishLogin(user, 'claude', { code })` with that code; byoa types it into the CLI and waits up to 60 s | `finishLogin(user, 'codex', { waitMs })`, again until the state is no longer `pending` | the same as Codex, with `'grok'` |
+| How your app checks in | `finishLogin(user, 'claude')` with no code, about every 30 s while the user is on Anthropic's page; it answers `pending` | each `finishLogin` call; keep `waitMs` short, such as 20 s | the same as Codex |
+| When the user closes the sign-in | `cancelLogin(user, 'claude')` | `cancelLogin(user, 'codex')` | `cancelLogin(user, 'grok')` |
+| The files the CLI writes | in `~/.claude` (`CLAUDE_CONFIG_DIR`): `.credentials.json` (the tokens) and `.claude.json` (the account: email, organization, plan) | in `~/.codex` (`CODEX_HOME`): `auth.json` (access token, refresh token, last refresh time) | in `~/.grok` (`GROK_HOME`): `auth.json` (the tokens and the time they end) |
 
 Claude Code also writes a copy of `.claude.json` in `backups/` at each start. byoa removes it and does not store it.
 
 Diagram: The sign-in sandbox, from connectLogin to the signed-in state
 
 1. Remove an unfinished earlier sign-in. `connectLogin(user, h)` destroys this user's earlier sign-in sandbox for the harness, if one waits. Login files: no login files.
-2. Create the sign-in sandbox. storedLogin: no volume. cliLogin: the user's volume at `~/.claude` or `~/.codex`. Time limit: 15 min at most.
-3. Install the pinned CLI and start its sign-in. `claude auth login` or `codex login --device-auth`, in the background.
+2. Create the sign-in sandbox. storedLogin: no volume. cliLogin: the user's volume at `~/.claude`, `~/.codex` or `~/.grok`. Time limit: 15 min at most.
+3. Install the pinned CLI and start its sign-in. `claude auth login`, `codex login --device-auth` or `grok login --device-auth`, in the background.
 4. Question: Is the lab's page shown within 30 s? If yes: go on to step 5.
    - If no: Destroy it, and throw an error. This is the end. Also when the CLI exits at once.
-5. The user signs in on the lab's page. Your app shows the link, and Codex's code. From now on, the sandbox lives only while your app checks in. Time limit: 2 min after the last check-in.
+5. The user signs in on the lab's page. Your app shows the link, and the code of Codex or Grok Build. From now on, the sandbox lives only while your app checks in. Time limit: 2 min after the last check-in.
 6. Your app calls finishLogin. Claude Code: with the code from Anthropic's page, byoa types it in; with no code, the call only checks in. Each call keeps the sandbox 2 more minutes. Time limit: waits: Claude with a code 60 s, else waitMs (default 0)
 7. Question: Has the CLI ended? If yes: go on to step 8.
    - If no: Answer 'pending'. The sandbox keeps running. Time limit: until 15 min. Then call again: back to step 6.
@@ -637,7 +642,7 @@ The labs' published terms limit where these tokens may be stored. Each app check
 
 This is a job with the default `storedLogin()`. First byoa checks that the store has the user's login. If it does not, the job stops with `LoginError` (in `run`, an `error` event with code `signed-out`) and the state becomes `signed-out`. `close()` runs steps 4 to 7, also when the job failed.
 
-1. **Take the lease.** Two sandboxes must not refresh one login at the same time, because both CLIs rotate their refresh tokens. byoa writes the lease `ailoginlease/<user>/<harness>` with compare-and-set. By default, the jobs of one user and harness share the lease while the login is not due for a refresh (see [Jobs at the same time](#jobs-at-the-same-time-the-shared-login)). When a job must wait, it waits in line, in the order the jobs came (`ailoginline/<user>/<harness>`), and `onWait` gets `{ for: 'login', ahead }`. It waits with no time limit, unless you set `storedLogin({ waitMs })`. The lease ends by itself after the job timeout + 5 minutes, so a lost backend does not lock it.
+1. **Take the lease.** Two sandboxes must not refresh one login at the same time, because the CLIs rotate their refresh tokens. byoa writes the lease `ailoginlease/<user>/<harness>` with compare-and-set. By default, the jobs of one user and harness share the lease while the login is not due for a refresh (see [Jobs at the same time](#jobs-at-the-same-time-the-shared-login)). When a job must wait, it waits in line, in the order the jobs came (`ailoginline/<user>/<harness>`), and `onWait` gets `{ for: 'login', ahead }`. It waits with no time limit, unless you set `storedLogin({ waitMs })`. The lease ends by itself after the job timeout + 5 minutes, so a lost backend does not lock it.
 2. **Copy the login in.** byoa decrypts the entry in your backend and writes the files into the job's sandbox, `chmod 600`. It remembers which version of the entry it read, and writes a loan record for this sandbox (`ailoginloan/<user>/<harness>/<sandbox>`). It also starts a watcher in the sandbox: at the job timeout + 45 s, the watcher removes the login files, before the provider pauses the sandbox at the job timeout + 1 minute. `CLAUDE_CONFIG_DIR` or `CODEX_HOME` points the CLI at the files: a folder path, not a token.
 3. **The CLI runs, and may refresh.** The unmodified CLI uses its tokens to reach the lab. When its access token is due, it refreshes it and writes its own files again. About every 60 s, byoa saves what the CLI changed (a checkpoint), as in step 4.
 4. **Save back what changed.** If the files changed, byoa encrypts them and writes them over the entry, only if the entry is still the version from step 2 (compare-and-set). If the user signed in again meanwhile, the newer entry stays. byoa saves files from a sandbox only when they are the same account's login and not older than the stored one, because the agent can change any file.
@@ -651,7 +656,7 @@ When your backend dies during step 3, `close()` never runs. The watcher, the che
 
 ## Jobs at the same time: the shared login
 
-By default, the jobs of one user and harness share the login, for Claude Code and Codex. Each job gets its own copy in its own sandbox (a `sandboxKey` for each job, or `sandboxPer: 'job'`), and the jobs run at the same time. Jobs in one sandbox still run one after the other: see [Running agents](https://byoa.rippling.computer/docs/running-agents.md#jobs-at-the-same-time).
+By default, the jobs of one user and harness share the login, for Claude Code, Codex and Grok Build. Each job gets its own copy in its own sandbox (a `sandboxKey` for each job, or `sandboxPer: 'job'`), and the jobs run at the same time. Jobs in one sandbox still run one after the other: see [Running agents](https://byoa.rippling.computer/docs/running-agents.md#jobs-at-the-same-time).
 
 Diagram: How a job takes the shared login
 
@@ -659,9 +664,9 @@ Diagram: How a job takes the shared login
    - If yes, or not known: Hold the login alone. The job marks that it waits, so no new job joins. When the sharing jobs end, it takes the lease alone. The CLI refreshes, step 4 saves the new login, and the jobs after it share again. Time limit: lease: { alone: { id, until } }, after want.
 2. Share the login. This is the end. The job adds itself to the lease's shared list and gets its own copy of the login. More jobs can join. Time limit: lease: { shared: { job1: until, job2: until } }.
 
-- To answer the question, byoa reads only the time the access token ends from the login files, and no token: `expiresAt` in Claude Code's `.credentials.json`, the token's `exp` in Codex's `auth.json`. Both CLIs refresh 5 minutes before their access token ends. Claude Code's token lasts 8 hours, Codex's 10 days. When `auth.json` has no such time, byoa uses 8 days after the last refresh. When byoa cannot tell, the answer is yes.
+- To answer the question, byoa reads only the time the access token ends from the login files, and no token: `expiresAt` in Claude Code's `.credentials.json`, the token's `exp` in Codex's `auth.json`, `expires_at` in Grok Build's `auth.json`. The CLIs refresh about 5 minutes before their access token ends. Claude Code's token lasts 8 hours, Codex's 10 days, Grok Build's 6 hours. When Codex's `auth.json` has no such time, byoa uses 8 days after the last refresh. When byoa cannot tell, the answer is yes.
 - If two sharing jobs both save a change, the first save wins (step 4).
-- One risk stays: both CLIs also refresh when the lab answers 401 to a token that has not run out. If two sandboxes get that answer at the same time, both refresh, one refresh fails, and the user may have to sign in again.
+- One risk stays: the CLIs also refresh when the lab answers 401 to a token that has not run out. If two sandboxes get that answer at the same time, both refresh, one refresh fails, and the user may have to sign in again.
 - To hold the login one job at a time instead, pass `login: storedLogin({ parallel: false })`.
 
 ## OpenCode Go: a key, not a sign-in (beta)
@@ -701,7 +706,7 @@ Diagram: Sign-out, with the default storedLogin
 1. Destroy the user's kept sandboxes for this harness. `signOut(user, h)` calls `deleteSandbox(user, { harness: h })`. A job in one of them ends. Login files: no login files.
 2. Question: Is a login stored? `ailogin/<user>/<h>`. If yes: go on to step 3.
    - If no: Skip the CLI sign-out. Then go on to step 5.
-3. Sign out with the CLI in a new sandbox. Takes the login lease alone, writes the files in, and runs `claude auth logout` or `codex logout`, so that the lab can revoke the login. If this fails, byoa goes on. Time limit: 5 min; not kept; waits in line for the lease. Login files: login files in.
+3. Sign out with the CLI in a new sandbox. Takes the login lease alone, writes the files in, and runs `claude auth logout`, `codex logout` or `grok logout`, so that the lab can revoke the login. If this fails, byoa goes on. Time limit: 5 min; not kept; waits in line for the lease. Login files: login files in.
 4. Destroy it, give the lease back. Login files: no login files.
 5. Delete the stored login. The state is 'signed-out'. This is the end. `ailogin/<user>/<h>` is deleted.
 
@@ -903,7 +908,7 @@ Your app runs a job with `agents.run`. byoa takes the user's sandbox, loads the 
 
 ```ts
 for await (const ev of agents.run(userId, {
-  harness: 'claude',                   // 'claude' | 'codex' | 'fake'
+  harness: 'claude',                   // 'claude' | 'codex' | 'grok' | 'fake'
   task,                                // the user's request
   mcp: ['notion', 'todos'],            // the servers this job gets; default none
   setup: { agentsMd, skills },         // AGENTS.md (and CLAUDE.md for Claude Code); skills: [{ name, files: { 'SKILL.md': '...' } }]
@@ -912,7 +917,7 @@ for await (const ev of agents.run(userId, {
 }
 ```
 
-- The events are the same for Claude Code and Codex. The schema is in the [API reference](https://byoa.rippling.computer/docs/api.md#events-one-schema-for-both-harnesses).
+- The events are the same for every harness. The schema is in the [API reference](https://byoa.rippling.computer/docs/api.md#events-one-schema-for-every-harness).
 - `run` does not throw when a job fails. It gives `error` events (`code`: `signed-out`, `expired`, `no-plan`, `harness`, `sandbox` or `mcp`), and always ends with one `end` event (`ok`, `result`, `usage`). On `signed-out` or `expired`, show the sign-in again (for `plan: 'opencode-go'`, ask for a new key). On `no-plan`, tell the user that the key's workspace has no OpenCode Go plan.
 - byoa writes skills where each harness reads them (`.claude/skills/`, `.agents/skills/`), AGENTS.md (and CLAUDE.md for Claude Code) from one source, and the MCP config in each harness's own format. `plugins` adds the skills and MCP servers of an Agent Plugins package (`readPlugin(readPluginDir(dir))`).
 - byoa installs the pinned version of each harness in each sandbox, so a new pin reaches every user at their next job.
@@ -926,7 +931,7 @@ By default (`access: 'full'`), the agent has every tool of its harness, with no 
 agents.run(userId, { harness: 'codex', task, mcp: ['mail'], setup: { skills }, access: 'read-only' })
 ```
 
-The agent can then call the job's MCP tools and read files, so the harness can still read its skills and AGENTS.md. It cannot change a file or reach the network by itself. byoa only sets each CLI's own options: Codex runs in its own `read-only` sandbox, and Claude Code gets only its tools that read; each tool it refuses is a `permission` event. `read-only` does not hide files: the agent can read each file that its user can read. Use it always with `localSandbox()` on a user's own computer, where the sandbox isolates nothing.
+The agent can then call the job's MCP tools and read files, so the harness can still read its skills and AGENTS.md. It cannot change a file or reach the network by itself. byoa only sets each CLI's own options: Codex runs in its own `read-only` sandbox, and Claude Code and Grok Build get only their tools that read (Grok Build with its web search off); each tool it refuses is a `permission` event. `read-only` does not hide files: the agent can read each file that its user can read. Use it always with `localSandbox()` on a user's own computer, where the sandbox isolates nothing.
 
 ## Sandbox modes
 
@@ -960,11 +965,11 @@ const jobs = projects.map((p) => agents.run(userId, { harness: 'codex', task, sa
 
 - **A queue.** `onWait` gets `{ for, ahead }` each time the number of jobs ahead changes. `for` is `'sandbox'` while the job waits for its sandbox, and `'login'` while it waits for the AI login.
 - **Several messages.** byoa gives the agent all of them in one task, with a line that tells it to read them all first and then decide the order. It is one job, in one sandbox.
-- **Several sandboxes.** Jobs of one user in different sandboxes run at the same time with one sign-in, for Claude Code and Codex. They share the login while it is not due for a refresh. One risk stays, and `storedLogin({ parallel: false })` turns sharing off: see [AI login](https://byoa.rippling.computer/docs/ai-login.md#jobs-at-the-same-time-the-shared-login).
+- **Several sandboxes.** Jobs of one user in different sandboxes run at the same time with one sign-in, for every harness. They share the login while it is not due for a refresh. One risk stays, and `storedLogin({ parallel: false })` turns sharing off: see [AI login](https://byoa.rippling.computer/docs/ai-login.md#jobs-at-the-same-time-the-shared-login).
 
 ## Models and effort
 
-`run(userId, { harness, task, model, effort })` runs the harness with that model and effort, with each CLI's own flags: Claude Code's `--model` (an alias such as `opus`, or a full name) and `--effort` (`low` to `max`), Codex's `-m` and `model_reasoning_effort`. Without them, a job gets the harness's default from `createAgents({ models })`, else the CLI's own.
+`run(userId, { harness, task, model, effort })` runs the harness with that model and effort, with each CLI's own flags: Claude Code's `--model` (an alias such as `opus`, or a full name) and `--effort` (`low` to `max`), Codex's `-m` and `model_reasoning_effort`, Grok Build's `-m` and `--reasoning-effort`. Without them, a job gets the harness's default from `createAgents({ models })`, else the CLI's own.
 
 ```ts
 const agents = createAgents({ ...options, models: { claude: { model: 'opus' }, codex: { effort: 'high' } } })
@@ -979,7 +984,7 @@ A job on the user's OpenCode Go key (beta) passes `plan: 'opencode-go'` and a Go
 
 ## A program of your own around the harness
 
-An app that runs its own program around the unmodified harness (for example its own server, which starts `claude` or `codex` itself) opens the job with `agents.session` instead. It gets the same sandbox, login, pinned harness and job token, and runs its own command:
+An app that runs its own program around the unmodified harness (for example its own server, which starts `claude`, `codex` or `grok` itself) opens the job with `agents.session` instead. It gets the same sandbox, login, pinned harness and job token, and runs its own command:
 
 ```ts
 const s = await agents.session(userId, { harness: 'claude', mcp: ['notion'] })
@@ -1398,8 +1403,8 @@ byoa runs the labs' own CLIs on each user's own plan, so byoa and every app on i
 
 ## Rules we follow
 
-- We run the real, unmodified `claude` and `codex` binaries. We never pretend to be another client. A test checks the hash of the installed binaries against the published packages (V11).
-- The user signs in through Anthropic's or OpenAI's own sign-in page.
+- We run the real, unmodified `claude`, `codex` and `grok` binaries. We never pretend to be another client. A test checks the hash of the installed binaries against the published packages (V11).
+- The user signs in through Anthropic's, OpenAI's or xAI's own sign-in page.
 - One app's AI login is used only by that app.
 - For OpenCode Go (beta), byoa uses only the user's own key, with OpenCode's documented API and the harness's own user agent, never OpenCode's Console CLI sign-in. OpenCode's terms do not clearly allow an app to run it for its users, so each app asks OpenCode first.
 - The labs' terms restrict where an AI login may be stored. byoa keeps it in your database by default, so each app checks those terms and signs its own agreements with the labs.

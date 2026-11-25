@@ -41,14 +41,14 @@ DEVELOPER · YOU                                           END USER
 ```
 
 - **You, the developer**, build the app, pick the sandbox provider (E2B, Daytona or Instabox, on your own account) and own the database. You import byoa into your app's backend.
-- **The end user** uses your app. They have a Claude or ChatGPT plan, and accounts in tools such as Notion or Gmail. They sign in on the lab's own page one time, and connect each MCP tool one time.
-- **byoa** is a library in your backend. It keeps the user's AI login and MCP grants in your database, encrypted with your key. For each job, it gets a sandbox at your provider and runs the user's own, unmodified Claude Code or Codex there.
+- **The end user** uses your app. They have a Claude, ChatGPT or Grok plan, and accounts in tools such as Notion or Gmail. They sign in on the lab's own page one time, and connect each MCP tool one time.
+- **byoa** is a library in your backend. It keeps the user's AI login and MCP grants in your database, encrypted with your key. For each job, it gets a sandbox at your provider and runs the user's own, unmodified Claude Code, Codex or Grok Build there.
 - **The AI labs** (Anthropic, OpenAI) get the model calls. The user's own plan pays for them, not your API bill.
 - **The MCP servers** get the real token from byoa's proxy in your backend, never from the sandbox.
 
 ## The problem
 
-To make an app AI-native, you run a big lab's harness (Claude Code or Codex) in a sandbox, with the user's own AI plan. For each app, you must build the same connection layer again:
+To make an app AI-native, you run a big lab's harness (Claude Code, Codex or Grok Build) in a sandbox, with the user's own AI plan. For each app, you must build the same connection layer again:
 
 - the user's AI login, through the real CLI;
 - the user's MCP connections and their OAuth tokens, with one refresh owner;
@@ -66,8 +66,8 @@ byoa is that layer, as a library, so you do not build it again for each app.
 
 | | Version 1 | Later |
 |---|---|---|
-| Agents | Claude Code, Codex | Gemini or Antigravity, maybe |
-| User plans | Claude, ChatGPT, OpenCode Go key (beta) | |
+| Agents | Claude Code, Codex, Grok Build | Gemini or Antigravity, maybe |
+| User plans | Claude, ChatGPT, Grok, OpenCode Go key (beta) | |
 | Sandboxes | E2B, Daytona, Instabox | other providers |
 | Backends | Node, Convex actions | Cloudflare Workers |
 | Token stores | Convex, Postgres, or your own with get, put, delete and compare-and-set | |
