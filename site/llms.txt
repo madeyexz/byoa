@@ -24,7 +24,7 @@ bun add @madeyexz/byoa
 - [README: How we will verify it](https://github.com/madeyexz/byoa/blob/main/README.md#how-we-will-verify-it): the checks that define version 1
 - [README: Rules we follow](https://github.com/madeyexz/byoa/blob/main/README.md#rules-we-follow): the labs' rules that byoa and every app on it follow
 - [README: License](https://github.com/madeyexz/byoa/blob/main/README.md#license): Apache 2.0
-- [SPEC.md](https://raw.githubusercontent.com/madeyexz/byoa/main/SPEC.md): the version 1 requirements (R1 to R7) and the checks (V1 to V19)
+- [SPEC.md](https://raw.githubusercontent.com/madeyexz/byoa/main/SPEC.md): the version 1 requirements (R1 to R7) and the checks (V1 to V20)
 - [SPEC.md: Lab rules](https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules): what Anthropic's and OpenAI's terms allow, and what byoa and each app must do
 - [Full docs](https://byoa.rippling.computer/llms-full.txt): the README, SPEC.md, the example and the skill in one file
 

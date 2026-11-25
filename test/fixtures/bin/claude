@@ -33,6 +33,23 @@ case "$1" in
     fi
     task=$(cat)
     echo '{"type":"system","subtype":"init","session_id":"s1","tools":[]}'
+    if [ -n "$ANTHROPIC_BASE_URL" ]; then
+      # with a plan (R1.8): one request to ANTHROPIC_BASE_URL with ANTHROPIC_AUTH_TOKEN, with the headers Claude Code
+      # 2.1.330 sends, and the answer as the result
+      node - "$@" <<'JS'
+const model = process.argv[process.argv.indexOf('--model') + 1]
+fetch(process.env.ANTHROPIC_BASE_URL + '/v1/messages?beta=true', {
+  method: 'POST',
+  headers: { authorization: 'Bearer ' + process.env.ANTHROPIC_AUTH_TOKEN, 'user-agent': 'claude-cli/2.1.330 (external, sdk-cli)', 'x-claude-code-session-id': 'claude-session-1', 'content-type': 'application/json' },
+  body: JSON.stringify({ model, max_tokens: 100, messages: [{ role: 'user', content: 'hi' }] }),
+}).then(async (r) => {
+  const text = await r.text()
+  console.log(JSON.stringify({ type: 'result', subtype: 'success', is_error: !r.ok, result: r.ok ? JSON.parse(text).content[0].text : `API Error: ${r.status} ${text}`, usage: {} }))
+  process.exit(r.ok ? 0 : 1)
+})
+JS
+      exit $?
+    fi
     if [[ "$task" == *cred* ]]; then
       # like a token refresh: report the login it found, then replace it. As Claude Code 2.1.330 does, it writes its
       # files after it printed its result, and keeps a backup of .claude.json (the account, no token)

@@ -11,8 +11,9 @@ export type AgentEvent =
   | { type: 'tool_result'; id: string; ok: boolean; output: string }
   /** A tool the harness asked to use and was not allowed to. */
   | { type: 'permission'; tool: string; decision: 'denied'; input?: unknown }
-  /** `code`: `signed-out` or `expired` when the harness has no working login; then `loginState` says so too. */
-  | { type: 'error'; message: string; code?: 'signed-out' | 'expired' | 'harness' | 'sandbox' | 'mcp' }
+  /** `code`: `signed-out` or `expired` when the harness has no working login; then `loginState` says so too.
+   *  `no-plan`: a job with a plan (`plan: 'opencode-go'`) whose key's workspace has no Go plan. */
+  | { type: 'error'; message: string; code?: 'signed-out' | 'expired' | 'no-plan' | 'harness' | 'sandbox' | 'mcp' }
   | { type: 'end'; ok: boolean; result?: string; usage?: Usage }
 
 /** A harness's output, one line at a time, into events. */

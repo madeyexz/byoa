@@ -21,7 +21,7 @@
 
 **byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend.**
 
-byoa is an open-source library that helps you build AI-native apps fast. Your app runs the user's own Claude Code or Codex in a sandbox. The user signs in with their own ChatGPT or Claude plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
+byoa is an open-source library that helps you build AI-native apps fast. Your app runs the user's own Claude Code or Codex in a sandbox. The user signs in with their own ChatGPT or Claude plan, or gives the key of their OpenCode Go plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
 
 Version 1 supports three sandbox providers: E2B, Daytona and Instabox. More providers come later. To change the provider, you change one adapter.
 
@@ -334,6 +334,22 @@ const agents = createAgents({ ...options, login: storedLogin({ store: loginStore
 
 To keep each login in a volume of that user and app instead, behind the sandbox adapter, pass `login: cliLogin` (from `@madeyexz/byoa`). Your database then never holds the login. This needs a provider with volumes; on E2B, volumes must be turned on for your team.
 
+### OpenCode Go
+
+A user with an [OpenCode Go](https://opencode.ai/docs/console/go) plan (from $10 a month, for models such as Kimi, GLM, DeepSeek, Qwen and MiniMax) can run Claude Code or Codex on it, in place of a Claude or ChatGPT plan. OpenCode Go is a plan, not a harness: the job still runs the unmodified `claude` or `codex`. The user creates an API key in OpenCode's Console (`oc_sk_…`), and your app gives it to byoa one time:
+
+```ts
+const r = await agents.connectKey(userId, 'opencode-go', key)   // { state: 'signed-in' }; or 'no-plan', or an error
+const models = await agents.listModels(userId, 'opencode-go')    // the plan's models, from OpenCode's API: no sandbox
+agents.run(userId, { harness: 'codex', plan: 'opencode-go', model: 'kimi-k3.1-pro', task })
+```
+
+byoa checks the key with OpenCode and keeps it encrypted in your database, as it keeps MCP grants. The key never goes into the sandbox. The harness sends its model requests with the job token to `agents.proxy` (at `<proxyUrl>/_plan/opencode-go/…`), and the proxy adds the key and sends them on to OpenCode, with the harness's own user agent and session id, as OpenCode asks. Only the model APIs go through, and only during the job: the agent can make model calls with the job token, as its harness does, and the token stops working when the job ends. Claude Code gets OpenCode's documented `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN`, Codex a model provider for this job only, each in a config folder with no lab login. A job with a plan needs a model of the plan: `model`, or `createAgents({ models: { 'opencode-go': { model } } })`. The free models (`…-free`) are not in the list: OpenCode serves them only to its own client.
+
+`loginState(userId, 'opencode-go')` is `signed-in`; `expired` when OpenCode refuses the key (a revoked or expired key cannot be renewed: the user makes a new one); or `no-plan` when the key's workspace has no Go plan. A job that gets one of these from OpenCode gives an `error` event with that code. A key does not rotate, so a user's jobs with it run at the same time, with no lease. `signOut(userId, 'opencode-go')` deletes the key.
+
+OpenCode's terms say the user uses its services "only for your own internal use, and not on behalf of or for the benefit of any third party". A job with the user's own key for the user's own task is arguably that, but it is not clearly allowed: ask OpenCode (help@anoma.ly) before your app offers it. See [SPEC.md](SPEC.md#lab-rules).
+
 ### Convex
 
 In a Convex app, byoa's state is one table and four internal functions in your deployment (`@madeyexz/byoa/store/convex`). Call byoa from actions and HTTP actions, which can make network calls; serve `agents.proxy` from an HTTP action.
@@ -356,7 +372,7 @@ const agents = createAgents({ ...options, store: convexStore(ctx, internal.byoa)
 
 Use `harness: 'fake'`, `localSandbox()` from `@madeyexz/byoa/sandbox/local` and `memoryStore()`. The fake harness runs no model. It calls MCP tools through the real proxy: each task line `call <server>.<tool> <json>` is one call.
 
-To test byoa itself: `npm test` (V10, V12, the fake-harness tests and the unit tests), and `npm run test:v11` (V11; it downloads about 600 MB). CI runs both on every commit. With `DAYTONA_API_KEY` set, `npm test` also checks the Daytona adapter against Daytona (with `BYOA_DAYTONA_VOLUMES=1` too, also its volumes; that needs a key with the volume permissions); with `E2B_API_KEY` too, it runs V4 ([test/v4.test.ts](test/v4.test.ts)), which needs `cloudflared` to give the proxy a public URL. On a Daytona org on Tier 1 or 2, also set `BYOA_V4_RELAY` to a relay on an allowed domain, such as [test/relay](test/relay/convex/http.ts) deployed to a temporary Convex project. `npm run test:e2b` checks the E2B adapter against E2B and runs V8 there (a user's jobs in one paused and resumed sandbox, and `sandboxPer: 'job'`); it needs `E2B_API_KEY`, and with `BYOA_E2B_VOLUMES=1` also checks volumes, for an E2B team with volumes turned on. `npm run test:instabox` does the same on Instabox; it needs `INSTABOX_API_KEY`. `BYOA_V4_PROVIDERS=e2b,instabox` runs V4 on E2B and Instabox.
+To test byoa itself: `npm test` (V10, V12, the fake-harness tests and the unit tests), and `npm run test:v11` (V11; it downloads about 600 MB). CI runs both on every commit. With `DAYTONA_API_KEY` set, `npm test` also checks the Daytona adapter against Daytona (with `BYOA_DAYTONA_VOLUMES=1` too, also its volumes; that needs a key with the volume permissions); with `E2B_API_KEY` too, it runs V4 ([test/v4.test.ts](test/v4.test.ts)), which needs `cloudflared` to give the proxy a public URL. On a Daytona org on Tier 1 or 2, also set `BYOA_V4_RELAY` to a relay on an allowed domain, such as [test/relay](test/relay/convex/http.ts) deployed to a temporary Convex project. `npm run test:e2b` checks the E2B adapter against E2B and runs V8 there (a user's jobs in one paused and resumed sandbox, and `sandboxPer: 'job'`); it needs `E2B_API_KEY`, and with `BYOA_E2B_VOLUMES=1` also checks volumes, for an E2B team with volumes turned on. `npm run test:instabox` does the same on Instabox; it needs `INSTABOX_API_KEY`. `BYOA_V4_PROVIDERS=e2b,instabox` runs V4 on E2B and Instabox. `npm run test:v20` runs V20, OpenCode Go with the real Claude Code and Codex on E2B; it needs `OPENCODE_GO_API_KEY` (a Console API key of a workspace with Go), `E2B_API_KEY` and `cloudflared`.
 
 ## Example app
 
@@ -378,6 +394,7 @@ We call version 1 done only when all of these checks pass. The full list is in [
 - We run the real, unmodified `claude` and `codex` binaries. We never pretend to be another client.
 - The user signs in through Anthropic's or OpenAI's own sign-in page.
 - One app's AI login is used only by that app.
+- For OpenCode Go, byoa uses only the user's own key, with OpenCode's documented API and the harness's own user agent, never OpenCode's Console CLI sign-in. OpenCode's terms do not clearly allow an app to run it for its users; each app asks OpenCode first.
 - The labs' terms restrict where an AI login may be stored. byoa keeps it in your database by default, so each app checks those terms and signs its own agreements with the labs. See [SPEC.md](SPEC.md#lab-rules).
 
 ## License

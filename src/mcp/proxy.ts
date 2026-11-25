@@ -8,7 +8,8 @@ import type { Store } from '../store.ts'
 import { GrantError, type Grants } from './grants.ts'
 import { serveTools, type AppTools } from './tools.ts'
 
-export interface JobRecord { user: string; job: string; servers: string[]; until: number }
+/** `plan`: the plan this job's harness reaches through the relay (plan.ts), when it has one. */
+export interface JobRecord { user: string; job: string; servers: string[]; until: number; plan?: string }
 
 const tokenKey = (hash: string) => `job/${hash}`
 const jobKey = (job: string) => `jobid/${job}`
@@ -18,9 +19,9 @@ export class JobTokens {
   private readonly store: Store
   constructor(store: Store) { this.store = store }
 
-  async issue(user: string, servers: string[], ttlMs: number): Promise<{ token: string; job: string }> {
+  async issue(user: string, servers: string[], ttlMs: number, plan?: string): Promise<{ token: string; job: string }> {
     const token = `byoa_job_${randomToken(32)}`, job = randomToken(12), hash = await sha256(token)
-    await this.store.put(tokenKey(hash), JSON.stringify({ user, job, servers, until: Date.now() + ttlMs } satisfies JobRecord))
+    await this.store.put(tokenKey(hash), JSON.stringify({ user, job, servers, until: Date.now() + ttlMs, ...(plan ? { plan } : {}) } satisfies JobRecord))
     await this.store.put(jobKey(job), hash)
     return { token, job }
   }
@@ -55,16 +56,19 @@ export const PROXY_HEADER = 'x-byoa-proxy'
 const fail = (status: number, message: string) =>
   new Response(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32001, message } }), { status, headers: { 'content-type': 'application/json', [PROXY_HEADER]: '1' } })
 
-/** A fetch handler for requests to `<proxyUrl>/<server>`. */
-export function mcpProxy(o: { proxyUrl: string; jobs: JobTokens; grants: Grants; tools?: AppTools }): (req: Request) => Promise<Response> {
+/** A fetch handler for requests to `<proxyUrl>/<server>`, and to the relay of a plan at `<proxyUrl>/_plan/...`
+ *  (plan.ts), which gets the request after the job token is checked. */
+export function mcpProxy(o: { proxyUrl: string; jobs: JobTokens; grants: Grants; tools?: AppTools; relay?: { prefix: string; handle: (req: Request, job: JobRecord, rest: string) => Promise<Response> } }): (req: Request) => Promise<Response> {
   const base = new URL(o.proxyUrl).pathname.replace(/\/+$/, '')
   return async (req) => {
     const path = new URL(req.url).pathname
     const name = path.startsWith(base + '/') ? path.slice(base.length + 1) : ''
-    if (!SERVER_NAME.test(name)) return fail(404, 'no such MCP server')
+    const relay = o.relay && name.startsWith(o.relay.prefix) ? o.relay : undefined
+    if (!relay && !SERVER_NAME.test(name)) return fail(404, 'no such MCP server')
     const m = /^Bearer\s+(\S+)$/i.exec(req.headers.get('authorization') ?? '')
     const job = m ? await o.jobs.check(m[1]!) : null
     if (!job) return fail(401, 'the job token is not valid (the job ended, or it is not a job token)')
+    if (relay) return relay.handle(req, job, name.slice(relay.prefix.length))
     if (!job.servers.includes(name)) return fail(403, `this job does not have the MCP server ${name}`)
     // the app's own tools (tools.ts): they run here, for the job's user, with no token and no other server
     const tools = o.tools && Object.prototype.hasOwnProperty.call(o.tools, name) ? o.tools[name] : undefined
