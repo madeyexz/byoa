@@ -4,16 +4,18 @@
 // takes it first. Only compare-and-set (R6), so it works on every store.
 import { randomToken } from './crypto.ts'
 import type { Store } from './store.ts'
+import { now, sleep } from './time.ts'
 
 /** A ticket runs out this long after the job last renewed it. */
 const TICKET_MS = 30_000
-const POLL_MS = 500
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+/** A waiting job reads the line every 500 ms at first, and less often the longer it waits, up to every 2 s: on a store
+ *  where each read is a function call (Convex), a long wait costs fewer calls. */
+const POLL_MS = 500, POLL_MAX_MS = 2_000
 
 interface Ticket { id: string; until: number }
 const live = (value: string | undefined): Ticket[] => {
-  const now = Date.now()
-  return (value ? JSON.parse(value) as Ticket[] : []).filter((t) => t.until > now)
+  const t0 = now()
+  return (value ? JSON.parse(value) as Ticket[] : []).filter((t) => t.until > t0)
 }
 
 export interface Wait {
@@ -27,7 +29,7 @@ export interface Wait {
  *  for is held. `timeout` is the error when `w.until` passes. */
 export async function inLine<T>(store: Store, key: string, take: () => Promise<T | undefined>, w: Wait, timeout: () => Error): Promise<T> {
   const me = randomToken(12)
-  let mine: Ticket | undefined, told = -1
+  let mine: Ticket | undefined, told = -1, poll = POLL_MS
   try {
     for (;;) {
       const e = await store.get(key)
@@ -38,15 +40,16 @@ export async function inLine<T>(store: Store, key: string, take: () => Promise<T
         const got = await take()
         if (got !== undefined) return got
       }
-      if (w.until !== undefined && Date.now() > w.until) throw timeout()
+      if (w.until !== undefined && now() > w.until) throw timeout()
       // join the line, or renew the ticket when half its time is gone
-      if (at < 0 || mine!.until - Date.now() < TICKET_MS / 2) {
-        mine = { id: me, until: Date.now() + TICKET_MS }
+      if (at < 0 || mine!.until - now() < TICKET_MS / 2) {
+        mine = { id: me, until: now() + TICKET_MS }
         const next = at < 0 ? [...line, mine] : line.map((t) => (t.id === me ? mine! : t))
         if (!(await store.cas(key, e?.version ?? null, JSON.stringify(next)))) continue
       }
       if (ahead !== told) { told = ahead; w.onWait?.(ahead) }
-      await sleep(POLL_MS)
+      await sleep(poll)
+      poll = Math.min(POLL_MAX_MS, Math.round(poll * 1.25))
     }
   } finally {
     if (mine) await leave(store, key, me).catch(() => {})

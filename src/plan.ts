@@ -12,12 +12,10 @@
 // 403 "OpenCode Go subscription required" to a key whose workspace has no Go plan (`no-plan`).
 // Only OpenCode's documented API and its documented settings for Claude Code and Codex: no OpenCode client, no
 // Console CLI sign-in (it has OpenCode's own client ID; SPEC.md, Lab rules).
-import { claudeModelArgs } from './harness/claude.ts'
-import { codexModelArgs } from './harness/codex.ts'
+// How each harness runs with the plan (its environment and flags) is in its adapter (harness/<name>.ts, `plan`).
 import type { ModelInfo } from './harness/models.ts'
-import type { HarnessName } from './harness/pins.ts'
 import { open, seal } from './crypto.ts'
-import { JOB_TOKEN_ENV } from './config.ts'
+import { keys } from './keys.ts'
 import type { LoginState } from './login.ts'
 import type { JobRecord } from './mcp/proxy.ts'
 import type { Store } from './store.ts'
@@ -36,42 +34,6 @@ export const relayUrl = (proxyUrl: string, plan: PlanName) => `${proxyUrl.replac
 /** What OpenCode says when the key's workspace has no Go plan. */
 export const NO_PLAN = /subscription required|EntitlementError/i
 
-/** How each harness runs with the plan: its environment and flags. A harness with no entry cannot use a plan.
- *  `base`: the relay for this job; `home`: the sandbox's home folder. Each job has a config folder of its own, with no
- *  login of the lab in it, so the CLI sends only the job token. */
-export const PLAN_HARNESS: Partial<Record<HarnessName, (o: { base: string; token: string; home: string; model: string; effort?: string }) => { env: Record<string, string>; args: string[]; dirs: string[] }>> = {
-  // OpenCode's settings for Claude Code (docs/console/harnesses/claude-code): ANTHROPIC_BASE_URL with no /v1/messages,
-  // and ANTHROPIC_AUTH_TOKEN, which Claude Code sends as `Authorization: Bearer`. Every model alias is the job's model,
-  // so a background request of Claude Code (a small model) does not ask for a Claude model the plan does not have.
-  claude: (o) => {
-    const dir = `${o.home}/.byoa/plan/claude`
-    return {
-      dirs: [dir],
-      env: {
-        CLAUDE_CONFIG_DIR: dir, DISABLE_AUTOUPDATER: '1', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
-        ANTHROPIC_BASE_URL: `${o.base}/anthropic`, ANTHROPIC_AUTH_TOKEN: o.token,
-        ANTHROPIC_DEFAULT_OPUS_MODEL: o.model, ANTHROPIC_DEFAULT_SONNET_MODEL: o.model, ANTHROPIC_DEFAULT_HAIKU_MODEL: o.model,
-        ANTHROPIC_SMALL_FAST_MODEL: o.model, CLAUDE_CODE_SUBAGENT_MODEL: o.model,
-      },
-      args: claudeModelArgs(o),
-    }
-  },
-  // OpenCode's settings for Codex (docs/console/harnesses/codex), as `-c` overrides, so they hold for this job only:
-  // a model provider with the Responses API, which reads the job token from JOB_TOKEN_ENV.
-  codex: (o) => {
-    const dir = `${o.home}/.byoa/plan/codex`
-    return {
-      dirs: [dir],
-      env: { CODEX_HOME: dir },
-      args: [
-        '-c', 'model_provider="opencode-go"',
-        '-c', `model_providers.opencode-go={name="OpenCode Go",base_url=${JSON.stringify(`${o.base}/openai/v1`)},env_key="${JOB_TOKEN_ENV}",wire_api="responses"}`,
-        ...codexModelArgs(o),
-      ],
-    }
-  },
-}
-
 /** Request headers the relay sends on: the harness's own (its user agent, its session id, the API version and betas),
  *  as Claude Code 2.1.330 and Codex 0.171.0 send them (seen at a stand-in API). Every other header stays behind, as at
  *  the MCP proxy (mcp/proxy.ts): the job token, cookies, and anything the app's own gateway or a tunnel added. */
@@ -86,9 +48,8 @@ const DROP_DOWN = new Set(['content-encoding', 'content-length', 'transfer-encod
 const fail = (status: number, message: string) =>
   new Response(JSON.stringify({ type: 'error', error: { type: 'byoa_error', message } }), { status, headers: { 'content-type': 'application/json' } })
 
-const enc = encodeURIComponent
-const keyKey = (user: string, p: PlanName) => `aikey/${enc(user)}/${p}`
-const stateKey = (user: string, p: PlanName) => `aikeystate/${enc(user)}/${p}`
+const keyKey = keys.planKey
+const stateKey = keys.planState
 const UA = 'byoa'
 
 export function planKeys(store: Store, key: Promise<CryptoKey>) {

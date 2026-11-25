@@ -24,19 +24,33 @@ case "$1" in
       logout) rm -f "$CLAUDE_CONFIG_DIR/.credentials.json" ;;
     esac ;;
   -p)
-    if [[ "$*" == *"--input-format stream-json"* ]]; then
+    if [[ "$*" == *"--input-format stream-json"* && "$*" != *--replay-user-messages* ]]; then
       # the initialize control request, as Claude Code 2.1.330 answers it: the models this login may use
       read -r line
       echo '{"type":"control_response","response":{"subtype":"success","request_id":"byoa-models","response":{"models":[{"value":"default","displayName":"Default (recommended)","description":"Sonnet 5.5","supportsEffort":true,"supportedEffortLevels":["low","medium","high"]},{"value":"opus","resolvedModel":"claude-opus-5-5","displayName":"Opus","description":"Opus 5.5","supportsEffort":true,"supportedEffortLevels":["low","high","max"]},{"value":"haiku","displayName":"Haiku","description":"Haiku 5.5","supportsEffort":false}]}}}'
       cat >/dev/null
       exit 0
     fi
-    task=$(cat)
-    echo '{"type":"system","subtype":"init","session_id":"s1","tools":[]}'
+    # the job's input: stream-json lines (R5.10), each echoed when taken (--replay-user-messages), each one turn.
+    # With --session-id or --resume (R5.9), like Claude Code 2.1.330 it keeps a transcript of the session's messages
+    # in CLAUDE_CONFIG_DIR/projects/<cwd>/<id>.jsonl, and refuses to resume a session it has no transcript of.
+    args=("$@")
+    sid=; resume=
+    for ((i = 0; i < ${#args[@]}; i++)); do
+      [ "${args[i]}" = --session-id ] && sid=${args[i+1]}
+      [ "${args[i]}" = --resume ] && { sid=${args[i+1]}; resume=1; }
+    done
+    transcript=$CLAUDE_CONFIG_DIR/projects/-work/$sid.jsonl
+    echo "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"${sid:-s1}\",\"tools\":[]}"
+    if [ -n "$resume" ] && [ ! -s "$transcript" ]; then
+      echo "No conversation found with session ID: $sid" >&2
+      exit 1
+    fi
+    turn() {
     if [ -n "$ANTHROPIC_BASE_URL" ]; then
       # with a plan (R1.8): one request to ANTHROPIC_BASE_URL with ANTHROPIC_AUTH_TOKEN, with the headers Claude Code
       # 2.1.330 sends, and the answer as the result
-      node - "$@" <<'JS'
+      node - "${args[@]}" <<'JS'
 const model = process.argv[process.argv.indexOf('--model') + 1]
 fetch(process.env.ANTHROPIC_BASE_URL + '/v1/messages?beta=true', {
   method: 'POST',
@@ -48,7 +62,7 @@ fetch(process.env.ANTHROPIC_BASE_URL + '/v1/messages?beta=true', {
   process.exit(r.ok ? 0 : 1)
 })
 JS
-      exit $?
+      return
     fi
     if [[ "$task" == *cred* ]]; then
       # like a token refresh: report the login it found, then replace it. As Claude Code 2.1.330 does, it writes its
@@ -58,22 +72,40 @@ JS
       sleep 0.3
       [ -n "$t" ] && echo "{\"claudeAiOauth\":{\"accessToken\":\"${t}x\"}}" > "$CLAUDE_CONFIG_DIR/.credentials.json"
       mkdir -p "$CLAUDE_CONFIG_DIR/backups" && echo '{"oauthAccount":{"emailAddress":"lab-account@example.com"}}' > "$CLAUDE_CONFIG_DIR/backups/.claude.json.backup.$$"
-      exit 0
+      return
     fi
     if [[ "$task" == *together* ]]; then
       # how many jobs run now: each one leaves a file in FAKE_CLAUDE_DIR while it runs
       mkdir -p "$FAKE_CLAUDE_DIR"; touch "$FAKE_CLAUDE_DIR/$$"; sleep 1
       n=$(ls "$FAKE_CLAUDE_DIR" | wc -l | tr -d ' '); rm -f "$FAKE_CLAUDE_DIR/$$"
       echo "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"together: $n\",\"usage\":{}}"
-      exit 0
+      return
+    fi
+    if [[ "$task" == *crash* ]]; then
+      # a CLI that ends with no result event, while its input is still open
+      echo "boom" >&2
+      exit 3
     fi
     if [[ "$task" == *expire* ]]; then
       echo '{"type":"result","subtype":"success","is_error":true,"result":"OAuth token has expired. Please run /login","usage":{}}'
-      exit 1
+      return
     fi
-    echo "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"args: $*; config: ${CLAUDE_CONFIG_DIR##*/}; autoupdater: $DISABLE_AUTOUPDATER; mcp timeout: $MCP_TIMEOUT\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"mcp__notes__whoami\",\"input\":{}}]}}"
+    echo "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"args: ${args[*]}; config: ${CLAUDE_CONFIG_DIR##*/}; autoupdater: $DISABLE_AUTOUPDATER; mcp timeout: $MCP_TIMEOUT\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"mcp__notes__whoami\",\"input\":{}}]}}"
     echo '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":[{"type":"text","text":"you are alice"}]}]}}'
     echo '{"type":"assistant","message":{"content":[{"type":"text","text":"You are alice."}]}}'
     echo '{"type":"result","subtype":"success","is_error":false,"result":"You are alice.","usage":{"input_tokens":10,"cache_read_input_tokens":5,"output_tokens":3},"total_cost_usd":0.01}'
+    }
+    while IFS= read -r line; do
+      task=$(printf '%s' "$line" | node -e 'let s="";process.stdin.on("data",(c)=>{s+=c}).on("end",()=>process.stdout.write(JSON.parse(s).message.content.map((c)=>c.text).join("")))')
+      printf '%s\n' "$line" | sed 's/^{"type":"user",/{"type":"user","isReplay":true,/'
+      if [ -n "$sid" ]; then
+        mkdir -p "$(dirname "$transcript")"
+        n=$(cat "$transcript" 2>/dev/null | wc -l | tr -d ' ')
+        echo "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"remembers $n: $(tr '\n' '|' < "$transcript" 2>/dev/null)\"}]}}"
+        printf '%s\n' "$task" | head -1 >> "$transcript"
+      fi
+      if [[ "$task" == *slow* ]]; then sleep 2; fi
+      turn
+    done
     ;;
 esac

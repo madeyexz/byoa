@@ -15,7 +15,7 @@ export interface Watched extends SandboxProvider { envs: Record<string, string>[
 
 export function watched(inner: ReturnType<typeof localSandbox>): Watched {
   const w: Watched = {
-    name: inner.name, envs: [], files: [], created: 0, live: inner.live, paused: inner.paused,
+    name: inner.name, capabilities: inner.capabilities, envs: [], files: [], created: 0, live: inner.live, paused: inner.paused,
     resume: (id, o) => inner.resume(id, o).then(wrap),
     destroy: (id) => inner.destroy(id),
     deleteVolume: (n) => inner.deleteVolume(n),
@@ -28,7 +28,7 @@ export function watched(inner: ReturnType<typeof localSandbox>): Watched {
       }
     }
     return {
-      id: s.id, home: s.home, writeFile: (p, d) => s.writeFile(p, d),
+      id: s.id, home: s.home, writeFile: (p, d) => s.writeFile(p, d), readFile: (p) => s.readFile!(p),
       run: (cmd, o) => { w.envs.push({ ...o?.env }); return s.run(cmd, o) },
       pause: async () => { keep(); await s.pause() },
       destroy: async () => { keep(); await s.destroy() },

@@ -389,6 +389,11 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <td>In the sandbox&#39;s <code>mcp.json</code>, for one job and one user (R3.1)</td>
 <td>Valid after the job ends (R3.4)</td>
 </tr>
+<tr>
+<td>A conversation&#39;s transcript (the harness&#39;s own session files)</td>
+<td>In the conversation&#39;s kept sandbox, and a copy in the app&#39;s own database, encrypted with a key that the app gives (R5.9)</td>
+<td>In the store without encryption, or in another user&#39;s sandbox</td>
+</tr>
 </tbody></table>
 </div><p>The real MCP token goes only from the app&#39;s backend to the MCP server, through the proxy (R3.2). byoa is not a hosted service, so we never get your users&#39; tokens.</p>
 <h2 id="what-we-count-as-a-security-problem"><a class="anchor" href="#what-we-count-as-a-security-problem" aria-hidden="true" tabindex="-1">#</a>What we count as a security problem</h2>
@@ -398,7 +403,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <li>The proxy accepts a job token after its job ends (V6), or for a different user.</li>
 <li>byoa keeps a copy of a user&#39;s AI login in a sandbox between jobs, stores it without encryption, or one app can use another app&#39;s login.</li>
 <li>Two refreshes at the same time revoke a grant, or byoa sends a refresh request from a place other than the app&#39;s backend (R2.3).</li>
-<li>byoa stores a grant without encryption, or writes a token to a log.</li>
+<li>byoa stores a grant or a conversation&#39;s transcript without encryption, or writes a token to a log.</li>
 <li>byoa runs a <code>claude</code> or <code>codex</code> binary that is not the published one (V11).</li>
 </ul>
 <h2 id="what-is-not-ours"><a class="anchor" href="#what-is-not-ours" aria-hidden="true" tabindex="-1">#</a>What is not ours</h2>

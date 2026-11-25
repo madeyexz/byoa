@@ -9,9 +9,12 @@ import { test } from 'node:test'
 import { Daytona } from '@daytona/sdk'
 import { daytona } from '../src/sandbox/daytona.ts'
 import { SandboxGoneError } from '../src/sandbox/types.ts'
+import { sandboxConformance } from './helpers/conformance.ts'
 
 const skip = !(process.env.BYOA_DAYTONA && process.env.DAYTONA_API_KEY) && 'set BYOA_DAYTONA=1 and DAYTONA_API_KEY to check the Daytona adapter'
 const skipVolumes = skip || (!process.env.BYOA_DAYTONA_VOLUMES && 'set BYOA_DAYTONA_VOLUMES=1 too to check Daytona volumes')
+
+test('R5.3: the Daytona adapter does what byoa needs of every provider (exit 137 at a timeout, readFile)', { skip, timeout: 10 * 60_000 }, () => sandboxConformance(daytona(), { timeoutMs: 600_000 }))
 
 test('Daytona adapter: create, run, write, destroy', { skip, timeout: 10 * 60_000 }, async () => {
   const p = daytona()

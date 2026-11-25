@@ -81,13 +81,13 @@ Your app calls `agents.run(userId, task)`. byoa takes the user's sandbox, loads 
 Diagram: One job, from agents.run to the end event
 
 1. Your app calls agents.run. `agents.run(userId, { harness, task, mcp, setup })`.
-2. Take the user's sandbox. By default, resume the user's kept sandbox, or create it for the first job. With `sandboxPer 'job'`, create a new one.
+2. Take the user's sandbox. By default, resume the user's kept sandbox (a conversation has one of its own), or create it for the first job. With `sandboxPer 'job'`, create a new one.
 3. Load the setup. The pinned harness, the skills, AGENTS.md, and an MCP config that points to your proxy with a job token.
 4. Copy the AI login in. From your database, decrypted in your backend. Login files: login files in.
 5. Run the harness. Text, tool calls and permission requests stream back as events. MCP calls go through the proxy.
 6. close() This is the end. End the job token, save the login back if the CLI changed it, remove it from the sandbox, then pause or destroy the sandbox. Login files: files removed.
 
-The user's AI login and MCP grants stay in your database between jobs. A kept sandbox keeps the files that the app wrote there and the installed harness, but no login.
+The user's AI login and MCP grants stay in your database between jobs. A kept sandbox keeps the files that the app wrote there and the installed harness, but no login. A job of a conversation also continues the harness's session of the earlier jobs, and keeps the job folder ([what carries over](https://byoa.rippling.computer/docs/sandbox-lifecycle.md#what-carries-over-between-jobs)).
 
 ## Real tokens never go into the sandbox
 

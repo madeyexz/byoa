@@ -8,10 +8,12 @@
 // output and to type the code into it. storedLogin uses the same steps with no volume, through CliHooks.
 // Adapted from Bookish site/agent/login.ts.
 import { sha256hex } from './crypto.ts'
-import { ensureHarness } from './harness/install.ts'
+import { HARNESSES, ensureHarness, harnessEnv } from './harness/index.ts'
 import type { HarnessName, Pins } from './harness/pins.ts'
+import { keys } from './keys.ts'
 import type { Sandbox, SandboxProvider, Volume } from './sandbox/types.ts'
 import { q } from './sh.ts'
+import { sleep } from './time.ts'
 import type { Store } from './store.ts'
 
 export type LoginState = 'signed-in' | 'signed-out' | 'expired'
@@ -72,34 +74,16 @@ export interface JobLogin {
   onWait?: (ahead: number) => void
 }
 
-/** Where each harness keeps its login, relative to the home folder. Each is the mount path of a login volume. */
-export const LOGIN_DIRS: Record<HarnessName, string> = { claude: '.claude', codex: '.codex', grok: '.grok' }
-const CREDS: Record<HarnessName, string> = { claude: '.claude/.credentials.json', codex: '.codex/auth.json', grok: '.grok/auth.json' }
-const URL_RE: Record<HarnessName, RegExp> = {
-  claude: /https:\/\/claude\.(?:com|ai)\/[^\s\x07\x1b]+/,
-  codex: /https:\/\/auth\.openai\.com\/[^\s\x07\x1b]+/,
-  // grok 1.0.92: https://accounts.x.ai/oauth2/device?user_code=ABCD-EFGH, then the code again on its own line
-  grok: /https:\/\/accounts\.x\.ai\/[^\s\x07\x1b]+/,
-}
-/** The CLI's own sign-in and sign-out, after its binary. Claude Code shows a page and then takes the code that page
- *  shows; Codex and Grok show a page and a code (a device code), and finish by themselves. */
-const LOGIN_CMDS: Record<HarnessName, { login: string; logout: string; device: boolean }> = {
-  claude: { login: 'auth login', logout: 'auth logout', device: false },
-  codex: { login: 'login --device-auth', logout: 'logout', device: true },
-  grok: { login: 'login --device-auth', logout: 'logout', device: true },
-}
-/** The CLI's sign-out, for a sandbox that has the user's login: `<bin> <logout>`. */
-export const logoutCmd = (bin: string, h: HarnessName) => `${q(bin)} ${LOGIN_CMDS[h].logout}`
+/** The CLI's sign-out, for a sandbox that has the user's login: `<bin> <signOut>`. */
+export const logoutCmd = (bin: string, h: HarnessName) => `${q(bin)} ${HARNESSES[h].login.signOut}`
 const CODE_RE = /\n\s*([A-Z0-9]{4,}-[A-Z0-9]{4,})\s*\r?\n/
 /** The most a sign-in may take, as long as Codex's device code lasts (Grok's lasts at least as long). */
 export const LOGIN_MAX_MS = 15 * 60_000
 /** After this long with no check-in (finishLogin), the provider ends the sign-in sandbox (R1.7). */
 export const LOGIN_IDLE_MS = 2 * 60_000
 
-const enc = encodeURIComponent
-const stateKey = (user: string, h: HarnessName) => `login/${enc(user)}/${h}`
-const pendingKey = (user: string, h: HarnessName) => `loginjob/${enc(user)}/${h}`
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const stateKey = keys.loginState
+const pendingKey = keys.loginPending
 
 /** Runs the CLI's sign-in under `script` (it wants a terminal), with its input from a FIFO that a later call writes
  *  the code into. `status` gets the CLI's exit code when it ends. */
@@ -120,16 +104,10 @@ echo $? > status
 kill $holder 2>/dev/null
 `
 
-/** The harness's environment: where it keeps its login, relative to the sandbox's home folder. */
-export const loginEnv = (sbx: Sandbox, h: HarnessName): Record<string, string> =>
-  h === 'claude'
-    // Claude Code keeps .credentials.json and .claude.json in CLAUDE_CONFIG_DIR, so both are in the volume; and it
-    // must not update itself: byoa runs the pinned version (R5.1)
-    ? { CLAUDE_CONFIG_DIR: `${sbx.home}/${LOGIN_DIRS.claude}`, DISABLE_AUTOUPDATER: '1' }
-    : h === 'grok'
-      // Grok keeps auth.json (and its sessions and settings) in GROK_HOME; it must not update itself either
-      ? { GROK_HOME: `${sbx.home}/${LOGIN_DIRS.grok}`, GROK_DISABLE_AUTOUPDATER: '1' }
-      : { CODEX_HOME: `${sbx.home}/${LOGIN_DIRS.codex}` }
+/** The harness's environment: where it keeps its login, relative to the sandbox's home folder, and no self-update
+ *  (byoa runs the pinned version, R5.1). Claude Code keeps .credentials.json and .claude.json in CLAUDE_CONFIG_DIR, so
+ *  both are in the volume; Grok keeps auth.json, its sessions and settings in GROK_HOME. */
+export const loginEnv = (sbx: Sandbox, h: HarnessName): Record<string, string> => harnessEnv(sbx.home, HARNESSES[h])
 
 /** For storedLogin only: how the CLI sign-in differs when the login is not in a volume. */
 export interface CliHooks {
@@ -139,10 +117,12 @@ export interface CliHooks {
 }
 
 export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
+  // R5.3: a provider with no volumes refuses them; say so now, not at the user's first sign-in
+  if (!hooks.volumes && d.sandbox.capabilities?.volumes === false) throw new Error(`byoa: the ${d.sandbox.name} provider has no volumes, so cliLogin cannot keep the login there; use storedLogin()`)
   const volumeName = async (user: string, h: HarnessName) => `byoa-${d.app}-${h}-${(await sha256hex(user)).slice(0, 24)}`
-  const volumes = hooks.volumes ?? (async (user: string, h: HarnessName): Promise<Volume[]> => [{ name: await volumeName(user, h), path: LOGIN_DIRS[h] }])
+  const volumes = hooks.volumes ?? (async (user: string, h: HarnessName): Promise<Volume[]> => [{ name: await volumeName(user, h), path: HARNESSES[h].home.dir }])
   const envOf = loginEnv
-  const present = async (sbx: Sandbox, _user: string, h: HarnessName) => (await sbx.run(`test -s ${q(`${sbx.home}/${CREDS[h]}`)}`)).exitCode === 0
+  const present = async (sbx: Sandbox, _user: string, h: HarnessName) => (await sbx.run(`test -s ${q(`${sbx.home}/${HARNESSES[h].login.files[0]}`)}`)).exitCode === 0
   const dirOf = (sbx: Sandbox) => `${sbx.home}/.byoa/login`
   const read = async (sbx: Sandbox) => {
     const r = await sbx.run(`cd ${q(dirOf(sbx))} 2>/dev/null && { cat out 2>/dev/null; printf '\\n\\x01'; cat status 2>/dev/null; }; true`)
@@ -177,14 +157,15 @@ export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
       const sbx = await d.sandbox.create({ volumes: await volumes(user, h), labels: { 'byoa-app': d.app, 'byoa-login': h }, timeoutMs: LOGIN_MAX_MS })
       try {
         const { bin } = await ensureHarness(sbx, h, d.pins)
-        const cmd = `${q(bin)} ${LOGIN_CMDS[h].login}`
+        const cmd = `${q(bin)} ${HARNESSES[h].login.signIn}`
         await sbx.writeFile(`${dirOf(sbx)}/run.sh`, loginScript(cmd))
         await sbx.run(`bash ${q(`${dirOf(sbx)}/run.sh`)}`, { background: true, env: { ...envOf(sbx, h), BROWSER: 'false' } })
         for (const end = Date.now() + 30_000; Date.now() < end; await sleep(250)) {
           const { out, status } = await read(sbx)
-          const url = URL_RE[h].exec(out)?.[0]
-          const code = LOGIN_CMDS[h].device ? CODE_RE.exec(out)?.[1] : undefined
-          if (url && (!LOGIN_CMDS[h].device || code)) {
+          const spec = HARNESSES[h].login
+          const url = spec.url.exec(out)?.[0]
+          const code = spec.device ? CODE_RE.exec(out)?.[1] : undefined
+          if (url && (!spec.device || code)) {
             await d.store.put(pendingKey(user, h), JSON.stringify({ sandbox: sbx.id, at }))
             // from now on the sandbox lives only while the app checks in
             await keepAlive(sbx.id, at, LOGIN_IDLE_MS)
@@ -201,17 +182,18 @@ export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
 
     async finish(user, h, input = {}) {
       const code = input.code === undefined ? undefined : input.code.trim()
-      if (h === 'claude' && code !== undefined && (!code || /[\s]/.test(code))) throw new Error("byoa: the Claude Code sign-in needs the code that Anthropic's page shows")
+      const device = HARNESSES[h].login.device
+      if (!device && code !== undefined && (!code || /[\s]/.test(code))) throw new Error(`byoa: the ${h} sign-in needs the code that the lab's page shows`)
       const p = await d.store.get(pendingKey(user, h))
       if (!p) return { state: await state(user, h), error: 'no sign-in is in progress' }
       const { sandbox: id, at } = JSON.parse(p.value) as { sandbox: string; at: number }
       const ranOut = async () => { await dropPending(user, h); return { state: await state(user, h), error: 'the sign-in ran out; start it again' } }
       if (Date.now() - at > LOGIN_MAX_MS) return ranOut()
-      const wait = input.waitMs ?? (h === 'claude' && code ? 60_000 : 0)
+      const wait = input.waitMs ?? (!device && code ? 60_000 : 0)
       let sbx: Sandbox
       try { sbx = await d.sandbox.resume(id, { timeoutMs: LOGIN_IDLE_MS + wait }) } catch { return ranOut() }
       await keepAlive(id, at, LOGIN_IDLE_MS + wait)
-      if (h === 'claude' && code) await sbx.run(`timeout 5 bash -c ${q(`printf '%s\\r' ${q(code)} > ${q(`${dirOf(sbx)}/in`)}`)}`)
+      if (!device && code) await sbx.run(`timeout 5 bash -c ${q(`printf '%s\\r' ${q(code)} > ${q(`${dirOf(sbx)}/in`)}`)}`)
       const end = Date.now() + wait
       let r = await read(sbx)
       while (!r.status) {

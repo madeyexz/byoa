@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { Daytona, DaytonaNotFoundError, type DaytonaV0Client } from '@daytona/sdk'
 import type { Sandbox as DaytonaSandbox, VolumeMount } from '@daytona/sdk/v0'
 import { q } from '../sh.ts'
+import { sleep } from '../time.ts'
 import { SandboxGoneError, type CreateOptions, type RunOptions, type RunResult, type Sandbox, type SandboxProvider, type Volume } from './types.ts'
 
 export interface DaytonaOptions {
@@ -25,7 +26,6 @@ export interface DaytonaOptions {
 
 /** The home folder of the `daytona` user of Daytona's snapshots. */
 const HOME = '/home/daytona'
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** Daytona's command logs are lines: it ends a last line that has no newline with one. So each command prints this
  *  marker, with its exit code, after its output, on stdout and on stderr, and what comes after it is Daytona's. */
@@ -117,6 +117,11 @@ export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
       // the upload makes the missing parent folders itself (755, as createFolder did)
       await s.fs.uploadFile(Buffer.from(data), path)
     },
+    async readFile(path) {
+      // a missing file is an error with no type of its own: check first
+      if ((await this.run(`test -f ${q(path)}`)).exitCode !== 0) return null
+      return new Uint8Array(await s.fs.downloadFile(path))
+    },
     async pause() {
       await s.stop(60)
     },
@@ -168,6 +173,7 @@ export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
 
   return {
     name: 'daytona',
+    capabilities: { volumes: true },
     create: (c) => create(c),
     async resume(id) {
       const s = await get(id)

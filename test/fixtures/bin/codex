@@ -34,6 +34,18 @@ case "$1" in
     done ;;
   exec)
     task=$(cat)
+    # R5.9: like codex-cli 0.171.0, it keeps a session (a rollout file of its messages) unless --ephemeral, names its
+    # thread in thread.started, and `exec resume <id> -` continues it
+    thread=th1
+    if [ "$2" = resume ]; then thread=${@: -2:1}; fi
+    rollout=$CODEX_HOME/sessions/2026/11/25/rollout-2026-11-25T00-00-00-$thread.jsonl
+    if [[ "$*" != *--ephemeral* ]]; then
+      if [ "$2" = resume ] && [ ! -s "$rollout" ]; then echo "Error: no rollout found for thread id $thread" >&2; exit 1; fi
+      echo "{\"type\":\"thread.started\",\"thread_id\":\"$thread\"}"
+      n=$(cat "$rollout" 2>/dev/null | wc -l | tr -d ' ')
+      echo "{\"type\":\"item.completed\",\"item\":{\"id\":\"r\",\"type\":\"agent_message\",\"text\":\"remembers $n\"}}"
+      mkdir -p "$(dirname "$rollout")" && printf '%s\n' "$task" | head -1 >> "$rollout"
+    fi
     if [[ "$task" == *cred* ]]; then
       t=$(sed -E 's/.*"access_token":"([^"]*)".*/\1/' "$CODEX_HOME/auth.json" 2>/dev/null)
       [ -n "$t" ] && echo "{\"tokens\":{\"access_token\":\"${t}x\"}}" > "$CODEX_HOME/auth.json"

@@ -47,7 +47,7 @@ These pages are the Markdown files in [docs/](https://github.com/madeyexz/byoa/t
 
 ## How it works
 
-- [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle.md): every sandbox byoa creates, from creation to removal, what each provider does, and what byoa does when your backend dies
+- [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle.md): every sandbox byoa creates, from creation to removal, what carries over between jobs, what each provider does, and what byoa does when your backend dies
 - [MCP tools and the proxy](https://byoa.rippling.computer/docs/mcp.md): connect a user's MCP servers once, the proxy and job tokens, your app's own tools, and calls with a user's grant
 - [Security](https://byoa.rippling.computer/docs/security.md): where each secret is kept, and how to report a problem
 
@@ -55,7 +55,7 @@ These pages are the Markdown files in [docs/](https://github.com/madeyexz/byoa/t
 
 - [Sign users in](https://byoa.rippling.computer/docs/ai-login.md): the sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out
 - [Give the agent tools](https://byoa.rippling.computer/docs/agent-tools.md): your app's own tools, the user's MCP servers, skills, AGENTS.md and plugins, which one to choose, and what the agent can do in its sandbox
-- [Run agents](https://byoa.rippling.computer/docs/running-agents.md): `agents.run` and its events, what the agent may do, sandbox modes, jobs at the same time, models and effort, `session` and `jobToken`
+- [Run agents](https://byoa.rippling.computer/docs/running-agents.md): `agents.run` and its events, what the agent may do, sandbox modes, conversations and more messages to a running job, jobs at the same time, models and effort, `session` and `jobToken`
 - [Pick a sandbox provider](https://byoa.rippling.computer/docs/providers.md): E2B, Daytona, Instabox and the local sandbox, and how to write an adapter
 - [Store logins and grants](https://byoa.rippling.computer/docs/stores.md): the store adapter, Postgres, Convex, your own database, and a table of its own for the AI logins
 - [Test your app](https://byoa.rippling.computer/docs/testing.md): test your app with the fake harness, the local sandbox and the memory store, and run byoa's own tests
@@ -64,7 +64,7 @@ These pages are the Markdown files in [docs/](https://github.com/madeyexz/byoa/t
 
 - [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md): which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned
 - [Lab rules](https://byoa.rippling.computer/docs/lab-rules.md): what Anthropic's, OpenAI's, xAI's and OpenCode's terms allow, and what byoa and each app must do
-- [FAQ](https://byoa.rippling.computer/docs/faq.md): whether a user's AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key
+- [FAQ](https://byoa.rippling.computer/docs/faq.md): whether a user's AI account can get banned, many agents of one user, whether the agent remembers earlier jobs, models, and what an AI job costs with byoa and with an API key
 
 ## Reference
 

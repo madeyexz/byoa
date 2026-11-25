@@ -5,7 +5,7 @@ This page shows every sandbox byoa creates, from creation to removal, with the d
 byoa creates four kinds of sandbox:
 
 - a **sign-in sandbox** for each sign-in, which byoa never keeps. It ends at `cancelLogin`, or 2 minutes after your app's last `finishLogin` check-in, 15 minutes at most ([AI login](https://byoa.rippling.computer/docs/ai-login.md#sign-in) shows its steps);
-- a **job sandbox**: by default one kept sandbox for each user, harness and `sandboxKey`, paused between jobs; or, with `sandboxPer: 'job'`, a new one for each job;
+- a **job sandbox**: by default one kept sandbox for each user, harness and `sandboxKey` (a conversation is a key of its own), paused between jobs; or, with `sandboxPer: 'job'`, a new one for each job;
 - a **sign-out sandbox**, for 5 minutes, where the CLI signs out ([AI login](https://byoa.rippling.computer/docs/ai-login.md#sign-out));
 - a **models sandbox** for each `agents.listModels` call, where the CLI lists the models of the user's plan. byoa destroys it after the list, 10 minutes at most.
 
@@ -15,21 +15,21 @@ Diagram: A job sandbox, from the start of a job to its end
 
 Kept for the user (default): `sandboxPer: 'user'`: byoa keeps one sandbox for each slot, pauses it after a job and resumes it for the next.
 
-1. Pick the user's slot. One for each user, harness and `sandboxKey` (an empty key when none). `usersandbox/<user>/<provider>/<h>/<key>`. Login files: no login files.
+1. Pick the user's slot. One for each user, harness and `sandboxKey` (an empty key when none; a conversation's id is its key). `usersandbox/<user>/<provider>/<h>/<key>`. Login files: no login files.
 2. Question: Does another job run in this slot? If no: go on to step 3.
    - If yes: Wait in line. The jobs run in the order they came. `onWait` gets `{ for: 'sandbox', ahead }`. Time limit: no limit, unless waitMs.
 3. Question: Does the slot have a sandbox? If yes: go on to step 4. If no: see "Create a new kept sandbox" below.
 4. Resume it. Time limit: job + 1 min.
 5. Question: Does the provider still have it? If yes: go on to step 6.
    - If no: Create a new kept sandbox. Also when it was gone (SandboxGoneError). Time limit: job + 1 min. Then go on to step 6.
-6. Empty the work folder. `~/work`: nothing of an earlier job stays.
+6. Prepare the work folder. `~/work`: nothing of an earlier job stays. In a conversation, the agent's files stay and only byoa's own files are new; in a new sandbox, byoa writes the conversation's stored transcript back.
 7. Question: Is the user signed in? a stored login exists. If yes: go on to step 8.
    - If no: Stop with LoginError. This is the end. The state becomes 'signed-out'. close() still runs.
 8. Check the MCP servers, install the pinned harness.
 9. Copy the login in. Takes the login lease, decrypts the files, writes them, chmod 600, and writes a loan record. If a dead job's loan record is there, it first saves what that job's CLI left. Starts the watcher. Time limit: waits in line for the lease; lease: job + 5 min; watcher: job + 45 s. Login files: login files in.
 10. The harness runs. The CLI may refresh its login and write its files again. byoa saves a change about every 60 s. Login files: login files in.
    - If backend dies: Warning: If your backend dies here. close() never runs. The watcher removes the files at job + 45 s. See below.
-11. close(): save back, remove the files, give the lease back. Ends the job token. Saves the files only if they changed, with compare-and-set. Removes the loan record. Login files: files removed.
+11. close(): save back, remove the files, give the lease back. Ends the job token. Saves the files only if they changed, with compare-and-set. Removes the loan record. In a conversation, keeps the session id and a copy of its transcript, encrypted. Login files: files removed.
 12. Question: Did byoa remove the files? any error here counts as no. If yes: go on to step 13.
    - If no: Destroy it, forget its id. This is the end. The next job of this slot creates a new one.
 13. Pause it for the next job. This is the end. E2B: pause. Daytona, Instabox: stop.
@@ -50,9 +50,27 @@ New for each job: `sandboxPer: 'job'`: byoa creates a sandbox for one job and de
 
 - **One kept sandbox per user (the default).** The first job of a user and harness creates it. After each job, byoa pauses it, and the next job resumes it, so files that the app wrote there and the installed harness stay. Each job gets a new job folder (`s.work`) with its own setup. One job of a slot runs at a time; the others wait in line and run in the order they came, with no time limit unless you set `waitMs`. When the provider no longer has the sandbox, the next job creates a new one.
 - **Many kept sandboxes per user.** Give each job a `sandboxKey`, such as a project or a conversation. Each key has its own kept sandbox and its own lease. See [Running agents](https://byoa.rippling.computer/docs/running-agents.md#jobs-at-the-same-time) for the ways to run one user's jobs at the same time.
+- **A conversation.** Give each job of a chat the same `conversation` id. The conversation has its own kept sandbox, and the agent continues its own session there. See [What carries over between jobs](#what-carries-over-between-jobs).
 - **A new sandbox for each job.** Set `sandboxPer: 'job'` in `createAgents`. Use it when nothing may stay between jobs.
 
 In all three, the user's AI login and MCP grants stay in your database. No real MCP token goes into the sandbox, a job token is refused after its job, and no copy of the AI login stays in the sandbox between jobs.
+
+## What carries over between jobs
+
+"Resume" can mean two things. byoa does both:
+
+- **Resume the sandbox.** byoa starts the user's paused sandbox again for the next job. The files outside `~/work` and the installed harness are still there. This happens in every kept sandbox.
+- **Resume the conversation.** Only for a job that names a `conversation`. The harness continues its own session, so the agent knows the earlier messages and what it did. Each CLI does this with its own flags: Claude Code `--session-id`, then `--resume`; Codex `exec`, then `exec resume <thread id>`; Grok Build `-s`, then `-r`.
+
+| | A job with no `conversation` | A job of a `conversation` |
+|---|---|---|
+| The agent's memory of earlier jobs | none: each job is a new session | the harness's session of the earlier jobs |
+| `~/work` (the job folder) | emptied at the start of each job | kept; only byoa's files (skills, AGENTS.md, the MCP config, the task) are new |
+| Files outside `~/work`, the installed harness | kept in a kept sandbox | kept: the conversation has its own kept sandbox |
+| The AI login | never kept in the sandbox: a copy for each job | the same |
+| When the provider lost the sandbox | a new sandbox | a new sandbox, with the stored copy of the transcript, so the agent still remembers; `~/work` and the other files are gone |
+
+After each job of a conversation, byoa keeps the harness's session id and a copy of its session files (the transcript), encrypted in your store, when they are at most `transcriptBytes` (default 700 000 bytes). A longer transcript lives only in the sandbox: when the provider loses that sandbox, the next job says so (an `error` with code `conversation`) and starts a new session. With `sandboxPer: 'job'`, each job of a conversation gets a new sandbox and resumes only from the stored copy.
 
 ## When your backend dies during a job
 
@@ -88,5 +106,6 @@ Diagram: A job whose backend dies, with the default storedLogin
 ## Removal
 
 - `agents.signOut(user, h)` deletes the user's kept sandboxes for that harness, then signs out ([AI login](https://byoa.rippling.computer/docs/ai-login.md#sign-out)).
-- `agents.deleteSandbox(user, { harness?, sandboxKey? })` on its own destroys each matching kept sandbox. A job in it ends. The login and the MCP grants stay. When you delete a user, call `agents.deleteSandbox(userId)`; when you delete a project that had a key, `agents.deleteSandbox(userId, { sandboxKey: projectId })`.
+- `agents.deleteSandbox(user, { harness?, sandboxKey? })` on its own destroys each matching kept sandbox. A job in it ends. The login, the MCP grants and the conversations' stored transcripts stay.
+- `agents.deleteConversation(user, conversation?)` deletes a conversation (or all of the user's): its stored session and transcript, and its kept sandbox. Call it when the user deletes a chat, and with no id when you delete the user. When you delete a user, call `agents.deleteSandbox(userId)`; when you delete a project that had a key, `agents.deleteSandbox(userId, { sandboxKey: projectId })`.
 - Nothing else removes a paused kept sandbox.

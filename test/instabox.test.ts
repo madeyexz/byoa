@@ -8,6 +8,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { test } from 'node:test'
 import { instabox } from '../src/sandbox/instabox.ts'
 import { SandboxGoneError } from '../src/sandbox/types.ts'
+import { sandboxConformance } from './helpers/conformance.ts'
 
 const skip = !(process.env.BYOA_INSTABOX && process.env.INSTABOX_API_KEY) && 'set BYOA_INSTABOX=1 and INSTABOX_API_KEY to check the Instabox adapter'
 const API = 'https://api.instabox.sh'
@@ -21,6 +22,8 @@ const op = async (method: string, path: string, headers: Record<string, string> 
   let o = (await ib(method, path, { 'Idempotency-Key': randomUUID(), ...headers })).body
   while (o.state !== 'succeeded') { if (o.state === 'failed' || !o.id) throw new Error(JSON.stringify(o)); o = (await ib('GET', `/v1/operations/${o.id}?wait=25s`)).body }
 }
+
+test('R5.3: the Instabox adapter does what byoa needs of every provider (exit 137 at a timeout, readFile)', { skip, timeout: 10 * 60_000 }, () => sandboxConformance(instabox(), { timeoutMs: 600_000 }))
 
 test('Instabox adapter: create, run, write, destroy', { skip, timeout: 10 * 60_000 }, async () => {
   const p = instabox()

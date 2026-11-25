@@ -57,7 +57,7 @@ These pages are the Markdown files in [docs/](https://github.com/madeyexz/byoa/t
 
 ## How it works
 
-- [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle.md): every sandbox byoa creates, from creation to removal, what each provider does, and what byoa does when your backend dies
+- [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle.md): every sandbox byoa creates, from creation to removal, what carries over between jobs, what each provider does, and what byoa does when your backend dies
 - [MCP tools and the proxy](https://byoa.rippling.computer/docs/mcp.md): connect a user's MCP servers once, the proxy and job tokens, your app's own tools, and calls with a user's grant
 - [Security](https://byoa.rippling.computer/docs/security.md): where each secret is kept, and how to report a problem
 
@@ -65,7 +65,7 @@ These pages are the Markdown files in [docs/](https://github.com/madeyexz/byoa/t
 
 - [Sign users in](https://byoa.rippling.computer/docs/ai-login.md): the sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out
 - [Give the agent tools](https://byoa.rippling.computer/docs/agent-tools.md): your app's own tools, the user's MCP servers, skills, AGENTS.md and plugins, which one to choose, and what the agent can do in its sandbox
-- [Run agents](https://byoa.rippling.computer/docs/running-agents.md): `agents.run` and its events, what the agent may do, sandbox modes, jobs at the same time, models and effort, `session` and `jobToken`
+- [Run agents](https://byoa.rippling.computer/docs/running-agents.md): `agents.run` and its events, what the agent may do, sandbox modes, conversations and more messages to a running job, jobs at the same time, models and effort, `session` and `jobToken`
 - [Pick a sandbox provider](https://byoa.rippling.computer/docs/providers.md): E2B, Daytona, Instabox and the local sandbox, and how to write an adapter
 - [Store logins and grants](https://byoa.rippling.computer/docs/stores.md): the store adapter, Postgres, Convex, your own database, and a table of its own for the AI logins
 - [Test your app](https://byoa.rippling.computer/docs/testing.md): test your app with the fake harness, the local sandbox and the memory store, and run byoa's own tests
@@ -74,7 +74,7 @@ These pages are the Markdown files in [docs/](https://github.com/madeyexz/byoa/t
 
 - [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md): which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned
 - [Lab rules](https://byoa.rippling.computer/docs/lab-rules.md): what Anthropic's, OpenAI's, xAI's and OpenCode's terms allow, and what byoa and each app must do
-- [FAQ](https://byoa.rippling.computer/docs/faq.md): whether a user's AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key
+- [FAQ](https://byoa.rippling.computer/docs/faq.md): whether a user's AI account can get banned, many agents of one user, whether the agent remembers earlier jobs, models, and what an AI job costs with byoa and with an API key
 
 ## Reference
 
@@ -167,13 +167,13 @@ Your app calls `agents.run(userId, task)`. byoa takes the user's sandbox, loads 
 Diagram: One job, from agents.run to the end event
 
 1. Your app calls agents.run. `agents.run(userId, { harness, task, mcp, setup })`.
-2. Take the user's sandbox. By default, resume the user's kept sandbox, or create it for the first job. With `sandboxPer 'job'`, create a new one.
+2. Take the user's sandbox. By default, resume the user's kept sandbox (a conversation has one of its own), or create it for the first job. With `sandboxPer 'job'`, create a new one.
 3. Load the setup. The pinned harness, the skills, AGENTS.md, and an MCP config that points to your proxy with a job token.
 4. Copy the AI login in. From your database, decrypted in your backend. Login files: login files in.
 5. Run the harness. Text, tool calls and permission requests stream back as events. MCP calls go through the proxy.
 6. close() This is the end. End the job token, save the login back if the CLI changed it, remove it from the sandbox, then pause or destroy the sandbox. Login files: files removed.
 
-The user's AI login and MCP grants stay in your database between jobs. A kept sandbox keeps the files that the app wrote there and the installed harness, but no login.
+The user's AI login and MCP grants stay in your database between jobs. A kept sandbox keeps the files that the app wrote there and the installed harness, but no login. A job of a conversation also continues the harness's session of the earlier jobs, and keeps the job folder ([what carries over](https://byoa.rippling.computer/docs/sandbox-lifecycle.md#what-carries-over-between-jobs)).
 
 ## Real tokens never go into the sandbox
 
@@ -318,7 +318,7 @@ This page shows every sandbox byoa creates, from creation to removal, with the d
 byoa creates four kinds of sandbox:
 
 - a **sign-in sandbox** for each sign-in, which byoa never keeps. It ends at `cancelLogin`, or 2 minutes after your app's last `finishLogin` check-in, 15 minutes at most ([AI login](https://byoa.rippling.computer/docs/ai-login.md#sign-in) shows its steps);
-- a **job sandbox**: by default one kept sandbox for each user, harness and `sandboxKey`, paused between jobs; or, with `sandboxPer: 'job'`, a new one for each job;
+- a **job sandbox**: by default one kept sandbox for each user, harness and `sandboxKey` (a conversation is a key of its own), paused between jobs; or, with `sandboxPer: 'job'`, a new one for each job;
 - a **sign-out sandbox**, for 5 minutes, where the CLI signs out ([AI login](https://byoa.rippling.computer/docs/ai-login.md#sign-out));
 - a **models sandbox** for each `agents.listModels` call, where the CLI lists the models of the user's plan. byoa destroys it after the list, 10 minutes at most.
 
@@ -328,21 +328,21 @@ Diagram: A job sandbox, from the start of a job to its end
 
 Kept for the user (default): `sandboxPer: 'user'`: byoa keeps one sandbox for each slot, pauses it after a job and resumes it for the next.
 
-1. Pick the user's slot. One for each user, harness and `sandboxKey` (an empty key when none). `usersandbox/<user>/<provider>/<h>/<key>`. Login files: no login files.
+1. Pick the user's slot. One for each user, harness and `sandboxKey` (an empty key when none; a conversation's id is its key). `usersandbox/<user>/<provider>/<h>/<key>`. Login files: no login files.
 2. Question: Does another job run in this slot? If no: go on to step 3.
    - If yes: Wait in line. The jobs run in the order they came. `onWait` gets `{ for: 'sandbox', ahead }`. Time limit: no limit, unless waitMs.
 3. Question: Does the slot have a sandbox? If yes: go on to step 4. If no: see "Create a new kept sandbox" below.
 4. Resume it. Time limit: job + 1 min.
 5. Question: Does the provider still have it? If yes: go on to step 6.
    - If no: Create a new kept sandbox. Also when it was gone (SandboxGoneError). Time limit: job + 1 min. Then go on to step 6.
-6. Empty the work folder. `~/work`: nothing of an earlier job stays.
+6. Prepare the work folder. `~/work`: nothing of an earlier job stays. In a conversation, the agent's files stay and only byoa's own files are new; in a new sandbox, byoa writes the conversation's stored transcript back.
 7. Question: Is the user signed in? a stored login exists. If yes: go on to step 8.
    - If no: Stop with LoginError. This is the end. The state becomes 'signed-out'. close() still runs.
 8. Check the MCP servers, install the pinned harness.
 9. Copy the login in. Takes the login lease, decrypts the files, writes them, chmod 600, and writes a loan record. If a dead job's loan record is there, it first saves what that job's CLI left. Starts the watcher. Time limit: waits in line for the lease; lease: job + 5 min; watcher: job + 45 s. Login files: login files in.
 10. The harness runs. The CLI may refresh its login and write its files again. byoa saves a change about every 60 s. Login files: login files in.
    - If backend dies: Warning: If your backend dies here. close() never runs. The watcher removes the files at job + 45 s. See below.
-11. close(): save back, remove the files, give the lease back. Ends the job token. Saves the files only if they changed, with compare-and-set. Removes the loan record. Login files: files removed.
+11. close(): save back, remove the files, give the lease back. Ends the job token. Saves the files only if they changed, with compare-and-set. Removes the loan record. In a conversation, keeps the session id and a copy of its transcript, encrypted. Login files: files removed.
 12. Question: Did byoa remove the files? any error here counts as no. If yes: go on to step 13.
    - If no: Destroy it, forget its id. This is the end. The next job of this slot creates a new one.
 13. Pause it for the next job. This is the end. E2B: pause. Daytona, Instabox: stop.
@@ -363,9 +363,27 @@ New for each job: `sandboxPer: 'job'`: byoa creates a sandbox for one job and de
 
 - **One kept sandbox per user (the default).** The first job of a user and harness creates it. After each job, byoa pauses it, and the next job resumes it, so files that the app wrote there and the installed harness stay. Each job gets a new job folder (`s.work`) with its own setup. One job of a slot runs at a time; the others wait in line and run in the order they came, with no time limit unless you set `waitMs`. When the provider no longer has the sandbox, the next job creates a new one.
 - **Many kept sandboxes per user.** Give each job a `sandboxKey`, such as a project or a conversation. Each key has its own kept sandbox and its own lease. See [Running agents](https://byoa.rippling.computer/docs/running-agents.md#jobs-at-the-same-time) for the ways to run one user's jobs at the same time.
+- **A conversation.** Give each job of a chat the same `conversation` id. The conversation has its own kept sandbox, and the agent continues its own session there. See [What carries over between jobs](#what-carries-over-between-jobs).
 - **A new sandbox for each job.** Set `sandboxPer: 'job'` in `createAgents`. Use it when nothing may stay between jobs.
 
 In all three, the user's AI login and MCP grants stay in your database. No real MCP token goes into the sandbox, a job token is refused after its job, and no copy of the AI login stays in the sandbox between jobs.
+
+## What carries over between jobs
+
+"Resume" can mean two things. byoa does both:
+
+- **Resume the sandbox.** byoa starts the user's paused sandbox again for the next job. The files outside `~/work` and the installed harness are still there. This happens in every kept sandbox.
+- **Resume the conversation.** Only for a job that names a `conversation`. The harness continues its own session, so the agent knows the earlier messages and what it did. Each CLI does this with its own flags: Claude Code `--session-id`, then `--resume`; Codex `exec`, then `exec resume <thread id>`; Grok Build `-s`, then `-r`.
+
+| | A job with no `conversation` | A job of a `conversation` |
+|---|---|---|
+| The agent's memory of earlier jobs | none: each job is a new session | the harness's session of the earlier jobs |
+| `~/work` (the job folder) | emptied at the start of each job | kept; only byoa's files (skills, AGENTS.md, the MCP config, the task) are new |
+| Files outside `~/work`, the installed harness | kept in a kept sandbox | kept: the conversation has its own kept sandbox |
+| The AI login | never kept in the sandbox: a copy for each job | the same |
+| When the provider lost the sandbox | a new sandbox | a new sandbox, with the stored copy of the transcript, so the agent still remembers; `~/work` and the other files are gone |
+
+After each job of a conversation, byoa keeps the harness's session id and a copy of its session files (the transcript), encrypted in your store, when they are at most `transcriptBytes` (default 700 000 bytes). A longer transcript lives only in the sandbox: when the provider loses that sandbox, the next job says so (an `error` with code `conversation`) and starts a new session. With `sandboxPer: 'job'`, each job of a conversation gets a new sandbox and resumes only from the stored copy.
 
 ## When your backend dies during a job
 
@@ -401,7 +419,8 @@ Diagram: A job whose backend dies, with the default storedLogin
 ## Removal
 
 - `agents.signOut(user, h)` deletes the user's kept sandboxes for that harness, then signs out ([AI login](https://byoa.rippling.computer/docs/ai-login.md#sign-out)).
-- `agents.deleteSandbox(user, { harness?, sandboxKey? })` on its own destroys each matching kept sandbox. A job in it ends. The login and the MCP grants stay. When you delete a user, call `agents.deleteSandbox(userId)`; when you delete a project that had a key, `agents.deleteSandbox(userId, { sandboxKey: projectId })`.
+- `agents.deleteSandbox(user, { harness?, sandboxKey? })` on its own destroys each matching kept sandbox. A job in it ends. The login, the MCP grants and the conversations' stored transcripts stay.
+- `agents.deleteConversation(user, conversation?)` deletes a conversation (or all of the user's): its stored session and transcript, and its kept sandbox. Call it when the user deletes a chat, and with no id when you delete the user. When you delete a user, call `agents.deleteSandbox(userId)`; when you delete a project that had a key, `agents.deleteSandbox(userId, { sandboxKey: projectId })`.
 - Nothing else removes a paused kept sandbox.
 
 ---
@@ -523,6 +542,7 @@ This is how byoa must keep each secret (see [SPEC.md](https://github.com/madeyex
 | The user's Claude or ChatGPT login | By default in the app's own database, encrypted with a key that the app gives (R1.4), or as an option in a volume of that one user (R1.5); in a sandbox only while a sign-in, a job or a sign-out runs | In a sandbox between jobs, in another app, or with us |
 | MCP grants (access and refresh tokens) | In the app's own database, encrypted with a key that the app gives (R2.4) | In the sandbox (R3.3), in logs, or with us |
 | Job token | In the sandbox's `mcp.json`, for one job and one user (R3.1) | Valid after the job ends (R3.4) |
+| A conversation's transcript (the harness's own session files) | In the conversation's kept sandbox, and a copy in the app's own database, encrypted with a key that the app gives (R5.9) | In the store without encryption, or in another user's sandbox |
 
 The real MCP token goes only from the app's backend to the MCP server, through the proxy (R3.2). byoa is not a hosted service, so we never get your users' tokens.
 
@@ -534,7 +554,7 @@ For example:
 - The proxy accepts a job token after its job ends (V6), or for a different user.
 - byoa keeps a copy of a user's AI login in a sandbox between jobs, stores it without encryption, or one app can use another app's login.
 - Two refreshes at the same time revoke a grant, or byoa sends a refresh request from a place other than the app's backend (R2.3).
-- byoa stores a grant without encryption, or writes a token to a log.
+- byoa stores a grant or a conversation's transcript without encryption, or writes a token to a log.
 - byoa runs a `claude` or `codex` binary that is not the published one (V11).
 
 ## What is not ours
@@ -836,7 +856,7 @@ Source: https://byoa.rippling.computer/docs/running-agents
 
 # Running agents
 
-Your app runs a job with `agents.run`. byoa takes the user's sandbox, loads the user's setup, runs the user's own harness on the user's own plan, and streams its events. For a program of your own around the harness, use `agents.session`; for a harness outside byoa's sandboxes, `agents.jobToken`.
+Your app runs a job with `agents.run`. byoa takes the user's sandbox, loads the user's setup, runs the user's own harness on the user's own plan, and streams its events. To continue a chat, give its jobs one `conversation` id. For a program of your own around the harness, use `agents.session`; for a harness outside byoa's sandboxes, `agents.jobToken`.
 
 ## Run a job and stream its events
 
@@ -847,12 +867,12 @@ for await (const ev of agents.run(userId, {
   mcp: ['notion', 'todos'],            // the servers this job gets; default none
   setup: { agentsMd, skills },         // AGENTS.md (and CLAUDE.md for Claude Code); skills: [{ name, files: { 'SKILL.md': '...' } }]
 })) {
-  // ev.type: 'start' | 'text' | 'tool_call' | 'tool_result' | 'permission' | 'error' | 'end'
+  // ev.type: 'start' | 'text' | 'tool_call' | 'tool_result' | 'permission' | 'error' | 'turn' | 'end'
 }
 ```
 
 - The events are the same for every harness. The schema is in the [API reference](https://byoa.rippling.computer/docs/api.md#events-one-schema-for-every-harness).
-- `run` does not throw when a job fails. It gives `error` events (`code`: `signed-out`, `expired`, `no-plan`, `harness`, `sandbox` or `mcp`), and always ends with one `end` event (`ok`, `result`, `usage`). On `signed-out` or `expired`, show the sign-in again (for `plan: 'opencode-go'`, ask for a new key). On `no-plan`, tell the user that the key's workspace has no OpenCode Go plan.
+- `run` does not throw when a job fails. It gives `error` events (`code`: `signed-out`, `expired`, `no-plan`, `harness`, `sandbox`, `mcp` or `conversation`), and always ends with one `end` event (`ok`, `result`, `usage`, and in a conversation `session`). On `signed-out` or `expired`, show the sign-in again (for `plan: 'opencode-go'`, ask for a new key). On `no-plan`, tell the user that the key's workspace has no OpenCode Go plan.
 - byoa writes skills where each harness reads them (`.claude/skills/`, `.agents/skills/`), AGENTS.md (and CLAUDE.md for Claude Code) from one source, and the MCP config in each harness's own format. `plugins` adds the skills and MCP servers of an Agent Plugins package (`readPlugin(readPluginDir(dir))`).
 - byoa installs the pinned version of each harness in each sandbox, so a new pin reaches every user at their next job.
 - If the client goes away, stop the loop (or call `return()` on the generator). byoa still ends the job token, takes the login out, and pauses or destroys the sandbox.
@@ -873,6 +893,7 @@ The agent can then call the job's MCP tools and read files, so the harness can s
 |---|---|---|
 | `sandboxPer: 'user'` (the default) | the user's one kept sandbox for that harness, paused between jobs | one; the others wait in line, in the order they came |
 | a `sandboxKey` for each job | one kept sandbox for each key, such as a project or a conversation, each with its own lease | one for each key |
+| a `conversation` for each job | one kept sandbox for each conversation, whose `~/work` stays | one for each conversation |
 | `sandboxPer: 'job'` | a new sandbox, destroyed after the job | all of them |
 
 ```ts
@@ -881,6 +902,41 @@ const agents = createAgents({ ...options, sandboxPer: 'job' })          // a new
 ```
 
 A job waits in line with no time limit. To make it fail after a time, set `createAgents({ waitMs })`, for example on a short-lived backend such as a Convex action. [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle.md) shows each step of each mode, and what each provider does.
+
+## Conversations
+
+A job with a `conversation` id continues the harness's own session of the earlier jobs with that id, so the agent knows what the user said and what it did. Use your chat thread's id:
+
+```ts
+// the second job knows what the first was told
+const chat = {
+  harness: 'claude', conversation: chatId,
+} as const
+agents.run(userId, { ...chat, task: 'My name is Ann.' })
+agents.run(userId, { ...chat, task: 'What is my name?' })
+```
+
+- The first job's `start` event has `resumed: false`, the next ones `resumed: true`. The `end` event has `session`, the harness's own session id.
+- The conversation has its own kept sandbox (its id is the `sandboxKey`; give no other one), so its jobs run one at a time, and its `~/work` stays from job to job: the agent finds the files it wrote. byoa replaces only its own files there.
+- byoa keeps a copy of the transcript, encrypted in your store, so the conversation goes on when the provider loses the sandbox. A transcript longer than `createAgents({ transcriptBytes })` (default 700 000 bytes) is not kept; then a lost sandbox loses the conversation, and the next job gives an `error` with code `conversation` and starts again.
+- `agents.deleteConversation(userId, chatId)` deletes it, with its sandbox. [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle.md#what-carries-over-between-jobs) has what carries over between jobs.
+- The harness must be the same for each job of a conversation: each harness has its own sessions.
+
+### More messages while a job runs (Claude Code)
+
+`run` returns a `Job`. With Claude Code, `job.send(message)` gives the running agent one more message:
+
+```ts
+const job = agents.run(userId, { harness: 'claude', task, conversation: chatId })
+for await (const ev of job) {
+  if (ev.type === 'turn') show(ev.result)     // one turn ended; the agent now reads the next message
+  if (ev.type === 'end') show(ev.result)      // the turn that answered the last message
+}
+// from another request of the user, while the job runs:
+await job.send('Also add the dates.')         // true; false once the job ended
+```
+
+A message that comes during a turn waits for it. Claude Code reads its input as stream-json lines, so this uses only its own flags. Codex (`codex exec`) and Grok Build (`grok -p`) read their whole task before they start and read no input while they run, so `send` returns false for them: send the message as the next job of the conversation.
 
 ## Jobs at the same time
 
@@ -990,11 +1046,12 @@ Use `instabox({ apiKey?, apiUrl?, template?, snapshot?, timeoutMs? })`. It calls
 
 ## Write an adapter
 
-An adapter implements one interface ([src/sandbox/types.ts](https://github.com/madeyexz/byoa/blob/main/src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy, delete a volume, and optionally keepAlive (a new end time for a sandbox that is not kept: byoa uses it to end a sign-in 2 minutes after the app's last check-in).
+An adapter implements one interface ([src/sandbox/types.ts](https://github.com/madeyexz/byoa/blob/main/src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy, delete a volume, and optionally read a file, `capabilities`, and keepAlive (a new end time for a sandbox that is not kept: byoa uses it to end a sign-in 2 minutes after the app's last check-in).
 
 ```ts
 interface SandboxProvider {
   readonly name: string
+  readonly capabilities?: { volumes: boolean }  // optional; false: create refuses a volume, and createAgents refuses cliLogin
   create(opts?: { volumes?: { name: string; path: string }[]; labels?: Record<string, string>; timeoutMs?: number; keep?: boolean }): Promise<Sandbox>
   resume(id: string, opts?: { timeoutMs?: number }): Promise<Sandbox>  // starts a paused one; throws SandboxGoneError when it is gone
   destroy(id: string): Promise<void>                                   // by id, running or paused
@@ -1004,7 +1061,10 @@ interface SandboxProvider {
 ```
 
 - `keep: true` is a sandbox that byoa keeps for the user. When it times out, the provider must pause it instead of deleting it, and no process of that job may run when it resumes.
-- A provider with no volumes refuses `create` with volumes.
+- A provider with no volumes refuses `create` with volumes, and says `capabilities: { volumes: false }`.
+- `run` resolves for a non-zero exit code, and with exit code 137 for a command that runs out of its `timeoutMs`; it does not throw.
+- `Sandbox.readFile(path)` (optional) reads a file through the provider's file API, or gives null. byoa reads the login files and a conversation's transcript with it; without it, byoa reads them as base64 on a command's output, which a provider may keep in its command history.
+- `test/helpers/conformance.ts` in byoa's repository checks what byoa needs of an adapter: run it on yours, as `test/fake.test.ts` does for the local one.
 - The [API reference](https://byoa.rippling.computer/docs/api.md#sandbox-adapter) has the `Sandbox` interface.
 
 ---
@@ -1013,7 +1073,7 @@ Source: https://byoa.rippling.computer/docs/stores
 
 # Stores and Convex
 
-byoa keeps its state in your own database, through a store adapter: MCP grants, AI logins (by default), login states, sandbox slots and leases. Grants and AI logins are encrypted with your `encryptionKey`.
+byoa keeps its state in your own database, through a store adapter: MCP grants, AI logins (by default), login states, sandbox slots and leases, and conversations (the harness's session id and a copy of its transcript). Grants, AI logins and conversations are encrypted with your `encryptionKey`.
 
 ## The store adapter
 
@@ -1030,6 +1090,28 @@ interface Store {
 ```
 
 The version must change on every write, and a key that is deleted and written again must never get an earlier version back. The one refresh owner of each grant, the login lease and the sandbox slots depend on `cas`. The to-do example's `sqliteStore` in [examples/todo/todos.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/todos.ts) is one in 19 lines.
+
+## The keys byoa writes
+
+Every key is in one file, [src/keys.ts](https://github.com/madeyexz/byoa/blob/main/src/keys.ts). The values marked sealed are encrypted with your `encryptionKey`, with the key as associated data; the others hold no secret. `<user>` and the sandbox key are URL-encoded.
+
+| Key | What it holds |
+|---|---|
+| `grant/<user>/<name>` | sealed: one MCP grant |
+| `grants/<user>` | the names and URLs of the user's grants |
+| `lease/<user>/<name>` | the lease of the one refresh of a grant |
+| `mcpflow/<state>` | sealed: an MCP sign-in that has not come back yet |
+| `job/<hash>`, `jobid/<job>` | a job token, by its hash, and its hash by the job id |
+| `login/<user>/<h>`, `loginjob/<user>/<h>` | the state of a lab login; a sign-in that runs now |
+| `ailogin/<user>/<h>` | sealed: the CLI's own login files |
+| `ailoginlease/…`, `ailoginline/…`, `ailoginloan/…` | who holds the login, the jobs that wait for it, and the sandboxes that have a copy |
+| `aikey/<user>/<plan>`, `aikeystate/<user>/<plan>` | sealed: a plan's key; its state |
+| `usersandbox/<user>/<provider>/<h>/<key>` (and `…/line`) | a kept sandbox: its id and the lease of its job; the jobs that wait for it |
+| `usersandboxes/<user>/<provider>` | the user's kept sandboxes |
+| `conversation/<user>/<h>/<id>` | sealed: a conversation's session id and its transcript (at most `transcriptBytes`) |
+| `conversations/<user>` | the user's conversations |
+
+A conversation's transcript can be large: with the default `transcriptBytes` (700 000) one entry stays below a Convex document's 1 MiB. Postgres has no such limit.
 
 ## Postgres
 
@@ -1108,17 +1190,20 @@ for await (const ev of agents.run('u1', { harness: 'fake', task: 'call todos.add
 ```
 
 - The fake harness shows the task's first line as one `text` event and skips the other lines. The last call's output is the `end` event's `result`.
+- In a `conversation`, the fake harness keeps each task in a session file and says how many earlier messages it remembers (`fake harness remembers 1 earlier messages: <first line>`), so you test your app's conversations with no model.
 - With the local sandbox, `proxyUrl` can be `http://127.0.0.1:<port>/byoa/mcp`.
 - Copy [examples/todo/todo.test.ts](https://github.com/madeyexz/byoa/blob/main/examples/todo/todo.test.ts). Do not offer `fake` to end users in production.
 
 ## Test byoa itself
 
 - `npm test` runs V10, V12, the fake-harness tests and the unit tests. `npm run test:v11` runs V11; it downloads about 600 MB. CI runs both on every commit.
-- With `DAYTONA_API_KEY` set, `npm test` also checks the Daytona adapter against Daytona (with `BYOA_DAYTONA_VOLUMES=1` too, also its volumes; that needs a key with the volume permissions). With `E2B_API_KEY` too, it runs V4 ([test/v4.test.ts](https://github.com/madeyexz/byoa/blob/main/test/v4.test.ts)), which needs `cloudflared` to give the proxy a public URL. On a Daytona org on Tier 1 or 2, also set `BYOA_V4_RELAY` to a relay on an allowed domain, such as [test/relay](https://github.com/madeyexz/byoa/blob/main/test/relay/convex/http.ts) deployed to a temporary Convex project.
+- `npm test` never starts a paid sandbox, also when the providers' keys are set: each paid check needs its own flag. `npm run test:daytona` checks the Daytona adapter against Daytona and runs V8 there. It needs `DAYTONA_API_KEY`, and with `BYOA_DAYTONA_VOLUMES=1` also checks its volumes; that needs a key with the volume permissions. `npm run test:v4` runs V4 ([test/v4.test.ts](https://github.com/madeyexz/byoa/blob/main/test/v4.test.ts)) with `E2B_API_KEY` and `DAYTONA_API_KEY`; it needs `cloudflared` to give the proxy a public URL. On a Daytona org on Tier 1 or 2, also set `BYOA_V4_RELAY` to a relay on an allowed domain, such as [test/relay](https://github.com/madeyexz/byoa/blob/main/test/relay/convex/http.ts) deployed to a temporary Convex project.
 - `npm run test:e2b` checks the E2B adapter against E2B and runs V8 there (a user's jobs in one paused and resumed sandbox, and `sandboxPer: 'job'`). It needs `E2B_API_KEY`, and with `BYOA_E2B_VOLUMES=1` also checks volumes, for an E2B team with volumes turned on.
 - `npm run test:instabox` does the same on Instabox. It needs `INSTABOX_API_KEY`. `BYOA_V4_PROVIDERS=e2b,instabox` runs V4 on E2B and Instabox.
+- Each of these adapter tests first runs the conformance check, [test/helpers/conformance.ts](https://github.com/madeyexz/byoa/blob/main/test/helpers/conformance.ts); `npm test` runs it on the local sandbox.
+- `node scripts/v21.ts` runs V21 (conversations and steering with real logins on E2B) in steps, because a person signs in: `login claude|codex|grok`, then `check`, then `cleanup`, which signs out and deletes the sandboxes. It needs `E2B_API_KEY`.
 
-The checks V1 to V16 are in [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification).
+The checks V1 to V21 are in [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification).
 
 ---
 
@@ -1241,6 +1326,10 @@ Yes, with one sign-in, for Claude Code, Codex and Grok Build. Give each agent it
 
 All these jobs use the same plan, so they reach the plan's limits sooner. One risk stays with a shared login: when the lab answers 401 to two sandboxes at the same time, both CLIs refresh, one refresh fails, and the user may have to sign in again. `storedLogin({ parallel: false })` turns sharing off ([AI login](https://byoa.rippling.computer/docs/ai-login.md#jobs-at-the-same-time-the-shared-login)). Jobs on an OpenCode Go key have no such risk: a key does not rotate.
 
+## Does the agent remember earlier jobs?
+
+Only in a conversation. A job with a `conversation` id continues the harness's own session of the earlier jobs with that id, in the conversation's own kept sandbox, and its job folder (`~/work`) stays. A job with no `conversation` starts a new session, and its job folder is new. byoa keeps a copy of each conversation's transcript, encrypted in your database, so the agent still remembers when the provider loses the sandbox. A running Claude Code job also takes more messages (`job.send`); Codex and Grok Build take the next message as the next job. See [Running agents](https://byoa.rippling.computer/docs/running-agents.md#conversations) and [what carries over between jobs](https://byoa.rippling.computer/docs/sandbox-lifecycle.md#what-carries-over-between-jobs).
+
 ## Which model does a job use?
 
 The model and effort that you give `run`, else the harness's default from `createAgents({ models })`, else the CLI's own default. `agents.listModels(userId, harness)` lists the models that the user's plan can use, and the efforts of each, as the CLI lists them with the user's login. Pick from that list, because each plan has its own models. A job on an OpenCode Go key (beta) needs a Go model: `agents.listModels(userId, 'opencode-go')` lists them from OpenCode's API, with no sandbox. See [Running agents](https://byoa.rippling.computer/docs/running-agents.md#models-and-effort).
@@ -1303,13 +1392,13 @@ Source: https://byoa.rippling.computer/docs/api
 
 This page is the agent skill's API reference, [skills/byoa/reference/api.md](https://byoa.rippling.computer/docs/api.md), so a coding agent and you read the same text.
 
-This is the API in https://github.com/madeyexz/byoa today (version 0.1, before version 1). It can change before version 1. The source of truth is `src/agents.ts`, `src/index.ts` and the files they import.
+This is the API in https://github.com/madeyexz/byoa today. Version 1.0.0 is on npm; conversations (`conversation`, `Job.send`, `deleteConversation`, `transcriptBytes`), `readFile` and `capabilities` are on `main` and come in the next release. The source of truth is `src/agents.ts`, `src/index.ts` and the files they import.
 
 ## Imports
 
 | Import | What it gives |
 |---|---|
-| `@madeyexz/byoa` | `createAgents`, `LoginError`, `ProxyError`, `SandboxGoneError`, `memoryStore`, `storedLogin`, `cliLogin`, `harnessFiles`, `readPlugin`, `JOB_TOKEN_ENV`, `PINS`, `PACKAGES`, `ensureHarness`, `LOGIN_FILES`, `clientMetadataDocument`, `PLANS`; types `AgentsOptions`, `RunOptions`, `RunHarness`, `ConnectResult`, `Session`, `SessionOptions`, `JobToken`, `Store`, `Entry`, `Sandbox`, `SandboxProvider`, `AgentEvent`, `Usage`, `AppTools`, `AppTool`, `Access`, `Setup`, `Skill`, `Plugin`, `LoginState`, `LoginStart`, `LoginResult`, `PlanName`, `PlanState` |
+| `@madeyexz/byoa` | `createAgents`, `LoginError`, `ProxyError`, `SandboxGoneError`, `memoryStore`, `storedLogin`, `cliLogin`, `harnessFiles`, `readPlugin`, `JOB_TOKEN_ENV`, `PINS`, `PACKAGES`, `ensureHarness`, `LOGIN_FILES`, `clientMetadataDocument`, `PLANS`; types `Agents` (what `createAgents` returns), `AgentsOptions`, `RunOptions`, `Job` (what `run` returns), `RunHarness`, `ConnectResult`, `Session`, `SessionOptions`, `JobToken`, `Store`, `Entry`, `Sandbox`, `SandboxProvider`, `Capabilities`, `AgentEvent`, `Usage`, `AppTools`, `AppTool`, `Access`, `Setup`, `Skill`, `Plugin`, `LoginState`, `LoginStart`, `LoginResult`, `PlanName`, `PlanState` |
 | `@madeyexz/byoa/sandbox/e2b` | `e2b({ apiKey?, template?, timeoutMs? })`, `buildE2BTemplate(name?, { apiKey?, pins? })`, `e2bTemplate(pins?)`. Needs the `e2b` package. |
 | `@madeyexz/byoa/sandbox/daytona` | `daytona({ apiKey?, client?, snapshot?, volume?, timeoutMs? })`. Needs `@daytona/sdk`. |
 | `@madeyexz/byoa/sandbox/instabox` | `instabox({ apiKey?, apiUrl?, template?, snapshot?, timeoutMs? })`. Needs no package. No volumes: use `storedLogin()`, not `cliLogin`. |
@@ -1337,6 +1426,7 @@ interface AgentsOptions {
   models?: { claude?: ModelChoice; codex?: ModelChoice; grok?: ModelChoice; 'opencode-go'?: ModelChoice }  // each harness's default: { model?, effort? }; 'opencode-go': jobs with that plan
   grantOrigins?: Record<string, string[]>    // more exact origins for fetchWithGrant, by MCP server origin
   tools?: AppTools                           // the app's own tools: MCP server name → tool name → { description?, input?, run }
+  transcriptBytes?: number                   // the most bytes of a conversation's transcript kept in the store; default 700 000; 0: none
 }
 ```
 
@@ -1345,6 +1435,7 @@ interface AgentsOptions {
 - `oauth.clientName`: the name the MCP server shows on its consent page. Default: `app`.
 - `sandboxPer`: `'user'` (the default): the first job of a user and harness creates the user's sandbox; byoa pauses it after each job (E2B pause, Daytona and Instabox stop) and resumes it for the next, with a new job folder. One job of a user and harness at a time; the others wait in line, in the order they came. A job's `sandboxKey` (in `run` and `session`) gives the user one kept sandbox, with its own lease, for each key. A sandbox the provider no longer has is replaced by a new one. `'job'`: a new sandbox for each job, destroyed after it. With the default `storedLogin()`, a user's jobs in different sandboxes run at the same time with one login, for every harness.
 - `models`: the model and effort a job of each harness gets when it names none. Default: the CLI's own. See `listModels`.
+- `transcriptBytes`: after each job of a conversation, byoa keeps a copy of the harness's session files (its transcript), encrypted in the store, when they are at most this large, so the conversation goes on when the provider loses its sandbox. Default 700 000 bytes, below a Convex document's 1 MiB. A larger transcript lives only in the conversation's sandbox.
 
 - `tools`: the app's own tools, as functions in the backend. `{ todos: { add_todo: { description, input, run } } }` is an MCP server `todos` with one tool. `input`: the JSON Schema of the arguments (an object schema; default: no arguments). `run(args, { user, job })` runs for the user of the job; what it returns goes to the agent (a string as it is, other values as JSON), and what it throws goes to the agent as a failed call. byoa does not check the arguments against `input`. A job gets the server by its name in `mcp`; the proxy serves it at `<proxyUrl>/<name>`. Server names: lower-case letters, digits and -, at most 32; tool names: letters, digits, _ and -, at most 64. `listMcp` does not list them, and `connectMcp` refuses their names.
 
@@ -1360,7 +1451,8 @@ It returns an object with the methods below.
 | `loginState(user, h)` | `'signed-in' \| 'signed-out' \| 'expired'`. With `h` `'opencode-go'`, also `'no-plan'`. |
 | `signOut(user, h)` | `void`. Also deletes the user's sandbox for `h`, and cancels a sign-in that has not finished. With `h` `'opencode-go'`: deletes the user's key only; the proxy refuses the requests of jobs that still run with it. |
 | `connectKey(user, 'opencode-go', key)` | `{ state, error? }`. Beta: OpenCode Go is not yet checked with a real Go key. Keeps the user's OpenCode Console API key (`oc_sk_…`), encrypted in the store, after it checks the key with OpenCode's usage meter: `'signed-in'`; `'no-plan'` (kept: its workspace has no Go plan yet; jobs work once it has one); or, when OpenCode refuses the key (401: wrong, revoked or expired), the state before and an `error`, and the key is not kept. Throws on another answer. |
-| `deleteSandbox(user, { harness?, sandboxKey? }?)` | `void`. Deletes the user's kept sandboxes of this app at this provider: all of them (when the app deletes the user), or those of one harness or one sandbox key (when it deletes a project). The login and grants stay. |
+| `deleteSandbox(user, { harness?, sandboxKey? }?)` | `void`. Deletes the user's kept sandboxes of this app at this provider: all of them (when the app deletes the user), or those of one harness or one sandbox key (when it deletes a project). The login, the grants and the conversations' stored transcripts stay. |
+| `deleteConversation(user, conversation?)` | `void`. Deletes a conversation (or, with no id, all of the user's): its session ids and stored transcripts, and its kept sandbox. The next job with that id starts a new conversation. Call it when the user deletes a chat, and when the app deletes the user. |
 
 Login drivers:
 
@@ -1385,11 +1477,11 @@ Login drivers:
 
 `agents.proxy` is a fetch handler (`Request` → `Response`). Serve it at `proxyUrl` and every path below it (`<proxyUrl>/<name>`). It checks the job token, adds the user's real token, and sends the request to the MCP server; for the app's own `tools`, it calls the tool's `run`. It refuses a job token after the job ends. Do not put the app's session check in front of it. Each of its MCP answers has the header `x-byoa-proxy: 1`.
 
-It is also the relay of a job with `plan: 'opencode-go'`, at `<proxyUrl>/_plan/opencode-go/anthropic/v1/…` and `…/openai/v1/…`: it checks the job token (of a job with that plan), adds the user's key, and streams the request to `https://opencode.ai/inference/go/…` and the answer back, with the harness's own headers (its user agent and session id; it adds `x-opencode-session` when there is none). It sends on no other path. OpenCode's 401 makes the key `expired`, its 403 "OpenCode Go subscription required" `no-plan`.
+It is also the relay of a job with `plan: 'opencode-go'`, at `<proxyUrl>/_plan/opencode-go/anthropic/v1/…` and `…/openai/v1/…`: it checks the job token (of a job with that plan), adds the user's key, and streams the request to `https://opencode.ai/inference/go/…` and the answer back, with only the harness's own headers (its user agent, session id, API version and betas; it adds `x-opencode-session` when there is none). It sends on no other header, so a header that the app's own gateway adds stays behind, and no other path. OpenCode's 401 makes the key `expired`, its 403 "OpenCode Go subscription required" `no-plan`.
 
 ## Jobs
 
-### run(user, options): AsyncGenerator<AgentEvent>
+### run(user, options): Job
 
 ```ts
 interface RunOptions {
@@ -1404,30 +1496,40 @@ interface RunOptions {
   sandboxKey?: string         // sandboxPer 'user': which of the user's kept sandboxes; default the user's one for the harness
   access?: 'full' | 'read-only'  // what the agent may do; default 'full'
   plan?: 'opencode-go'        // the user's OpenCode Go key (connectKey) in place of the lab login, with claude or codex
+  conversation?: string       // the app's id of a conversation (1 to 128 characters): the job continues the harness's session of it
+}
+
+interface Job extends AsyncGenerator<AgentEvent> {
+  send(message: string): Promise<boolean>  // one more message to the running agent; Claude Code only
 }
 ```
+
+- `conversation`: the job continues the harness's own session of the jobs before it with the same id, so the agent has their messages. The conversation has its own kept sandbox (the id is its `sandboxKey`; give no other one), and its job folder stays from job to job: byoa replaces only its own files there (the skills, AGENTS.md, the MCP config, the task). Claude Code: the first job gets `--session-id <a new UUID>`, the next ones `--resume <id>`. Codex: the first job runs without `--ephemeral` and names its thread in `thread.started`; the next ones are `codex exec resume <thread id>` (with `access: 'read-only'`, `-c sandbox_mode="read-only"`, as `exec resume` has no `--sandbox`). Grok: `-s <a new UUID>`, then `-r <id>`. Jobs of one conversation run one at a time, in the order they came. After each job byoa keeps the session id and, up to `transcriptBytes`, a copy of the session's files, encrypted in the store; when the provider lost the sandbox, the next job writes them into its new one (Claude Code and Grok keep sessions by the job folder's path, which is the same at one provider; Codex by date). When there is no copy, the job starts the conversation again and says so in an `error` with code `conversation`. With `sandboxPer: 'job'`, each job of a conversation has a new sandbox and a new job folder, and resumes only from the stored copy. Not with `session()`.
+- `send` (steering): Claude Code reads its input as stream-json lines, so a running Claude Code job takes more messages. A message that comes during a turn waits for it; then the agent answers it in the same session. Each turn that is not the last gives a `turn` event; the job ends (`end`) after the turn that answers the last message. `send` returns false after the end. Codex (`exec`) and Grok (`-p`) read their whole task before they start and read no input while they run, so `send` returns false for them, and for the fake harness: send the message as the next job of the conversation.
 
 - `plan`: the harness runs with the user's OpenCode Go plan, through the proxy's relay; the key never enters the sandbox. The job needs a model of the plan (`model`, else `models['opencode-go']` of createAgents; `listModels(user, 'opencode-go')` lists them), else `run` gives an `error` (code `sandbox`). Claude Code gets `ANTHROPIC_BASE_URL` (the relay), `ANTHROPIC_AUTH_TOKEN` (the job token), every model alias set to the job's model, and a `CLAUDE_CONFIG_DIR` of its own with no Claude login; Codex gets `-c` overrides for a model provider `opencode-go` (`wire_api = "responses"`, `env_key = "BYOA_JOB_TOKEN"`) and a `CODEX_HOME` of its own. The user's jobs with a key need no lease, so jobs in different sandboxes run at the same time. With no key, `run` gives an `error` with code `signed-out`.
 - `mcp`: names of the user's connected servers and of the app's own `tools`.
 - `access`: `'full'`: every tool of the harness with no approval (Codex: `--dangerously-bypass-approvals-and-sandbox`; Claude Code and Grok: `--permission-mode bypassPermissions`), for a sandbox that is the job's alone. `'read-only'`: the job's MCP tools, and reading files, so the harness reads its skills and AGENTS.md; no change to a file, and no network but the job's MCP servers. Codex: `--sandbox read-only` (its shell stays, because it reads a skill with `cat`; a command cannot write or open a connection), with the job's MCP tools approved in its `config.toml`. Claude Code: `--permission-mode dontAsk` with the tools `Read`, `Glob`, `Grep`, `Skill` and the job's MCP servers; each tool it refuses is a `permission` event. Grok: `--permission-mode dontAsk --disable-web-search` with the tools `read_file`, `grep`, `list_dir` (it loads skills with its own skill tool) and `--allow MCPTool(*)` (Grok sees only the job's MCP servers; a call to a tool it does not have then gets an error, where a refusal would end the job). It does not hide files: the agent can read each file its user can read.
 - Before the harness starts, byoa sends one MCP `initialize` from the sandbox to each of the job's servers, through the proxy. When no request reaches the proxy, the job does not start: an `error` event with code `mcp`, then `end` with `ok: false`. A server that does not answer gives an `error` event with code `mcp`, and the job runs.
 
-Each run: the user's sandbox (resumed, or created for the first job; with `sandboxPer: 'job'`, a new one), the user's login, the pinned harness, the setup files in a new job folder, the task; then the login is taken out and the sandbox is paused (or destroyed). Stop the loop (or call `return()`) to end a job early; byoa still cleans up.
+Each run: the user's sandbox (resumed, or created for the first job; with `sandboxPer: 'job'`, a new one), the user's login, the pinned harness, the setup files in a new job folder (in a conversation, the conversation's folder), the task; then the login is taken out, a conversation's transcript is kept, and the sandbox is paused (or destroyed). Stop the loop (or call `return()`) to end a job early; byoa still cleans up.
 
 ### Events (one schema for every harness)
 
 ```ts
 type AgentEvent =
-  | { type: 'start'; harness: string; version: string; sandbox: string }
+  | { type: 'start'; harness: string; version: string; sandbox: string; conversation?: string; resumed?: boolean }
   | { type: 'text'; text: string }
   | { type: 'tool_call'; id: string; name: string; server?: string; input: unknown }   // server: the MCP server
   | { type: 'tool_result'; id: string; ok: boolean; output: string }
   | { type: 'permission'; tool: string; decision: 'denied'; input?: unknown }
-  | { type: 'error'; message: string; code?: 'signed-out' | 'expired' | 'no-plan' | 'harness' | 'sandbox' | 'mcp' }
-  | { type: 'end'; ok: boolean; result?: string; usage?: { input: number; output: number; cached?: number; costUsd?: number } }
+  | { type: 'error'; message: string; code?: 'signed-out' | 'expired' | 'no-plan' | 'harness' | 'sandbox' | 'mcp' | 'conversation' }
+  | { type: 'turn'; ok: boolean; result?: string; usage?: Usage }     // one turn of a job that has more messages (send)
+  | { type: 'end'; ok: boolean; result?: string; usage?: Usage; session?: string }  // session: the harness's session id, in a conversation
+// Usage: { input: number; output: number; cached?: number; costUsd?: number }
 ```
 
-`run` does not throw for job failures: it yields `error` events and then exactly one `end`. `signed-out` / `expired`: ask the user to sign in again, or for a new key with `plan: 'opencode-go'` (`loginState` says the same). `no-plan`: the key's workspace has no OpenCode Go plan. `mcp`: a server is not connected, its grant failed, it did not answer through the proxy, or the sandbox cannot reach the proxy (then the job did not start).
+`run` does not throw for job failures: it yields `error` events and then exactly one `end`. `signed-out` / `expired`: ask the user to sign in again, or for a new key with `plan: 'opencode-go'` (`loginState` says the same). `no-plan`: the key's workspace has no OpenCode Go plan. `mcp`: a server is not connected, its grant failed, it did not answer through the proxy, or the sandbox cannot reach the proxy (then the job did not start). `conversation`: the conversation's history is gone (the provider lost its sandbox, and its transcript was larger than `transcriptBytes`); the job runs, as the first of a new session. In `start`, `resumed` is true when the harness continued an earlier session of the conversation.
 
 ### listModels(user, h | 'opencode-go'): Promise<ModelInfo[]>
 
@@ -1475,6 +1577,7 @@ The version must change on every write, and a key that is deleted and written ag
 ```ts
 interface SandboxProvider {
   readonly name: string
+  readonly capabilities?: { volumes: boolean }  // optional; false: create refuses a volume, and createAgents refuses cliLogin
   create(opts?: { volumes?: { name: string; path: string }[]; labels?: Record<string, string>; timeoutMs?: number; keep?: boolean }): Promise<Sandbox>
   resume(id: string, opts?: { timeoutMs?: number }): Promise<Sandbox>  // starts a paused one; throws SandboxGoneError when it is gone
   destroy(id: string): Promise<void>                                   // by id, running or paused
@@ -1486,12 +1589,16 @@ interface Sandbox {
   readonly home: string
   run(cmd: string, opts?: { cwd?; env?; timeoutMs?; onStdout?; onStderr?; background? }): Promise<{ exitCode; stdout; stderr }>
   writeFile(path: string, data: string | Uint8Array): Promise<void>
+  readFile?(path: string): Promise<Uint8Array | null>  // optional; null when it is not there
   pause(): Promise<void>      // keeps the files; resume starts it again
   destroy(): Promise<void>
 }
 ```
 
 - `keep: true`: a sandbox byoa keeps for the user. When it times out, the provider pauses it instead of deleting it.
+- `run`: a command that exits with a non-zero code resolves; one that runs out of its `timeoutMs` resolves with exit code 137.
+- `readFile`: byoa reads the user's login files and a conversation's transcript with it. Without it, byoa reads a file as base64 on a command's stdout, which a provider may keep in its command history. E2B, Daytona, Instabox and the local provider have it.
+- An adapter of the app's own can check itself with the conformance check in byoa's tests (`test/helpers/conformance.ts`).
 - E2B: `pause` takes a snapshot of the files only where the team can (`mode: 'filesystem'`), else a full one after it ends the sandbox's processes. E2B keeps a paused sandbox with no time limit.
 - E2B: the default template is `byoa`; build it once per pin change with `buildE2BTemplate()`. Any template with Node 20 or later works (byoa installs the pinned harness when it is missing, more slowly).
 - Daytona: `pause` stops the sandbox; `resume` starts it (also from archived, more slowly). A kept sandbox is not ephemeral and has no time to live; Daytona archives it after 7 days stopped.
@@ -1500,7 +1607,7 @@ interface Sandbox {
 
 ## The fake harness
 
-`harness: 'fake'` runs no model and needs no login. It reads the same MCP config Claude Code would. Each task line `call <server>.<tool> <json arguments>` is one MCP call through the real proxy; it shows the task's first line as one `text` event and skips the other lines. The last call's output is the `end` event's `result`. Use it with `localSandbox()` and `memoryStore()` (or the app's own store) in tests.
+`harness: 'fake'` runs no model and needs no login. It reads the same MCP config Claude Code would. Each task line `call <server>.<tool> <json arguments>` is one MCP call through the real proxy; it shows the task's first line as one `text` event and skips the other lines. The last call's output is the `end` event's `result`. In a conversation it keeps each task in a session file and says, in a `text` event, how many earlier messages it remembers (`fake harness remembers 1 earlier messages: <first line>`), so an app tests its conversations with no model. Use it with `localSandbox()` and `memoryStore()` (or the app's own store) in tests.
 
 ---
 
@@ -1581,17 +1688,19 @@ Out of scope for version 1:
 
 - **R5.1** byoa MUST install a pinned version of each harness in each sandbox, or use a provider template with that version.
 - **R5.2** A new harness version MUST reach every user at their next job. (Bookish had to copy a new core into old sandboxes, because a template reaches only new sandboxes.)
-- **R5.3** Each sandbox provider MUST be one adapter with one interface: create, resume, run a command, write a file, mount a volume, pause, destroy. A provider with no volumes (Instabox) refuses a volume, so the volume login of R1.5 does not work on it; the stored login of R1.4 does.
+- **R5.3** Each sandbox provider MUST be one adapter with one interface: create, resume, run a command, write a file, read a file, mount a volume, pause, destroy. A command that runs out of its time MUST end with exit code 137 on every provider, not throw. Reading a file is optional: without it, byoa reads a file as base64 on a command's output. A provider says what it can do (`capabilities`): a provider with no volumes (Instabox) refuses a volume, so the volume login of R1.5 does not work on it and createAgents refuses it; the stored login of R1.4 does. One conformance check (`test/helpers/conformance.ts`) MUST pass for each adapter.
 - **R5.4** The lifecycle MUST be the app's choice, with the same app code on every provider:
   - **One kept sandbox per user (the default).** Each user has one sandbox of the app for each harness. The first job creates it. After each job, byoa pauses it (E2B: pause; Daytona and Instabox: stop), and the next job resumes it, with a new job folder. One job of a user and harness runs at a time; the others wait in line (R5.8). When the provider no longer has the sandbox (it was deleted, or it expired), the next job creates a new one. A sandbox that times out during a job (a crash, a lost network) is paused, not deleted, and no process of that job runs when it resumes. byoa MUST delete the user's sandbox at sign-out, and MUST give the app a way to delete it, such as when it deletes the user.
-  - **Many kept sandboxes per user (a `sandboxKey` for each job).** The same, but each key that the app gives a job (such as a project or a conversation) has its own sandbox and its own lease, so jobs with different keys run at the same time. With the stored login of R1.4, jobs share the login by default, for every harness. The app MUST be able to delete the sandbox of one key, or all of the user's.
+  - **Many kept sandboxes per user (a `sandboxKey` for each job).** The same, but each key that the app gives a job (such as a project), and each conversation (R5.9), has its own sandbox and its own lease, so jobs with different keys run at the same time. With the stored login of R1.4, jobs share the login by default, for every harness. The app MUST be able to delete the sandbox of one key, or all of the user's.
   - **One sandbox per job (`sandboxPer: 'job'`).** Create a sandbox, load the user's setup, run the job, destroy the sandbox.
 
   In all three, the user's AI login (R1.4) and grants (R2) stay in the app's database, and the security properties of R1.4 and R3 do not depend on the choice: no real MCP token goes into the sandbox, a job token is refused after its job, and no copy of the AI login stays in the sandbox between jobs.
-- **R5.5** `agents.run` MUST stream events (text, tool calls, permission requests, errors, end) in one schema for every harness.
+- **R5.5** `agents.run` MUST stream events (text, tool calls, permission requests, errors, turns, end) in one schema for every harness.
 - **R5.6** byoa MUST let the app limit what the agent of a job may do, with each CLI's own options only (Lab rules). With `access: 'read-only'`, the agent MUST be able to call the job's MCP tools and to read files, so that the harness can read its skills and AGENTS.md; it MUST NOT be able to change a file, or to reach the network by itself. The default (`full`) is every tool of the harness with no approval, for a sandbox that is the job's alone.
 - **R5.7** byoa MUST let the app choose the model and effort of each job, and of each harness by default, with each CLI's own flags only, and MUST list the models a user's plan can use, as each CLI lists them with that user's login. For a plan with a key (R1.8), byoa MUST list the plan's models from its API with the user's key, with no sandbox, and a job MUST name one of them (or get the app's default for the plan).
 - **R5.8** One user's many agents MUST be the app's choice, in three patterns that work together: jobs of one sandbox wait in line and run in the order they came, with no time limit unless the app sets one; one job MAY carry several messages to one agent, which decides their order; and jobs with different sandboxes run at the same time (R5.4, R1.4).
+- **R5.9** A job MAY name a conversation (the app's id, such as a chat thread). Then the job MUST continue the harness's own session of the earlier jobs of that conversation, with each CLI's own flags only (Lab rules): Claude Code `--session-id`, then `--resume`; Codex `exec` without `--ephemeral`, the thread id from its `thread.started` event, then `exec resume <id>`; Grok Build `-s`, then `-r`. A conversation MUST have its own kept sandbox (R5.4), whose job folder stays from job to job, except the files byoa writes (R4), which each job gets new. Its jobs run one at a time. The `start` event MUST say whether the job resumed, and the `end` event MUST name the harness's session. After each job, byoa MUST keep the session id and, when it is not larger than the app's limit, a copy of the session's files, encrypted in the store; when the provider lost the sandbox, the next job MUST write that copy into its new sandbox. When there is no copy, the job MUST say so (an `error` with code `conversation`) and start a new session. The app MUST be able to delete a conversation, with its copy and its sandbox.
+- **R5.10** A running job SHOULD take more messages from the app, where the harness reads messages while it runs (steering). Claude Code does, with stream-json input: a message waits for the turn that runs, each turn before the last gives a `turn` event, and the job ends after the turn that answers the last message. Codex (`exec`) and Grok Build (`-p`) read the whole task before they start and no input after, so their jobs take no message while they run; the app sends it as the next job of the conversation (R5.9).
 
 ### R6. Store adapter
 
@@ -1650,8 +1759,9 @@ Version 1 is done when every check below passes. Each check names the requiremen
 | V18 | A sign-in that is left | A sign-in that the app cancels has no sandbox at the provider right after. A sign-in with no check-in for a few minutes has none either. | R1.7 |
 | V19 | Models | `listModels` returns, for a real login of each harness, what the CLI lists; a job with a model and effort from that list runs with them. | R5.7 |
 | V20 | OpenCode Go (beta: not run yet) | One test user with a real Go key runs the same task with Claude Code and with Codex on E2B, through the relay. Three jobs of that user run at the same time; a job gets the model it names; a key that OpenCode refuses is `expired`, and one of a workspace with no Go plan is `no-plan`. A search of each sandbox's environment, files and `/proc/*/cmdline` finds no key. | R1.8, R1.6, R5.7, R5.8 |
+| V21 | Conversations | With a real login of each harness on E2B, one user's conversation has three jobs. The second job knows what the first was told and finds the file the first wrote in the job folder. The third job runs after the conversation's sandbox was deleted at the provider, and still knows it, from the stored copy. A Claude Code job takes a second message while it runs and answers it before it ends. | R5.9, R5.10 |
 
-V1 to V9 and V13 to V20 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11, V12 and the fake-harness tests run on every commit; these include V13, V14, V16, V17, V18, V19 and V20 with the fake harness, a stand-in CLI and, for V20, a stand-in for OpenCode's API. In this repository: `npm test` runs V10, V12 and the fake-harness tests, `npm run test:v11` runs V11, and the job `example-todo` runs the to-do example's fake-harness tests (`.github/workflows/ci.yml`). With `E2B_API_KEY` and `DAYTONA_API_KEY` set, `npm test` also runs V4 (`test/v4.test.ts`); `BYOA_V4_PROVIDERS=e2b,instabox` runs it on E2B and Instabox. `npm run test:e2b` runs V8 on E2B (`test/e2b.test.ts`), with `DAYTONA_API_KEY` set `npm test` runs V8 on Daytona (`test/daytona.test.ts`), and `npm run test:instabox` runs V8 on Instabox (`test/instabox.test.ts`). `npm run test:v20` runs V20 on E2B (`test/v20.test.ts`), with `OPENCODE_GO_API_KEY` and `E2B_API_KEY` set. V20 has not run yet, so OpenCode Go (R1.8) is in beta: its tests use a stand-in for OpenCode's API, and the real Claude Code and Codex were checked only against that stand-in, locally and on E2B. On an Instabox plan that allows fewer than three sandboxes (the free plan allows one), V8 there checks one sandbox key alone, not two at the same time.
+V1 to V9 and V13 to V21 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11, V12 and the fake-harness tests run on every commit; these include V13, V14, V16, V17, V18, V19, V20 and V21 with the fake harness, a stand-in CLI and, for V20, a stand-in for OpenCode's API. In this repository: `npm test` runs V10, V12 and the fake-harness tests, `npm run test:v11` runs V11, and the job `example-todo` runs the to-do example's fake-harness tests (`.github/workflows/ci.yml`). `npm test` starts no paid sandbox, also when the providers' keys are set: each paid check needs its own flag. `npm run test:v4` runs V4 (`test/v4.test.ts`) with `E2B_API_KEY` and `DAYTONA_API_KEY`; `BYOA_V4_PROVIDERS=e2b,instabox` runs it on E2B and Instabox. `npm run test:e2b` runs V8 on E2B (`test/e2b.test.ts`), `npm run test:daytona` runs V8 on Daytona (`test/daytona.test.ts`), and `npm run test:instabox` runs V8 on Instabox (`test/instabox.test.ts`). `npm run test:v20` runs V20 on E2B (`test/v20.test.ts`), with `OPENCODE_GO_API_KEY` and `E2B_API_KEY` set. V20 has not run yet, so OpenCode Go (R1.8) is in beta: its tests use a stand-in for OpenCode's API, and the real Claude Code and Codex were checked only against that stand-in, locally and on E2B. `node scripts/v21.ts` runs V21 on E2B in steps (`login <harness>`, `check`, `cleanup`), because it needs a person to sign in. On an Instabox plan that allows fewer than three sandboxes (the free plan allows one), V8 there checks one sandbox key alone, not two at the same time.
 
 ## Open questions
 
@@ -1829,11 +1939,14 @@ for await (const ev of agents.run(userId, {
 ```
 
 - The events are the same for every harness. The full schema is in reference/api.md.
-- `run` never throws for job failures. It yields `error` events (`code`: `signed-out`, `expired`, `no-plan`, `harness`, `sandbox` or `mcp`) and always ends with one `end` event (`ok`, `result`, `usage`). On `signed-out` or `expired`, show the sign-in again (for `plan: 'opencode-go'`, ask for a new key); on `no-plan`, tell the user that the key's workspace has no Go plan.
+- `run` never throws for job failures. It yields `error` events (`code`: `signed-out`, `expired`, `no-plan`, `harness`, `sandbox`, `mcp` or `conversation`) and always ends with one `end` event (`ok`, `result`, `usage`). On `signed-out` or `expired`, show the sign-in again (for `plan: 'opencode-go'`, ask for a new key); on `no-plan`, tell the user that the key's workspace has no Go plan.
 - A server in `mcp` that the user has not connected gives an `error` with code `mcp`, and the job runs without it.
 - **The proxy check.** Before the harness starts, byoa checks from the sandbox that each of the job's servers answers through the proxy. When the sandbox cannot reach the proxy, the job does not start: an `error` with code `mcp`, then `end` with `ok: false` (`session` throws `ProxyError`). A server that does not answer gives an `error` with code `mcp`, and the job runs. Show these errors: they mean a wrong `proxyUrl`, a tunnel that ended, or a server that is down.
 - **What the agent may do (`access`).** With `'full'` (the default), the agent has every tool of its harness with no approval: a shell, file changes and the network. That is for coding agents in a sandbox that is the job's alone. With `'read-only'`, the agent calls the job's MCP tools and reads files (the harness reads its skills this way: do not forbid the shell in AGENTS.md, because Codex reads a skill with `cat`); it cannot change a file or reach the network by itself. Use `'read-only'` when the agent needs only its MCP tools (a to-do list, a mail client), and always with `localSandbox()` on a user's own computer. It does not hide files: the agent can read each file its user can read. Ask the developer which one each kind of job needs.
-- **The sandbox.** By default (`sandboxPer: 'user'`), each user has one sandbox of the app for each harness: the first job creates it, byoa pauses it after each job and resumes it for the next, with a new job folder. One job of a user and harness runs at a time; the others wait in line, in the order they came, with no limit unless `waitMs` sets one (set it on short-lived backends such as Convex actions). A sandbox the provider lost is replaced by a new one. When one user has many workspaces (projects, conversations), pass `sandboxKey` in `run` or `session`: each key gets its own kept sandbox and lease. `sandboxPer: 'job'` gives each job a new sandbox and destroys it after the job; use it when nothing may stay between jobs. - **Many agents of one user.** Three ways, which an app can mix; ask the developer which they want:
+- **The sandbox.** By default (`sandboxPer: 'user'`), each user has one sandbox of the app for each harness: the first job creates it, byoa pauses it after each job and resumes it for the next, with a new job folder. One job of a user and harness runs at a time; the others wait in line, in the order they came, with no limit unless `waitMs` sets one (set it on short-lived backends such as Convex actions). A sandbox the provider lost is replaced by a new one. When one user has many workspaces (projects, conversations), pass `sandboxKey` in `run` or `session`: each key gets its own kept sandbox and lease. `sandboxPer: 'job'` gives each job a new sandbox and destroys it after the job; use it when nothing may stay between jobs.
+- **Conversations.** For a chat, pass the chat's id as `conversation` in each `run` of it (one harness per conversation). The job continues the harness's own session of the earlier jobs, in the conversation's own kept sandbox, whose `~/work` stays; `start` says `resumed`, `end` names the `session`. byoa keeps the transcript encrypted in the store (up to `transcriptBytes`), so a lost sandbox does not lose the conversation; when it is too large, the next job gives an `error` with code `conversation` and starts again. Call `agents.deleteConversation(userId, chatId)` when the user deletes the chat. A job with no `conversation` remembers nothing of earlier jobs, and its `~/work` is new.
+- **More messages to a running job.** `run` returns a `Job`; with Claude Code, `job.send(text)` gives the running agent one more message (each turn before the last gives a `turn` event). Codex and Grok Build return false: send it as the next job of the conversation.
+- **Many agents of one user.** Three ways, which an app can mix; ask the developer which they want:
   1. A queue: jobs of one sandbox run one after the other. `onWait: ({ for, ahead })` tells the app how many are ahead.
   2. Several messages to one agent: `task: ['first', 'second']`. The agent reads them all and decides the order.
   3. Several sandboxes at once: a `sandboxKey` for each agent, or `sandboxPer: 'job'`. The jobs share the user's login and run at the same time, for every harness. Tell the developer the risk that stays with a shared login (reference/api.md, `storedLogin`); `storedLogin({ parallel: false })` turns sharing off.
@@ -1862,7 +1975,7 @@ Every app on byoa must follow these rules. If a request breaks one, stop and tel
 
 - The app's byoa code is small: the example's backend uses byoa in 39 lines. If you write sign-in, OAuth, token refresh or sandbox code yourself, you are rebuilding byoa: use its API.
 - Run the app's tests with the fake harness and the local sandbox.
-- Every API name you use is in reference/api.md. If a name is not there, read the source (`src/agents.ts` in https://github.com/madeyexz/byoa) before you use it. The API can change before version 1.
+- Every API name you use is in reference/api.md. If a name is not there, read the source (`src/agents.ts` and `src/job.ts` in https://github.com/madeyexz/byoa) before you use it. The API can change before version 1.
 
 ---
 

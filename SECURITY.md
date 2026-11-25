@@ -24,6 +24,7 @@ This is how byoa must keep each secret (see [SPEC.md](SPEC.md)). If byoa does no
 | The user's Claude or ChatGPT login | By default in the app's own database, encrypted with a key that the app gives (R1.4), or as an option in a volume of that one user (R1.5); in a sandbox only while a sign-in, a job or a sign-out runs | In a sandbox between jobs, in another app, or with us |
 | MCP grants (access and refresh tokens) | In the app's own database, encrypted with a key that the app gives (R2.4) | In the sandbox (R3.3), in logs, or with us |
 | Job token | In the sandbox's `mcp.json`, for one job and one user (R3.1) | Valid after the job ends (R3.4) |
+| A conversation's transcript (the harness's own session files) | In the conversation's kept sandbox, and a copy in the app's own database, encrypted with a key that the app gives (R5.9) | In the store without encryption, or in another user's sandbox |
 
 The real MCP token goes only from the app's backend to the MCP server, through the proxy (R3.2). byoa is not a hosted service, so we never get your users' tokens.
 
@@ -35,7 +36,7 @@ For example:
 - The proxy accepts a job token after its job ends (V6), or for a different user.
 - byoa keeps a copy of a user's AI login in a sandbox between jobs, stores it without encryption, or one app can use another app's login.
 - Two refreshes at the same time revoke a grant, or byoa sends a refresh request from a place other than the app's backend (R2.3).
-- byoa stores a grant without encryption, or writes a token to a log.
+- byoa stores a grant or a conversation's transcript without encryption, or writes a token to a log.
 - byoa runs a `claude` or `codex` binary that is not the published one (V11).
 
 ## What is not ours

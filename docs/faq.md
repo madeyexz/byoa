@@ -33,6 +33,10 @@ Yes, with one sign-in, for Claude Code, Codex and Grok Build. Give each agent it
 
 All these jobs use the same plan, so they reach the plan's limits sooner. One risk stays with a shared login: when the lab answers 401 to two sandboxes at the same time, both CLIs refresh, one refresh fails, and the user may have to sign in again. `storedLogin({ parallel: false })` turns sharing off ([AI login](ai-login.md#jobs-at-the-same-time-the-shared-login)). Jobs on an OpenCode Go key have no such risk: a key does not rotate.
 
+## Does the agent remember earlier jobs?
+
+Only in a conversation. A job with a `conversation` id continues the harness's own session of the earlier jobs with that id, in the conversation's own kept sandbox, and its job folder (`~/work`) stays. A job with no `conversation` starts a new session, and its job folder is new. byoa keeps a copy of each conversation's transcript, encrypted in your database, so the agent still remembers when the provider loses the sandbox. A running Claude Code job also takes more messages (`job.send`); Codex and Grok Build take the next message as the next job. See [Running agents](running-agents.md#conversations) and [what carries over between jobs](sandbox-lifecycle.md#what-carries-over-between-jobs).
+
 ## Which model does a job use?
 
 The model and effort that you give `run`, else the harness's default from `createAgents({ models })`, else the CLI's own default. `agents.listModels(userId, harness)` lists the models that the user's plan can use, and the efforts of each, as the CLI lists them with the user's login. Pick from that list, because each plan has its own models. A job on an OpenCode Go key (beta) needs a Go model: `agents.listModels(userId, 'opencode-go')` lists them from OpenCode's API, with no sandbox. See [Running agents](running-agents.md#models-and-effort).

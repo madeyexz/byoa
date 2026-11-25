@@ -53,13 +53,13 @@ function kept(p: SandboxProvider, hosts?: () => string) {
       k.files.push(files)
     }
     return {
-      id: s.id, home: s.home, run: (c, o) => s.run(c, o), writeFile: (f, d) => s.writeFile(f, d),
+      id: s.id, home: s.home, run: (c, o) => s.run(c, o), writeFile: (f, d) => s.writeFile(f, d), ...(s.readFile ? { readFile: (f: string) => s.readFile!(f) } : {}),
       async pause() { await keep(); await s.pause() },
       async destroy() { await keep(); await s.destroy() },
     }
   }
   const provider: SandboxProvider = {
-    name: p.name, deleteVolume: (n) => p.deleteVolume(n), destroy: (id) => p.destroy(id), resume: (id, o) => p.resume(id, o).then(wrap),
+    name: p.name, capabilities: p.capabilities, deleteVolume: (n) => p.deleteVolume(n), destroy: (id) => p.destroy(id), resume: (id, o) => p.resume(id, o).then(wrap),
     create: async (o) => {
       const s = await p.create(o)
       k.ids.push(s.id)

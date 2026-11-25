@@ -4,8 +4,6 @@
 // 2.1.330, codex-cli 0.171.0 and grok 1.0.92. The script runs with node in the job's sandbox, with the
 // user's login, so each CLI lists what that login may use.
 
-import type { HarnessName } from './pins.ts'
-
 export interface ModelInfo {
   /** What `model` takes: Claude Code's alias (`default`, `opus`, ...), Codex's and Grok's model name. */
   id: string
@@ -19,12 +17,13 @@ export interface ModelInfo {
   resolved?: string
 }
 
-/** `node models.mjs <cli> <claude|codex|grok>`: prints one JSON line, the CLI's own answer or `{ error }`. */
+/** `node models.mjs <cli> <claude|codex|acp>` (the adapter's `models.protocol`): prints one JSON line, the CLI's own
+ *  answer or `{ error }`. Each adapter reads that answer into ModelInfo. */
 export const MODELS_JS = String.raw`
 import { spawn } from 'node:child_process'
 const [bin, h] = process.argv.slice(2)
 const args = h === 'claude' ? ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--no-session-persistence']
-  : h === 'grok' ? ['--no-auto-update', 'agent', 'stdio'] : ['app-server']
+  : h === 'acp' ? ['--no-auto-update', 'agent', 'stdio'] : ['app-server']
 const p = spawn(bin, args, { stdio: ['pipe', 'pipe', 'pipe'] })
 let buf = '', err = '', out = false
 const data = []
@@ -51,7 +50,7 @@ p.stdout.on('data', (c) => {
     if (h === 'claude' && m.type === 'control_response' && m.response?.request_id === 'byoa-models') {
       done(m.response.subtype === 'error' ? { error: m.response.error } : { models: m.response.response?.models ?? [] })
     }
-    if (h === 'grok' && m.id === 'byoa-models') {
+    if (h === 'acp' && m.id === 'byoa-models') {
       if (m.error) return done({ error: m.error.message })
       const st = m.result?._meta?.modelState ?? {}
       done({ models: (st.availableModels ?? []).map((x) => ({ ...x, isDefault: x.modelId === st.currentModelId })) })
@@ -65,31 +64,10 @@ p.stdout.on('data', (c) => {
   }
 })
 if (h === 'claude') send({ type: 'control_request', request_id: 'byoa-models', request: { subtype: 'initialize' } })
-else if (h === 'grok') send({ jsonrpc: '2.0', id: 'byoa-models', method: 'initialize', params: { protocolVersion: 1, clientCapabilities: {} } })
+else if (h === 'acp') send({ jsonrpc: '2.0', id: 'byoa-models', method: 'initialize', params: { protocolVersion: 1, clientCapabilities: {} } })
 else {
   send({ jsonrpc: '2.0', id: 'init', method: 'initialize', params: { clientInfo: { name: 'byoa', version: '1' } } })
   send({ jsonrpc: '2.0', method: 'initialized' })
   send({ jsonrpc: '2.0', id: 'byoa-models', method: 'model/list', params: {} })
 }
 `
-
-/** The CLI's answer, in one shape for every harness. */
-export function readModels(h: HarnessName, raw: any[]): ModelInfo[] {
-  if (h === 'grok') {
-    return raw.map((m) => ({
-      id: String(m.modelId), name: String(m.name ?? m.modelId), description: String(m.description ?? ''), isDefault: !!m.isDefault,
-      efforts: m._meta?.supportsReasoningEffort === false ? [] : (m._meta?.reasoningEfforts ?? []).map((e: any) => String(e.value ?? e.id ?? e)),
-    }))
-  }
-  if (h === 'claude') {
-    return raw.map((m) => ({
-      id: String(m.value), name: String(m.displayName ?? m.value), description: String(m.description ?? ''),
-      isDefault: m.value === 'default', efforts: m.supportsEffort === false ? [] : (m.supportedEffortLevels ?? []).map(String),
-      ...(m.resolvedModel ? { resolved: String(m.resolvedModel) } : {}),
-    }))
-  }
-  return raw.filter((m) => !m.hidden).map((m) => ({
-    id: String(m.model ?? m.id), name: String(m.displayName ?? m.model), description: String(m.description ?? ''),
-    isDefault: !!m.isDefault, efforts: (m.supportedReasoningEfforts ?? []).map((e: any) => String(e.reasoningEffort ?? e)),
-  }))
-}

@@ -1,9 +1,9 @@
 // The E2B adapter. A user's sandbox is paused between jobs and resumed for the next one; a sandbox for one job is
 // killed after it (R5.4). With cliLogin, the user's AI login lives in an E2B volume that is mounted into the sandbox
 // (R1.5). Needs the `e2b` package (a peer dependency).
-import { CommandExitError, NotFoundError, Sandbox as E2BSandbox, Template, Volume } from 'e2b'
-import { GROK_INSTALL_ENV } from '../harness/install.ts'
-import { PINS, npmSpec, type Pins } from '../harness/pins.ts'
+import { CommandExitError, FileNotFoundError, NotFoundError, TimeoutError, Sandbox as E2BSandbox, Template, Volume } from 'e2b'
+import { npmInstall } from '../harness/index.ts'
+import { PINS, type Pins } from '../harness/pins.ts'
 import { SandboxGoneError, type CreateOptions, type RunOptions, type Sandbox, type SandboxProvider } from './types.ts'
 
 export interface E2BOptions {
@@ -33,16 +33,28 @@ export function e2b(opts: E2BOptions = {}): SandboxProvider {
         await s.commands.run(cmd, { ...base, background: true })
         return { exitCode: 0, stdout: '', stderr: '' }
       }
+      let stdout = '', stderr = ''
       try {
-        const r = await s.commands.run(cmd, base)
+        const r = await s.commands.run(cmd, { ...base, onStdout: (c) => { stdout += c; o.onStdout?.(c) }, onStderr: (c) => { stderr += c; o.onStderr?.(c) } })
         return { exitCode: r.exitCode, stdout: r.stdout, stderr: r.stderr }
       } catch (e) {
         if (e instanceof CommandExitError) return { exitCode: e.exitCode, stdout: e.stdout, stderr: e.stderr }
+        // the command ran out of its time: E2B ends it and rejects; the other providers kill it and resolve with 137
+        // (SIGKILL), so a job at its time limit ends the same way on every provider (the conformance test checks it)
+        if (e instanceof TimeoutError && o.timeoutMs) {
+          return { exitCode: 137, stdout, stderr: stderr + `\nbyoa e2b: the command ran out of its ${Math.ceil(o.timeoutMs / 1000)} s` }
+        }
         throw e
       }
     },
     async writeFile(path, data) {
       await s.files.write(path, typeof data === 'string' ? data : data.slice().buffer)
+    },
+    async readFile(path) {
+      try { return await s.files.read(path, { format: 'bytes' }) } catch (e) {
+        if (e instanceof FileNotFoundError) return null
+        throw e
+      }
     },
     async pause() {
       // only the files: the next job reboots the sandbox, as on Daytona. A team that cannot take a snapshot with no
@@ -68,6 +80,7 @@ export function e2b(opts: E2BOptions = {}): SandboxProvider {
 
   return {
     name: 'e2b',
+    capabilities: { volumes: true },
     async create(c: CreateOptions = {}) {
       const volumeMounts: Record<string, string> = {}
       for (const v of c.volumes ?? []) volumeMounts[`${HOME}/${v.path}`] = await volume(v.name)
@@ -114,11 +127,14 @@ export function e2b(opts: E2BOptions = {}): SandboxProvider {
  *  from npm. Build it once per pin change with `buildE2BTemplate()`; a sandbox from an older template still gets the
  *  new pin, installed when its job starts (R5.2), only more slowly. */
 export function e2bTemplate(pins: Pins = PINS) {
+  // each harness's install needs, such as Grok's postinstall, which also unpacks a second copy of its binary into
+  // $GROK_HOME (harness/grok.ts)
+  const n = npmInstall(pins)
+  const env = Object.entries(n.env).map(([k, v]) => `${k}=${v} `).join('')
   return Template()
     .fromNodeImage('22')
     .aptInstall(['bsdutils', 'ca-certificates'])
-    // Grok's postinstall also unpacks a second copy of its binary into $GROK_HOME (harness/install.ts)
-    .runCmd(`GROK_HOME=${GROK_INSTALL_ENV.GROK_HOME} npm install -g ${npmSpec('claude', pins)} ${npmSpec('codex', pins)} ${npmSpec('grok', pins)} && rm -rf ${GROK_INSTALL_ENV.GROK_HOME}`, { user: 'root' })
+    .runCmd([`${env}npm install -g ${n.specs.join(' ')}`, ...n.after].join(' && '), { user: 'root' })
     .runCmd('mkdir -p /home/user/work /home/user/.byoa')
 }
 

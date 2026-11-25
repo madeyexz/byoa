@@ -2,39 +2,35 @@
 // earlier job of the user installed, when it is the pinned version; else the pinned version from npm, installed into
 // the sandbox's home folder. So a new pin reaches every user at their next job, also from an old template or in a
 // sandbox that byoa keeps between jobs.
-// It installs the labs' own npm packages, unchanged (Lab rules); `@madeyexz/byoa/verify` checks that (V11).
+// It installs the labs' own npm packages, unchanged (Lab rules); `@madeyexz/byoa/verify` checks that (V11). Each
+// harness adapter gives its package and what its install needs (harness/grok.ts); harness/index.ts has ensureHarness.
 import type { Sandbox } from '../sandbox/types.ts'
 import { q } from '../sh.ts'
-import { PINS, npmSpec, type HarnessName, type Pins } from './pins.ts'
 
 export interface Installed { bin: string; version: string; installed: boolean }
 
-/** Grok's own postinstall (1.0.92) unpacks its native binary twice: beside its launcher (`bin/grok` becomes a link to
- *  `bin/grok-native`, which V11 checks) and into `$GROK_HOME/bin`, with a `config.toml` there. The second copy is for
- *  Grok's own updater, which byoa turns off, so it goes to a folder that byoa removes after the install, not into the
- *  user's `~/.grok`, where the login is. */
-export const GROK_INSTALL_ENV = { GROK_HOME: '/tmp/byoa-grok-install' }
-const GROK_INSTALL_END = ` && rm -rf ${GROK_INSTALL_ENV.GROK_HOME}`
+/** `npm`: more environment for the install, and a command after it (Grok's postinstall, harness/grok.ts). */
+export interface NpmPackage { name: string; pkg: string; pin: string; npm?: { env: Record<string, string>; after: string } }
 
 const versionOf = (s: string) => /\b(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)\b/.exec(s)?.[1]
 
-export async function ensureHarness(sbx: Sandbox, h: HarnessName, pins: Pins = PINS): Promise<Installed> {
-  const want = pins[h]
-  const prefix = `${sbx.home}/.byoa/harness/${h}-${want}`
-  const own = `${prefix}/bin/${h}`
+export async function installPinned(sbx: Sandbox, p: NpmPackage): Promise<Installed> {
+  const spec = `${p.pkg}@${p.pin}`
+  const prefix = `${sbx.home}/.byoa/harness/${p.name}-${p.pin}`
+  const own = `${prefix}/bin/${p.name}`
   const find = async () => {
-    const r = await sbx.run(`for b in ${q(own)} "$(command -v ${h})"; do [ -n "$b" ] && [ -x "$b" ] && echo "$b	$("$b" --version 2>/dev/null | head -1)"; done; true`)
+    const r = await sbx.run(`for b in ${q(own)} "$(command -v ${p.name})"; do [ -n "$b" ] && [ -x "$b" ] && echo "$b	$("$b" --version 2>/dev/null | head -1)"; done; true`)
     for (const line of r.stdout.split('\n')) {
       const [bin, v] = line.split('\t')
-      if (bin && versionOf(v ?? '') === want) return { bin, version: want }
+      if (bin && versionOf(v ?? '') === p.pin) return { bin, version: p.pin }
     }
   }
   const have = await find()
   if (have) return { ...have, installed: false }
-  const r = await sbx.run(`npm install -g --prefix ${q(prefix)} --no-audit --no-fund --loglevel=error ${q(npmSpec(h, pins))}${h === 'grok' ? GROK_INSTALL_END : ''}`,
-    { timeoutMs: 10 * 60_000, ...(h === 'grok' ? { env: GROK_INSTALL_ENV } : {}) })
-  if (r.exitCode !== 0) throw new Error(`byoa: could not install ${npmSpec(h, pins)}: ${(r.stderr || r.stdout).trim().split('\n').slice(-3).join(' ')}`)
+  const r = await sbx.run(`npm install -g --prefix ${q(prefix)} --no-audit --no-fund --loglevel=error ${q(spec)}${p.npm ? ` && ${p.npm.after}` : ''}`,
+    { timeoutMs: 10 * 60_000, ...(p.npm ? { env: p.npm.env } : {}) })
+  if (r.exitCode !== 0) throw new Error(`byoa: could not install ${spec}: ${(r.stderr || r.stdout).trim().split('\n').slice(-3).join(' ')}`)
   const now = await find()
-  if (!now || now.bin !== own) throw new Error(`byoa: installed ${npmSpec(h, pins)}, but ${own} does not report version ${want}`)
+  if (!now || now.bin !== own) throw new Error(`byoa: installed ${spec}, but ${own} does not report version ${p.pin}`)
   return { ...now, installed: true }
 }

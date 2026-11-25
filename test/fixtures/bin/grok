@@ -24,7 +24,20 @@ case "$*" in
     cat >/dev/null ;;
   --trust\ -p*)
     task=$(cat)
-    echo '{"type":"system","subtype":"init","session_id":"s1","model":"grok-4.7","tools":[]}'
+    # R5.9: like grok 1.0.92, it saves the session under GROK_HOME/sessions/<cwd>/<id>/; -s names a new one, -r resumes
+    args=("$@"); sid=; resume=
+    for ((i = 0; i < ${#args[@]}; i++)); do
+      [ "${args[i]}" = -s ] && sid=${args[i+1]}
+      [ "${args[i]}" = -r ] && { sid=${args[i+1]}; resume=1; }
+    done
+    if [ -n "$sid" ]; then
+      updates=$GROK_HOME/sessions/%2Fwork/$sid/updates.jsonl
+      if [ -n "$resume" ] && [ ! -s "$updates" ]; then echo "Error: no session $sid" >&2; exit 1; fi
+      n=$(cat "$updates" 2>/dev/null | wc -l | tr -d ' ')
+      mkdir -p "$(dirname "$updates")" && printf '%s\n' "$task" | head -1 >> "$updates"
+    fi
+    echo "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"${sid:-s1}\",\"model\":\"grok-4.7\",\"tools\":[]}"
+    [ -n "$sid" ] && echo "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"remembers $n\"}]}}"
     if [ ! -s "$auth" ]; then
       echo '{"type":"result","subtype":"error_during_execution","is_error":true,"usage":{"input_tokens":0,"output_tokens":0},"errors":["Not signed in. To authenticate without a browser, run:\n  grok login --device-code"]}'
       exit 0

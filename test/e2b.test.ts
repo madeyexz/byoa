@@ -9,9 +9,12 @@ import { test } from 'node:test'
 import { Sandbox as E2BSandbox } from 'e2b'
 import { e2b } from '../src/sandbox/e2b.ts'
 import { SandboxGoneError } from '../src/sandbox/types.ts'
+import { sandboxConformance } from './helpers/conformance.ts'
 
 const skip = !(process.env.BYOA_E2B && process.env.E2B_API_KEY) && 'set BYOA_E2B=1 and E2B_API_KEY to check the E2B adapter'
 const skipVolumes = skip || (!process.env.BYOA_E2B_VOLUMES && 'set BYOA_E2B_VOLUMES=1 for a team with E2B volumes')
+
+test('R5.3: the E2B adapter does what byoa needs of every provider (exit 137 at a timeout, readFile)', { skip, timeout: 5 * 60_000 }, () => sandboxConformance(e2b({ template: process.env.BYOA_E2B_TEMPLATE ?? 'base' })))
 
 test('E2B adapter: a kept sandbox pauses with its files and no processes, resumes, and is gone after destroy', { skip, timeout: 5 * 60_000 }, async () => {
   const p = e2b({ template: process.env.BYOA_E2B_TEMPLATE ?? 'base' })

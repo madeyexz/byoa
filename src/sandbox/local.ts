@@ -3,7 +3,7 @@
 // A paused sandbox keeps its folder, and its processes are stopped.
 // With the fake harness, an app can test byoa end to end with no sandbox provider and no AI plan (R7.2).
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync, existsSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { SandboxGoneError, type CreateOptions, type RunOptions, type RunResult, type Sandbox, type SandboxProvider } from './types.ts'
@@ -70,6 +70,11 @@ export function localSandbox(opts: { root?: string; volumes?: string; env?: Reco
         mkdirSync(dirname(path), { recursive: true })
         writeFileSync(path, data)
       },
+      async readFile(path) {
+        const bad = usable(id)
+        if (bad) throw bad
+        return existsSync(path) ? new Uint8Array(readFileSync(path)) : null
+      },
       async pause() {
         if (!live.has(id)) throw new Error(`byoa local sandbox: ${id} was destroyed`)
         paused.add(id)
@@ -81,6 +86,7 @@ export function localSandbox(opts: { root?: string; volumes?: string; env?: Reco
 
   return {
     name: 'local',
+    capabilities: { volumes: true },
     live,
     paused,
     async create(c: CreateOptions = {}) {

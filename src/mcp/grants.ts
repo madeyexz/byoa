@@ -4,7 +4,9 @@
 // with compare-and-set, R6.2). A second job that needs the token waits for the first refresh and uses its result.
 import { auth } from '@modelcontextprotocol/sdk/client/auth.js'
 import { open, randomToken, seal } from '../crypto.ts'
-import type { Store } from '../store.ts'
+import { keys } from '../keys.ts'
+import { update, type Store } from '../store.ts'
+import { now, sleep } from '../time.ts'
 import { Provider, type OAuthConfig, type OAuthState } from './oauth.ts'
 
 export interface Grant {
@@ -23,12 +25,9 @@ const EARLY_MS = 60_000
 /** A lease older than this is a crashed refresh; another process may take it. */
 const LEASE_MS = 30_000
 
-const enc = encodeURIComponent
-export const grantKey = (user: string, name: string) => `grant/${enc(user)}/${name}`
-const leaseKey = (user: string, name: string) => `lease/${enc(user)}/${name}`
-const indexKey = (user: string) => `grants/${enc(user)}`
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+export const grantKey = keys.grant
+const leaseKey = keys.grantLease
+const indexKey = keys.grants
 
 export class GrantError extends Error {
   readonly code: 'not-connected' | 'needs-sign-in'
@@ -67,11 +66,7 @@ export class Grants {
 
   /** The names and addresses (no tokens) of a user's grants, kept with compare-and-set so two changes keep both. */
   private async index(user: string, f: (l: { name: string; url: string }[]) => { name: string; url: string }[]) {
-    for (;;) {
-      const e = await this.store.get(indexKey(user))
-      const next = JSON.stringify(f(e ? JSON.parse(e.value) : []).sort((a, b) => a.name.localeCompare(b.name)))
-      if (await this.store.cas(indexKey(user), e?.version ?? null, next)) return
-    }
+    await update(this.store, indexKey(user), (v) => JSON.stringify(f(v ? JSON.parse(v) : []).sort((a, b) => a.name.localeCompare(b.name))))
   }
 
   /** The token to send to the MCP server now, refreshed if it runs out soon; `''` for a server with no sign-in.
@@ -101,9 +96,9 @@ export class Grants {
   private async refresh(user: string, name: string, stale: string): Promise<string> {
     const lk = leaseKey(user, name)
     const id = randomToken(12)
-    for (const end = Date.now() + 2 * LEASE_MS; Date.now() < end;) {
+    for (const end = now() + 2 * LEASE_MS; now() < end;) {
       const lease = await this.store.get(lk)
-      const held = lease && JSON.parse(lease.value).until > Date.now()
+      const held = lease && JSON.parse(lease.value).until > now()
       if (held) {
         await sleep(150)
         const r = await this.read(user, name)
@@ -112,7 +107,7 @@ export class Grants {
         if (fresh(r.grant, stale)) return r.grant.oauth!.tokens!.access_token
         continue
       }
-      if (!(await this.store.cas(lk, lease?.version ?? null, JSON.stringify({ id, until: Date.now() + LEASE_MS })))) continue
+      if (!(await this.store.cas(lk, lease?.version ?? null, JSON.stringify({ id, until: now() + LEASE_MS })))) continue
       const mine = (await this.store.get(lk))!.version
       try {
         // read again under the lease: a refresh that ended just before has a new token already
@@ -157,5 +152,5 @@ function fresh(g: Grant, stale?: string): boolean {
   if (stale && t.access_token === stale) return false
   if (!t.expires_in || !g.oauth!.at) return true
   // a token that lives less than two minutes is refreshed in the second half of its life
-  return g.oauth!.at + t.expires_in * 1000 - Date.now() > Math.min(EARLY_MS, t.expires_in * 500)
+  return g.oauth!.at + t.expires_in * 1000 - now() > Math.min(EARLY_MS, t.expires_in * 500)
 }

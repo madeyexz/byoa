@@ -352,7 +352,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     <article>
 <h1>Stores and Convex</h1>
 <p class="lead">The store adapter, Postgres, Convex, your own database, and a table of its own for the AI logins.</p>
-<p>byoa keeps its state in your own database, through a store adapter: MCP grants, AI logins (by default), login states, sandbox slots and leases. Grants and AI logins are encrypted with your <code>encryptionKey</code>.</p>
+<p>byoa keeps its state in your own database, through a store adapter: MCP grants, AI logins (by default), login states, sandbox slots and leases, and conversations (the harness&#39;s session id and a copy of its transcript). Grants, AI logins and conversations are encrypted with your <code>encryptionKey</code>.</p>
 <h2 id="the-store-adapter"><a class="anchor" href="#the-store-adapter" aria-hidden="true" tabindex="-1">#</a>The store adapter</h2>
 <p>A store is four methods. byoa ships one for Postgres, one for Convex and one in memory for tests. For another database, write your own.</p>
 <div class="code"><pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#CB7676">interface</span><span style="color:#5DA994"> Entry</span><span style="color:#666666"> {</span><span style="color:#BD976A"> value</span><span style="color:#666666">: </span><span style="color:#5DA994">string</span><span style="color:#666666">;</span><span style="color:#BD976A"> version</span><span style="color:#666666">: </span><span style="color:#5DA994">string</span><span style="color:#666666"> }</span></span>
@@ -362,6 +362,69 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <span class="line"><span style="color:#80A665">  delete</span><span style="color:#666666">(</span><span style="color:#BD976A">key</span><span style="color:#666666">: </span><span style="color:#5DA994">string</span><span style="color:#666666">):</span><span style="color:#5DA994"> Promise</span><span style="color:#666666">&#x3C;</span><span style="color:#5DA994">void</span><span style="color:#666666">></span></span>
 <span class="line"><span style="color:#80A665">  cas</span><span style="color:#666666">(</span><span style="color:#BD976A">key</span><span style="color:#666666">: </span><span style="color:#5DA994">string</span><span style="color:#666666">,</span><span style="color:#BD976A"> version</span><span style="color:#666666">: </span><span style="color:#5DA994">string</span><span style="color:#666666"> | </span><span style="color:#CB7676">null</span><span style="color:#666666">,</span><span style="color:#BD976A"> value</span><span style="color:#666666">: </span><span style="color:#5DA994">string</span><span style="color:#666666">):</span><span style="color:#5DA994"> Promise</span><span style="color:#666666">&#x3C;</span><span style="color:#5DA994">boolean</span><span style="color:#666666">></span><span style="color:#758575DD">  // null: only if no entry; true if it wrote</span></span>
 <span class="line"><span style="color:#666666">}</span></span></code></pre></div><p>The version must change on every write, and a key that is deleted and written again must never get an earlier version back. The one refresh owner of each grant, the login lease and the sandbox slots depend on <code>cas</code>. The to-do example&#39;s <code>sqliteStore</code> in <a href="https://github.com/madeyexz/byoa/blob/main/examples/todo/todos.ts" rel="noopener">examples/todo/todos.ts</a> is one in 19 lines.</p>
+<h2 id="the-keys-byoa-writes"><a class="anchor" href="#the-keys-byoa-writes" aria-hidden="true" tabindex="-1">#</a>The keys byoa writes</h2>
+<p>Every key is in one file, <a href="https://github.com/madeyexz/byoa/blob/main/src/keys.ts" rel="noopener">src/keys.ts</a>. The values marked sealed are encrypted with your <code>encryptionKey</code>, with the key as associated data; the others hold no secret. <code>&lt;user&gt;</code> and the sandbox key are URL-encoded.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Key</th>
+<th>What it holds</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>grant/&lt;user&gt;/&lt;name&gt;</code></td>
+<td>sealed: one MCP grant</td>
+</tr>
+<tr>
+<td><code>grants/&lt;user&gt;</code></td>
+<td>the names and URLs of the user&#39;s grants</td>
+</tr>
+<tr>
+<td><code>lease/&lt;user&gt;/&lt;name&gt;</code></td>
+<td>the lease of the one refresh of a grant</td>
+</tr>
+<tr>
+<td><code>mcpflow/&lt;state&gt;</code></td>
+<td>sealed: an MCP sign-in that has not come back yet</td>
+</tr>
+<tr>
+<td><code>job/&lt;hash&gt;</code>, <code>jobid/&lt;job&gt;</code></td>
+<td>a job token, by its hash, and its hash by the job id</td>
+</tr>
+<tr>
+<td><code>login/&lt;user&gt;/&lt;h&gt;</code>, <code>loginjob/&lt;user&gt;/&lt;h&gt;</code></td>
+<td>the state of a lab login; a sign-in that runs now</td>
+</tr>
+<tr>
+<td><code>ailogin/&lt;user&gt;/&lt;h&gt;</code></td>
+<td>sealed: the CLI&#39;s own login files</td>
+</tr>
+<tr>
+<td><code>ailoginlease/…</code>, <code>ailoginline/…</code>, <code>ailoginloan/…</code></td>
+<td>who holds the login, the jobs that wait for it, and the sandboxes that have a copy</td>
+</tr>
+<tr>
+<td><code>aikey/&lt;user&gt;/&lt;plan&gt;</code>, <code>aikeystate/&lt;user&gt;/&lt;plan&gt;</code></td>
+<td>sealed: a plan&#39;s key; its state</td>
+</tr>
+<tr>
+<td><code>usersandbox/&lt;user&gt;/&lt;provider&gt;/&lt;h&gt;/&lt;key&gt;</code> (and <code>…/line</code>)</td>
+<td>a kept sandbox: its id and the lease of its job; the jobs that wait for it</td>
+</tr>
+<tr>
+<td><code>usersandboxes/&lt;user&gt;/&lt;provider&gt;</code></td>
+<td>the user&#39;s kept sandboxes</td>
+</tr>
+<tr>
+<td><code>conversation/&lt;user&gt;/&lt;h&gt;/&lt;id&gt;</code></td>
+<td>sealed: a conversation&#39;s session id and its transcript (at most <code>transcriptBytes</code>)</td>
+</tr>
+<tr>
+<td><code>conversations/&lt;user&gt;</code></td>
+<td>the user&#39;s conversations</td>
+</tr>
+</tbody></table>
+</div><p>A conversation&#39;s transcript can be large: with the default <code>transcriptBytes</code> (700 000) one entry stays below a Convex document&#39;s 1 MiB. Postgres has no such limit.</p>
 <h2 id="postgres"><a class="anchor" href="#postgres" aria-hidden="true" tabindex="-1">#</a>Postgres</h2>
 <div class="code"><pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> postgresStore</span><span style="color:#666666">,</span><span style="color:#BD976A"> POSTGRES_SCHEMA</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">@madeyexz/byoa/store/postgres</span><span style="color:#C98A7D77">'</span></span>
 <span class="line"></span>
@@ -397,7 +460,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     <nav class="pn" aria-label="Pages"><a class="prev" href="/docs/providers"><span>Previous</span>Pick a sandbox provider</a><a class="next" href="/docs/testing"><span>Next</span>Test your app</a></nav>
     <p class="edit"><a href="https://github.com/madeyexz/byoa/blob/main/docs/stores.md">Edit this page on GitHub</a> · <a href="/docs/stores.md">This page as Markdown</a></p>
   </main>
-  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#the-store-adapter">The store adapter</a></li><li><a href="#postgres">Postgres</a></li><li><a href="#convex">Convex</a></li><li><a href="#a-table-of-its-own-for-the-ai-logins">A table of its own for the AI logins</a></li><li><a href="#tests">Tests</a></li></ul>
+  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#the-store-adapter">The store adapter</a></li><li><a href="#the-keys-byoa-writes">The keys byoa writes</a></li><li><a href="#postgres">Postgres</a></li><li><a href="#convex">Convex</a></li><li><a href="#a-table-of-its-own-for-the-ai-logins">A table of its own for the AI logins</a></li><li><a href="#tests">Tests</a></li></ul>
     <button class="copy-page" type="button" data-md="/docs/stores.md">Copy page</button>
     <div class="tools"><a href="/docs/stores.md">This page as Markdown</a><a href="/llms.txt">llms.txt</a><a href="/llms-full.txt">llms-full.txt</a></div>
   </aside>

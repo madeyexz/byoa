@@ -53,6 +53,10 @@ export interface Sandbox {
   run(cmd: string, opts?: RunOptions): Promise<RunResult>
   /** Writes a file, with its parent folders. */
   writeFile(path: string, data: string | Uint8Array): Promise<void>
+  /** Reads a file through the provider's file API, or null when it is not there. Optional: without it, byoa reads a
+   *  file as base64 on a command's stdout, a channel that a provider may keep in its command history. byoa reads the
+   *  user's login files (R1.4) and a conversation's transcript (R5.9) with it. */
+  readFile?(path: string): Promise<Uint8Array | null>
   /** Stops the sandbox at the provider and keeps its files and volumes; `resume` starts it again. Processes that run
    *  in it may stop (E2B pauses with no memory where it can; Daytona stops the sandbox). */
   pause(): Promise<void>
@@ -60,8 +64,16 @@ export interface Sandbox {
   destroy(): Promise<void>
 }
 
+/** What a provider can do, beyond the methods every provider has. */
+export interface Capabilities {
+  /** It mounts volumes (cliLogin, R1.5). False: `create` refuses a volume. */
+  volumes: boolean
+}
+
 export interface SandboxProvider {
   readonly name: string
+  /** Optional: a provider that does not say is taken to have volumes. createAgents refuses cliLogin on one without. */
+  readonly capabilities?: Capabilities
   create(opts?: CreateOptions): Promise<Sandbox>
   /** Connects to a sandbox by its id, and starts it again when it is paused. `timeoutMs`: the provider stops it after
    *  this long (as in CreateOptions). Throws SandboxGoneError if the provider no longer has it. */

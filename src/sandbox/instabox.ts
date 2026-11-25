@@ -2,10 +2,12 @@
 // is deleted after it, and Instabox deletes it at the latest when its time is up (R5.4). It uses Instabox's HTTP API
 // (https://instabox.sh/docs/api-reference/introduction) with the global fetch, so it needs no package. The SDK
 // (`@insforge/instabox-sdk`) cannot leave a streamed command out of the sandbox's history, and Instabox keeps each
-// command's output in that history at its control plane: byoa reads the user's login files back over stdout (R1.4).
+// command's output in that history at its control plane. byoa reads the user's login files (R1.4) with the file API
+// (readFile), never on a command's stdout.
 // Instabox has no volumes, so `cliLogin` (R1.5) does not work here; the default `storedLogin` does.
 import { randomUUID } from 'node:crypto'
 import { q } from '../sh.ts'
+import { sleep } from '../time.ts'
 import { SandboxGoneError, type CreateOptions, type RunOptions, type RunResult, type Sandbox, type SandboxProvider } from './types.ts'
 
 export interface InstaboxOptions {
@@ -25,7 +27,6 @@ export interface InstaboxOptions {
 
 /** The home folder of the sandbox user (`user`) of Instabox's Linux templates, on the sandbox's persistent disk. */
 const HOME = '/data/home'
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 /** The most one exec may run at Instabox. A longer command runs detached and is followed by one exec after another. */
 const EXEC_S = 600
 
@@ -169,6 +170,16 @@ done`
         raw: typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data), signal: AbortSignal.timeout(10 * 60_000),
       })
     },
+    async readFile(path) {
+      // the file's raw bytes (GET /v1/machines/{id}/files/content); 404 when it is not there
+      try {
+        const r = await send('GET', `/v1/machines/${id}/files/content?path=${encodeURIComponent(path)}`, { accept: 'application/octet-stream', signal: AbortSignal.timeout(10 * 60_000) })
+        return new Uint8Array(await r.arrayBuffer())
+      } catch (e) {
+        if (e instanceof InstaboxError && e.status === 404) return null
+        throw e
+      }
+    },
     async pause() {
       // a stop, not Instabox's pause: no process and no memory of this job is kept for the next one
       await change('POST', `/v1/machines/${id}/stop`)
@@ -196,6 +207,7 @@ done`
 
   return {
     name: 'instabox',
+    capabilities: { volumes: false },
     async create(c: CreateOptions = {}) {
       if (c.volumes?.length) throw new Error('byoa instabox: Instabox has no volumes; use storedLogin, not cliLogin')
       const seconds = Math.ceil((c.timeoutMs ?? opts.timeoutMs ?? 30 * 60_000) / 1000)

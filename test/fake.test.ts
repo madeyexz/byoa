@@ -245,3 +245,84 @@ test('jobToken: a token with no sandbox reaches only its user\'s named servers, 
   assert.equal(await init(url, short.token), 401, 'refused after its time')
   assert.equal(await store.get(`jobid/${short.job}`), null, 'and removed from the store')
 })
+
+test('R5.9: a conversation: each job continues the harness\'s session in the conversation\'s kept sandbox, with ~/work kept', async () => {
+  const { agents, sandbox, store } = await setup()
+  const say = (task: string) => collect(agents.run('alice', { harness: 'fake', task, conversation: 'c1' }))
+  const remembers = (ev: Awaited<ReturnType<typeof say>>) => (ev.find((e) => e.type === 'text' && e.text.includes('remembers')) as { text: string }).text
+  const one = await say('my name is Ann')
+  assert.deepEqual(one[0], { type: 'start', harness: 'fake', version: 'fake', sandbox: 'local', conversation: 'c1', resumed: false })
+  assert.equal(remembers(one), 'fake harness remembers 0 earlier messages')
+  const session = (one.at(-1) as { session?: string }).session
+  assert.match(session ?? '', /^[0-9a-f-]{36}$/, 'the end event names the harness\'s session')
+  // what the agent left in ~/work stays for the next job of the conversation
+  const [id] = [...sandbox.live]
+  const { writeFileSync, existsSync } = await import('node:fs')
+  writeFileSync(`${id}/home/user/work/notes.txt`, 'kept')
+  const two = await say('what is my name?')
+  assert.deepEqual(two[0], { type: 'start', harness: 'fake', version: 'fake', sandbox: 'local', conversation: 'c1', resumed: true })
+  assert.equal(remembers(two), 'fake harness remembers 1 earlier messages: my name is Ann')
+  assert.equal((two.at(-1) as { session?: string }).session, session)
+  assert.ok(existsSync(`${id}/home/user/work/notes.txt`))
+  assert.equal(sandbox.created, 1, 'one sandbox for the conversation')
+  // a job of no conversation, and another conversation, start with no memory and in sandboxes of their own
+  assert.equal(remembers(await collect(agents.run('alice', { harness: 'fake', task: 'hi', conversation: 'c2' }))), 'fake harness remembers 0 earlier messages')
+  assert.equal(sandbox.created, 2)
+  // the transcript is encrypted in the store
+  const k = store.keys().find((x) => x.includes('conversation/') && x.includes('c1'))!
+  assert.ok(k && !(await store.get(k))!.value.includes('my name is Ann'))
+
+  // the provider lost the sandbox: the next job gets a new one, with the transcript from the store
+  await sandbox.destroy(id!)
+  const three = await say('and again?')
+  assert.deepEqual(three.filter((e) => e.type === 'error'), [])
+  assert.equal(remembers(three), 'fake harness remembers 2 earlier messages: my name is Ann | what is my name?')
+  assert.equal(sandbox.created, 3)
+
+  // a running job of the fake harness takes no new message (only Claude Code does, R5.10)
+  const job = agents.run('alice', { harness: 'fake', task: 'hi', conversation: 'c1' })
+  assert.equal(await job.send('more'), false)
+  await collect(job)
+
+  const bad = await collect(agents.run('alice', { harness: 'fake', task: 'hi', conversation: 'c1', sandboxKey: 'other' }))
+  assert.match((bad[0] as { message: string }).message, /a job of a conversation runs in its own kept sandbox/)
+  await agents.deleteConversation('alice', 'c1')
+  assert.ok(!store.keys().some((x) => x.includes('c1')), 'its record and its sandbox lease are gone')
+  assert.equal(remembers(await say('who am I?')), 'fake harness remembers 0 earlier messages')
+})
+
+test('R5.9: a transcript larger than transcriptBytes is not stored: a lost sandbox loses the conversation, and the job says so', async () => {
+  const { agents, sandbox } = await setup({}, { transcriptBytes: 0 })
+  const say = (task: string) => collect(agents.run('alice', { harness: 'fake', task, conversation: 'c1' }))
+  await say('first')
+  await sandbox.destroy([...sandbox.live][0]!)
+  const ev = await say('second')
+  assert.deepEqual(ev.filter((e) => e.type === 'error'), [{ type: 'error', code: 'conversation', message: 'the history of the conversation c1 is gone (the provider lost its sandbox, and its transcript was too large to keep); this job starts it again' }])
+  assert.deepEqual(ev.find((e) => e.type === 'start'), { type: 'start', harness: 'fake', version: 'fake', sandbox: 'local', conversation: 'c1', resumed: false })
+  assert.deepEqual(ev.at(-1), { type: 'end', ok: true, result: 'fake answer', session: (ev.at(-1) as { session: string }).session })
+})
+
+test('R5.3: the local provider does what byoa needs of every provider', async () => {
+  const { mkdtempSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const { localSandbox } = await import('../src/sandbox/local.ts')
+  const { sandboxConformance } = await import('./helpers/conformance.ts')
+  await sandboxConformance(localSandbox({ root: mkdtempSync(join(tmpdir(), 'byoa-conf-')) }))
+})
+
+test('R5.4: a lease left by a job that never ended (its backend died) runs out after the job timeout and 5 minutes', async () => {
+  const { clock } = await import('../src/time.ts')
+  const { agents } = await setup({}, { waitMs: 300 })
+  const s1 = await agents.session('alice', { harness: 'fake' })
+  const held = await collect(agents.run('alice', { harness: 'fake', task: 'hi' }))
+  assert.match((held[0] as { message: string }).message, /still holds the fake sandbox/)
+  const real = clock.now
+  try {
+    clock.now = () => real() + 34 * 60_000
+    assert.match(((await collect(agents.run('alice', { harness: 'fake', task: 'hi' })))[0] as { message: string }).message, /still holds/, 'not yet')
+    clock.now = () => real() + 36 * 60_000
+    assert.deepEqual((await collect(agents.run('alice', { harness: 'fake', task: 'hi' }))).at(-1), { type: 'end', ok: true, result: 'fake answer' })
+  } finally { clock.now = real }
+  await s1.close()
+})

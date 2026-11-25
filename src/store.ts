@@ -19,6 +19,18 @@ export interface Store {
   cas(key: string, version: string | null, value: string): Promise<boolean>
 }
 
+/** Changes one entry with compare-and-set (R6.2), again until no other writer came between: `f` gets the value now
+ *  (undefined when there is none) and returns the next one, or undefined to leave it as it is. Every lease, line and
+ *  index of byoa changes its entry through this. Returns the value before the change. */
+export async function update(store: Store, key: string, f: (now: string | undefined) => string | undefined): Promise<string | undefined> {
+  for (;;) {
+    const e = await store.get(key)
+    const next = f(e?.value)
+    if (next === undefined || next === e?.value) return e?.value
+    if (await store.cas(key, e?.version ?? null, next)) return e?.value
+  }
+}
+
 /** A store in this process's memory: for tests, and for one-process apps that accept losing state on restart. */
 export function memoryStore(): Store & { readonly size: number; keys(): string[] } {
   const data = new Map<string, Entry>()

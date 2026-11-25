@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { Readable, Transform, Writable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { brotliDecompressSync, createGunzip } from 'node:zlib'
+import { HARNESSES } from './harness/index.ts'
 import { PACKAGES, PINS, type HarnessName, type Pins } from './harness/pins.ts'
 import type { Sandbox } from './sandbox/types.ts'
 import { q } from './sh.ts'
@@ -100,17 +101,15 @@ function tarHashes(files: Map<string, string>, unpacked?: Map<string, string>): 
   })
 }
 
-/** The npm package of the native binary for each harness, by package folder name prefix. */
-const PLATFORM_PREFIX: Record<HarnessName, string> = { claude: 'claude-code-', codex: 'codex-', grok: 'grok-' }
-
-/** Checks the harness that `bin` (the path ensureHarness returned) runs, in the sandbox. */
+/** Checks the harness that `bin` (the path ensureHarness returned) runs, in the sandbox. What each CLI's own
+ *  postinstall changes (Claude Code's bin/claude.exe, Grok's bin/grok-native) is checked here, by name. */
 export async function verifyHarness(sbx: Sandbox, h: HarnessName, bin: string, pins: Pins = PINS): Promise<VerifyResult> {
   const scope = PACKAGES[h].split('/')[0]
   const hashes = `find . -path ./node_modules -prune -o -type f -print0 | xargs -0 -r sha256sum`
   const r = await sbx.run([
     `root=$(cd "$(dirname "$(readlink -f ${q(bin)})")/.." && pwd) || exit 1`,
     `echo "== package $root"; node -p 'const p=require(process.argv[1]); p.name+"@"+p.version' "$root/package.json"; (cd "$root" && ${hashes})`,
-    `for d in "$root/node_modules/${scope}/${PLATFORM_PREFIX[h]}"* "$(dirname "$root")/${PLATFORM_PREFIX[h]}"*; do`,
+    `for d in "$root/node_modules/${scope}/${HARNESSES[h].verify.platformPrefix}"* "$(dirname "$root")/${HARNESSES[h].verify.platformPrefix}"*; do`,
     `  [ -f "$d/package.json" ] || continue`,
     `  echo "== platform $d"; node -p 'const p=require(process.argv[1]); p.name+"@"+p.version' "$d/package.json"; (cd "$d" && ${hashes})`,
     `done`,
@@ -157,9 +156,8 @@ export async function verifyHarness(sbx: Sandbox, h: HarnessName, bin: string, p
   for (const plat of plats) {
     const at = plat.spec.lastIndexOf('@')
     const [platName, platVersion] = [plat.spec.slice(0, at), plat.spec.slice(at + 1)]
-    // Claude Code's platform packages have their own names; Codex's are versions of @openai/codex (0.171.0-linux-x64)
-    // Grok's are @xai-official/grok-linux-x64@1.0.92
-    const platOk = h === 'codex' ? platName === PACKAGES.codex && platVersion.startsWith(`${pins.codex}-`) : platName.startsWith(`${PACKAGES[h]}-`) && platVersion === pins[h]
+    // each adapter says which native packages belong to its pin (harness/<name>.ts)
+    const platOk = HARNESSES[h].verify.platformOk(platName, platVersion, pins[h])
     if (!platOk) { problems.push(`the native package ${plat.spec} is not one of ${wantMain}`); continue }
     const pubPlat = await publishedFiles(platName, platVersion, h === 'grok' ? nativeGrok : undefined)
     compare(plat.spec, plat.files, pubPlat)

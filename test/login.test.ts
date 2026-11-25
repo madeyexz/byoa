@@ -42,7 +42,7 @@ test('R1.1 / R1.5: Claude Code sign-in: the page as data, the code typed into th
   assert.deepEqual(ev.map((e) => e.type), ['start', 'text', 'tool_call', 'tool_result', 'text', 'end'])
   assert.deepEqual(ev[0], { type: 'start', harness: 'claude', version: '2.1.330', sandbox: 'local' })
   const args = (ev[1] as { text: string }).text
-  assert.match(args, /^args: -p --output-format stream-json --verbose --mcp-config \.byoa\/mcp\.json --strict-mcp-config --permission-mode bypassPermissions --no-session-persistence; config: \.claude; autoupdater: 1; mcp timeout: 60000$/)
+  assert.match(args, /^args: -p --input-format stream-json --output-format stream-json --verbose --replay-user-messages --mcp-config \.byoa\/mcp\.json --strict-mcp-config --permission-mode bypassPermissions --no-session-persistence; config: \.claude; autoupdater: 1; mcp timeout: 60000$/)
   assert.deepEqual(ev[2], { type: 'tool_call', id: 't1', name: 'whoami', server: 'notes', input: {} })
   assert.deepEqual(ev[3], { type: 'tool_result', id: 't1', ok: true, output: 'you are alice' })
   assert.deepEqual(ev[5], { type: 'end', ok: true, result: 'You are alice.', usage: { input: 15, output: 3, cached: 5, costUsd: 0.01 } })
@@ -179,17 +179,17 @@ test('R1.4: when a login is due, byoa reads only the time its access token ends'
 })
 
 test('R5.6: access read-only starts each CLI with its own limits, and the job\'s MCP tools stay', async () => {
-  const { codexArgs } = await import('../src/harness/codex.ts')
-  const { claudeArgs } = await import('../src/harness/claude.ts')
+  const { codex } = await import('../src/harness/codex.ts')
+  const { claude } = await import('../src/harness/claude.ts')
   const { harnessFiles } = await import('../src/index.ts')
   // Codex: its own sandbox (the shell stays, to read skills), and the job's MCP tools approved in its config
-  assert.deepEqual(codexArgs({ work: '/w', access: 'read-only' }), ['exec', '--json', '--skip-git-repo-check', '--ephemeral', '--sandbox', 'read-only', '-c', 'projects={"/w"={trust_level="trusted"}}', '-'])
+  assert.deepEqual(codex.args({ work: '/w', access: 'read-only', servers: [], model: [] }), ['exec', '--json', '--skip-git-repo-check', '--ephemeral', '--sandbox', 'read-only', '-c', 'projects={"/w"={trust_level="trusted"}}', '-'])
   const o = { proxyUrl: 'https://app.example.com/byoa/mcp', servers: ['todos'] }
   const toml = harnessFiles('codex', {}, { ...o, access: 'read-only' })['.codex/config.toml']!
   assert.equal(toml, harnessFiles('codex', {}, o)['.codex/config.toml'] + 'default_tools_approval_mode = "approve"\n')
   assert.equal(harnessFiles('codex', {}, { ...o, access: 'full' })['.codex/config.toml'], harnessFiles('codex', {}, o)['.codex/config.toml'])
   // Claude Code: only the tools that read, and the job's MCP servers
-  assert.deepEqual(claudeArgs({ mcpConfig: 'm.json', access: 'read-only', servers: ['todos', 'notion'] }).slice(7), ['--permission-mode', 'dontAsk', '--tools', 'Read,Glob,Grep,Skill', '--allowedTools', 'Read,Glob,Grep,Skill,mcp__todos,mcp__notion', '--no-session-persistence'])
+  assert.deepEqual(claude.args({ work: '/w', access: 'read-only', servers: ['todos', 'notion'], model: [] }).slice(10), ['--permission-mode', 'dontAsk', '--tools', 'Read,Glob,Grep,Skill', '--allowedTools', 'Read,Glob,Grep,Skill,mcp__todos,mcp__notion', '--no-session-persistence'])
 
   const a = await app()
   await a.agents.connectLogin('gus', 'codex')
@@ -325,7 +325,7 @@ test('R1.2: Grok Build device sign-in: xAI\'s page and the code as data; a job\'
 
 test('R1.4 / R5.6: Grok\'s login: when it is due, whose it is; read-only flags', async () => {
   const { refreshDue, accept } = await import('../src/login-stored.ts')
-  const { grokArgs } = await import('../src/harness/grok.ts')
+  const { grok: grokHarness } = await import('../src/harness/grok.ts')
   // the shape of grok 1.0.92's auth.json (seen with a real login): one entry for each sign-in scope
   const grok = (user: string, expiresAt: string, t = 'a') => ({ '.grok/auth.json': JSON.stringify({ 'https://auth.x.ai::c': { key: t, user_id: user, refresh_token: `r-${t}`, expires_at: expiresAt } }) })
   assert.equal(refreshDue('grok', grok('u-1', '2026-11-25T15:02:54.845984658Z')), Date.parse('2026-11-25T15:02:54.845Z') - 5 * 60_000)
@@ -334,7 +334,7 @@ test('R1.4 / R5.6: Grok\'s login: when it is due, whose it is; read-only flags',
   assert.equal(accept('grok', grok('u-1', '2026-11-25T15:00:00Z'), grok('u-2', '2026-11-25T21:00:00Z', 'b')), false, 'another account')
   assert.equal(accept('grok', grok('u-1', '2026-11-25T21:00:00Z'), grok('u-1', '2026-11-25T15:00:00Z', 'b')), false, 'older')
   // read-only: only the tools that read, no web search, and an error (not the end of the job) for a tool it lacks
-  assert.deepEqual(grokArgs({ access: 'read-only' }).slice(6), ['--permission-mode', 'dontAsk', '--disable-web-search', '--tools', 'read_file,grep,list_dir', '--allow', 'MCPTool(*)'])
+  assert.deepEqual(grokHarness.args({ work: '/w', access: 'read-only', servers: [], model: [] }).slice(6), ['--permission-mode', 'dontAsk', '--disable-web-search', '--tools', 'read_file,grep,list_dir', '--allow', 'MCPTool(*)'])
 })
 
 test('R1.4 / R5.8: Grok jobs of one user share a login that is not due for a refresh', async () => {
@@ -353,4 +353,85 @@ test('R1.4 / R5.8: Grok jobs of one user share a login that is not due for a ref
   // Grok's access token lasts 6 hours: the CLI will not refresh it during these jobs
   assert.equal(await together(6 * 60), 3, 'the three jobs ran at the same time')
   assert.equal(await together(20), 1, 'due before a job\'s time runs out: one at a time')
+})
+
+test('R5.9: a conversation with each harness: the first job names or reads the session, the next ones resume it', async () => {
+  const { agents, sandbox } = await app()
+  for (const h of ['claude', 'codex', 'grok'] as const) {
+    await agents.connectLogin('kim', h)
+    assert.deepEqual(await agents.finishLogin('kim', h, h === 'claude' ? { code: 'good-code' } : { waitMs: 10_000 }), { state: 'signed-in' })
+  }
+  const say = (harness: 'claude' | 'codex' | 'grok', task: string, conversation = `${harness}-1`) => collect(agents.run('kim', { harness, task, conversation }))
+  const texts = (ev: Awaited<ReturnType<typeof say>>) => ev.flatMap((e) => e.type === 'text' ? [e.text] : [])
+  const end = (ev: Awaited<ReturnType<typeof say>>) => ev.at(-1) as { ok: boolean; session?: string }
+
+  // Claude Code: byoa names the session (--session-id), then resumes it (--resume)
+  const c1 = await say('claude', 'my name is Kim')
+  const sid = end(c1).session!
+  assert.match(sid, /^[0-9a-f-]{36}$/)
+  assert.ok(texts(c1).some((t) => t.includes(`--session-id ${sid}`) && !t.includes('--no-session-persistence')), texts(c1).join('\n'))
+  const c2 = await say('claude', 'what is my name?')
+  assert.deepEqual(c2[0], { type: 'start', harness: 'claude', version: '2.1.330', sandbox: 'local', conversation: 'claude-1', resumed: true })
+  assert.ok(texts(c2).includes('remembers 1: my name is Kim|'))
+  assert.ok(texts(c2).some((t) => t.includes(`--resume ${sid}`)))
+  assert.equal(end(c2).session, sid)
+
+  // Codex: it names the thread in thread.started; the next job is `exec resume <thread>`
+  const x1 = await say('codex', 'my name is Kim')
+  assert.equal(end(x1).session, 'th1')
+  assert.ok(texts(x1).some((t) => t.startsWith('args: exec --json ') && !t.includes('--ephemeral')), texts(x1).join('\n'))
+  const x2 = await say('codex', 'what is my name?')
+  assert.ok(texts(x2).includes('remembers 1'))
+  assert.ok(texts(x2).some((t) => /^args: exec resume --json .* th1 -/.test(t)), texts(x2).join('\n'))
+  // Codex keeps its sessions by date, not by folder: a lost sandbox gets the transcript from the store
+  const kept = [...sandbox.live]
+  for (const id of kept) await sandbox.destroy(id)
+  const x3 = await say('codex', 'and now?')
+  assert.deepEqual(x3.filter((e) => e.type === 'error'), [])
+  assert.ok(texts(x3).includes('remembers 2'))
+
+  // Grok Build: byoa names the session (-s), then resumes it (-r)
+  const g1 = await say('grok', 'my name is Kim')
+  const gid = end(g1).session!
+  assert.ok(texts(g1).some((t) => t.includes(`-s ${gid}`)))
+  const g2 = await say('grok', 'what is my name?')
+  assert.ok(texts(g2).includes('remembers 1'))
+  assert.ok(texts(g2).some((t) => t.includes(`-r ${gid}`)))
+  assert.equal(end(g2).session, gid)
+  assert.equal(running(sandbox), 0)
+})
+
+test('R5.9 / R5.6: Codex resumes read-only with the config key, as `exec resume` has no --sandbox', async () => {
+  const { codex } = await import('../src/harness/codex.ts')
+  const a = codex.args({ work: '/w', access: 'read-only', servers: [], model: [], conversation: { session: 'th1', resume: true } })
+  assert.deepEqual(a.slice(0, 5), ['exec', 'resume', '--json', '--skip-git-repo-check', '-c'])
+  assert.equal(a[5], 'sandbox_mode="read-only"')
+  assert.deepEqual(a.slice(-2), ['th1', '-'])
+  assert.ok(!a.includes('--sandbox'))
+})
+
+test('R5.10: a running Claude Code job takes more messages: each one waits for the turn before it, and the job ends after the last', async () => {
+  const { agents } = await app()
+  await agents.connectLogin('lee', 'claude')
+  await agents.finishLogin('lee', 'claude', { code: 'good-code' })
+  const job = agents.run('lee', { harness: 'claude', task: 'slow first', conversation: 'c' })
+  const ev: Awaited<ReturnType<typeof collect>> = []
+  for await (const e of job) {
+    ev.push(e)
+    if (e.type === 'start') assert.equal(await job.send('and a second one'), true)
+  }
+  assert.equal(await job.send('too late'), false, 'the job ended')
+  const types = ev.map((e) => e.type)
+  assert.equal(types.filter((t) => t === 'turn').length, 1, types.join(' '))
+  assert.equal(types.at(-1), 'end')
+  assert.ok(types.indexOf('turn') < types.lastIndexOf('text'), 'the second turn comes after the first one')
+  assert.ok(ev.some((e) => e.type === 'text' && e.text === 'remembers 1: slow first|'), 'the second message is a turn of the same session')
+  assert.deepEqual(ev.at(-1), { type: 'end', ok: true, result: 'You are alice.', usage: { input: 15, output: 3, cached: 5, costUsd: 0.01 }, session: (ev.at(-1) as { session: string }).session })
+
+  // a CLI that ends with no result, while its input is still open, ends the job at once
+  const t0 = Date.now()
+  const crash = await collect(agents.run('lee', { harness: 'claude', task: 'crash' }))
+  assert.ok(Date.now() - t0 < 15_000, `ended in ${Date.now() - t0} ms`)
+  assert.deepEqual(crash.at(-1), { type: 'end', ok: false })
+  assert.ok(crash.some((e) => e.type === 'error' && e.message.includes('boom')), JSON.stringify(crash))
 })

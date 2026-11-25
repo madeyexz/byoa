@@ -39,7 +39,9 @@ We will add other sandbox providers (for example Modal or Vercel) after version 
 
 ## Adapters
 
-- A sandbox provider is one adapter with one interface: create, resume, run a command, write a file, mount a volume, pause, destroy (R5.3). An adapter must not change the code outside it.
+- A sandbox provider is one adapter with one interface: create, resume, run a command, write a file, read a file, mount a volume, pause, destroy (R5.3). An adapter must not change the code outside it. Its test runs `sandboxConformance` from `test/helpers/conformance.ts`.
+- A harness is one adapter in `src/harness/` (`claude.ts`, `codex.ts`, `grok.ts`, `fake.ts`), of the type `Harness` in `src/harness/types.ts`: its home folder, install, flags, conversation flags, event reader, files, login and models. Add it to `HARNESSES` in `src/harness/index.ts`; an unknown name throws, and nothing falls back to another harness.
+- The rest of `src/`: `agents.ts` builds the parts; `job.ts` runs jobs and sessions; `slots.ts` holds the kept sandboxes and their leases; `conversation.ts` the conversations (R5.9); `credential.ts` a job's credential (a lab login, a plan's key, or none); `mcp/` the grants, the sign-in and the proxy; `keys.ts` every store key; `time.ts` the clock that the leases read.
 - A store adapter is a small interface: get, put, delete, compare-and-set (R6). Compare-and-set must be atomic, because the single refresh owner (R2.3) needs it.
 - With each adapter, add the tests that show it passes the checks for its part of the spec.
 

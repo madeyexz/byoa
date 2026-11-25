@@ -50,11 +50,12 @@ Use `instabox({ apiKey?, apiUrl?, template?, snapshot?, timeoutMs? })`. It calls
 
 ## Write an adapter
 
-An adapter implements one interface ([src/sandbox/types.ts](../src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy, delete a volume, and optionally keepAlive (a new end time for a sandbox that is not kept: byoa uses it to end a sign-in 2 minutes after the app's last check-in).
+An adapter implements one interface ([src/sandbox/types.ts](../src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy, delete a volume, and optionally read a file, `capabilities`, and keepAlive (a new end time for a sandbox that is not kept: byoa uses it to end a sign-in 2 minutes after the app's last check-in).
 
 ```ts
 interface SandboxProvider {
   readonly name: string
+  readonly capabilities?: { volumes: boolean }  // optional; false: create refuses a volume, and createAgents refuses cliLogin
   create(opts?: { volumes?: { name: string; path: string }[]; labels?: Record<string, string>; timeoutMs?: number; keep?: boolean }): Promise<Sandbox>
   resume(id: string, opts?: { timeoutMs?: number }): Promise<Sandbox>  // starts a paused one; throws SandboxGoneError when it is gone
   destroy(id: string): Promise<void>                                   // by id, running or paused
@@ -64,5 +65,8 @@ interface SandboxProvider {
 ```
 
 - `keep: true` is a sandbox that byoa keeps for the user. When it times out, the provider must pause it instead of deleting it, and no process of that job may run when it resumes.
-- A provider with no volumes refuses `create` with volumes.
+- A provider with no volumes refuses `create` with volumes, and says `capabilities: { volumes: false }`.
+- `run` resolves for a non-zero exit code, and with exit code 137 for a command that runs out of its `timeoutMs`; it does not throw.
+- `Sandbox.readFile(path)` (optional) reads a file through the provider's file API, or gives null. byoa reads the login files and a conversation's transcript with it; without it, byoa reads them as base64 on a command's output, which a provider may keep in its command history.
+- `test/helpers/conformance.ts` in byoa's repository checks what byoa needs of an adapter: run it on yours, as `test/fake.test.ts` does for the local one.
 - The [API reference](api.md#sandbox-adapter) has the `Sandbox` interface.

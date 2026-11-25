@@ -51,7 +51,7 @@ nodes:
   - step: Your app calls agents.run
     text: "`agents.run(userId, { harness, task, mcp, setup })`"
   - step: Take the user's sandbox
-    text: By default, resume the user's kept sandbox, or create it for the first job. With `sandboxPer 'job'`, create a new one.
+    text: By default, resume the user's kept sandbox (a conversation has one of its own), or create it for the first job. With `sandboxPer 'job'`, create a new one.
   - step: Load the setup
     text: The pinned harness, the skills, AGENTS.md, and an MCP config that points to your proxy with a job token.
   - step: Copy the AI login in
@@ -64,7 +64,7 @@ nodes:
     text: End the job token, save the login back if the CLI changed it, remove it from the sandbox, then pause or destroy the sandbox.
 ```
 
-The user's AI login and MCP grants stay in your database between jobs. A kept sandbox keeps the files that the app wrote there and the installed harness, but no login.
+The user's AI login and MCP grants stay in your database between jobs. A kept sandbox keeps the files that the app wrote there and the installed harness, but no login. A job of a conversation also continues the harness's session of the earlier jobs, and keeps the job folder ([what carries over](sandbox-lifecycle.md#what-carries-over-between-jobs)).
 
 ## Real tokens never go into the sandbox
 

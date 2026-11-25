@@ -4,15 +4,17 @@
 // working when its job ends (R3.4), and at the latest when its time runs out.
 import { randomToken, sha256 } from '../crypto.ts'
 import { SERVER_NAME } from '../config.ts'
+import { keys } from '../keys.ts'
 import type { Store } from '../store.ts'
+import { now } from '../time.ts'
 import { GrantError, type Grants } from './grants.ts'
 import { serveTools, type AppTools } from './tools.ts'
 
 /** `plan`: the plan this job's harness reaches through the relay (plan.ts), when it has one. */
 export interface JobRecord { user: string; job: string; servers: string[]; until: number; plan?: string }
 
-const tokenKey = (hash: string) => `job/${hash}`
-const jobKey = (job: string) => `jobid/${job}`
+const tokenKey = keys.jobToken
+const jobKey = keys.job
 
 /** Only the hash of a job token is stored, so a copy of the database gives no working token. */
 export class JobTokens {
@@ -21,7 +23,7 @@ export class JobTokens {
 
   async issue(user: string, servers: string[], ttlMs: number, plan?: string): Promise<{ token: string; job: string }> {
     const token = `byoa_job_${randomToken(32)}`, job = randomToken(12), hash = await sha256(token)
-    await this.store.put(tokenKey(hash), JSON.stringify({ user, job, servers, until: Date.now() + ttlMs, ...(plan ? { plan } : {}) } satisfies JobRecord))
+    await this.store.put(tokenKey(hash), JSON.stringify({ user, job, servers, until: now() + ttlMs, ...(plan ? { plan } : {}) } satisfies JobRecord))
     await this.store.put(jobKey(job), hash)
     return { token, job }
   }
@@ -30,7 +32,7 @@ export class JobTokens {
     const e = await this.store.get(tokenKey(await sha256(token)))
     if (!e) return null
     const r = JSON.parse(e.value) as JobRecord
-    if (r.until > Date.now()) return r
+    if (r.until > now()) return r
     // its time ran out (a TTL, or a job that crashed before close): remove it, so the store does not keep it forever
     await this.end(r.job)
     return null
