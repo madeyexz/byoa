@@ -1,8 +1,10 @@
 # byoa docs
 
-byoa lets your app run each user's own Claude Code or Codex, on their plan and with their tools, in any sandbox, from inside your own backend.
+**byoa, short for "bring your own agent", is the simplest way to let your users power the AI in your app with their own AI subscription.**
 
-byoa is an open-source library (Apache 2.0). It runs inside your app's own backend. It is not a hosted service. Start with [Getting started](https://byoa.rippling.computer/docs/getting-started.md). To learn the parts first, read [Concepts](https://byoa.rippling.computer/docs/concepts.md).
+Each user signs in to their own Claude or ChatGPT plan one time. When your app has work for the AI, byoa runs that user's own Claude Code or Codex in a sandbox, with the user's tools, and streams the result back. The user's plan pays for the AI. Your app pays only for the sandbox.
+
+byoa is an open-source library (Apache 2.0). It runs inside your app's own backend. It is not a hosted service. Start with [Getting started](https://byoa.rippling.computer/docs/getting-started.md). To learn the parts first, read [Concepts](https://byoa.rippling.computer/docs/concepts.md). To see which plans work, read [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md).
 
 These pages are the Markdown files in [docs/](https://github.com/madeyexz/byoa/tree/main/docs) of the repository. The site at https://byoa.rippling.computer/docs shows the same pages, and serves each page as Markdown for LLMs (add `.md` to its address) and all of them in [llms-full.txt](https://byoa.rippling.computer/llms-full.txt).
 
@@ -10,6 +12,8 @@ These pages are the Markdown files in [docs/](https://github.com/madeyexz/byoa/t
 
 - [Getting started](https://byoa.rippling.computer/docs/getting-started.md): install byoa, make one `agents` object, serve its two routes, sign a user in and run a first job
 - [Concepts](https://byoa.rippling.computer/docs/concepts.md): who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox
+- [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md): which Claude and ChatGPT plans your users can bring, and what each one gives
+- [FAQ](https://byoa.rippling.computer/docs/faq.md): whether a user's AI account can get banned, and what an AI job costs with byoa and with an API key
 
 ## Guides
 

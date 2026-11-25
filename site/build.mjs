@@ -236,6 +236,9 @@ const md = new Marked({
   },
 })
 
+/** "the list: what it has" → "The list: what it has." */
+const sentence = (s) => s.charAt(0).toUpperCase() + s.slice(1) + (/[.?!]$/.test(s) ? '' : '.')
+
 /** Type parameters such as AsyncGenerator<AgentEvent> outside code, as text: Markdown would take them for HTML tags. */
 const escapeTypes = (text) => text.split(/(^```[\s\S]*?^```$|`[^`\n]*`)/m).map((part, i) => (i % 2 ? part : part.replace(/<([A-Z]\w*(?:\[\])?)>/g, '&lt;$1&gt;'))).join('')
 
@@ -264,8 +267,11 @@ for (const [i, p] of PAGES.entries()) {
   page = { ids: new Set(), toc: [], heads: [] }
   const title = source.match(/^# (.+)$/m)?.[1]
   if (!title) throw new Error(`docs/${p.file}.md has no "# " title`)
+  // under the title, as a lead: what the page has, from its line in the list of pages (docs/README.md)
+  const lead = p.file === 'README' ? '' : `<p class="lead">${md.parseInline(sentence(p.about))}</p>\n`
   const content = md.parse(escapeTypes(source).replace(DIAGRAM, '\n@@who@@\n\n'))
     .replace('<p>@@who@@</p>', `<figure class="diagram strings">${who}</figure>`)
+    .replace('</h1>\n', () => `</h1>\n${lead}`)
   const nav = groups.map((g) => `<div class="ng">${esc(g.name)}</div><ul>${g.pages.map((x) => `<li><a href="${pageUrl(x.file)}"${x.file === p.file ? ' aria-current="page"' : ''}>${esc(x.title)}</a></li>`).join('')}</ul>`).join('')
   const navAll = `<ul><li><a href="/docs"${p.file === 'README' ? ' aria-current="page"' : ''}>Overview</a></li></ul>${nav}`
   const prev = PAGES[i - 1], next = PAGES[i + 1]

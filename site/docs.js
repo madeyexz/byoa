@@ -136,6 +136,21 @@
   new ResizeObserver(() => { const w = document.querySelector('article')?.clientWidth; if (w && w !== lastW) { lastW = w; drawAll() } }).observe(document.body)
   document.fonts?.ready.then(() => { lastW = 0; drawAll() })
 
+  // ---- Copy page (the page as Markdown, /docs/<page>.md) and a copy button on each code block
+  const copied = (b, label) => { b.classList.add('done'); b.textContent = 'Copied'; setTimeout(() => { b.classList.remove('done'); b.textContent = label }, 1600) }
+  const copy = async (text, b, label) => {
+    try { await navigator.clipboard.writeText(await text); copied(b, label) } catch { b.textContent = 'Copy failed'; setTimeout(() => { b.textContent = label }, 1600) }
+  }
+  for (const b of document.querySelectorAll('.copy-page')) {
+    b.addEventListener('click', () => copy(fetch(b.dataset.md).then((r) => { if (!r.ok) throw new Error(); return r.text() }), b, 'Copy page'))
+  }
+  for (const c of document.querySelectorAll('article .code')) {
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'copy-code', textContent: 'Copy' })
+    b.setAttribute('aria-label', 'Copy the code')
+    b.addEventListener('click', () => copy(c.querySelector('pre').innerText.replace(/\n$/, ''), b, 'Copy'))
+    c.append(b)
+  }
+
   // ---- the menu on a phone
   const menu = document.querySelector('nav.top .menu')
   menu?.addEventListener('click', () => {

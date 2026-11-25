@@ -68,6 +68,19 @@
   main { min-width: 0; padding: 48px clamp(20px, 4vw, 64px) 72px; }
   .kick { font: 12px var(--pixel); letter-spacing: .12em; color: var(--cobalt); text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
   .kick::before { content: ""; width: 8px; height: 8px; background: currentColor; }
+  .pagehead { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 760px; margin-bottom: 14px; }
+  .pagehead .kick { margin: 0; }
+  article .lead { font-size: 20px; line-height: 1.45; color: var(--muted); margin: -8px 0 28px; max-width: 680px; }
+  /* Copy page and copy code: square, ruled buttons with a two-square pixel icon */
+  .copy-page, .copy-code { display: inline-flex; align-items: center; gap: 8px; font: 13px var(--sans); color: var(--ink2); background: var(--card); border: 1px solid var(--rule2); padding: 6px 11px 6px 9px; cursor: pointer; white-space: nowrap; }
+  .copy-page:hover, .copy-code:hover { color: var(--ink); border-color: var(--ink2); background: var(--paper2); }
+  .copy-page::before, .copy-code::before { content: ""; width: 11px; height: 11px; flex: none;
+    background: linear-gradient(currentColor, currentColor) 0 0/8px 1.5px no-repeat, linear-gradient(currentColor, currentColor) 0 0/1.5px 8px no-repeat,
+      linear-gradient(currentColor, currentColor) 3px 3px/8px 1.5px no-repeat, linear-gradient(currentColor, currentColor) 3px 3px/1.5px 8px no-repeat,
+      linear-gradient(currentColor, currentColor) 3px 9.5px/8px 1.5px no-repeat, linear-gradient(currentColor, currentColor) 9.5px 3px/1.5px 8px no-repeat; }
+  .copy-page.done::before, .copy-code.done::before { width: 10px; background: linear-gradient(var(--mint), var(--mint)) 0 5px/3px 3px no-repeat, linear-gradient(var(--mint), var(--mint)) 3px 8px/3px 3px no-repeat, linear-gradient(var(--mint), var(--mint)) 6px 5px/3px 3px no-repeat, linear-gradient(var(--mint), var(--mint)) 9px 2px/3px 3px no-repeat; }
+  .toc .copy-page { margin: 18px 20px 0; }
+  .copy-page.narrow { display: none; }
   article { max-width: 760px; }
   article h1 { font-size: clamp(36px, 4.4vw, 54px); line-height: 1.02; letter-spacing: -.045em; font-weight: 560; margin: 0 0 22px; }
   article h2 { font-size: 30px; line-height: 1.1; letter-spacing: -.035em; font-weight: 560; margin: 56px 0 14px; padding-top: 22px; border-top: 1px solid var(--rule); }
@@ -89,7 +102,11 @@
   article blockquote { margin: 0 0 16px; padding: 12px 18px; border-left: 3px solid var(--butter); background: var(--paper2); }
   article blockquote p:last-child { margin: 0; }
   article hr { border: 0; border-top: 1px solid var(--rule); margin: 32px 0; }
-  .code { margin: 0 0 20px; background: var(--code); border: 1px solid #000; }
+  .code { position: relative; margin: 0 0 20px; background: var(--code); border: 1px solid #000; }
+  .copy-code { position: absolute; top: 8px; right: 8px; padding: 5px 7px; background: #1c2040; color: #c9cde6; border-color: #3c4274; opacity: 0; transition: opacity .12s; }
+  .copy-code:hover { background: #262b52; color: #fff; border-color: #5a61a0; }
+  .code:hover .copy-code, .copy-code:focus-visible, .copy-code.done { opacity: 1; }
+  @media (hover: none) { .copy-code { opacity: 1; } }
   .code pre.shiki { margin: 0; padding: 14px 18px; overflow-x: auto; background: transparent !important; }
   .code pre.shiki code { background: none; border: 0; padding: 0; font: 13px/1.62 var(--mono); word-break: normal; }
   .tbl { overflow-x: auto; margin: 0 0 20px; border: 1px solid var(--rule); background: var(--card); }
@@ -167,7 +184,7 @@
   footer .frame { border-color: rgba(255,255,255,.1); display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; padding: 22px 24px 30px; }
   footer a { color: #b8bdd8; text-decoration: none; }
 
-  @media (max-width: 1180px) { .docs { grid-template-columns: 232px minmax(0, 1fr); } .toc { display: none; } }
+  @media (max-width: 1180px) { .docs { grid-template-columns: 232px minmax(0, 1fr); } .toc { display: none; } .copy-page.narrow { display: inline-flex; } }
   @media (max-width: 860px) {
     nav.top .menu { display: flex; align-items: center; }
     nav.top .opt { display: none; }
@@ -211,7 +228,7 @@
 <div class="frame docs">
   <aside class="side" id="side" aria-label="Docs">{{nav}}</aside>
   <main>
-    <div class="kick">{{kick}}</div>
+    <div class="pagehead"><div class="kick">{{kick}}</div><button class="copy-page narrow" type="button" data-md="{{md}}">Copy page</button></div>
     <article>
 {{content}}
     </article>
@@ -219,7 +236,8 @@
     <p class="edit"><a href="{{source}}">Edit this page on GitHub</a> · <a href="{{md}}">This page as Markdown</a></p>
   </main>
   <aside class="toc" aria-label="On this page">{{toc}}
-    <div class="tools"><a href="/llms.txt">llms.txt</a><a href="/llms-full.txt">llms-full.txt</a></div>
+    <button class="copy-page" type="button" data-md="{{md}}">Copy page</button>
+    <div class="tools"><a href="{{md}}">This page as Markdown</a><a href="/llms.txt">llms.txt</a><a href="/llms-full.txt">llms-full.txt</a></div>
   </aside>
 </div>
 

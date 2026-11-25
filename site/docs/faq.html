@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAQ · byoa docs</title>
+<meta name="description" content="whether a user's AI account can get banned, and what an AI job costs with byoa and with an API key">
+<meta property="og:title" content="FAQ · byoa docs">
+<meta property="og:description" content="whether a user's AI account can get banned, and what an AI job costs with byoa and with an API key">
+<meta name="theme-color" content="#f8f6f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1124" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://byoa.rippling.computer/docs/faq">
+<link rel="alternate" type="text/markdown" href="/docs/faq.md" title="This page as Markdown">
+<link rel="icon" href="/art/agent.png">
+<link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  /* The styles that the home page (template.html) and the docs pages (docs.html) share. build.mjs puts them in each page. */
+/* Geist, Geist Mono and Geist Pixel: SIL Open Font License 1.1, see fonts/OFL.txt */
+@font-face { font-family: "Geist"; src: url(/fonts/Geist-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Geist Mono"; src: url(/fonts/GeistMono-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Geist Pixel"; src: url(/fonts/GeistPixel-Square.woff2) format("woff2"); font-display: swap; }
+
+:root {
+  --paper: #f8f6f0; --paper2: #f1eee5; --card: #fffdf8;
+  --rule: #e3dfd4; --rule2: #d3cdbe;
+  --ink: #141418; --ink2: #3d3d48; --muted: #6b6977; --dim: #9895a1;
+  --cobalt: #2f4cff; --cobalt2: #2238d8; --peri: #9db6ff; --peri2: #dfe6ff;
+  --tomato: #ff5a36; --butter: #ffc93c; --mint: #2fbf8a; --navy: #121428;
+  --g: clamp(16px, 8.3vw, 120px);           /* gutter: the ruled columns at the page edges */
+  --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --pixel: "Geist Pixel", "Geist Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+img { display: block; }
+.px { image-rendering: pixelated; }
+code { font: .86em/1.4 var(--mono); background: var(--paper2); border: 1px solid var(--rule); padding: 1px 5px; }
+.pixel { font-family: var(--pixel); letter-spacing: .02em; }
+
+/* the ruled frame: every band sits between two vertical rules, like a page of graph paper */
+.band { border-bottom: 1px solid var(--rule); position: relative; }
+.frame { margin: 0 var(--g); border-left: 1px solid var(--rule); border-right: 1px solid var(--rule); position: relative; }
+.frame.pad { padding: 104px clamp(20px, 4vw, 56px); }
+.dot::before, .dot::after { content: ""; position: absolute; width: 5px; height: 5px; background: var(--ink); top: -3px; z-index: 3; }
+.dot::before { left: -3px; } .dot::after { right: -3px; }
+
+/* nav */
+nav.top { position: sticky; top: 0; z-index: 30; background: rgba(248,246,240,.97); border-bottom: 1px solid var(--rule); }
+nav.top .row { display: flex; height: 56px; }
+nav.top a { display: flex; align-items: center; padding: 0 18px; text-decoration: none; font-size: 15px; border-right: 1px solid var(--rule); color: var(--ink2); white-space: nowrap; }
+nav.top a:hover { background: var(--paper2); color: var(--ink); }
+nav.top .brand { gap: 9px; font-weight: 640; font-size: 19px; letter-spacing: -.02em; color: var(--ink); width: var(--g); min-width: 120px; padding: 0 14px; }
+nav.top .brand img { width: 18px; height: auto; }
+nav.top .sp { flex: 1; }
+nav.top .r { border-right: 0; border-left: 1px solid var(--rule); }
+nav.top .gh { background: var(--ink); color: var(--paper); border: 0; gap: 10px; }
+nav.top .gh:hover { background: #000; color: #fff; }
+.chev { display: inline-block; width: 10px; height: 10px; background:
+  linear-gradient(currentColor,currentColor) 0 0/3px 3px no-repeat, linear-gradient(currentColor,currentColor) 3px 3px/3px 3px no-repeat,
+  linear-gradient(currentColor,currentColor) 6px 3px/0 0 no-repeat, linear-gradient(currentColor,currentColor) 0 6px/3px 3px no-repeat; }
+
+/* buttons */
+.btn { display: inline-flex; align-items: center; gap: 12px; padding: 13px 18px; font-size: 16px; font-weight: 520; text-decoration: none; background: var(--paper2); border: 1px solid var(--rule); color: var(--ink); transition: background .12s; }
+.btn:hover { background: #e9e5da; }
+.btn.dark { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.dark:hover { background: #000; }
+.btn .ico { width: 30px; height: 30px; margin: -6px 0 -6px -8px; display: grid; place-items: center; background: var(--cobalt); }
+.btn .ico img { width: 20px; }
+
+.badge { font: 11px var(--pixel); letter-spacing: .08em; padding: 3px 7px 2px; line-height: 1.2; display: inline-block; }
+.badge.v1 { background: var(--cobalt); color: #fff; }
+.badge.plan { background: var(--butter); color: var(--ink); }
+.badge.maybe { border: 1px dashed var(--rule2); color: var(--muted); }
+.badge.done { background: var(--mint); color: #fff; }
+
+/* who brings what: one box-drawing diagram, set in Geist Mono so every column lines up */
+.ascii-wrap { container-type: inline-size; margin: 8px auto 0; text-align: left; }
+/* a cell width of whole pixels (Geist Mono is .6em wide) and a whole-pixel line height keep the box lines unbroken */
+.ascii { --fs: round(down, min(16.67px, calc(100cqw / (var(--cols) * .6))), 1.6667px);
+  margin: 0 auto; width: max-content; font-family: var(--mono); font-weight: 400; letter-spacing: 0; -webkit-text-size-adjust: none; text-size-adjust: none;
+  font-size: var(--fs); line-height: round(nearest, calc(var(--fs) * 1.3), 1px); color: var(--ink); white-space: pre; font-variant-ligatures: none; }
+.ascii .l { color: var(--muted); letter-spacing: 0; }
+.ascii .k { color: var(--ink2); }
+.ascii .a { color: var(--ink2); }
+.ascii .u { color: var(--ink); font-weight: 500; }
+.ascii .t { color: var(--ink); }
+.ascii .m { color: var(--muted); }
+.ascii .x { color: var(--cobalt); font-weight: 600; }
+.ascii .p { color: #d93d1a; }
+.ascii .c { color: var(--tomato); }
+.ascii .o { color: var(--cobalt); font-weight: 700; }
+.ascii .bn { color: var(--cobalt); font-weight: 700; }
+.ascii .bs { color: var(--cobalt); }
+.ascii.narrow { display: none; }
+
+footer { background: var(--navy); color: #8b90b0; font-size: 14px; }
+footer .frame { border-color: rgba(255,255,255,.1); display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; padding: 22px 24px 30px; }
+footer a { color: #b8bdd8; text-decoration: none; }
+
+  /* ---- the docs: the home page's ruled frame, with a menu on the left and the page's headings on the right */
+  :root { color-scheme: light dark; --code: #121428; --flow-on: var(--cobalt); }
+  @media (prefers-color-scheme: dark) {
+    /* the home page's palette on the navy of its closing band, as in the README's dark images */
+    :root { --paper: #0f1124; --paper2: #151833; --card: #161a36; --rule: #2a2f57; --rule2: #3c4274;
+      --ink: #f3f1ea; --ink2: #c9cadc; --muted: #9195b6; --dim: #6b6f90; --peri2: #232a5c; --cobalt: #8ea6ff; --code: #0a0c1c; --flow-on: #8ea6ff; }
+    nav.top .gh { background: var(--ink); color: var(--paper); }
+    nav.top .gh:hover { background: #fff; color: #000; }
+    .badge.plan { color: #141418; }
+    .ascii .x, .ascii .o, .ascii .bn, .ascii .bs { color: var(--peri); }
+    .ascii .p { color: var(--tomato); }
+  }
+  body { font-size: 16.5px; }
+  nav.top { background: var(--paper); }
+  nav.top .menu { display: none; border-right: 1px solid var(--rule); background: none; border-top: 0; border-bottom: 0; border-left: 0; color: var(--ink2); font: 15px var(--sans); padding: 0 16px; cursor: pointer; }
+  nav.top a[aria-current] { color: var(--ink); background: var(--paper2); }
+  .search { position: relative; display: flex; align-items: center; border-left: 1px solid var(--rule); }
+  .search input { width: 220px; height: 56px; border: 0; background: transparent; color: var(--ink); font: 15px var(--sans); padding: 0 16px; outline: none; }
+  .search input::placeholder { color: var(--dim); }
+  .search input:focus { background: var(--paper2); }
+  .search kbd { position: absolute; right: 12px; font: 11px var(--mono); color: var(--dim); border: 1px solid var(--rule); padding: 1px 5px; pointer-events: none; }
+  .search input:focus + kbd, .search input:not(:placeholder-shown) + kbd { display: none; }
+  .results { position: absolute; top: 56px; right: 0; width: min(480px, 100vw); max-height: 70vh; overflow: auto; background: var(--card); border: 1px solid var(--rule2); box-shadow: 0 12px 40px rgba(0,0,0,.18); z-index: 40; }
+  nav.top .results a { display: block; padding: 11px 16px; border: 0; border-bottom: 1px solid var(--rule); text-decoration: none; white-space: normal; color: var(--ink); font-size: 15px; }
+  nav.top .results a:hover, nav.top .results a.sel { background: var(--paper2); }
+  .results b { display: block; font-weight: 560; font-size: 15px; }
+  .results span { display: block; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+  .results mark { background: var(--peri2); color: inherit; }
+  .results .none { padding: 14px 16px; color: var(--muted); font-size: 14px; }
+
+  .docs { display: grid; grid-template-columns: 248px minmax(0, 1fr) 216px; min-height: calc(100vh - 57px); }
+  .side, .toc { position: sticky; top: 57px; align-self: start; max-height: calc(100vh - 57px); overflow: auto; padding: 28px 0 40px; }
+  .side { border-right: 1px solid var(--rule); }
+  .side ul { list-style: none; margin: 0 0 18px; padding: 0; }
+  .side .ng { font: 11px var(--pixel); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 0 22px 8px; display: flex; align-items: center; gap: 8px; }
+  .side .ng::before { content: ""; width: 6px; height: 6px; background: var(--butter); }
+  .side a { display: block; padding: 6px 22px; text-decoration: none; color: var(--ink2); font-size: 15px; border-left: 3px solid transparent; }
+  .side a:hover { color: var(--ink); background: var(--paper2); }
+  .side a[aria-current] { color: var(--ink); font-weight: 560; border-left-color: var(--cobalt); background: var(--paper2); }
+  .toc { border-left: 1px solid var(--rule); padding-left: 0; font-size: 13.5px; }
+  .toc-h { font: 11px var(--pixel); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 0 20px 8px; }
+  .toc ul { list-style: none; margin: 0; padding: 0; }
+  .toc a { display: block; padding: 4px 20px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; }
+  .toc a:hover { color: var(--ink); }
+  .toc a.on { color: var(--ink); border-left-color: var(--cobalt); }
+  .toc code { font-size: .9em; padding: 0 3px; }
+  .tools { margin: 22px 20px 0; padding-top: 14px; border-top: 1px solid var(--rule); display: grid; gap: 6px; }
+  .tools a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  .tools a:hover { color: var(--ink); }
+
+  main { min-width: 0; padding: 48px clamp(20px, 4vw, 64px) 72px; }
+  .kick { font: 12px var(--pixel); letter-spacing: .12em; color: var(--cobalt); text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+  .kick::before { content: ""; width: 8px; height: 8px; background: currentColor; }
+  .pagehead { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 760px; margin-bottom: 14px; }
+  .pagehead .kick { margin: 0; }
+  article .lead { font-size: 20px; line-height: 1.45; color: var(--muted); margin: -8px 0 28px; max-width: 680px; }
+  /* Copy page and copy code: square, ruled buttons with a two-square pixel icon */
+  .copy-page, .copy-code { display: inline-flex; align-items: center; gap: 8px; font: 13px var(--sans); color: var(--ink2); background: var(--card); border: 1px solid var(--rule2); padding: 6px 11px 6px 9px; cursor: pointer; white-space: nowrap; }
+  .copy-page:hover, .copy-code:hover { color: var(--ink); border-color: var(--ink2); background: var(--paper2); }
+  .copy-page::before, .copy-code::before { content: ""; width: 11px; height: 11px; flex: none;
+    background: linear-gradient(currentColor, currentColor) 0 0/8px 1.5px no-repeat, linear-gradient(currentColor, currentColor) 0 0/1.5px 8px no-repeat,
+      linear-gradient(currentColor, currentColor) 3px 3px/8px 1.5px no-repeat, linear-gradient(currentColor, currentColor) 3px 3px/1.5px 8px no-repeat,
+      linear-gradient(currentColor, currentColor) 3px 9.5px/8px 1.5px no-repeat, linear-gradient(currentColor, currentColor) 9.5px 3px/1.5px 8px no-repeat; }
+  .copy-page.done::before, .copy-code.done::before { width: 10px; background: linear-gradient(var(--mint), var(--mint)) 0 5px/3px 3px no-repeat, linear-gradient(var(--mint), var(--mint)) 3px 8px/3px 3px no-repeat, linear-gradient(var(--mint), var(--mint)) 6px 5px/3px 3px no-repeat, linear-gradient(var(--mint), var(--mint)) 9px 2px/3px 3px no-repeat; }
+  .toc .copy-page { margin: 18px 20px 0; }
+  .copy-page.narrow { display: none; }
+  article { max-width: 760px; }
+  article h1 { font-size: clamp(36px, 4.4vw, 54px); line-height: 1.02; letter-spacing: -.045em; font-weight: 560; margin: 0 0 22px; }
+  article h2 { font-size: 30px; line-height: 1.1; letter-spacing: -.035em; font-weight: 560; margin: 56px 0 14px; padding-top: 22px; border-top: 1px solid var(--rule); }
+  article h3 { font-size: 21px; line-height: 1.2; letter-spacing: -.02em; font-weight: 580; margin: 34px 0 10px; }
+  article h4 { font-size: 17px; margin: 26px 0 8px; }
+  article :is(h2, h3, h4) { position: relative; scroll-margin-top: 76px; }
+  article .anchor { position: absolute; left: -1.1em; width: 1em; color: var(--dim); text-decoration: none; opacity: 0; font-weight: 400; }
+  article :is(h2, h3, h4):hover .anchor { opacity: 1; }
+  article p, article li { color: var(--ink2); }
+  article :is(p, ul, ol) { margin: 0 0 16px; }
+  article :is(ul, ol) { padding-left: 22px; }
+  article li { margin: 4px 0; }
+  article li::marker { color: var(--muted); }
+  article strong { color: var(--ink); font-weight: 600; }
+  article a { color: var(--cobalt); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--cobalt) 35%, transparent); text-underline-offset: 3px; }
+  article a:hover { text-decoration-color: currentColor; }
+  article code { font-size: .84em; word-break: break-word; }
+  article a code { color: inherit; }
+  article blockquote { margin: 0 0 16px; padding: 12px 18px; border-left: 3px solid var(--butter); background: var(--paper2); }
+  article blockquote p:last-child { margin: 0; }
+  article hr { border: 0; border-top: 1px solid var(--rule); margin: 32px 0; }
+  .code { position: relative; margin: 0 0 20px; background: var(--code); border: 1px solid #000; }
+  .copy-code { position: absolute; top: 8px; right: 8px; padding: 5px 7px; background: #1c2040; color: #c9cde6; border-color: #3c4274; opacity: 0; transition: opacity .12s; }
+  .copy-code:hover { background: #262b52; color: #fff; border-color: #5a61a0; }
+  .code:hover .copy-code, .copy-code:focus-visible, .copy-code.done { opacity: 1; }
+  @media (hover: none) { .copy-code { opacity: 1; } }
+  .code pre.shiki { margin: 0; padding: 14px 18px; overflow-x: auto; background: transparent !important; }
+  .code pre.shiki code { background: none; border: 0; padding: 0; font: 13px/1.62 var(--mono); word-break: normal; }
+  .tbl { overflow-x: auto; margin: 0 0 20px; border: 1px solid var(--rule); background: var(--card); }
+  .tbl table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  .tbl :is(th, td) { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--rule); border-right: 1px solid var(--rule); }
+  .tbl :is(th, td):last-child { border-right: 0; }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .tbl th { font-weight: 560; background: var(--paper2); color: var(--ink); }
+  .tbl td { color: var(--ink2); }
+  .diagram { margin: 8px 0 24px; padding: 28px 12px; border: 1px solid var(--rule); background: var(--paper2); }
+  .diagram .ascii-wrap { margin: 0 auto; }
+
+  /* flow diagrams (build.mjs draws them from ```flow blocks; docs.js lays them out) */
+  .flow { margin: 10px 0 28px; padding: 18px 18px 20px; border: 1px solid var(--rule); background: var(--card); }
+  .flow .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--muted); margin-bottom: 16px; }
+  .flow .lg { display: inline-flex; align-items: center; gap: 7px; }
+  .flow .lg::before { content: ""; width: 26px; height: 0; border-top: 1px solid var(--muted); }
+  .flow .lg.on::before { border-top: 3px solid var(--flow-on); }
+  .flow .lg.dia::before { width: 10px; height: 10px; border: 1px solid var(--muted); transform: rotate(45deg); margin: 0 3px; }
+  .flow .lg.tb::before { display: none; }
+  .flow .seg { display: inline-flex; border: 1px solid var(--rule2); margin-bottom: 12px; flex-wrap: wrap; }
+  .flow .seg button { font: 14px var(--sans); background: transparent; color: var(--ink2); border: 0; border-right: 1px solid var(--rule2); padding: 8px 14px; cursor: pointer; }
+  .flow .seg button:last-child { border-right: 0; }
+  .flow .seg button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+  .flow .tabnote { font-size: 14.5px; color: var(--ink2); margin: 0 0 16px; }
+  /* the steps as a list: without JavaScript, and on a phone, where the drawing has no room for its side column */
+  .flow-list { list-style: none; margin: 0; padding: 0; counter-reset: s; font-size: 14.5px; color: var(--ink2); }
+  .flow-list > li { position: relative; margin: 0; padding: 0 0 16px 36px; }
+  .flow-list > li::before { counter-increment: s; content: counter(s); position: absolute; left: 0; top: 0; width: 23px; height: 23px; display: grid; place-items: center; font: 11px var(--pixel); background: var(--ink); color: var(--paper); }
+  .flow-list > li.k-dec::before { background: var(--butter); color: #141418; }
+  .flow-list > li.k-warn::before { background: var(--tomato); color: #fff; }
+  .flow-list > li::after { content: ""; position: absolute; left: 11px; top: 27px; bottom: 4px; width: 1px; background: var(--rule2); }
+  .flow-list > li.on::after { width: 3px; left: 10px; background: var(--flow-on); }
+  .flow-list > li:last-child::after { display: none; }
+  .flow-list b { display: block; font-weight: 560; color: var(--ink); }
+  .flow-list .nm { margin-top: 6px; }
+  .flow-list ul { list-style: none; margin: 8px 0 0; padding: 8px 12px; border: 1px dashed var(--rule2); }
+  .flow-list ul li { margin: 0; }
+  .flow-list ul i { font-style: normal; font: 11px var(--pixel); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .flow.drawn .flow-list { display: none; }
+  .flow:not(.drawn) .lg.dia { display: none; }
+  .flow-draw { position: relative; }
+  .flow-draw svg { position: absolute; left: 0; top: 0; overflow: visible; z-index: 0; }
+  .flow-draw .e { fill: none; stroke: var(--muted); stroke-width: 1; }
+  .flow-draw .e.on { stroke: var(--flow-on); stroke-width: 3; }
+  .flow-draw .e.dash { stroke-dasharray: 4 3; }
+  .flow-draw .dia { fill: var(--card); stroke: var(--rule2); stroke-width: 1; }
+  .flow-draw .lbl { font: 12px var(--sans); fill: var(--muted); paint-order: stroke; stroke: var(--card); stroke-width: 4px; }
+  .flow-draw .ah { fill: var(--muted); }
+  .flow-draw .ah.on { fill: var(--flow-on); }
+  .node { position: absolute; z-index: 1; padding: 9px 11px; background: var(--card); border: 1px solid var(--rule2); display: grid; gap: 3px; }
+  .node.end { border-color: var(--ink2); box-shadow: 3px 3px 0 var(--rule2); }
+  .node.warn { border: 1px dashed var(--tomato); }
+  .node.warn .nt::before { content: "!"; display: inline-grid; place-items: center; width: 15px; height: 15px; margin-right: 6px; background: var(--tomato); color: #fff; font: 11px var(--pixel); vertical-align: 1px; }
+  .node.dt { border: 0; background: transparent; padding: 0; text-align: center; justify-items: center; }
+  .nt { font-size: 13.5px; line-height: 18px; color: var(--ink); font-weight: 520; }
+  .nd { font-size: 12.5px; line-height: 17px; color: var(--muted); }
+  .node code, .flow-list code { font-size: 11.5px; padding: 0 3px; }
+  .nm { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+  .f-in, .f-out, .f-removed, .tb { display: inline-flex; align-items: center; font: 11px/16px var(--mono); padding: 0 6px; white-space: nowrap; max-width: 100%; }
+  .f-in { color: #fff; background: var(--flow-on); }
+  @media (prefers-color-scheme: dark) { .f-in { color: #0f1124; } }
+  .f-out, .f-removed { color: var(--muted); outline: 1px dashed var(--muted); outline-offset: -1px; }
+  .tb { color: var(--ink2); background: var(--paper2); white-space: normal; }
+  .tb::before { content: ""; width: 7px; height: 7px; margin-right: 5px; background: var(--butter); flex: none; }
+
+  .pn { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 64px; max-width: 760px; }
+  .pn a { display: grid; gap: 2px; padding: 16px 18px; border: 1px solid var(--rule); text-decoration: none; font-weight: 560; background: var(--card); }
+  .pn a:hover { border-color: var(--cobalt); }
+  .pn span { font: 11px var(--pixel); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  .pn .next { grid-column: 2; text-align: right; }
+  .edit { margin-top: 28px; font-size: 13.5px; color: var(--muted); max-width: 760px; }
+  .edit a { color: inherit; }
+  footer { background: var(--navy); color: #8b90b0; font-size: 14px; }
+  footer .frame { border-color: rgba(255,255,255,.1); display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; padding: 22px 24px 30px; }
+  footer a { color: #b8bdd8; text-decoration: none; }
+
+  @media (max-width: 1180px) { .docs { grid-template-columns: 232px minmax(0, 1fr); } .toc { display: none; } .copy-page.narrow { display: inline-flex; } }
+  @media (max-width: 860px) {
+    nav.top .menu { display: flex; align-items: center; }
+    nav.top .opt { display: none; }
+    .search { flex: 1; } .search input { width: 100%; } .search kbd { display: none; }
+    nav.top .r:not(.gh) { display: none; }
+    .docs { grid-template-columns: minmax(0, 1fr); }
+    .side { display: none; position: fixed; inset: 57px 0 0; max-height: none; z-index: 35; background: var(--paper); border-right: 0; }
+    body.menu-open .side { display: block; }
+    main { padding: 30px 18px 56px; }
+    article h1 { font-size: 36px; }
+    article h2 { font-size: 26px; margin-top: 44px; }
+    article .anchor { display: none; }
+    .flow { padding: 14px 12px 16px; margin-left: -6px; margin-right: -6px; }
+    .diagram { margin-left: -12px; margin-right: -12px; padding: 18px 4px; }
+    .code { margin-left: -6px; margin-right: -6px; }
+    .code pre.shiki code { font-size: 12px; }
+    .pn { grid-template-columns: 1fr; } .pn .next { grid-column: 1; }
+  }
+  @media (max-width: 560px) { nav.top .brand { min-width: 0; width: auto; } nav.top .gh { display: none; } }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="row">
+    <a class="brand" href="/"><img class="px" src="/art/agent.png" alt="">byoa</a>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="side">Menu</button>
+    <a class="opt" href="/docs">Docs</a>
+    <a class="opt" href="/docs/api">API</a>
+    <a class="opt" href="https://github.com/madeyexz/byoa/blob/main/SPEC.md">Spec</a>
+    <span class="sp"></span>
+    <div class="search" role="search">
+      <input type="search" placeholder="Search" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+      <kbd>/</kbd>
+      <div class="results" hidden></div>
+    </div>
+    <a class="r gh" href="https://github.com/madeyexz/byoa">GitHub <span class="chev"></span></a>
+  </div>
+</nav>
+
+<div class="frame docs">
+  <aside class="side" id="side" aria-label="Docs"><ul><li><a href="/docs">Overview</a></li></ul><div class="ng">Start</div><ul><li><a href="/docs/getting-started">Getting started</a></li><li><a href="/docs/concepts">Concepts</a></li><li><a href="/docs/subscriptions">Supported AI subscriptions</a></li><li><a href="/docs/faq" aria-current="page">FAQ</a></li></ul><div class="ng">Guides</div><ul><li><a href="/docs/ai-login">AI login</a></li><li><a href="/docs/sandbox-lifecycle">Sandbox lifecycle</a></li><li><a href="/docs/mcp">MCP tools and the proxy</a></li><li><a href="/docs/running-agents">Running agents</a></li><li><a href="/docs/providers">Sandbox providers</a></li><li><a href="/docs/stores">Stores and Convex</a></li><li><a href="/docs/testing">Testing</a></li></ul><div class="ng">Reference</div><ul><li><a href="/docs/api">API reference</a></li><li><a href="/docs/lab-rules">Lab rules</a></li><li><a href="/docs/security">Security</a></li></ul></aside>
+  <main>
+    <div class="pagehead"><div class="kick">Start</div><button class="copy-page narrow" type="button" data-md="/docs/faq.md">Copy page</button></div>
+    <article>
+<h1>FAQ</h1>
+<p class="lead">Whether a user&#39;s AI account can get banned, and what an AI job costs with byoa and with an API key.</p>
+<h2 id="can-my-users-ai-account-get-banned"><a class="anchor" href="#can-my-users-ai-account-get-banned" aria-hidden="true" tabindex="-1">#</a>Can my user&#39;s AI account get banned?</h2>
+<p>It can. byoa cannot promise that it will not, because the labs decide, and their terms allow parts of what byoa does but not all of it. byoa is built to stay inside the parts that the labs allow:</p>
+<ul>
+<li><strong>It runs the labs&#39; own CLIs, unmodified.</strong> The agent is the real Claude Code or Codex, installed from the labs&#39; own npm packages, and a test checks the binaries against those packages (V11). byoa never pretends to be another client, and never calls the labs&#39; APIs with the user&#39;s tokens.</li>
+<li><strong>The user signs in on the lab&#39;s own page,</strong> with the CLI&#39;s own sign-in. byoa never sees a password.</li>
+<li><strong>Each user uses their own plan, for their own work,</strong> and one app&#39;s login is only for that app.</li>
+</ul>
+<p>Anthropic&#39;s <a href="https://code.claude.com/docs/en/legal-and-compliance" rel="noopener">Claude Code legal and compliance page</a> allows &quot;an end user signing in to the unmodified Claude Code binary with their own Claude subscription, including where a platform hosts Claude Code&quot;. But the same page also says:</p>
+<ul>
+<li>developers &quot;may not collect, store, or intermediate Claude.ai credentials or session tokens&quot;. byoa&#39;s default login stores the CLI&#39;s login files, encrypted, in your app&#39;s database (<a href="/docs/ai-login">AI login</a>).</li>
+<li>&quot;Advertised usage limits for Pro, Max, and Ultra plans assume ordinary, individual usage of Claude Code&quot;. An app that runs many jobs for one user can go beyond that.</li>
+<li>Anthropic &quot;reserves the right to take measures to enforce these restrictions and may do so without prior notice.&quot;</li>
+</ul>
+<p>OpenAI&#39;s <a href="https://openai.com/policies/sign-in-with-chatgpt-terms/" rel="noopener">Sign in with ChatGPT Terms</a> say that stored tokens &quot;must be local and under the user&#39;s control, not in a remote or managed environment&quot;, and that paid or remotely hosted apps must <a href="https://openai.com/form/sign-in-with-chatgpt-interest/" rel="noopener">apply to be partners</a>.</p>
+<p>So, before you launch:</p>
+<ul>
+<li>Read the <a href="/docs/lab-rules">Lab rules</a>, and decide where the logins stay: the default stored login, or <code>cliLogin</code> in a volume of each user.</li>
+<li>Apply to OpenAI&#39;s partner program if your app is paid or hosted, and ask Anthropic for an agreement if you store Claude logins.</li>
+<li>Keep each user&#39;s jobs to the user&#39;s own requests, at a pace that a person would use.</li>
+<li>Tell your users that the jobs use their own plan and its limits.</li>
+</ul>
+<h2 id="what-does-an-ai-job-cost-with-byoa-and-with-an-api-key"><a class="anchor" href="#what-does-an-ai-job-cost-with-byoa-and-with-an-api-key" aria-hidden="true" tabindex="-1">#</a>What does an AI job cost with byoa, and with an API key?</h2>
+<p>With byoa, the user&#39;s plan pays for the model, and your app pays for the sandbox. With an API key, your app pays for every token. The model is by far the larger cost, so for an agent that runs small tasks, byoa costs your app about 18 to 300 times less.</p>
+<h3 id="one-small-task"><a class="anchor" href="#one-small-task" aria-hidden="true" tabindex="-1">#</a>One small task</h3>
+<p>Take a small task in an AI-native app, such as &quot;add these three to-dos and sort them by date&quot;. The agent makes about 20 model calls. Each call sends the conversation so far, so the inputs add up to about 500,000 tokens, of which about 90% are cache hits. The agent writes about 10,000 tokens, with its reasoning. The job takes about 5 minutes of sandbox time, from start to <code>close()</code>.</p>
+<p>These are estimates. To get your own numbers, read the <code>usage</code> of each job&#39;s <code>end</code> event (<code>input</code>, <code>output</code>, <code>cached</code>, and <code>costUsd</code> when the CLI reports it).</p>
+<p><strong>The model, at API prices</strong> (per million tokens, from the labs&#39; price pages on 25 November 2026):</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Model</th>
+<th>50,000 uncached input</th>
+<th>450,000 cached input</th>
+<th>10,000 output</th>
+<th>One task</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GPT-6.2 Sol ($2.00 in, $0.10 cached, $10.00 out)</td>
+<td>$0.100</td>
+<td>$0.045</td>
+<td>$0.100</td>
+<td><strong>$0.245</strong></td>
+</tr>
+<tr>
+<td>Kimi K3 ($3.00 in, $0.30 cached, $15.00 out)</td>
+<td>$0.150</td>
+<td>$0.135</td>
+<td>$0.150</td>
+<td><strong>$0.435</strong></td>
+</tr>
+</tbody></table>
+</div><p><strong>The sandbox,</strong> 2 vCPU and 4 GiB of memory, for 5 minutes (prices per hour, billed by the second, only while it runs):</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>2 vCPU</th>
+<th>4 GiB</th>
+<th>One hour</th>
+<th>One task (5 minutes)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>E2B ($0.0504 a vCPU, $0.0162 a GiB)</td>
+<td>$0.1008</td>
+<td>$0.0648</td>
+<td>$0.1656</td>
+<td><strong>$0.0138</strong></td>
+</tr>
+<tr>
+<td>Daytona (the same rates)</td>
+<td>$0.1008</td>
+<td>$0.0648</td>
+<td>$0.1656</td>
+<td><strong>$0.0138</strong></td>
+</tr>
+<tr>
+<td>Instabox ($0.004 a vCPU, $0.00225 a GiB)</td>
+<td>$0.008</td>
+<td>$0.009</td>
+<td>$0.017</td>
+<td><strong>$0.0014</strong></td>
+</tr>
+</tbody></table>
+</div><p>Sources: <a href="https://developers.openai.com/api/docs/pricing" rel="noopener">OpenAI API pricing</a>, <a href="https://platform.kimi.ai/docs/pricing/chat" rel="noopener">Kimi API pricing</a>, <a href="https://e2b.dev/pricing" rel="noopener">E2B pricing</a>, <a href="https://www.daytona.io/pricing" rel="noopener">Daytona pricing</a>, <a href="https://instabox.sh/pricing" rel="noopener">Instabox pricing</a>.</p>
+<h3 id="for-a-month"><a class="anchor" href="#for-a-month" aria-hidden="true" tabindex="-1">#</a>For a month</h3>
+<p>A user who runs 100 such tasks a month costs your app:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th></th>
+<th>Model at API prices</th>
+<th>Sandbox with byoa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GPT-6.2 Sol</td>
+<td>$24.50</td>
+<td></td>
+</tr>
+<tr>
+<td>Kimi K3</td>
+<td>$43.50</td>
+<td></td>
+</tr>
+<tr>
+<td>E2B or Daytona</td>
+<td></td>
+<td>$1.38</td>
+</tr>
+<tr>
+<td>Instabox</td>
+<td></td>
+<td>$0.14</td>
+</tr>
+</tbody></table>
+</div><p>The user already pays for their own plan, such as $20 a month for Claude Pro or ChatGPT Plus, and the task uses its allowance.</p>
+<h3 id="what-the-numbers-leave-out"><a class="anchor" href="#what-the-numbers-leave-out" aria-hidden="true" tabindex="-1">#</a>What the numbers leave out</h3>
+<ul>
+<li><strong>Plan fees at the provider.</strong> E2B&#39;s Pro plan is $150 a month, and Instabox&#39;s Pro plan is $20 a month with $20 of usage in it. Daytona has no plan fee.</li>
+<li><strong>A kept sandbox between jobs.</strong> A paused or stopped sandbox costs no compute. It can cost a little for its disk: Daytona bills disk past the first 5 GiB.</li>
+<li><strong>The sign-in sandbox,</strong> once for each user and harness, for a few minutes.</li>
+<li><strong>An agent needs a sandbox either way.</strong> With an API key, your app also pays for the sandbox, and for the tokens on top. byoa takes the token bill off your app. An app that only chats, with no tools and no files, needs no sandbox; there an API key can cost less for small use.</li>
+<li><strong>The user&#39;s plan has limits.</strong> A user who runs many long tasks reaches the five-hour or weekly limit of their plan, and the jobs stop until it resets.</li>
+</ul>
+<p>It is also simpler: your app has no per-user token bill, no usage metering or credits to sell, and no API key for the model to keep secret.</p>
+
+    </article>
+    <nav class="pn" aria-label="Pages"><a class="prev" href="/docs/subscriptions"><span>Previous</span>Supported AI subscriptions</a><a class="next" href="/docs/ai-login"><span>Next</span>AI login</a></nav>
+    <p class="edit"><a href="https://github.com/madeyexz/byoa/blob/main/docs/faq.md">Edit this page on GitHub</a> · <a href="/docs/faq.md">This page as Markdown</a></p>
+  </main>
+  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#can-my-users-ai-account-get-banned">Can my user&#39;s AI account get banned?</a></li><li><a href="#what-does-an-ai-job-cost-with-byoa-and-with-an-api-key">What does an AI job cost with byoa, and with an API key?</a></li></ul>
+    <button class="copy-page" type="button" data-md="/docs/faq.md">Copy page</button>
+    <div class="tools"><a href="/docs/faq.md">This page as Markdown</a><a href="/llms.txt">llms.txt</a><a href="/llms-full.txt">llms-full.txt</a></div>
+  </aside>
+</div>
+
+<footer>
+  <div class="frame">
+    <span>byoa · bring your own agent · Apache 2.0</span>
+    <span><a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
+  </div>
+</footer>
+
+<script>
+// The docs pages' script (build.mjs puts it in each page): lays out the flow diagrams, switches their tabs, searches
+// the docs (search.json, which build.mjs writes), opens the menu on a phone, and marks the heading in view.
+{
+  // ---- flow diagrams: each .flow-draw has its nodes as JSON (build.mjs, flowHtml). Without this script, the page
+  // shows the same steps as a list.
+  const NS = 'http://www.w3.org/2000/svg'
+  function body(n) {
+    return `<div class="nt">${n.t}</div>${n.d ? `<div class="nd">${n.d}</div>` : ''}${n.m && n.k !== 'dec' ? `<div class="nm">${n.m}</div>` : ''}`
+  }
+  function draw(el, key) {
+    const nodes = JSON.parse(el.dataset.nodes)
+    const W = el.clientWidth
+    if (!W) return
+    // on a phone, the list of steps (build.mjs) reads better than a drawing with no room for its side column
+    const flow = el.closest('.flow')
+    flow.classList.toggle('drawn', W >= 520)
+    if (W < 520) { el.innerHTML = ''; el.style.height = '0px'; return }
+    el.innerHTML = ''
+    const gap = W < 680 ? 32 : 56
+    const mainW = Math.round((W - gap) * 0.56)
+    const sideX = mainW + gap, sideW = W - sideX, cx = mainW / 2
+    const dw = Math.min(mainW, 340)
+    const VG = 30, P = {}
+    const mk = (n, w, cls) => {
+      const d = document.createElement('div')
+      d.className = `node ${cls}`
+      d.innerHTML = body(n)
+      d.style.width = w + 'px'
+      el.appendChild(d)
+      return d
+    }
+    let y = 0, files = false
+    for (const n of nodes) {
+      if (n.f !== undefined) files = n.f
+      n._files = files
+      let h
+      if (n.k === 'dec') {
+        const tw = Math.round(dw * 0.56)
+        const d = mk(n, tw, 'dt')
+        const th = d.offsetHeight
+        h = Math.max(64, Math.ceil(th * 2 + 14))
+        const x = (mainW - dw) / 2
+        d.style.left = x + (dw - tw) / 2 + 'px'
+        d.style.top = y + (h - th) / 2 + 'px'
+        P[n.id] = { x, y, w: dw, h, dec: true }
+      } else {
+        const d = mk(n, mainW, n.k)
+        h = d.offsetHeight
+        d.style.left = '0px'
+        d.style.top = y + 'px'
+        P[n.id] = { x: 0, y, w: mainW, h }
+      }
+      let bottom = y + h
+      if (n.side) {
+        const s = n.side
+        const d = mk(s, sideW, s.k)
+        const sh = d.offsetHeight
+        const top = n.k === 'dec' ? y + h / 2 - 18 : y
+        d.style.left = sideX + 'px'
+        d.style.top = top + 'px'
+        P[s.id] = { x: sideX, y: top, w: sideW, h: sh }
+        bottom = Math.max(bottom, top + sh)
+      }
+      y = bottom + VG
+    }
+    const H = y - VG
+    el.style.height = H + 'px'
+
+    const svg = document.createElementNS(NS, 'svg')
+    svg.setAttribute('width', W)
+    svg.setAttribute('height', H)
+    svg.setAttribute('aria-hidden', 'true')
+    svg.innerHTML = `<defs>
+      <marker id="${key}-a" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="ah"/></marker>
+      <marker id="${key}-b" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="ah on"/></marker></defs>`
+    el.insertBefore(svg, el.firstChild)
+    const add = (tag, attrs, text) => {
+      const e = document.createElementNS(NS, tag)
+      for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v)
+      if (text) e.textContent = text
+      svg.appendChild(e)
+      return e
+    }
+    const path = (d, cls = '') => add('path', { d, class: `e ${cls}`, 'marker-end': `url(#${key}-${cls.includes('on') ? 'b' : 'a'})` })
+    const label = (x, y, s, anchor = 'start') => add('text', { x, y, class: 'lbl', 'text-anchor': anchor }, s)
+
+    nodes.forEach((n, i) => {
+      const p = P[n.id]
+      if (p.dec) add('polygon', { class: 'dia', points: `${p.x},${p.y + p.h / 2} ${p.x + p.w / 2},${p.y} ${p.x + p.w},${p.y + p.h / 2} ${p.x + p.w / 2},${p.y + p.h}` })
+      const m = nodes[i + 1]
+      if (m && n.k !== 'end') {
+        const q = P[m.id]
+        path(`M${cx},${p.y + p.h} V${q.y}`, n._files ? 'on' : '')
+        if (n.down) label(cx + 8, p.y + p.h + 14, n.down)
+      }
+      const midY = p.y + p.h / 2
+      if (n.right && P[n.right.to]) {
+        const t = P[n.right.to], tx = t.x + t.w / 2
+        path(`M${p.x + p.w},${midY} H${tx} V${t.y}`)
+        label(p.x + p.w + 6, midY - 6, n.right.label)
+      }
+      if (n.side) {
+        const s = n.side, sp = P[s.id]
+        if (n.k === 'dec') {
+          path(`M${p.x + p.w},${midY} H${sideX}`)
+          label(p.x + p.w + 6, midY - 6, s.label)
+        } else {
+          // no label here: the gap is too narrow, and the side node's title says when it happens
+          path(`M${mainW},${sp.y + 18} H${sideX}`, `dash ${n._files ? 'on' : ''}`)
+        }
+        const sx = sp.x + sp.w / 2
+        if (s.back && P[s.back]) {
+          const t = P[s.back], ty = t.y + t.h / 2
+          path(`M${sx},${sp.y} V${ty} H${t.x + t.w}`)
+          if (s.backLabel) label(sx + 6, (sp.y + ty) / 2 + 4, s.backLabel)
+        }
+        if (s.join && P[s.join]) {
+          const t = P[s.join], jy = t.y - 14
+          path(`M${sx},${sp.y + sp.h} V${jy} H${cx}`)
+        }
+      }
+    })
+  }
+  const flows = [...document.querySelectorAll('.flow')]
+  const drawAll = () => flows.forEach((f, i) => f.querySelectorAll('.tabp:not([hidden]) .flow-draw').forEach((el) => draw(el, `f${i}`)))
+  for (const [i, f] of flows.entries()) {
+    f.querySelector('.seg')?.addEventListener('click', (e) => {
+      const b = e.target.closest('button')
+      if (!b) return
+      for (const x of f.querySelectorAll('.seg button')) x.setAttribute('aria-selected', String(x === b))
+      for (const p of f.querySelectorAll('.tabp')) p.hidden = p.dataset.tab !== b.dataset.tab
+      f.querySelectorAll('.tabp:not([hidden]) .flow-draw').forEach((el) => draw(el, `f${i}`))
+    })
+  }
+  let lastW = 0
+  new ResizeObserver(() => { const w = document.querySelector('article')?.clientWidth; if (w && w !== lastW) { lastW = w; drawAll() } }).observe(document.body)
+  document.fonts?.ready.then(() => { lastW = 0; drawAll() })
+
+  // ---- Copy page (the page as Markdown, /docs/<page>.md) and a copy button on each code block
+  const copied = (b, label) => { b.classList.add('done'); b.textContent = 'Copied'; setTimeout(() => { b.classList.remove('done'); b.textContent = label }, 1600) }
+  const copy = async (text, b, label) => {
+    try { await navigator.clipboard.writeText(await text); copied(b, label) } catch { b.textContent = 'Copy failed'; setTimeout(() => { b.textContent = label }, 1600) }
+  }
+  for (const b of document.querySelectorAll('.copy-page')) {
+    b.addEventListener('click', () => copy(fetch(b.dataset.md).then((r) => { if (!r.ok) throw new Error(); return r.text() }), b, 'Copy page'))
+  }
+  for (const c of document.querySelectorAll('article .code')) {
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'copy-code', textContent: 'Copy' })
+    b.setAttribute('aria-label', 'Copy the code')
+    b.addEventListener('click', () => copy(c.querySelector('pre').innerText.replace(/\n$/, ''), b, 'Copy'))
+    c.append(b)
+  }
+
+  // ---- the menu on a phone
+  const menu = document.querySelector('nav.top .menu')
+  menu?.addEventListener('click', () => {
+    const open = document.body.classList.toggle('menu-open')
+    menu.setAttribute('aria-expanded', String(open))
+  })
+
+  // ---- the heading in view, in "On this page"
+  const toc = [...document.querySelectorAll('.toc a[href^="#"]')]
+  if (toc.length) {
+    const heads = toc.map((a) => document.getElementById(decodeURIComponent(a.hash.slice(1)))).filter(Boolean)
+    const mark = () => {
+      let cur = heads[0]
+      for (const h of heads) if (h.getBoundingClientRect().top < 120) cur = h
+      for (const a of toc) a.classList.toggle('on', a.hash === `#${cur?.id}`)
+    }
+    addEventListener('scroll', mark, { passive: true })
+    mark()
+  }
+
+  // ---- search: search.json has one entry for each section of each page
+  const input = document.querySelector('.search input')
+  const box = document.querySelector('.search .results')
+  let index, sel = -1
+  const escape = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+  const words = (q) => q.toLowerCase().split(/\s+/).filter(Boolean)
+  function snippet(text, ws) {
+    const low = text.toLowerCase()
+    const at = Math.max(0, ...ws.map((w) => low.indexOf(w)).filter((i) => i >= 0).slice(0, 1))
+    const from = Math.max(0, at - 50)
+    let s = escape((from ? '…' : '') + text.slice(from, from + 170) + (from + 170 < text.length ? '…' : ''))
+    for (const w of ws) s = s.replace(new RegExp(`(${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'), '<mark>$1</mark>')
+    return s
+  }
+  async function search() {
+    const ws = words(input.value)
+    if (!ws.length) { box.hidden = true; return }
+    index ??= await fetch('/docs/search.json').then((r) => r.json()).catch(() => [])
+    const hits = index.map((e) => {
+      const head = `${e.page} ${e.head}`.toLowerCase(), text = e.text.toLowerCase()
+      let score = 0
+      for (const w of ws) {
+        if (head.includes(w)) score += 10
+        else if (text.includes(w)) score += 1
+        else return null
+      }
+      return { e, score }
+    }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 12)
+    sel = -1
+    box.innerHTML = hits.length
+      ? hits.map(({ e }) => `<a href="${e.url}"><b>${escape(e.head === e.page ? e.page : `${e.page} · ${e.head}`)}</b><span>${snippet(e.text, ws)}</span></a>`).join('')
+      : '<div class="none">Nothing in the docs has these words.</div>'
+    box.hidden = false
+  }
+  input.addEventListener('input', search)
+  input.addEventListener('focus', () => { if (input.value) search() })
+  input.addEventListener('keydown', (e) => {
+    const links = [...box.querySelectorAll('a')]
+    if (e.key === 'Escape') { input.value = ''; box.hidden = true; input.blur() }
+    else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && links.length) {
+      e.preventDefault()
+      sel = (sel + (e.key === 'ArrowDown' ? 1 : -1) + links.length) % links.length
+      links.forEach((a, i) => a.classList.toggle('sel', i === sel))
+      links[sel].scrollIntoView({ block: 'nearest' })
+    } else if (e.key === 'Enter' && links.length) location.href = links[Math.max(sel, 0)].href
+  })
+  addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement !== input && !/^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName)) { e.preventDefault(); input.focus() }
+  })
+  addEventListener('click', (e) => { if (!e.target.closest('.search')) box.hidden = true })
+}
+
+</script>
+</body>
+</html>
