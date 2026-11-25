@@ -12,13 +12,13 @@ These pages are the Markdown files in [docs/](../docs) of the repository. The si
 
 - [Getting started](getting-started.md): install byoa, make one `agents` object, serve its two routes, sign a user in and run a first job
 - [Concepts](concepts.md): who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox
-- [Supported AI subscriptions](subscriptions.md): which Claude, ChatGPT and OpenCode Go (beta) plans your users can bring, and what each one gives
+- [Supported AI subscriptions](subscriptions.md): which Claude, ChatGPT and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned
 - [FAQ](faq.md): whether a user's AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key
 
 ## Guides
 
 - [Give your agent tools](agent-tools.md): your app's own tools, the user's MCP servers, skills, AGENTS.md and plugins, which one to choose, and what the agent can do in its sandbox
-- [AI login](ai-login.md): the sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, and sign-out
+- [AI login](ai-login.md): the sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out
 - [Sandbox lifecycle](sandbox-lifecycle.md): every sandbox byoa creates, from creation to removal, what each provider does, and what byoa does when your backend dies
 - [MCP tools and the proxy](mcp.md): connect a user's MCP servers once, the proxy and job tokens, your app's own tools, and calls with a user's grant
 - [Running agents](running-agents.md): `agents.run` and its events, what the agent may do, sandbox modes, jobs at the same time, models and effort, `session` and `jobToken`

@@ -16,7 +16,7 @@ Anthropic's [Claude Code legal and compliance page](https://code.claude.com/docs
 
 OpenAI's [Sign in with ChatGPT Terms](https://openai.com/policies/sign-in-with-chatgpt-terms/) say that stored tokens "must be local and under the user's control, not in a remote or managed environment", and that paid or remotely hosted apps must [apply to be partners](https://openai.com/form/sign-in-with-chatgpt-interest/).
 
-OpenCode's [Terms of Use](https://opencode.ai/legal/terms-of-service) say the user uses its services "only for your own internal use, and not on behalf of or for the benefit of any third party". So an OpenCode Go key (beta) in your app is arguable, not clearly allowed ([Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md#opencode-go-through-a-key-beta)).
+OpenCode's [Terms of Use](https://opencode.ai/legal/terms-of-service) say the user uses its services "only for your own internal use, and not on behalf of or for the benefit of any third party". So an OpenCode Go key (beta) in your app is arguable, not clearly allowed ([AI login](https://byoa.rippling.computer/docs/ai-login.md#opencode-go-a-key-not-a-sign-in-beta)).
 
 So, before you launch:
 

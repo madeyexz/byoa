@@ -22,13 +22,13 @@ These pages are the Markdown files in [docs/](https://github.com/madeyexz/byoa/t
 
 - [Getting started](https://byoa.rippling.computer/docs/getting-started.md): install byoa, make one `agents` object, serve its two routes, sign a user in and run a first job
 - [Concepts](https://byoa.rippling.computer/docs/concepts.md): who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox
-- [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md): which Claude, ChatGPT and OpenCode Go (beta) plans your users can bring, and what each one gives
+- [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md): which Claude, ChatGPT and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned
 - [FAQ](https://byoa.rippling.computer/docs/faq.md): whether a user's AI account can get banned, many agents of one user, models, and what an AI job costs with byoa and with an API key
 
 ## Guides
 
 - [Give your agent tools](https://byoa.rippling.computer/docs/agent-tools.md): your app's own tools, the user's MCP servers, skills, AGENTS.md and plugins, which one to choose, and what the agent can do in its sandbox
-- [AI login](https://byoa.rippling.computer/docs/ai-login.md): the sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, and sign-out
+- [AI login](https://byoa.rippling.computer/docs/ai-login.md): the sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out
 - [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle.md): every sandbox byoa creates, from creation to removal, what each provider does, and what byoa does when your backend dies
 - [MCP tools and the proxy](https://byoa.rippling.computer/docs/mcp.md): connect a user's MCP servers once, the proxy and job tokens, your app's own tools, and calls with a user's grant
 - [Running agents](https://byoa.rippling.computer/docs/running-agents.md): `agents.run` and its events, what the agent may do, sandbox modes, jobs at the same time, models and effort, `session` and `jobToken`
@@ -118,7 +118,7 @@ await agents.cancelLogin(userId, 'codex')                     // the user closed
 
 The sign-in's sandbox lives only while your sign-in UI checks in: each `finishLogin` call keeps it for 2 more minutes. For Claude Code, call `finishLogin(userId, 'claude')` with no code about every 30 seconds while the user is on Anthropic's page.
 
-A user with an OpenCode Go plan (beta) gives a key instead: `agents.connectKey(userId, 'opencode-go', key)`. See [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md#opencode-go-through-a-key-beta).
+A user with an OpenCode Go plan (beta) gives a key instead: `agents.connectKey(userId, 'opencode-go', key)`. See [AI login](https://byoa.rippling.computer/docs/ai-login.md#opencode-go-a-key-not-a-sign-in-beta).
 
 ## Connect an MCP tool, one time
 
@@ -267,77 +267,19 @@ Source: https://byoa.rippling.computer/docs/subscriptions
 
 # Supported AI subscriptions
 
-Your users bring a Claude plan or a ChatGPT plan. byoa signs each user in with the lab's own CLI, on the lab's own page, and then runs that CLI for them: Claude Code for a Claude plan, Codex for a ChatGPT plan. So a plan works with byoa when its lab lets it sign in to that CLI.
+Your users bring an AI subscription that they already pay for. byoa runs it in the lab's own, unmodified CLI: Claude Code or Codex.
 
-In beta, a user can also bring an OpenCode Go plan, with a key in place of a sign-in. It runs in Claude Code or Codex.
+| Subscription | Plans that work | Can the user's account get banned? |
+|---|---|---|
+| [Claude](https://claude.com/pricing), in Claude Code | Pro, Max, Ultra, Team and Enterprise. Not Free. | It can. Anthropic's terms forbid apps to store Claude logins, and Anthropic may act without notice. |
+| [ChatGPT](https://chatgpt.com/codex/pricing), in Codex | Plus, Pro, Business, Enterprise and Edu. Not Free or Go. | It can. OpenAI's terms want the login kept where the user controls it, and paid or hosted apps must apply to be partners. |
+| [OpenCode Go](https://opencode.ai/docs/console/go) **(beta)**, in Claude Code or Codex | Go, Go Plus and Go Teams | It can. OpenCode's terms say "only for your own internal use". |
 
-| Agent | Lab | Plans that work | Can the user's account get banned? |
-|---|---|---|---|
-| [Claude Code](#claude-plans-through-claude-code) | Anthropic | Claude Pro, Max, Ultra, Team and Enterprise | [Read the FAQ](https://byoa.rippling.computer/docs/faq.md#can-my-users-ai-account-get-banned) |
-| [Codex](#chatgpt-plans-through-codex) | OpenAI | ChatGPT Plus, Pro, Business, Enterprise and Edu | [Read the FAQ](https://byoa.rippling.computer/docs/faq.md#can-my-users-ai-account-get-banned) |
-| [Claude Code or Codex](#opencode-go-through-a-key-beta) **(beta)** | OpenCode | OpenCode Go, Go Plus and Go Teams | [Read the FAQ](https://byoa.rippling.computer/docs/faq.md#can-my-users-ai-account-get-banned) |
+Why, and what to do before you launch: [Can my user's AI account get banned?](https://byoa.rippling.computer/docs/faq.md#can-my-users-ai-account-get-banned)
 
-Prices and plan names are from the labs' pages on 25 November 2026, in US dollars a month, before tax. The labs change them often: check [Claude's plans](https://claude.com/pricing), [Codex's pricing](https://chatgpt.com/codex/pricing) and [OpenCode Go](https://opencode.ai/docs/console/go).
-
-## Claude plans, through Claude Code
-
-| Plan | Price | Works with byoa | Notes |
-|---|---|---|---|
-| Free | $0 | no | The Free plan does not include Claude Code. |
-| Pro | $20 | yes | A five-hour limit and a weekly limit. |
-| Max | $100 | yes | 5 times Pro's usage. |
-| Ultra | $200 | yes | 10 times Pro's weekly usage. This was Max 20x. |
-| Team | $25 a seat (Standard), $125 a seat (Premium) | yes | Every Team seat includes Claude Code. |
-| Enterprise | $20 a seat, and usage at API rates | yes | The organization pays for the usage. |
-
-Sources: [Use Claude Code with your Pro or Max plan](https://support.claude.com/en/articles/11145838), [What is the Team plan?](https://support.claude.com/en/articles/9266767), [Claude Code legal and compliance](https://code.claude.com/docs/en/legal-and-compliance).
-
-## ChatGPT plans, through Codex
-
-| Plan | Price | Works with byoa | Notes |
-|---|---|---|---|
-| Free | $0 | no | Codex only in the ChatGPT desktop app, not in the Codex CLI that byoa runs. |
-| Go | $8 | no | The same as Free. |
-| Plus | $20 | yes | Codex in the CLI, with a five-hour limit and weekly limits. |
-| Pro | $100, $200 or $500 | yes | More usage than Plus. |
-| Business | $25 a seat (Standard), $125 a seat (Premium) | yes | A workspace admin can restrict how members sign in to Codex. |
-| Enterprise and Edu | from OpenAI's sales team | yes | The same; the admin may also have to turn the models on. |
-
-Sources: [Using Codex with your ChatGPT plan](https://help.openai.com/en/articles/11369540), [Codex pricing](https://learn.chatgpt.com/docs/pricing), [Codex authentication](https://developers.openai.com/codex/auth).
-
-## OpenCode Go, through a key (beta)
-
-**Beta.** No real OpenCode Go key has run this yet. byoa's tests use a stand-in for OpenCode's API, with the real Claude Code and Codex, locally and on E2B. The real check ([V20](https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification)) has not run.
-
-OpenCode Go is a plan, not a harness. It gives open models and others, such as Kimi, GLM, DeepSeek, Qwen and MiniMax, and the job still runs the unmodified `claude` or `codex`.
-
-| Plan | Price | Works with byoa | Notes |
-|---|---|---|---|
-| Go | $10 | yes (beta) | |
-| Go Plus | $40 | yes (beta) | More usage than Go. |
-| Go Teams | $20 a member | yes (beta) | |
-
-There is no sign-in page. The user creates an API key in [OpenCode's Console](https://opencode.ai/console) (`oc_sk_…`), and your app gives it to byoa one time:
-
-```ts
-const r = await agents.connectKey(userId, 'opencode-go', key)   // { state: 'signed-in' }; or 'no-plan', or an error
-const models = await agents.listModels(userId, 'opencode-go')    // the plan's models, from OpenCode's API: no sandbox
-agents.run(userId, { harness: 'codex', plan: 'opencode-go', model: 'kimi-k3.1-pro', task })
-```
-
-Diagram: A job on the user's OpenCode Go key
-
-1. Your app gives byoa the key, one time. `connectKey(user, 'opencode-go', key)`. byoa checks the key with OpenCode and keeps it encrypted in your store, as it keeps MCP grants.
-2. A job runs with plan 'opencode-go'. The unmodified Claude Code or Codex, with a Go model, and a config folder with no lab login. Claude Code gets `ANTHROPIC_BASE_URL`; Codex gets a model provider for this job only.
-3. The harness sends its model requests to your proxy. To `<proxyUrl>/_plan/opencode-go/…`, with the job token. Only the model APIs go through, and only during the job.
-4. The proxy adds the key and sends them on to OpenCode. This is the end. With the harness's own user agent and session id, as OpenCode asks. The key never goes into the sandbox.
-
-- **A model of the plan.** A job with a plan needs a Go model: `model` in `run`, or `createAgents({ models: { 'opencode-go': { model } } })`. `listModels(userId, 'opencode-go')` lists them from OpenCode's API with the user's key, with no sandbox. The free models (`…-free`) are not in the list: OpenCode serves them only to its own client.
-- **States.** `loginState(userId, 'opencode-go')` is `signed-in`; `expired` when OpenCode refuses the key (401: a wrong, revoked or expired key; the user makes a new one); or `no-plan` when the key's workspace has no Go plan (403). A job that gets one of these from OpenCode gives an `error` event with that code. `signOut(userId, 'opencode-go')` deletes the key.
-- **Jobs at the same time.** A key does not rotate, so a user's jobs with it run at the same time, with no lease.
-- **Terms.** OpenCode's terms say the user uses its services "only for your own internal use, and not on behalf of or for the benefit of any third party". A job with the user's own key for the user's own task is arguably that, but it is not clearly allowed. Ask OpenCode (help@anoma.ly) before your app offers it. See [Lab rules](https://byoa.rippling.computer/docs/lab-rules.md).
-
-Sources: [OpenCode Go](https://opencode.ai/docs/console/go), [OpenCode Terms of Use](https://opencode.ai/legal/terms-of-service).
+- **Claude and ChatGPT:** the user signs in on the lab's own page. See [AI login](https://byoa.rippling.computer/docs/ai-login.md).
+- **OpenCode Go (beta):** the user gives a key from OpenCode's Console, and the key never goes into the sandbox. No real Go key has run it yet. See [AI login](https://byoa.rippling.computer/docs/ai-login.md#opencode-go-a-key-not-a-sign-in-beta).
+- **Prices and limits:** the labs change them often, so read their own pages, linked in the table.
 
 ## What every plan has in common
 
@@ -349,7 +291,7 @@ Sources: [OpenCode Go](https://opencode.ai/docs/console/go), [OpenCode Terms of 
 ## What byoa does not support
 
 - **API keys.** byoa signs in only with a plan. The one key it takes is the user's OpenCode Go key, which is a plan's key. An app that wants to pay for the AI with its own API key does not need byoa for the login.
-- **Other labs' plans,** such as Gemini or Kimi memberships. byoa runs only Claude Code and Codex in version 1. Gemini or Antigravity may come later. OpenCode Go runs in Claude Code and Codex, not in OpenCode.
+- **Other labs' plans,** such as Gemini or Kimi memberships. byoa runs only Claude Code and Codex in version 1. Gemini or Antigravity may come later. OpenCode is also an agent itself (the `opencode` CLI), but byoa does not run it in version 1: an OpenCode Go plan runs in Claude Code or Codex.
 - **Sharing one login between apps.** The labs do not allow it, and byoa keeps each app's logins apart (`app` in `createAgents`).
 
 ---
@@ -374,7 +316,7 @@ Anthropic's [Claude Code legal and compliance page](https://code.claude.com/docs
 
 OpenAI's [Sign in with ChatGPT Terms](https://openai.com/policies/sign-in-with-chatgpt-terms/) say that stored tokens "must be local and under the user's control, not in a remote or managed environment", and that paid or remotely hosted apps must [apply to be partners](https://openai.com/form/sign-in-with-chatgpt-interest/).
 
-OpenCode's [Terms of Use](https://opencode.ai/legal/terms-of-service) say the user uses its services "only for your own internal use, and not on behalf of or for the benefit of any third party". So an OpenCode Go key (beta) in your app is arguable, not clearly allowed ([Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md#opencode-go-through-a-key-beta)).
+OpenCode's [Terms of Use](https://opencode.ai/legal/terms-of-service) say the user uses its services "only for your own internal use, and not on behalf of or for the benefit of any third party". So an OpenCode Go key (beta) in your app is arguable, not clearly allowed ([AI login](https://byoa.rippling.computer/docs/ai-login.md#opencode-go-a-key-not-a-sign-in-beta)).
 
 So, before you launch:
 
@@ -590,7 +532,7 @@ Source: https://byoa.rippling.computer/docs/ai-login
 
 # AI login
 
-A user's AI login stays encrypted in your app's database, and is in a sandbox only while a sign-in, a job or a sign-out runs. This page shows how byoa signs a user in to Claude Code and Codex, keeps the CLI's own login files, and uses them for each job. An OpenCode Go plan (beta) has no sign-in: the user gives a key, which never goes into the sandbox ([Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md#opencode-go-through-a-key-beta)).
+A user's AI login stays encrypted in your app's database, and is in a sandbox only while a sign-in, a job or a sign-out runs. This page shows how byoa signs a user in to Claude Code and Codex, keeps the CLI's own login files, and uses them for each job. An OpenCode Go plan (beta) has no sign-in: the user gives a key, which never goes into the sandbox ([below](#opencode-go-a-key-not-a-sign-in-beta)).
 
 | The login tokens are in | They are never in |
 |---|---|
@@ -684,6 +626,34 @@ Diagram: How a job takes the shared login
 - If two sharing jobs both save a change, the first save wins (step 4).
 - One risk stays: both CLIs also refresh when the lab answers 401 to a token that has not run out. If two sandboxes get that answer at the same time, both refresh, one refresh fails, and the user may have to sign in again.
 - To hold the login one job at a time instead, pass `login: storedLogin({ parallel: false })`.
+
+## OpenCode Go: a key, not a sign-in (beta)
+
+**Beta.** No real OpenCode Go key has run this yet. byoa's tests use a stand-in for OpenCode's API, with the real Claude Code and Codex, locally and on E2B. The real check ([V20](https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification)) has not run.
+
+OpenCode Go is OpenCode's subscription. byoa uses it as a plan, not a harness: it does not run the `opencode` CLI. It gives open models and others, such as Kimi, GLM, DeepSeek, Qwen and MiniMax, and the job still runs the unmodified `claude` or `codex`.
+
+There is no sign-in page. The user creates an API key in [OpenCode's Console](https://opencode.ai/console) (`oc_sk_…`), and your app gives it to byoa one time:
+
+```ts
+const r = await agents.connectKey(userId, 'opencode-go', key)   // { state: 'signed-in' }; or 'no-plan', or an error
+const models = await agents.listModels(userId, 'opencode-go')    // the plan's models, from OpenCode's API: no sandbox
+agents.run(userId, { harness: 'codex', plan: 'opencode-go', model: 'kimi-k3.1-pro', task })
+```
+
+Diagram: A job on the user's OpenCode Go key
+
+1. Your app gives byoa the key, one time. `connectKey(user, 'opencode-go', key)`. byoa checks the key with OpenCode and keeps it encrypted in your store, as it keeps MCP grants.
+2. A job runs with plan 'opencode-go'. The unmodified Claude Code or Codex, with a Go model, and a config folder with no lab login. Claude Code gets `ANTHROPIC_BASE_URL`; Codex gets a model provider for this job only.
+3. The harness sends its model requests to your proxy. To `<proxyUrl>/_plan/opencode-go/…`, with the job token. Only the model APIs go through, and only during the job.
+4. The proxy adds the key and sends them on to OpenCode. This is the end. With the harness's own user agent and session id, as OpenCode asks. The key never goes into the sandbox.
+
+- **A model of the plan.** A job with a plan needs a Go model: `model` in `run`, or `createAgents({ models: { 'opencode-go': { model } } })`. `listModels(userId, 'opencode-go')` lists them from OpenCode's API with the user's key, with no sandbox. The free models (`…-free`) are not in the list: OpenCode serves them only to its own client.
+- **States.** `loginState(userId, 'opencode-go')` is `signed-in`; `expired` when OpenCode refuses the key (401: a wrong, revoked or expired key; the user makes a new one); or `no-plan` when the key's workspace has no Go plan (403). A job that gets one of these from OpenCode gives an `error` event with that code. `signOut(userId, 'opencode-go')` deletes the key.
+- **Jobs at the same time.** A key does not rotate, so a user's jobs with it run at the same time, with no lease.
+- **Terms.** OpenCode's terms say the user uses its services "only for your own internal use, and not on behalf of or for the benefit of any third party". A job with the user's own key for the user's own task is arguably that, but it is not clearly allowed. Ask OpenCode (help@anoma.ly) before your app offers it. See [Lab rules](https://byoa.rippling.computer/docs/lab-rules.md).
+
+Sources: [OpenCode Go](https://opencode.ai/docs/console/go), [OpenCode Terms of Use](https://opencode.ai/legal/terms-of-service).
 
 ## Sign-out
 
@@ -834,7 +804,7 @@ Serve `agents.proxy` at `proxyUrl` and at every path below it (`<proxyUrl>/<name
 - Do not put your app's session check in front of it. Each of its answers has the header `x-byoa-proxy: 1`.
 - No real MCP token is in the sandbox's environment, files or processes at any time. A test checks this after each job with a real MCP call ([V5](https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification)).
 
-The same proxy is also the relay of a job on the user's OpenCode Go key (beta), at `<proxyUrl>/_plan/opencode-go/…`: it checks the job token, adds the user's key, and sends only the model requests on to OpenCode. So do not filter the paths below `proxyUrl`. See [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md#opencode-go-through-a-key-beta).
+The same proxy is also the relay of a job on the user's OpenCode Go key (beta), at `<proxyUrl>/_plan/opencode-go/…`: it checks the job token, adds the user's key, and sends only the model requests on to OpenCode. So do not filter the paths below `proxyUrl`. See [AI login](https://byoa.rippling.computer/docs/ai-login.md#opencode-go-a-key-not-a-sign-in-beta).
 
 A job gets only the servers that your app names in its `mcp`. A server in `mcp` that the user has not connected gives an `error` event with code `mcp`, and the job runs without it.
 
@@ -968,7 +938,7 @@ agents.run(userId, { harness: 'codex', task, model: models[0].id, effort: 'high'
 
 `agents.listModels(userId, harness)` lists the models that the user's plan can use, as the CLI lists them with the user's login: `[{ id, name, description, isDefault, efforts, resolved? }]`. `id` is what `model` takes, and `efforts` what `effort` takes; `resolved` (Claude Code) is the full name of an alias. Each call starts a sandbox, so keep the list for a while. It throws `LoginError` when the harness is not signed in. With `session`, `s.args` has the flags for the job's model and effort, for your own command line.
 
-A job on the user's OpenCode Go key (beta) passes `plan: 'opencode-go'` and a Go model; `listModels(userId, 'opencode-go')` lists them with no sandbox. See [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md#opencode-go-through-a-key-beta).
+A job on the user's OpenCode Go key (beta) passes `plan: 'opencode-go'` and a Go model; `listModels(userId, 'opencode-go')` lists them with no sandbox. See [AI login](https://byoa.rippling.computer/docs/ai-login.md#opencode-go-a-key-not-a-sign-in-beta).
 
 ## A program of your own around the harness
 

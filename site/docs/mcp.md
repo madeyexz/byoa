@@ -31,7 +31,7 @@ Serve `agents.proxy` at `proxyUrl` and at every path below it (`<proxyUrl>/<name
 - Do not put your app's session check in front of it. Each of its answers has the header `x-byoa-proxy: 1`.
 - No real MCP token is in the sandbox's environment, files or processes at any time. A test checks this after each job with a real MCP call ([V5](https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification)).
 
-The same proxy is also the relay of a job on the user's OpenCode Go key (beta), at `<proxyUrl>/_plan/opencode-go/…`: it checks the job token, adds the user's key, and sends only the model requests on to OpenCode. So do not filter the paths below `proxyUrl`. See [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md#opencode-go-through-a-key-beta).
+The same proxy is also the relay of a job on the user's OpenCode Go key (beta), at `<proxyUrl>/_plan/opencode-go/…`: it checks the job token, adds the user's key, and sends only the model requests on to OpenCode. So do not filter the paths below `proxyUrl`. See [AI login](https://byoa.rippling.computer/docs/ai-login.md#opencode-go-a-key-not-a-sign-in-beta).
 
 A job gets only the servers that your app names in its `mcp`. A server in `mcp` that the user has not connected gives an `error` event with code `mcp`, and the job runs without it.
 

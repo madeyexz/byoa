@@ -1,6 +1,6 @@
 # AI login
 
-A user's AI login stays encrypted in your app's database, and is in a sandbox only while a sign-in, a job or a sign-out runs. This page shows how byoa signs a user in to Claude Code and Codex, keeps the CLI's own login files, and uses them for each job. An OpenCode Go plan (beta) has no sign-in: the user gives a key, which never goes into the sandbox ([Supported AI subscriptions](subscriptions.md#opencode-go-through-a-key-beta)).
+A user's AI login stays encrypted in your app's database, and is in a sandbox only while a sign-in, a job or a sign-out runs. This page shows how byoa signs a user in to Claude Code and Codex, keeps the CLI's own login files, and uses them for each job. An OpenCode Go plan (beta) has no sign-in: the user gives a key, which never goes into the sandbox ([below](#opencode-go-a-key-not-a-sign-in-beta)).
 
 | The login tokens are in | They are never in |
 |---|---|
@@ -132,6 +132,40 @@ nodes:
 - If two sharing jobs both save a change, the first save wins (step 4).
 - One risk stays: both CLIs also refresh when the lab answers 401 to a token that has not run out. If two sandboxes get that answer at the same time, both refresh, one refresh fails, and the user may have to sign in again.
 - To hold the login one job at a time instead, pass `login: storedLogin({ parallel: false })`.
+
+## OpenCode Go: a key, not a sign-in (beta)
+
+**Beta.** No real OpenCode Go key has run this yet. byoa's tests use a stand-in for OpenCode's API, with the real Claude Code and Codex, locally and on E2B. The real check ([V20](../SPEC.md#verification)) has not run.
+
+OpenCode Go is OpenCode's subscription. byoa uses it as a plan, not a harness: it does not run the `opencode` CLI. It gives open models and others, such as Kimi, GLM, DeepSeek, Qwen and MiniMax, and the job still runs the unmodified `claude` or `codex`.
+
+There is no sign-in page. The user creates an API key in [OpenCode's Console](https://opencode.ai/console) (`oc_sk_…`), and your app gives it to byoa one time:
+
+```ts
+const r = await agents.connectKey(userId, 'opencode-go', key)   // { state: 'signed-in' }; or 'no-plan', or an error
+const models = await agents.listModels(userId, 'opencode-go')    // the plan's models, from OpenCode's API: no sandbox
+agents.run(userId, { harness: 'codex', plan: 'opencode-go', model: 'kimi-k3.1-pro', task })
+```
+
+```flow
+title: A job on the user's OpenCode Go key
+nodes:
+  - step: Your app gives byoa the key, one time
+    text: "`connectKey(user, 'opencode-go', key)`. byoa checks the key with OpenCode and keeps it encrypted in your store, as it keeps MCP grants."
+  - step: A job runs with plan 'opencode-go'
+    text: "The unmodified Claude Code or Codex, with a Go model, and a config folder with no lab login. Claude Code gets `ANTHROPIC_BASE_URL`; Codex gets a model provider for this job only."
+  - step: The harness sends its model requests to your proxy
+    text: "To `<proxyUrl>/_plan/opencode-go/…`, with the job token. Only the model APIs go through, and only during the job."
+  - end: The proxy adds the key and sends them on to OpenCode
+    text: With the harness's own user agent and session id, as OpenCode asks. The key never goes into the sandbox.
+```
+
+- **A model of the plan.** A job with a plan needs a Go model: `model` in `run`, or `createAgents({ models: { 'opencode-go': { model } } })`. `listModels(userId, 'opencode-go')` lists them from OpenCode's API with the user's key, with no sandbox. The free models (`…-free`) are not in the list: OpenCode serves them only to its own client.
+- **States.** `loginState(userId, 'opencode-go')` is `signed-in`; `expired` when OpenCode refuses the key (401: a wrong, revoked or expired key; the user makes a new one); or `no-plan` when the key's workspace has no Go plan (403). A job that gets one of these from OpenCode gives an `error` event with that code. `signOut(userId, 'opencode-go')` deletes the key.
+- **Jobs at the same time.** A key does not rotate, so a user's jobs with it run at the same time, with no lease.
+- **Terms.** OpenCode's terms say the user uses its services "only for your own internal use, and not on behalf of or for the benefit of any third party". A job with the user's own key for the user's own task is arguably that, but it is not clearly allowed. Ask OpenCode (help@anoma.ly) before your app offers it. See [Lab rules](lab-rules.md).
+
+Sources: [OpenCode Go](https://opencode.ai/docs/console/go), [OpenCode Terms of Use](https://opencode.ai/legal/terms-of-service).
 
 ## Sign-out
 

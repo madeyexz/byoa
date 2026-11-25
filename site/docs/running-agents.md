@@ -78,7 +78,7 @@ agents.run(userId, { harness: 'codex', task, model: models[0].id, effort: 'high'
 
 `agents.listModels(userId, harness)` lists the models that the user's plan can use, as the CLI lists them with the user's login: `[{ id, name, description, isDefault, efforts, resolved? }]`. `id` is what `model` takes, and `efforts` what `effort` takes; `resolved` (Claude Code) is the full name of an alias. Each call starts a sandbox, so keep the list for a while. It throws `LoginError` when the harness is not signed in. With `session`, `s.args` has the flags for the job's model and effort, for your own command line.
 
-A job on the user's OpenCode Go key (beta) passes `plan: 'opencode-go'` and a Go model; `listModels(userId, 'opencode-go')` lists them with no sandbox. See [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md#opencode-go-through-a-key-beta).
+A job on the user's OpenCode Go key (beta) passes `plan: 'opencode-go'` and a Go model; `listModels(userId, 'opencode-go')` lists them with no sandbox. See [AI login](https://byoa.rippling.computer/docs/ai-login.md#opencode-go-a-key-not-a-sign-in-beta).
 
 ## A program of your own around the harness
 
