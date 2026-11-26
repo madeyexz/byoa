@@ -148,6 +148,9 @@ console.log(JSON.stringify(await Promise.all(servers.map((s) => one(s)))))
 const EXIT_WAIT_MS = 10_000
 /** How often a job saves what the CLI changed in its login while it runs (R1.4). */
 const CHECKPOINT_MS = 60_000
+/** How often a job renews the lease of its kept sandbox until its harness starts (R5.4): the wait for the AI login
+ *  has no limit, and the lease runs out the job timeout and 5 minutes after it was last renewed. */
+const SLOT_RENEW_MS = 60_000
 
 /** One task, or several messages to one agent (R5.8): the agent gets them all at once and decides the order. */
 export function taskText(task: string | string[]): string {
@@ -204,11 +207,14 @@ export function jobs(d: JobDeps) {
     const plugins = r.plugins ?? []
     const t = await d.jobToken(user, { mcp: [...(r.mcp ?? []), ...plugins.flatMap((p) => p.mcp.map((m) => m.name))] }, r.plan)
     let sbx: Sandbox | undefined, slot: Held | undefined, closed = false
-    let tick: ReturnType<typeof setInterval> | undefined, saving: Promise<void> = Promise.resolve()
+    let tick: ReturnType<typeof setInterval> | undefined, beat: ReturnType<typeof setInterval> | undefined, saving: Promise<void> = Promise.resolve()
+    /** The kept sandbox stays this job's until the job timeout and 5 minutes from now (false: deleteSandbox took it). */
+    const renew = () => slot ? d.slots.renew(slot, now() + d.timeout + 5 * 60_000).catch(() => false) : Promise.resolve(false)
     const close = async () => {
       if (closed) return
       closed = true
       clearInterval(tick)
+      clearInterval(beat)
       await saving
       await t.close().catch(() => {})
       // the credential saves what the CLI changed, removes its files and gives its lease back, before the sandbox
@@ -227,6 +233,9 @@ export function jobs(d: JobDeps) {
       const files = harnessFiles(h, setup, { proxyUrl: d.proxyUrl, servers: t.mcp.map((m) => m.name), access: r.access })
       if (d.keep) {
         slot = await d.slots.take(user, h, key, (ahead) => r.onWait?.({ for: 'sandbox', ahead }))
+        // until the harness starts: the setup and the wait for the AI login may take longer than the lease
+        beat = setInterval(() => { void renew() }, SLOT_RENEW_MS)
+        beat.unref?.()
         if (slot.sandbox) {
           try { sbx = await d.sandbox.resume(slot.sandbox, { timeoutMs: d.timeout + 60_000 }) } catch (e) {
             // deleted or expired at the provider: the user gets a new one
@@ -258,6 +267,9 @@ export function jobs(d: JobDeps) {
       const { bin, version } = await x.install(sbx, d.pins)
       // the login leaves the sandbox before the provider pauses or ends it (it does at timeout + 1 min)
       const loaded = await cred.load(sbx, { token: t.token, job: { deadline: now() + d.timeout + 45_000, onWait: (ahead) => r.onWait?.({ for: 'login', ahead }) } })
+      // the harness starts now: the lease of the kept sandbox lasts until its time and 5 minutes
+      clearInterval(beat)
+      await renew()
       const box = sbx
       if (cred.checkpoint) {
         // saves what the CLI changed in its login every minute, so a backend that dies loses at most that (R1.4)

@@ -245,6 +245,44 @@ test('R1.4: a backend that dies during a job: the next job in that kept sandbox 
   await b.deleteSandbox('gus')
 })
 
+test('R5.4 / R5.8: a job that waits in line for the AI login keeps its sandbox, also past the job timeout and 5 minutes', async () => {
+  // spec/tla/JobTiming.tla found this: the sandbox's lease ran out while its job still waited for the login, and the
+  // next job of that sandbox key took the sandbox while the first one ran in it
+  const { clock } = await import('../src/time.ts')
+  const { storedLogin } = await import('../src/index.ts')
+  const a = await testApp({ env, login: storedLogin({ parallel: false }), waitMs: 2_000 }); closers.push(a.close)
+  await a.agents.connectLogin('kim', 'claude')
+  assert.deepEqual(await a.agents.finishLogin('kim', 'claude', { code: 'good-code' }), { state: 'signed-in' })
+  const real = clock.now
+  // job 1 (sandbox key `a`) holds the login; job 2 (key `b`) has its sandbox and waits in line for the login
+  const first = await a.agents.session('kim', { harness: 'claude', sandboxKey: 'a' })
+  let inLine!: () => void
+  const waiting = new Promise<void>((r) => { inLine = r })
+  const second = a.agents.session('kim', { harness: 'claude', sandboxKey: 'b', onWait: (w) => { if (w.for === 'login') inLine() } })
+  await waiting
+  let third: Promise<unknown> | undefined
+  try {
+    // job 1 runs for its whole time: then job 2 takes the login, 36 minutes after it took its sandbox
+    clock.now = () => real() + 36 * 60_000
+    await first.close()
+    const s2 = await second
+    try {
+      // job 3 of key `b` waits for job 2's sandbox, and gives up after waitMs
+      const waits: string[] = []
+      third = collect(a.agents.run('kim', { harness: 'claude', sandboxKey: 'b', task: 'hi', onWait: (w) => { waits.push(w.for) } }))
+      let t: ReturnType<typeof setInterval> | undefined
+      const took = new Promise<'took'>((r) => { t = setInterval(() => { if (waits.includes('login')) r('took') }, 50) })
+      const ev = await Promise.race([third, took]).finally(() => clearInterval(t))
+      assert.notEqual(ev, 'took', 'job 3 took the sandbox that job 2 runs in')
+      assert.match((ev as { message: string }[])[0]!.message, /still holds the claude sandbox "b"/)
+    } finally { await s2.close() }
+  } finally {
+    await third
+    clock.now = real
+  }
+  await a.agents.deleteSandbox('kim')
+})
+
 test('R1.4: byoa saves a login from a sandbox only when it is the same account and not older', async () => {
   const { accept } = await import('../src/login-stored.ts')
   const codex = (account: string, last: string, t = 'a') => ({ '.codex/auth.json': JSON.stringify({ tokens: { access_token: t, account_id: account }, last_refresh: last }) })

@@ -163,6 +163,7 @@ nodes:
 - A refresh that the CLI made more than about a minute before your backend died is already saved. Only a refresh in the last minute before the watcher ran can be lost; then the user may have to sign in again.
 - byoa saves files from a sandbox only when they are the same account's login and not older than the stored one, because the agent of a job can change any file.
 - A job's waiting place in line also runs out about 30 s after its backend dies, so the jobs after it go on.
+- The slot's lease: until its harness starts, a job renews it every minute, so a job that waits long for the login keeps its sandbox; from the harness's start it lasts the job timeout + 5 minutes. So the lease of a dead job runs out at most the job timeout + 5 minutes after its backend died.
 
 ## How each provider pauses and times out
 

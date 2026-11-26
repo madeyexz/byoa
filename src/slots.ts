@@ -41,6 +41,15 @@ export function slots(store: Store, provider: SandboxProvider, o: { leaseMs: num
       return store.cas(s.k, e.version, JSON.stringify({ sandbox, ...(until ? { holder: s.holder } : {}), until } satisfies Slot))
     },
 
+    /** Moves the end of `s.holder`'s lease to `until`, and keeps the sandbox the slot has. False when it does not hold
+     *  the slot. */
+    async renew(s: Held, until: number): Promise<boolean> {
+      const e = await store.get(s.k)
+      const cur = e && (JSON.parse(e.value) as Slot)
+      if (!cur || cur.holder !== s.holder) return false
+      return store.cas(s.k, e.version, JSON.stringify({ ...cur, until } satisfies Slot))
+    },
+
     /** Deletes the user's kept sandboxes at this provider: all of them, or those of one harness or one key. */
     async remove(user: string, which: { harness?: RunHarness; key?: string } = {}) {
       const match = ([h, key]: Indexed) => (which.harness === undefined || h === which.harness) && (which.key === undefined || key === which.key)
