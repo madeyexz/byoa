@@ -47,16 +47,26 @@ export class Grants {
     return e ? { grant: JSON.parse(await open(await this.key, e.value, k)), version: e.version } : null
   }
 
+  /** Lists the grant in the index before and after its put, so that a remove that runs meanwhile (or a backend that
+   *  dies) never leaves a grant that the index does not list. */
   async save(user: string, g: Grant) {
     const k = grantKey(user, g.name)
+    await this.list1(user, g)
     await this.store.put(k, await seal(await this.key, JSON.stringify(g), k))
-    await this.index(user, (l) => [...l.filter((x) => x.name !== g.name), { name: g.name, url: g.url }])
+    await this.list1(user, g)
   }
 
   async remove(user: string, name: string) {
     await this.store.delete(grantKey(user, name))
     await this.store.delete(leaseKey(user, name))
     await this.index(user, (l) => l.filter((x) => x.name !== name))
+    // a save that ran meanwhile put the grant back: list it again
+    const r = await this.read(user, name)
+    if (r) await this.list1(user, r.grant)
+  }
+
+  private list1(user: string, g: Grant) {
+    return this.index(user, (l) => [...l.filter((x) => x.name !== g.name), { name: g.name, url: g.url }])
   }
 
   async list(user: string): Promise<{ name: string; url: string }[]> {
@@ -87,7 +97,10 @@ export class Grants {
         p = this.refresh(user, name, stale ?? access).finally(() => this.inflight.delete(k))
         this.inflight.set(k, p)
       }
-      return { token: await p, url: g.url, oauth: true }
+      const token = await p
+      // this process's refresh started before the server refused `stale`, and gave that token: refresh again
+      if (stale && token === stale) return this.accessToken(user, name, stale)
+      return { token, url: g.url, oauth: true }
     }
     return { token: access, url: g.url, oauth: true }
   }
@@ -128,20 +141,24 @@ export class Grants {
     let result: Awaited<ReturnType<typeof auth>> | undefined
     try { result = await auth(p, { serverUrl: g.url }) } catch { result = undefined }
     const k = grantKey(user, g.name)
-    if (result !== 'AUTHORIZED' || !p.s.tokens) {
-      // the refresh token was refused: the user must connect again; never keep a sign-in page nobody opens
-      p.s.verifier = undefined
-      await this.store.cas(k, version, await seal(await this.key, JSON.stringify({ ...g, needsSignIn: true }), k))
-      throw new GrantError('needs-sign-in', `${g.name}: the sign-in ran out; connect it again`)
+    const ok = result === 'AUTHORIZED' && !!p.s.tokens
+    // auth() ends in 'REDIRECT' also after a 5xx or no answer from the token endpoint: only a refused refresh token
+    // means the user must connect again; any other failure fails this request, and the grant stays as it is
+    if (!ok && !p.refused) throw new Error(`byoa: ${g.name}: the authorization server did not refresh the sign-in`)
+    const next: Grant = ok ? { ...g, oauth: p.s } : { ...g, needsSignIn: true }
+    if (await this.store.cas(k, version, await seal(await this.key, JSON.stringify(next), k))) {
+      if (!ok) throw new GrantError('needs-sign-in', `${g.name}: the sign-in ran out; connect it again`)
+      return p.s.tokens!.access_token
     }
-    const next: Grant = { ...g, oauth: p.s }
-    if (!(await this.store.cas(k, version, await seal(await this.key, JSON.stringify(next), k)))) {
-      // the user connected again while this refresh ran: theirs wins
-      const r = await this.read(user, g.name)
-      if (r?.grant.oauth?.tokens) return r.grant.oauth.tokens.access_token
-      throw new GrantError('not-connected', `${g.name} is not connected`)
-    }
-    return p.s.tokens.access_token
+    // the grant changed while this refresh ran (the user connected again, or another refresh saved): it wins
+    const r = await this.read(user, g.name)
+    if (!r) throw new GrantError('not-connected', `${g.name} is not connected`)
+    // unless another backend's refresh, which took the lease after ours ran out, was refused only because this one had
+    // used the refresh token, and marked the grant: then this refresh's tokens are the grant's
+    if (ok && r.grant.needsSignIn && r.grant.oauth?.tokens?.refresh_token === g.oauth?.tokens?.refresh_token
+      && await this.store.cas(k, r.version, await seal(await this.key, JSON.stringify(next), k))) return p.s.tokens!.access_token
+    if (r.grant.needsSignIn || !r.grant.oauth?.tokens) throw new GrantError('needs-sign-in', `${g.name}: the sign-in ran out; connect it again`)
+    return r.grant.oauth.tokens.access_token
   }
 }
 
