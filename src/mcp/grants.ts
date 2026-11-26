@@ -24,6 +24,9 @@ export interface Grant {
 const EARLY_MS = 60_000
 /** A lease older than this is a crashed refresh; another process may take it. */
 const LEASE_MS = 30_000
+/** The holder moves its lease on this often while its refresh runs, so a slow token endpoint never lets another
+ *  process take it (R2.3). A backend clock more than LEASE_MS - RENEW_MS ahead can still see it run out. */
+const RENEW_MS = 10_000
 
 export const grantKey = keys.grant
 const leaseKey = keys.grantLease
@@ -92,14 +95,18 @@ export class Grants {
     const access = g.oauth.tokens.access_token
     if (!fresh(g, stale)) {
       const k = grantKey(user, name)
-      let p = this.inflight.get(k)
-      if (!p) {
-        p = this.refresh(user, name, stale ?? access).finally(() => this.inflight.delete(k))
-        this.inflight.set(k, p)
+      const join = () => {
+        let p = this.inflight.get(k)
+        if (!p) {
+          p = this.refresh(user, name, stale ?? access).finally(() => this.inflight.delete(k))
+          this.inflight.set(k, p)
+        }
+        return p
       }
-      const token = await p
-      // this process's refresh started before the server refused `stale`, and gave that token: refresh again
-      if (stale && token === stale) return this.accessToken(user, name, stale)
+      let token = await join()
+      // this process's refresh started before the server refused `stale`, and gave that token: refresh once more (a
+      // server that answers with the same token again gets no more requests from this call)
+      if (stale && token === stale) token = await join()
       return { token, url: g.url, oauth: true }
     }
     return { token: access, url: g.url, oauth: true }
@@ -121,7 +128,12 @@ export class Grants {
         continue
       }
       if (!(await this.store.cas(lk, lease?.version ?? null, JSON.stringify({ id, until: now() + LEASE_MS })))) continue
-      const mine = (await this.store.get(lk))!.version
+      // renew the lease while the refresh runs (one renewal at a time); it stops once the lease is not this one's
+      let stop = false, renewing = Promise.resolve()
+      const timer = setInterval(() => {
+        renewing = renewing.then(async () => { if (!stop && !(await this.setLease(lk, id, now() + LEASE_MS))) stop = true })
+          .catch(() => { stop = true })
+      }, RENEW_MS)
       try {
         // read again under the lease: a refresh that ended just before has a new token already
         const r = await this.read(user, name)
@@ -130,21 +142,43 @@ export class Grants {
         if (fresh(r.grant, stale)) return r.grant.oauth!.tokens!.access_token
         return await this.refreshNow(user, r.grant, r.version)
       } finally {
-        await this.store.cas(lk, mine, JSON.stringify({ id, until: 0 }))
+        // no renewal after the release: stop the timer, wait for a renewal in flight, then release by id
+        clearInterval(timer)
+        stop = true
+        await renewing
+        await this.setLease(lk, id, 0)
       }
     }
     throw new Error(`byoa: ${name}: another refresh of this grant did not finish`)
   }
 
+  /** Writes `until` into the grant's lease if it is still the refresh `id`'s (compare-and-set on the version read). */
+  private async setLease(lk: string, id: string, until: number): Promise<boolean> {
+    const e = await this.store.get(lk)
+    return !!e && JSON.parse(e.value).id === id && await this.store.cas(lk, e.version, JSON.stringify({ id, until }))
+  }
+
   private async refreshNow(user: string, g: Grant, version: string): Promise<string> {
     const p = new Provider(this.oauth, structuredClone(g.oauth!))
+    // how the token endpoint answered the refresh: auth() ends in 'REDIRECT' or throws for a refused refresh token, a
+    // 5xx and no answer alike, so it is read from the answer itself
+    let refused = false
+    const fetchFn = async (url: string | URL, init?: RequestInit) => {
+      const res = await fetch(url, init)
+      if (init?.body instanceof URLSearchParams && init.body.get('grant_type') === 'refresh_token' && !res.ok) {
+        let error: unknown
+        try { error = JSON.parse(await res.clone().text()).error } catch {}
+        refused = refusal(res.status, error)
+      }
+      return res
+    }
     let result: Awaited<ReturnType<typeof auth>> | undefined
-    try { result = await auth(p, { serverUrl: g.url }) } catch { result = undefined }
+    try { result = await auth(p, { serverUrl: g.url, fetchFn }) } catch { result = undefined }
     const k = grantKey(user, g.name)
     const ok = result === 'AUTHORIZED' && !!p.s.tokens
-    // auth() ends in 'REDIRECT' also after a 5xx or no answer from the token endpoint: only a refused refresh token
-    // means the user must connect again; any other failure fails this request, and the grant stays as it is
-    if (!ok && !p.refused) throw new Error(`byoa: ${g.name}: the authorization server did not refresh the sign-in`)
+    // only a refused refresh token means the user must connect again; any other failure (a 5xx, 429, no answer) fails
+    // this request, and the grant stays as it is
+    if (!ok && !refused) throw new Error(`byoa: ${g.name}: the authorization server did not refresh the sign-in`)
     const next: Grant = ok ? { ...g, oauth: p.s } : { ...g, needsSignIn: true }
     if (await this.store.cas(k, version, await seal(await this.key, JSON.stringify(next), k))) {
       if (!ok) throw new GrantError('needs-sign-in', `${g.name}: the sign-in ran out; connect it again`)
@@ -160,6 +194,13 @@ export class Grants {
     if (r.grant.needsSignIn || !r.grant.oauth?.tokens) throw new GrantError('needs-sign-in', `${g.name}: the sign-in ran out; connect it again`)
     return r.grant.oauth.tokens.access_token
   }
+}
+
+/** The token endpoint refused the refresh token: a 4xx (an OAuth error such as invalid_grant, invalid_request or
+ *  invalid_client, or any other body), but not 408 or 429 or an error that says to try again later. */
+function refusal(status: number, error: unknown): boolean {
+  if (status < 400 || status >= 500 || status === 408 || status === 429) return false
+  return !['server_error', 'temporarily_unavailable', 'too_many_requests'].includes(String(error))
 }
 
 /** The access token works for a while yet, and is not the one the server refused. */
