@@ -30,6 +30,8 @@ The labs' terms above restrict where these tokens may be stored. byoa keeps the 
 
 Each app is responsible for its own agreements with the labs. An app that offers OpenCode Go asks OpenCode (help@anoma.ly) before it ships it. We plan to sign agreements for our own apps when they have traction.
 
+Our hosted mail demo (https://byoa.rippling.computer/demo, `examples/mail/convex`) is a hosted service for strangers: it keeps each visitor's Claude, ChatGPT or Grok login, encrypted, in its Convex deployment, for at most one hour after the visitor's last request, and then signs it out with the CLI and deletes it. That is the storage that Anthropic's and OpenAI's terms above restrict. Ian Hsiao accepted this on 2026-11-26, before we have an agreement with Anthropic or OpenAI. The demo's page tells visitors that the job uses their own plan and how long their login stays.
+
 ## What your app must do
 
 Every app on byoa must follow these rules. If a request breaks one, stop and tell the developer.

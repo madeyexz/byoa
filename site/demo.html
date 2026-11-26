@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>byoa mail · live demo</title>
+<meta name="description" content="A live demo of byoa: sign in with your own Claude, ChatGPT or Grok plan, and your own coding agent triages a sample inbox in a sandbox.">
+<!-- The hosted demo of examples/mail. It is static: site/build.mjs copies it to byoa.rippling.computer/demo, and its
+     backend is the Convex deployment in examples/mail/convex. Basecoat: shadcn/ui's components as plain CSS. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basecoat-css@1.1.0/dist/basecoat.cdn.min.css" integrity="sha384-pGk605ml41MkC5v6mwKQprSH7YgU5ZhqFrTH+liRoLfHsuOg7bGreN2+Dcb63/Ur" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/convex@1.51.0/dist/browser.bundle.js" integrity="sha384-HWLWqUwqvr4km2OVCFF4fz6nK3aHukLTjySCEawyS9bX6oOkufxqZW2kPbmHzu1r" crossorigin="anonymous"></script>
+<style>
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--background); color: var(--foreground); font-size: 14px; }
+  [hidden] { display: none !important; }
+  .muted { color: var(--muted-foreground); }
+  .app { display: grid; grid-template-columns: 236px 380px 1fr; grid-template-rows: 56px 1fr; height: 100vh; }
+  .bar { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 16px; color: inherit; text-decoration: none; }
+  .logo { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--primary); color: var(--primary-foreground); }
+  .grow { flex: 1; }
+  .plans { display: flex; gap: 6px; align-items: center; }
+  .side { border-right: 1px solid var(--border); padding: 14px 10px; display: flex; flex-direction: column; gap: 14px; overflow: auto; background: var(--muted); }
+  .side .btn.triage { width: 100%; height: 42px; font-size: 14px; border-radius: 12px; }
+  .agent { display: grid; gap: 4px; padding: 0 4px; }
+  .agent select { width: 100%; }
+  nav { display: grid; gap: 1px; }
+  nav button { all: unset; display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+  nav button:hover { background: color-mix(in oklch, var(--foreground) 6%, transparent); }
+  nav button.on { background: var(--background); font-weight: 600; box-shadow: 0 0 0 1px var(--border); }
+  nav button .n { margin-left: auto; font-size: 12px; color: var(--muted-foreground); font-weight: 500; }
+  nav .head { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-foreground); padding: 12px 10px 4px; }
+  .dot { width: 9px; height: 9px; border-radius: 99px; background: var(--c); flex: none; }
+  .side .foot { margin-top: auto; display: grid; gap: 6px; padding: 0 4px; font-size: 12px; }
+  .list { border-right: 1px solid var(--border); overflow: auto; display: flex; flex-direction: column; }
+  .listhead { padding: 14px 16px 10px; display: flex; align-items: baseline; gap: 8px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--background); z-index: 1; }
+  .listhead h2 { font-size: 16px; font-weight: 600; margin: 0; }
+  .activity { margin: 10px 12px 2px; border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; display: grid; gap: 6px; background: var(--card); }
+  .activity .st { display: flex; gap: 8px; align-items: center; font-weight: 500; }
+  .activity ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; max-height: 150px; overflow: auto; font-size: 13px; }
+  .activity li { display: flex; gap: 6px; align-items: baseline; color: var(--muted-foreground); }
+  .activity li::before { content: '→'; color: var(--muted-foreground); }
+  .activity .say { font-size: 13px; white-space: pre-wrap; border-top: 1px solid var(--border); padding-top: 6px; }
+  ul.msgs { list-style: none; margin: 0; padding: 4px 0; }
+  .msg { padding: 10px 16px 11px 22px; border-bottom: 1px solid var(--border); cursor: pointer; position: relative; display: grid; gap: 2px; }
+  .msg:hover { background: color-mix(in oklch, var(--foreground) 3%, transparent); }
+  .msg.on { background: color-mix(in oklch, oklch(0.58 0.18 255) 9%, transparent); }
+  .msg.unread::before { content: ''; position: absolute; left: 9px; top: 16px; width: 7px; height: 7px; border-radius: 99px; background: oklch(0.58 0.18 255); }
+  .msg .r1 { display: flex; gap: 8px; align-items: baseline; }
+  .msg .from { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .msg.unread .from, .msg.unread .subj { font-weight: 600; }
+  .msg .time { font-size: 12px; color: var(--muted-foreground); }
+  .msg .subj, .msg .snip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .msg .snip { color: var(--muted-foreground); font-size: 13px; }
+  .msg .tags { display: flex; gap: 5px; margin-top: 4px; }
+  .msg .tags:empty { display: none; }
+  .msg.flash { animation: flash 1.6s ease-out; }
+  @keyframes flash { from { background: color-mix(in oklch, var(--c, oklch(0.58 0.18 255)) 28%, transparent); } }
+  .pane { overflow: auto; padding: 28px 36px 48px; }
+  .pane h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 14px; }
+  .sender { display: flex; gap: 12px; align-items: center; margin-bottom: 18px; }
+  .avatar { width: 38px; height: 38px; border-radius: 99px; display: grid; place-items: center; font-weight: 600; background: color-mix(in oklch, var(--c, oklch(0.55 0 0)) 18%, var(--background)); color: var(--c, var(--foreground)); flex: none; }
+  .sender .who { flex: 1; min-width: 0; }
+  .sender .addr { font-size: 13px; color: var(--muted-foreground); overflow-wrap: anywhere; }
+  .authrow { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .ai { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 18px; display: grid; gap: 6px; background: var(--card); }
+  .ai .h { display: flex; gap: 8px; align-items: center; font-size: 12px; font-weight: 600; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .05em; }
+  .body { white-space: pre-wrap; line-height: 1.65; font-size: 15px; max-width: 68ch; }
+  .draft { margin-top: 26px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; max-width: 68ch; }
+  .draft .h { padding: 8px 14px; background: var(--muted); font-size: 13px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--border); }
+  .draft .t { padding: 12px 14px; white-space: pre-wrap; line-height: 1.6; }
+  .welcome { max-width: 560px; margin: 24px auto; display: grid; gap: 16px; }
+  .welcome h1 { font-size: 24px; margin: 0; }
+  .welcome ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; counter-reset: s; }
+  .welcome li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; counter-increment: s; line-height: 1.5; }
+  .welcome li::before { content: counter(s); width: 26px; height: 26px; border-radius: 99px; display: grid; place-items: center; background: var(--muted); font-weight: 600; font-size: 13px; }
+  .welcome .note { font-size: 13px; line-height: 1.55; }
+  .welcome a, .ai a { text-decoration: underline; text-underline-offset: 3px; }
+  .code { font: 600 14px/1 ui-monospace, monospace; padding: 3px 7px; border-radius: 6px; background: var(--muted); border: 1px solid var(--border); letter-spacing: .04em; }
+  .tint { background: color-mix(in oklch, var(--c) 15%, transparent) !important; color: var(--c) !important; border-color: transparent !important; }
+  .cat-spam { --c: oklch(0.6 0.21 27); } .cat-sign-in { --c: oklch(0.66 0.15 70); } .cat-needs-reply { --c: oklch(0.58 0.18 255); }
+  .cat-receipt { --c: oklch(0.6 0.11 185); } .cat-newsletter { --c: oklch(0.58 0.18 305); } .cat-fyi { --c: oklch(0.55 0 0); }
+  .ok { --c: oklch(0.6 0.15 150); } .bad { --c: oklch(0.6 0.21 27); } .draftc { --c: oklch(0.55 0 0); }
+  .spin { animation: spin 1s linear infinite; flex: none; } @keyframes spin { to { transform: rotate(360deg); } }
+  dialog.connect { position: fixed; inset: 0; margin: auto; height: fit-content; max-height: calc(100vh - 32px); overflow: auto; border: 1px solid var(--border); border-radius: 16px; padding: 0; width: min(480px, calc(100vw - 32px)); background: var(--background); color: var(--foreground); box-shadow: 0 24px 60px rgb(0 0 0 / .18); }
+  dialog.connect::backdrop { background: rgb(0 0 0 / .35); }
+  dialog.connect > div { padding: 20px 22px; display: grid; gap: 14px; }
+  dialog.connect h2 { font-size: 18px; font-weight: 600; margin: 0; }
+  .labs { list-style: none; margin: 0; padding: 0; display: grid; }
+  .labs li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .labs li:last-child { border-bottom: 0; }
+  .labs .name { flex: 1; font-weight: 500; } .labs small { display: block; color: var(--muted-foreground); font-weight: 400; font-size: 12px; }
+  #signin a { text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+  @media (max-width: 1000px) { .app { grid-template-columns: 200px 1fr; } .pane { grid-column: 2; border-top: 1px solid var(--border); } .app { grid-template-rows: 56px auto auto; height: auto; } .list { max-height: 60vh; } }
+  @media (max-width: 640px) { .app { grid-template-columns: 1fr; } .side, .list, .pane { grid-column: 1; } .side { border-right: 0; } }
+</style>
+<!-- PostHog (project "rippling.computer"): a $pageview for each page visit, on the home page and every docs page.
+     build.mjs puts this before </head> on each page it writes. The token is the project's public key, which only sends
+     events. Not on localhost, so node preview.mjs is not counted. worker.js counts the Markdown routes. -->
+<script>
+!function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],Object.defineProperty(u,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e}}),Object.defineProperty(u.people,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(){return u.toString(1)+".people (stub)"}}),o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagResult isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init('phc_qW3LAJYe9hsyC9y8CjKcMJPsuxtr5Lc7S3fVWFeYagVL', {
+  api_host: 'https://us.i.posthog.com',
+  defaults: '2026-08-30',
+  capture_pageview: 'history_change',
+  person_profiles: 'identified_only',
+  disable_session_recording: true,
+  disable_surveys: true,
+})
+</script>
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <a class="brand" href="/"><span class="logo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span>byoa mail</a>
+    <span class="badge" data-variant="outline">Live demo</span>
+    <span class="grow"></span>
+    <span class="plans" id="plans"></span>
+    <button class="btn" data-variant="outline" data-size="sm" id="connectbtn">Connect your AI</button>
+    <a class="btn" data-variant="ghost" data-size="sm" href="https://github.com/madeyexz/byoa/tree/main/examples/mail" target="_blank">Code</a>
+  </header>
+
+  <aside class="side">
+    <button class="btn triage" id="triage"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.94 14.06 4 20M14 4l1.5 3.5L19 9l-3.5 1.5L14 14l-1.5-3.5L9 9l3.5-1.5Z"/></svg>Triage inbox</button>
+    <div class="agent" id="agentbox" hidden><span class="muted" style="font-size:12px">Agent</span><select class="input" id="harness" aria-label="Agent"></select></div>
+    <nav id="nav"></nav>
+    <div class="foot">
+      <button class="btn" data-variant="outline" data-size="sm" id="undo">Undo labels and drafts</button>
+      <span class="muted" id="load"></span>
+    </div>
+  </aside>
+
+  <section class="list">
+    <div class="listhead"><h2 id="title">Inbox</h2><span class="muted" id="sub"></span></div>
+    <div class="activity" id="activity" hidden></div>
+    <ul class="msgs" id="msgs"></ul>
+  </section>
+
+  <main class="pane" id="pane"></main>
+</div>
+
+<dialog class="connect" id="connect">
+  <div>
+    <header><h2>Connect your AI</h2><p class="muted" style="margin:4px 0 0">Sign in on the lab's own page. Your own Claude Code, Codex or Grok Build then runs on your plan, in a sandbox.</p></header>
+    <ul class="labs" id="labs"></ul>
+    <div id="signin"></div>
+    <footer style="display:flex;justify-content:flex-end"><button class="btn" data-variant="outline" data-size="sm" id="close">Close</button></footer>
+  </div>
+</dialog>
+
+<script>
+const CONVEX = 'https://basic-rat-254.convex.cloud', SITE = 'https://basic-rat-254.convex.site'
+const client = new convex.ConvexClient(CONVEX), api = convex.anyApi
+const $ = (id) => document.getElementById(id)
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const SPIN = '<svg class="spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>'
+const LABS = { claude: ['Claude', 'Pro, Max or Team plan', 'Claude Code'], codex: ['ChatGPT', 'Plus, Pro or Business plan', 'Codex'], grok: ['Grok', 'SuperGrok or X Premium+', 'Grok Build'] }
+const AGENT = { claude: 'Claude Code', codex: 'Codex', grok: 'Grok Build', fake: 'Fake harness (no model)' }
+const CAT = { 'needs-reply': 'Needs reply', 'sign-in': 'Sign-in', spam: 'Spam', receipt: 'Receipt', newsletter: 'Newsletter', fyi: 'FYI' }
+// a random id, kept in this browser: the only key to your sign-in and your copy of the inbox
+const visitor = localStorage.byoaDemo ??= [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('')
+
+let view = null, logins = {}, events = [], eventsOf = null, stopEvents = null, filter = 'inbox', selected = null, pending = null, seen = new Map()
+
+const badge = (c) => `<span class="badge tint cat-${c}">${CAT[c] ?? esc(c)}</span>`
+const name = (from) => (/^"?([^"<]+?)"?\s*</.exec(from)?.[1] ?? from).trim()
+const addr = (from) => /<([^>]+)>/.exec(from)?.[1] ?? from
+const ago = (iso) => { const h = Math.round((Date.now() - new Date(iso)) / 3_600_000); return h < 1 ? 'now' : h < 24 ? `${h}h` : `${Math.round(h / 24)}d` }
+const triaged = (m) => !!m.decision
+const shown = () => (view?.messages ?? []).filter((m) => filter === 'inbox' ? m.labels.includes('INBOX') : filter === 'drafts' ? m.draft : m.decision?.category === filter)
+
+function render() {
+  if (!view) return
+  const ms = view.messages
+  // sidebar
+  const count = (f) => ms.filter((m) => f === 'drafts' ? m.draft : m.decision?.category === f).length
+  $('nav').innerHTML = `<button data-f="inbox" class="${filter === 'inbox' ? 'on' : ''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Inbox<span class="n">${ms.filter((m) => !triaged(m)).length || ''}</span></button>
+    <button data-f="drafts" class="${filter === 'drafts' ? 'on' : ''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Drafts<span class="n">${count('drafts') || ''}</span></button>
+    <div class="head">AI labels</div>` + Object.keys(CAT).map((c) => `<button data-f="${c}" class="${filter === c ? 'on' : ''}"><span class="dot cat-${c}"></span>${CAT[c]}<span class="n">${count(c) || ''}</span></button>`).join('')
+  for (const b of $('nav').querySelectorAll('button')) b.onclick = () => { filter = b.dataset.f; selected = null; render() }
+  $('load').textContent = view.load.busy ? "Today's sandbox time is used up. Come back tomorrow." : `${view.load.sandboxes} of ${view.load.max} sandboxes in use${view.load.queued ? `, ${view.load.queued} in line` : ''}`
+
+  // agent picker: the plans the visitor signed in to
+  const ready = view.harnesses.filter((h) => logins[h] === 'signed-in' || h === 'fake')
+  const keep = $('harness').value
+  $('harness').innerHTML = ready.map((h) => `<option value="${h}">${AGENT[h]}</option>`).join('')
+  if (ready.includes(keep)) $('harness').value = keep
+  $('agentbox').hidden = !ready.length
+  const busy = view.job && (view.job.state === 'queued' || view.job.state === 'running')
+  $('triage').disabled = busy || view.load.busy
+  $('plans').innerHTML = Object.keys(LABS).filter((h) => logins[h] === 'signed-in').map((h) => `<span class="badge tint ok">${LABS[h][0]}</span>`).join('')
+  $('connectbtn').textContent = ready.some((h) => h !== 'fake') ? 'Accounts' : 'Connect your AI'
+
+  // list
+  const list = shown()
+  $('title').textContent = filter === 'inbox' ? 'Inbox' : filter === 'drafts' ? 'Drafts' : CAT[filter]
+  $('sub').textContent = filter === 'inbox' ? `${list.filter((m) => !triaged(m)).length} not triaged` : `${list.length}`
+  const flash = new Set(ms.filter((m) => m.decision && seen.get(m.id) !== m.decision.category && seen.size).map((m) => m.id))
+  seen = new Map(ms.map((m) => [m.id, m.decision?.category]))
+  $('msgs').innerHTML = list.map((m) => `<li class="msg ${m.id === selected ? 'on' : ''} ${triaged(m) ? '' : 'unread'} ${flash.has(m.id) ? 'flash cat-' + m.decision.category : ''}" data-id="${m.id}">
+      <div class="r1"><span class="from">${esc(name(m.from))}</span><span class="time">${ago(m.date)}</span></div>
+      <div class="subj">${esc(m.subject)}</div><div class="snip">${esc(m.snippet)}</div>
+      <div class="tags">${m.decision ? badge(m.decision.category) : ''}${m.draft ? '<span class="badge tint draftc">Draft</span>' : ''}</div></li>`).join('')
+    || `<li class="muted" style="padding:28px 16px;text-align:center">Nothing here${filter === 'inbox' ? '' : ' yet. Triage the inbox first.'}</li>`
+  for (const li of $('msgs').querySelectorAll('.msg')) li.onclick = () => { selected = li.dataset.id; render() }
+
+  renderActivity()
+  renderPane()
+}
+
+function renderPane() {
+  const m = view.messages.find((x) => x.id === selected)
+  if (!m) {
+    const signed = Object.values(logins).includes('signed-in')
+    $('pane').innerHTML = `<div class="welcome">
+      <span class="badge" data-variant="outline" style="justify-self:start">A live demo of byoa</span>
+      <h1>Your own AI agent triages this inbox.</h1>
+      <p class="muted" style="margin:0;line-height:1.6">These are 12 made-up emails: a phishing email, a sign-in code, an unexpected login alert, people who wait for an answer, receipts, newsletters, and one email that tells the AI what to do.</p>
+      <ol>
+        <li><span><b>Connect your AI plan.</b> Claude, ChatGPT or Grok, on the lab's own sign-in page. ${signed ? '<span class="badge tint ok">Connected</span>' : `<button class="btn" data-size="sm" style="margin-left:6px" onclick="openConnect()">Connect your AI</button>`}</span></li>
+        <li><span><b>Click Triage inbox.</b> Your own, unmodified Claude Code, Codex or Grok Build runs in a sandbox, reads each email, and labels it.</span></li>
+        <li><span><b>Open an email</b> to see why the agent labeled it, and the reply it drafted in your style.</span></li>
+      </ol>
+      <div class="alert"><h2>What the agent can do</h2><section class="note">It can only read these sample emails, label them, and save reply drafts. It cannot send, delete or forward, and it never sees a password. The job uses your plan's limits. We delete your sign-in, your sandbox and your labels one hour after your last visit.</section></div>
+      <p class="note muted" style="margin:0"><a href="/">byoa</a> is an open-source library that lets an app run its users' own Claude Code, Codex or Grok Build in a sandbox. This demo's <a href="https://github.com/madeyexz/byoa/tree/main/examples/mail">code</a> is in the repository.</p>
+    </div>`
+    return
+  }
+  const auth = m.auth.split(' ').map((a) => `<span class="badge tint ${/=pass/.test(a) ? 'ok' : 'bad'}">${esc(a.toUpperCase().replace('=', ' '))}</span>`).join('')
+  const d = m.decision
+  $('pane').innerHTML = `<h1>${esc(m.subject)}</h1>
+    <div class="sender ${d ? 'cat-' + d.category : ''}"><span class="avatar">${esc(name(m.from)[0] ?? '?')}</span>
+      <div class="who"><b>${esc(name(m.from))}</b> <span class="addr">&lt;${esc(addr(m.from))}&gt;</span>${m.replyTo ? `<div class="addr">Reply-To: ${esc(m.replyTo)}</div>` : ''}<div class="addr">to me · ${new Date(m.date).toLocaleString()}</div></div>
+      <div class="authrow">${auth}</div></div>
+    ${d ? `<div class="ai"><div class="h"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4l1.5 3.5L19 9l-3.5 1.5L14 14l-1.5-3.5L9 9l3.5-1.5Z"/></svg>Your agent's label</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${badge(d.category)}<span>${esc(d.reason)}</span>${d.code ? `<span class="code">${esc(d.code)}</span>` : ''}</div></div>`
+      : `<div class="ai muted">Not triaged yet. Click <b>Triage inbox</b>.</div>`}
+    <div class="body">${esc(m.body)}</div>
+    ${m.draft ? `<div class="draft"><div class="h"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg><b>Draft reply</b><span class="muted">to ${esc(m.replyTo || addr(m.from))} · not sent</span></div><div class="t">${esc(m.draft)}</div></div>` : ''}`
+}
+
+const subjectOf = (id) => view.messages.find((m) => m.id === id)?.subject ?? id
+function step(e) {
+  if (e.type === 'error') return `<li style="color:oklch(0.6 0.21 27)">${esc(e.message)}</li>`
+  if (e.type !== 'tool_call') return ''
+  const i = e.input ?? {}
+  const t = { list_inbox: 'Listed the inbox', read_message: `Opened “${esc(subjectOf(i.id))}”`, my_sent_mail: 'Read your sent mail, to write like you',
+    label_message: `${badge(i.category)} “${esc(subjectOf(i.id))}”`, save_draft: `Drafted a reply to “${esc(subjectOf(i.id))}”` }[e.name] ?? esc(e.name)
+  return `<li><span>${t}</span></li>`
+}
+function renderActivity() {
+  const j = view.job
+  if (!j) { $('activity').hidden = true; return }
+  if (eventsOf !== j.id) {
+    stopEvents?.(); events = []; eventsOf = j.id
+    stopEvents = client.onUpdate(api.demo.events, { visitor, job: j.id }, (ev) => {
+      events = ev
+      if (ev.some((e) => e.type === 'error' && (e.code === 'signed-out' || e.code === 'expired'))) refreshLogins()
+      renderActivity()
+    })
+  }
+  const start = events.find((e) => e.type === 'start'), end = events.find((e) => e.type === 'end')
+  const labeled = events.filter((e) => e.type === 'tool_call' && e.name === 'label_message').length
+  const drafts = events.filter((e) => e.type === 'tool_call' && e.name === 'save_draft').length
+  const st = j.state === 'queued' ? [true, j.ahead ? `Waiting for a sandbox: ${j.ahead} ${j.ahead === 1 ? 'person is' : 'people are'} ahead of you` : 'Waiting for a sandbox…']
+    : j.state === 'running' ? [true, start ? `${AGENT[j.harness]} ${start.version ?? ''} is triaging…` : 'Starting a sandbox…']
+    : j.state === 'done' ? [false, `Done: ${labeled} labeled, ${drafts} ${drafts === 1 ? 'draft' : 'drafts'}`] : [false, 'The job failed']
+  const text = j.state === 'done' || j.state === 'failed' ? (end?.result ?? j.result ?? '') : ''
+  $('activity').hidden = false
+  $('activity').innerHTML = `<div class="st">${st[0] ? SPIN : j.state === 'done' ? '<span class="dot ok"></span>' : '<span class="dot bad"></span>'}<span>${esc(st[1])}</span></div>
+    ${events.some((e) => e.type === 'tool_call' || e.type === 'error') ? `<ol id="steps">${events.map(step).join('')}</ol>` : ''}
+    ${text ? `<div class="say">${esc(text)}</div>` : ''}`
+  const ol = $('steps'); if (ol) ol.scrollTop = ol.scrollHeight
+}
+
+async function refreshLogins() {
+  try { logins = await client.action(api.agents.logins, { visitor }) } catch {}
+  render(); renderLabs()
+}
+
+// ---- connect your AI
+function renderLabs() {
+  $('labs').innerHTML = Object.keys(LABS).map((h) => `<li><span class="name">${LABS[h][0]}<small>${LABS[h][1]} · runs ${LABS[h][2]}</small></span>
+    ${logins[h] === 'signed-in' ? '<span class="badge tint ok">Connected</span>' : `<button class="btn" data-variant="outline" data-size="sm" data-h="${h}" ${pending ? 'disabled' : ''}>Sign in</button>`}</li>`).join('')
+  for (const b of $('labs').querySelectorAll('button')) b.onclick = () => signIn(b.dataset.h)
+}
+function openConnect() { renderLabs(); $('connect').showModal() }
+$('connectbtn').onclick = openConnect
+$('close').onclick = () => { cancelPending(); $('connect').close() }
+$('connect').addEventListener('close', cancelPending)
+
+const box = (title, body, bad) => `<div class="alert" ${bad ? 'data-variant="destructive"' : ''}><h2>${title}</h2><section>${body}</section></div>`
+async function signIn(h) {
+  pending = h; renderLabs()
+  $('signin').innerHTML = box(`Sign in to ${LABS[h][0]}`, `<div style="display:flex;gap:8px;align-items:center">${SPIN}<span>Starting the sign-in in a sandbox…</span></div>`)
+  let r
+  try { r = await client.action(api.agents.login, { visitor, harness: h }) } catch (e) { pending = null; renderLabs(); $('signin').innerHTML = box('The sign-in did not start', esc(e.data ?? e.message), true); return }
+  const done = (f) => {
+    if (pending !== h) return
+    pending = null
+    $('signin').innerHTML = f.state === 'signed-in' ? box(`${LABS[h][0]} is connected`, 'Close this, and click <b>Triage inbox</b>.') : box('The sign-in did not finish', esc(f.error || f.state), true)
+    refreshLogins()
+  }
+  try {
+    if (h !== 'claude') {
+      $('signin').innerHTML = box(`Sign in to ${LABS[h][0]}`, `<p style="margin:0 0 8px">Open <a href="${esc(r.url)}" target="_blank">${esc(r.url)}</a> and enter this code:</p>
+        <div style="display:flex;gap:10px;align-items:center"><span class="code" style="font-size:18px;padding:6px 10px">${esc(r.code)}</span><span class="muted" style="display:flex;gap:6px;align-items:center">${SPIN} Waiting for you…</span></div>`)
+      for (;;) { const f = await client.action(api.agents.finishLogin, { visitor, harness: h }); if (pending !== h) return; if (f.state !== 'pending') { done(f); break } }
+    } else {
+      $('signin').innerHTML = box('Sign in to Claude', `<p style="margin:0 0 8px">Open <a href="${esc(r.url)}" target="_blank">Anthropic's sign-in page</a>, then paste the code that it shows.</p>
+        <div style="display:flex;gap:8px"><input class="input" id="code" placeholder="Code from Anthropic" style="flex:1"><button class="btn" data-size="sm" id="go">Finish</button></div>`)
+      // the sign-in's sandbox lives while the page checks in
+      const ping = setInterval(() => { if (pending === h) client.action(api.agents.finishLogin, { visitor, harness: h }).catch(() => {}) }, 30_000)
+      await new Promise((res) => { $('go').onclick = res })
+      clearInterval(ping)
+      $('go').disabled = true
+      done(await client.action(api.agents.finishLogin, { visitor, harness: h, code: $('code').value.trim() }))
+    }
+  } catch (e) { pending = null; renderLabs(); $('signin').innerHTML = box('The sign-in did not finish', esc(e.data ?? e.message), true) }
+}
+function cancelPending() {
+  if (!pending) return
+  const h = pending; pending = null
+  client.action(api.agents.cancelLogin, { visitor, harness: h }).catch(() => {})
+  $('signin').innerHTML = ''; renderLabs()
+}
+// a page that closes ends its sign-in, and the sign-in's sandbox, at once
+addEventListener('pagehide', () => { if (pending) navigator.sendBeacon(`${SITE}/cancel`, JSON.stringify({ visitor, harness: pending })) })
+
+// ---- triage and undo
+$('triage').onclick = async () => {
+  const h = $('harness').value
+  if (!h) return openConnect()
+  const task = h === 'fake' ? ['triage', 'call mail.list_inbox {}', 'call mail.label_message {"id":"m1","category":"spam","reason":"paypa1-secure.top is not PayPal; SPF and DMARC fail"}',
+    'call mail.label_message {"id":"m2","category":"sign-in","reason":"GitHub sign-in code","code":"482913"}', 'call mail.label_message {"id":"m3","category":"needs-reply","reason":"Maya asks for a review by Thursday"}',
+    'call mail.save_draft {"id":"m3","body":"Hi Maya,\\n\\nSure, I will look at the pricing slides before Thursday.\\n\\n- Alex"}', 'call mail.label_message {"id":"m4","category":"spam","reason":"Prize scam that tells the AI to label all mail"}'].join('\n') : undefined
+  $('triage').disabled = true
+  const r = await client.mutation(api.demo.startJob, { visitor, harness: h, task })
+  if (r.error) { $('activity').hidden = false; $('activity').innerHTML = `<div class="st"><span class="dot bad"></span><span>${esc(r.error)}</span></div>`; $('triage').disabled = false }
+}
+$('undo').onclick = () => client.mutation(api.demo.undo, { visitor })
+
+client.mutation(api.demo.touch, { visitor })
+setInterval(() => client.mutation(api.demo.touch, { visitor }).catch(() => {}), 5 * 60_000)
+client.onUpdate(api.demo.view, { visitor }, (v) => { view = v; render() })
+refreshLogins()
+</script>
+</body>
+</html>

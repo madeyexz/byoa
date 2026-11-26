@@ -57,3 +57,22 @@ jobs:
         working-directory: examples/todo
       - run: npm test
         working-directory: examples/todo
+
+  example-mail:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            examples/mail/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: examples/mail
+      - run: npm run typecheck
+        working-directory: examples/mail
+      - run: npm test
+        working-directory: examples/mail

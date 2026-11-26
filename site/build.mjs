@@ -6,6 +6,7 @@
 //   `<!-- include: ../FILE.md#section -->` puts in another file's text, so each fact has one source;
 // - docs/<page>.md, the same pages as Markdown for LLMs, with each diagram as text, and llms.txt and llms-full.txt
 //   (https://llmstxt.org) from them, SPEC.md, the to-do example and the agent skill;
+// - demo.html, the live demo of the mail example (../examples/mail/demo.html, whose backend is on Convex);
 // - sitemap.xml.
 // Each HTML page gets posthog.html (PostHog page views) before </head>.
 // Run from site/: npm install && node build.mjs. worker.js (the Cloudflare Worker "byoa-site") serves these files,
@@ -466,9 +467,13 @@ ${FULL.map(([p, url, text, lang]) => {
 write('llms.txt', llms)
 write('llms-full.txt', full)
 
+// ---- demo.html: the mail example's live demo, a static page that talks to its Convex deployment
+const demo = read('examples/mail/demo.html')
+write('demo.html', demo.replace('</head>', () => `${posthog}</head>`))
+
 // ---- sitemap.xml: the pages for search engines
 write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${['/', ...PAGES.map((p) => pageUrl(p.file)), '/llms.txt', '/llms-full.txt'].map((p) => `  <url><loc>${SITE}${p}</loc></url>`).join('\n')}
+${['/', '/demo', ...PAGES.map((p) => pageUrl(p.file)), '/llms.txt', '/llms-full.txt'].map((p) => `  <url><loc>${SITE}${p}</loc></url>`).join('\n')}
 </urlset>
 `)

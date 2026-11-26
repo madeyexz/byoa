@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>byoa mail</title>
+<!-- Basecoat: shadcn/ui's components as plain CSS classes, so this page needs no build step (https://basecoatui.com) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basecoat-css@1.1.0/dist/basecoat.cdn.min.css" integrity="sha384-pGk605ml41MkC5v6mwKQprSH7YgU5ZhqFrTH+liRoLfHsuOg7bGreN2+Dcb63/Ur" crossorigin="anonymous">
+<style>
+  body { background: var(--muted); color: var(--foreground); margin: 0; }
+  main { max-width: 980px; margin: 0 auto; padding: 40px 20px 64px; display: grid; gap: 20px; }
+  [hidden] { display: none !important; }
+  .top { display: grid; gap: 10px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+  .logo { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--primary); color: var(--primary-foreground); }
+  .lead { color: var(--muted-foreground); margin: 0; max-width: 70ch; line-height: 1.55; }
+  .lead a { color: var(--foreground); text-decoration: underline; text-underline-offset: 3px; }
+  .grid { display: grid; gap: 20px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .muted { color: var(--muted-foreground); font-size: 14px; }
+  .plans { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .plans li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .plans li:last-child { border-bottom: 0; }
+  .plans .lab { flex: 1; font-weight: 500; font-size: 14px; }
+  .plans .lab small { display: block; font-weight: 400; color: var(--muted-foreground); font-size: 12px; }
+  #signin { margin-top: 12px; }
+  #signin a { text-decoration: underline; text-underline-offset: 3px; word-break: break-all; }
+  .code { font: 600 15px/1 var(--font-mono, ui-monospace, monospace); padding: 4px 8px; border-radius: 6px; background: var(--muted); border: 1px solid var(--border); letter-spacing: 0.04em; }
+  .ok { --c: oklch(0.6 0.15 150); } .bad { --c: oklch(0.6 0.2 27); }
+  .tint { background: color-mix(in oklch, var(--c) 16%, transparent) !important; color: var(--c) !important; border-color: transparent !important; }
+  .cat-spam { --c: oklch(0.6 0.21 27); } .cat-sign-in { --c: oklch(0.65 0.15 70); } .cat-needs-reply { --c: oklch(0.58 0.18 255); }
+  .cat-receipt { --c: oklch(0.6 0.11 185); } .cat-newsletter { --c: oklch(0.58 0.18 305); } .cat-fyi { --c: oklch(0.55 0 0); }
+  .table-wrap { overflow-x: auto; }
+  .table td { vertical-align: top; }
+  .table td:first-child { width: 128px; white-space: nowrap; }
+  .subject { font-weight: 500; }
+  .why { color: var(--muted-foreground); font-size: 14px; }
+  .draft { margin-top: 8px; padding: 8px 10px; border-left: 3px solid oklch(0.58 0.18 255); background: var(--muted); border-radius: 6px; color: var(--foreground); font-size: 14px; white-space: pre-wrap; }
+  .draft b { display: block; font-size: 12px; color: var(--muted-foreground); font-weight: 500; margin-bottom: 2px; }
+  .status { display: flex; gap: 8px; align-items: center; min-height: 20px; margin-top: 12px; }
+  .spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+  #result:not(:empty) { margin-top: 12px; }
+  details { margin-top: 12px; } summary { cursor: pointer; font-size: 14px; color: var(--muted-foreground); }
+  #log { white-space: pre-wrap; font: 12px/1.5 var(--font-mono, ui-monospace, monospace); background: var(--muted); padding: 10px 12px; border-radius: 8px; max-height: 240px; overflow: auto; margin: 8px 0 0; }
+  .row select.input { width: auto; flex: 0 0 auto; min-width: 180px; }
+</style>
+</head>
+<body>
+<main>
+<header class="top">
+  <div class="brand">
+    <span class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span>
+    <h1>byoa mail</h1>
+    <span class="badge" data-variant="outline" id="mode">Your Gmail</span>
+  </div>
+  <p class="lead" id="intro">Your own Claude Code, Codex or Grok Build triages your Gmail inbox in a sandbox. It can only read mail, add labels under <b>AI/</b>, and save reply drafts; nothing is deleted or sent. <b>Undo</b> removes every label and draft it added.</p>
+  <div class="row" id="who"><label class="label" for="user">User</label><input class="input" id="user" style="width:160px"></div>
+</header>
+
+<div class="grid">
+  <section class="card" id="gmailstep">
+    <header><h2>1. Gmail</h2><p>The agent reads mail through this app's tools. It never gets a Google token.</p></header>
+    <section class="row"><span id="gmail" class="badge"></span><span id="email" class="muted"></span><button class="btn" data-variant="outline" data-size="sm" id="connect">Connect Gmail</button></section>
+  </section>
+  <section class="card" id="demostep" hidden>
+    <header><h2>1. The sample inbox</h2><p>12 made-up emails: a phishing email, a sign-in code, an unexpected login, people who wait for an answer, receipts, newsletters, and an email that tells the AI what to do.</p></header>
+    <section class="row" id="cats"></section>
+  </section>
+  <section class="card">
+    <header><h2>2. Your AI plan</h2><p>Sign in on the lab's own page. The job runs on your own plan.</p></header>
+    <section><ul class="plans" id="plans"></ul><div id="signin" hidden></div></section>
+  </section>
+</div>
+
+<section class="card">
+  <header><h2>3. Triage</h2><p>One job: the agent labels each email and drafts replies. It cannot delete, send or forward.</p></header>
+  <section>
+    <div class="row">
+      <select class="input" id="harness" aria-label="Agent"></select>
+      <button class="btn" id="triage">Triage my inbox</button>
+      <button class="btn" data-variant="outline" id="undo">Undo labels and drafts</button>
+    </div>
+    <div class="status muted" id="status"></div>
+    <div id="result"></div>
+    <details id="logbox" hidden><summary>Tool calls</summary><pre id="log"></pre></details>
+  </section>
+</section>
+
+<section class="card">
+  <header><h2 id="dechead">Decisions</h2></header>
+  <section class="table-wrap">
+    <table class="table"><thead><tr><th>Label</th><th>Message</th><th>Why</th></tr></thead><tbody id="decisions"></tbody></table>
+  </section>
+</section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id)
+const LABS = { claude: ['Claude', 'Claude Code'], codex: ['ChatGPT', 'Codex'], grok: ['Grok', 'Grok Build, with SuperGrok or X Premium+'] }
+const AGENT = { claude: 'Claude Code', codex: 'Codex', grok: 'Grok Build', fake: 'Fake harness' }
+const CAT = { spam: 'Spam', 'sign-in': 'Sign-in', 'needs-reply': 'Needs reply', receipt: 'Receipt', newsletter: 'Newsletter', fyi: 'FYI' }
+const SPIN = '<svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>'
+let demo = null, pending = null
+$('user').value = localStorage.user || 'me'
+$('user').onchange = () => { localStorage.user = $('user').value; refresh() }
+const send = async (method, path, body) => {
+  const r = await fetch(path, { method, headers: { 'x-user': $('user').value, 'content-type': 'application/json' }, body: body && JSON.stringify(body) })
+  if (r.headers.get('content-type')?.includes('json')) { const j = await r.json(); if (!r.ok) throw new Error(j.error); return j }
+  if (!r.ok) throw new Error(await r.text())
+  return r
+}
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const status = (text, busy = false) => { $('status').innerHTML = (busy ? SPIN : '') + `<span>${esc(text)}</span>` }
+const badge = (c) => `<span class="badge tint cat-${c}">${CAT[c] ?? esc(c)}</span>`
+const state = (s) => s === 'signed-in' ? '<span class="badge tint ok">Signed in</span>'
+  : s === 'expired' ? '<span class="badge tint bad">Expired</span>' : '<span class="badge" data-variant="secondary">Signed out</span>'
+
+const row = (d, m) => `<tr><td>${d ? badge(d.category) + (d.archived ? '<div class="muted">archived</div>' : '') : '<span class="muted">Not triaged</span>'}</td>
+    <td><div class="subject">${esc(m.subject)}</div><div class="muted">${esc(m.sender ?? m.from)}</div></td>
+    <td class="why">${d ? esc(d.reason) + (d.code ? ` <span class="code">${esc(d.code)}</span>` : '') : ''}${d?.draft ? `<div class="draft"><b>Draft reply, not sent</b>${esc(d.draft)}</div>` : ''}</td></tr>`
+
+async function refresh() {
+  if (demo === null) {
+    demo = await fetch('/api/demo').then((r) => r.ok ? r.json() : false, () => false)
+    if (demo) {
+      $('who').hidden = true; $('gmailstep').hidden = true; $('demostep').hidden = false; $('dechead').textContent = 'The inbox'
+      $('mode').textContent = 'Live demo'
+      $('intro').innerHTML = `A live demo of <a href="https://byoa.rippling.computer">byoa</a>. Sign in with your own Claude, ChatGPT or Grok plan, on the lab's own page, and your own, unmodified Claude Code, Codex or Grok Build triages a sample inbox in a sandbox: it labels each email and drafts replies. It can only read the sample mail, label it and save drafts. The job uses your plan's limits. We delete your sign-in, sandbox and labels one hour after your last visit. <a href="https://github.com/madeyexz/byoa/tree/main/examples/mail">The code</a>`
+      $('cats').innerHTML = Object.keys(CAT).map(badge).join('')
+      $('triage').textContent = 'Triage the sample inbox'
+    }
+  }
+  const s = await send('GET', '/api/state')
+  $('gmail').outerHTML = s.gmail === 'connected' ? '<span id="gmail" class="badge tint ok">Connected</span>'
+    : `<span id="gmail" class="badge ${s.gmail === 'expired' ? 'tint bad' : ''}" ${s.gmail === 'expired' ? '' : 'data-variant="secondary"'}>${s.gmail === 'expired' ? 'Expired' : 'Not connected'}</span>`
+  $('email').textContent = s.email || ''
+  $('connect').textContent = s.gmail === 'connected' ? 'Connect again' : 'Connect Gmail'
+  $('plans').innerHTML = Object.keys(LABS).map((h) => `<li><span class="lab">${LABS[h][0]}<small>${LABS[h][1]}</small></span>${state(s.login[h])}
+    ${s.login[h] === 'signed-in' ? '' : `<button class="btn" data-variant="outline" data-size="sm" data-h="${h}">Sign in</button>`}</li>`).join('')
+  for (const b of $('plans').querySelectorAll('button')) b.onclick = () => signIn(b.dataset.h)
+  const keep = $('harness').value
+  const ready = (h) => s.login[h] === 'signed-in' || h === 'fake'
+  $('harness').innerHTML = (s.harnesses.some(ready) ? '' : '<option value="">Sign in to a plan first</option>')
+    + s.harnesses.map((h) => `<option value="${h}" ${ready(h) ? '' : 'disabled'}>${AGENT[h] ?? h}</option>`).join('')
+  if (keep) $('harness').value = keep
+  $('triage').disabled = !$('harness').value
+  $('decisions').innerHTML = demo
+    ? demo.inbox.map((m) => row(s.decisions.find((d) => d.id === m.id), m)).join('')
+    : s.decisions.map((d) => row(d, d)).join('') || '<tr><td colspan="3" class="muted">Nothing triaged yet.</td></tr>'
+}
+
+$('connect').onclick = async () => { location.href = (await send('POST', '/api/gmail')).url }
+$('harness').onchange = () => { $('triage').disabled = !$('harness').value }
+
+const alert = (title, body, bad) => `<div class="alert" ${bad ? 'data-variant="destructive"' : ''}><h2>${title}</h2><section>${body}</section></div>`
+async function signIn(h) {
+  const box = $('signin'); box.hidden = false
+  box.innerHTML = alert(`Sign in to ${LABS[h][0]}`, `<div class="row">${SPIN}<span>Starting the sign-in in a sandbox…</span></div>`)
+  let r
+  try { r = await send('POST', '/api/login', { harness: h }) } catch (e) { box.innerHTML = alert('The sign-in did not start', esc(e.message), true); return }
+  pending = h
+  const done = (f) => { box.innerHTML = f.state === 'signed-in' ? '' : alert('The sign-in did not finish', esc(f.error || f.state), true); box.hidden = f.state === 'signed-in' }
+  if (h !== 'claude') {
+    box.innerHTML = alert(`Sign in to ${LABS[h][0]}`, `<p>Open <a href="${r.url}" target="_blank">${esc(r.url)}</a> and enter this code:</p>
+      <div class="row" style="margin-top:8px"><span class="code">${esc(r.code)}</span><span class="muted row">${SPIN} Waiting for you…</span></div>`)
+    for (;;) { const f = await send('POST', '/api/login/finish', { harness: h }); if (f.state !== 'pending') { done(f); break } }
+  } else {
+    box.innerHTML = alert('Sign in to Claude', `<p>Open <a href="${r.url}" target="_blank">Anthropic's sign-in page</a>, then paste the code that it shows.</p>
+      <div class="row" style="margin-top:8px"><input class="input" id="code" placeholder="Code from Anthropic" style="flex:1;min-width:200px"><button class="btn" data-size="sm" id="go">Finish</button></div>`)
+    await new Promise((res) => { $('go').onclick = res })
+    $('go').disabled = true
+    done(await send('POST', '/api/login/finish', { harness: h, code: $('code').value.trim() }))
+  }
+  pending = null
+  refresh()
+}
+// a page that closes ends its sign-in, and the sign-in's sandbox, at once (the demo's cookie names the visitor)
+addEventListener('pagehide', () => { if (pending) navigator.sendBeacon('/api/login/cancel', new Blob([JSON.stringify({ harness: pending })], { type: 'application/json' })) })
+
+$('triage').onclick = async () => {
+  $('triage').disabled = true; $('log').textContent = ''; $('logbox').hidden = true; $('result').innerHTML = ''; status('Starting the sandbox…', true)
+  try {
+    const r = await send('POST', '/api/triage', { harness: $('harness').value })
+    const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '', n = 0
+    for (;;) {
+      const { value, done } = await rd.read(); if (done) break
+      buf += dec.decode(value, { stream: true })
+      let i; while ((i = buf.indexOf('\n')) >= 0) {
+        const e = JSON.parse(buf.slice(0, i)); buf = buf.slice(i + 1)
+        if (e.type === 'queue') status(e.ahead ? `Waiting for a sandbox: ${e.ahead} ${e.ahead === 1 ? 'job is' : 'jobs are'} ahead of you…` : 'Starting the sandbox…', true)
+        if (e.type === 'start') status(`${AGENT[e.harness] ?? e.harness} ${e.version} is triaging…`, true)
+        if (e.type === 'tool_call') { $('logbox').hidden = false; $('log').textContent += `${e.name} ${e.name === 'label_message' ? JSON.stringify(e.input) : ''}\n`; if (e.name === 'label_message' || e.name === 'save_draft') { if (e.name === 'label_message') n++; refresh() } }
+        if (e.type === 'error') { $('logbox').hidden = false; $('log').textContent += `error: ${e.message}\n` }
+        if (e.type === 'end') { status(e.ok ? `Done: ${n} labeled.` : 'The job failed.'); $('result').innerHTML = e.result ? alert(e.ok ? 'The agent says' : 'The job failed', esc(e.result).replace(/\n/g, '<br>'), !e.ok) : '' }
+      }
+    }
+  } catch (e) { status(e.message) }
+  refresh()
+}
+
+$('undo').onclick = async () => {
+  if (!demo && !confirm('Remove every AI/ label and AI draft, and put archived spam back in the inbox?')) return
+  const r = await send('POST', '/api/undo'); status(`Removed the labels of ${r.unlabeled} messages and ${r.draftsDeleted} drafts.`); refresh()
+}
+refresh().catch((e) => status(e.message))
+</script>
+</body>
+</html>

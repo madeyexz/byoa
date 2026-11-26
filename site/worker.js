@@ -1,5 +1,5 @@
 // Cloudflare Worker "byoa-site" on byoa.rippling.computer. It serves the files that build.mjs writes in site/
-// (index.html, docs/, llms.txt, llms-full.txt, sitemap.xml) and site/art/ and site/fonts/, from the main branch, so a
+// (index.html, demo.html, docs/, llms.txt, llms-full.txt, sitemap.xml) and site/art/ and site/fonts/, from the main branch, so a
 // push that updates them (node build.mjs) updates the site with no redeploy. robots.txt and the IndexNow key are in
 // this file, and so are the PostHog counts of the Markdown routes. preview.mjs runs this Worker on the local files.
 const SITE = 'https://byoa.rippling.computer'
@@ -16,9 +16,11 @@ const FIXED = {
   '/29e28059ba0b5586340a36b5f331535d.txt': [TYPES.txt, '29e28059ba0b5586340a36b5f331535d'],
 }
 
-/** The file in site/ for a path, or null: / is index.html, /docs is docs/index.html, /docs/<page> is docs/<page>.html. */
+/** The file in site/ for a path, or null: / is index.html, /demo is demo.html, /docs is docs/index.html, /docs/<page> is
+ *  docs/<page>.html. */
 function fileOf(path) {
   if (path === '/' || path === '/index.html') return 'index.html'
+  if (path === '/demo' || path === '/demo/') return 'demo.html'
   if (path === '/docs' || path === '/docs/') return 'docs/index.html'
   const page = path.match(/^\/docs\/([\w-]+)\/?$/)
   if (page) return `docs/${page[1]}.html`

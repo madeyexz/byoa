@@ -1,0 +1,28 @@
+{
+  "name": "byoa-example-mail",
+  "private": true,
+  "description": "AI-native mail on byoa: the user's own Claude Code, Codex or Grok Build triages their Gmail inbox; the hosted demo triages a sample inbox on Convex.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node main.ts",
+    "test": "node --test mail.test.ts demo.test.ts",
+    "typecheck": "tsc && tsc -p convex",
+    "deploy": "convex deploy"
+  },
+  "dependencies": {
+    "@madeyexz/byoa": "file:../..",
+    "convex": "^1.51.0",
+    "e2b": "^2.64.0"
+  },
+  "optionalDependencies": {
+    "@daytona/sdk": "^2.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "convex-test": "^0.0.73",
+    "typescript": "^5.9.0"
+  }
+}

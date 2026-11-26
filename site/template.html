@@ -100,6 +100,7 @@
   .bul i { grid-row: span 2; font: 13px var(--pixel); font-style: normal; color: #fff; background: var(--cobalt); width: 30px; height: 30px; display: grid; place-items: center; }
   .bul b { font-weight: 600; font-size: 17px; letter-spacing: -.01em; }
   .bul span { color: var(--ink2); font-size: 15.5px; }
+  .bul span a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
   .bul a { text-decoration: none; }
   .bul a b { display: inline-flex; align-items: center; gap: 10px; }
   .bul a:hover b { color: var(--cobalt); }
@@ -271,7 +272,7 @@
       <ul class="bul">
         <li><i>1</i><a href="/docs/getting-started#install"><b>Install from npm <span class="chev"></span></b></a><span>Needs Node 22.18 or later, or Bun.</span></li>
         <li><i>2</i><a href="/docs/getting-started"><b>Write your first agent run <span class="chev"></span></b></a><span>Follow the getting started guide in the docs.</span></li>
-        <li><i>3</i><a href="{{repo}}/tree/main/examples/todo"><b>Run the to-do example <span class="chev"></span></b></a><span>An AI-native to-do list. Its backend uses byoa in 39 lines.</span></li>
+        <li><i>3</i><a href="/demo"><b>Try the live demo <span class="chev"></span></b></a><span>Sign in with your own Claude, ChatGPT or Grok plan, and your own agent triages a sample inbox. Or run <a href="{{repo}}/tree/main/examples/todo">the to-do example</a>.</span></li>
       </ul>
     </div>
     <div class="codepanel">
