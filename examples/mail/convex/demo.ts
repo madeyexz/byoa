@@ -4,7 +4,8 @@
 //   because the lab's sign-in code expires; jobs wait in line, first come first served, and the page shows the line;
 // - at most BUDGET_HOURS of sandbox time each day (UTC); then no new sign-in or job until the next day;
 // - PER_HOUR jobs and sign-ins for each visitor each hour, one job at a time, and only the app's own task;
-// - an hour after a visitor's last request, their AI logins, sandboxes and copy of the inbox are deleted (sweep).
+// - an hour after a visitor's last request, their AI logins, sandboxes and copy of the inbox are deleted (sweep), or
+//   at once when the visitor clicks Delete my data (agents.deleteData).
 // A visitor is a random id that the page keeps (128 bits): it is the only key to that visitor's login and mail.
 import { ConvexError, v } from 'convex/values'
 import { internal } from './_generated/api.js'
@@ -209,7 +210,17 @@ export const sweep = internalMutation({
   },
 })
 
-/** The last step of forgetting a visitor: their rows. The AI logins and sandboxes are gone already (agents.forget). */
+/** For sign-out and Delete my data (agents.ts): why not now, while the visitor's job (of `harness`) waits or runs. */
+export const idle = internalQuery({
+  args: { visitor: v.string(), harness: v.optional(v.string()) },
+  handler: async (ctx, a): Promise<{ error?: string }> => {
+    const j = await ctx.db.query('jobs').withIndex('by_visitor', (q) => q.eq('visitor', a.visitor)).order('desc').first()
+    if (j && (j.state === 'queued' || j.state === 'running') && (!a.harness || j.harness === a.harness)) return { error: 'Your triage job has not ended yet. Try again when it ends.' }
+    return {}
+  },
+})
+
+/** The last step of forgetting a visitor: their rows. The AI logins and sandboxes are gone already (agents.ts). */
 export const drop = internalMutation({
   args: { visitor: v.string() },
   handler: async (ctx, { visitor }) => {
@@ -218,8 +229,13 @@ export const drop = internalMutation({
       for (const e of await ctx.db.query('events').withIndex('by_job', (q) => q.eq('job', j._id)).collect()) await ctx.db.delete(e._id)
       if (j.state !== 'running' && j.state !== 'queued') await ctx.db.delete(j._id)
     }
-    for (const s of await ctx.db.query('signins').withIndex('by_visitor', (q) => q.eq('visitor', visitor)).collect()) if (!s.pending) await ctx.db.delete(s._id)
+    // a sign-in that has not finished: its sandbox is gone (agents.ts cancelLogin), so its time ends now
+    for (const s of await ctx.db.query('signins').withIndex('by_visitor', (q) => q.eq('visitor', visitor)).collect()) {
+      if (s.pending) await end(ctx, s)
+      await ctx.db.delete(s._id)
+    }
     const r = await ctx.db.query('visitors').withIndex('by_visitor', (q) => q.eq('visitor', visitor)).unique()
     if (r) await ctx.db.delete(r._id)
+    await pump(ctx)
   },
 })

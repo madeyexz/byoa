@@ -149,6 +149,7 @@
     <nav id="nav"></nav>
     <div class="foot">
       <button class="btn" data-variant="outline" data-size="sm" id="undo">Undo labels and drafts</button>
+      <button class="btn" data-variant="ghost" data-size="sm" id="forgetbtn">Delete my data</button>
       <span class="faint" id="load"></span>
     </div>
   </aside>
@@ -171,6 +172,14 @@
   </div>
 </dialog>
 
+<dialog class="connect" id="forget">
+  <div>
+    <header><h2>Delete your data?</h2><p>This signs you out of each AI plan you connected, and deletes your sandbox, your labels and drafts, and your agent's steps, now. The page then starts again, as for a new visitor.</p></header>
+    <div id="forgetmsg"></div>
+    <footer class="row" style="justify-content:flex-end"><button class="btn" data-variant="outline" data-size="sm" id="forgetno">Cancel</button><button class="btn" data-variant="destructive" data-size="sm" id="forgetyes">Delete my data</button></footer>
+  </div>
+</dialog>
+
 <script>
 const CONVEX = 'https://basic-rat-254.convex.cloud', SITE = 'https://basic-rat-254.convex.site'
 const client = new convex.ConvexClient(CONVEX), api = convex.anyApi
@@ -185,7 +194,7 @@ const CAT = { 'needs-reply': 'Needs reply', 'sign-in': 'Sign-in', spam: 'Spam', 
 // a random id, kept in this browser: the only key to your sign-in and your copy of the inbox
 const visitor = localStorage.byoaDemo ??= [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('')
 
-let view = null, logins = {}, events = [], eventsOf = null, stopEvents = null, filter = 'inbox', selected = null, pending = null, seen = new Map()
+let view = null, logins = {}, events = [], eventsOf = null, stopEvents = null, filter = 'inbox', selected = null, pending = null, out = null, seen = new Map()
 
 const badge = (c) => `<span class="badge tint cat-${c}">${CAT[c] ?? esc(c)}</span>`
 const name = (from) => (/^"?([^"<]+?)"?\s*</.exec(from)?.[1] ?? from).trim()
@@ -255,7 +264,8 @@ function renderPane() {
           <dt>my_sent_mail</dt><dd>Reads 10 sample sent emails, so that the drafts match a person's style.</dd>
           <dt>save_draft</dt><dd>Saves a reply draft. It does not send the draft.</dd>
         </dl>
-        <p>The agent cannot send, delete or forward an email, change a file, or connect to the network. It never sees a password. The job uses your plan's limits. We delete your sign-in, your sandbox and your labels one hour after your last visit.</p>
+        <p>The agent cannot send, delete or forward an email, change a file, or connect to the network. It never sees a password. The job uses your plan's limits.</p>
+        <p style="margin-top:8px">When you are done, sign out of a plan in <b>Accounts</b>, or click <b>Delete my data</b> to sign out of all of them and delete your sandbox, labels and drafts now. If you do not, we delete them one hour after your last visit.</p>
       </section></div>
       <p class="note muted"><a href="/">byoa</a> is an open-source library that lets an app run its users' own Claude Code, Codex or Grok Build in a sandbox. This demo's <a href="https://github.com/madeyexz/byoa/tree/main/examples/mail">code</a> is in the repository.</p>
     </div>`
@@ -316,8 +326,20 @@ async function refreshLogins() {
 // ---- connect your AI
 function renderLabs() {
   $('labs').innerHTML = Object.keys(LABS).map((h) => `<li><span class="name">${LABS[h][0]}<small>${LABS[h][1]} · runs ${LABS[h][2]}</small></span>
-    ${logins[h] === 'signed-in' ? '<span class="badge tint ok">Connected</span>' : `<button class="btn" data-variant="outline" data-size="sm" data-h="${h}" ${pending ? 'disabled' : ''}>Sign in</button>`}</li>`).join('')
-  for (const b of $('labs').querySelectorAll('button')) b.onclick = () => signIn(b.dataset.h)
+    ${logins[h] === 'signed-in' ? `<span class="badge tint ok">Connected</span><button class="btn" data-variant="outline" data-size="sm" data-out="${h}" ${pending || out ? 'disabled' : ''}>${out === h ? SPIN + 'Signing out…' : 'Sign out'}</button>`
+      : `<button class="btn" data-variant="outline" data-size="sm" data-h="${h}" ${pending || out ? 'disabled' : ''}>Sign in</button>`}</li>`).join('')
+  for (const b of $('labs').querySelectorAll('button[data-h]')) b.onclick = () => signIn(b.dataset.h)
+  for (const b of $('labs').querySelectorAll('button[data-out]')) b.onclick = () => signOut(b.dataset.out)
+}
+// signs out with the lab's own CLI in a sandbox, so the lab can revoke the login, and deletes the stored login
+async function signOut(h) {
+  out = h; renderLabs()
+  try {
+    await client.action(api.agents.signOut, { visitor, harness: h })
+    $('signin').innerHTML = box(`Signed out of ${LABS[h][0]}`, 'This page no longer has your login.')
+  } catch (e) { $('signin').innerHTML = box('The sign-out did not finish', esc(e.data ?? e.message), true) }
+  out = null
+  await refreshLogins()
 }
 function openConnect() { renderLabs(); $('connect').showModal() }
 $('connectbtn').onclick = openConnect
@@ -374,6 +396,23 @@ $('triage').onclick = async () => {
   if (r.error) { $('activity').hidden = false; $('activity').innerHTML = `<div class="st">${BADI}<span>${esc(r.error)}</span></div>`; $('triage').disabled = false }
 }
 $('undo').onclick = () => client.mutation(api.demo.undo, { visitor })
+
+// ---- delete my data: what the sweep deletes an hour after the last visit, now; then a new visitor id
+$('forgetbtn').onclick = () => { $('forgetmsg').innerHTML = ''; $('forget').showModal() }
+$('forgetno').onclick = () => $('forget').close()
+$('forgetyes').onclick = async () => {
+  for (const b of [$('forgetyes'), $('forgetno')]) b.disabled = true
+  $('forgetyes').innerHTML = `${SPIN}Deleting…`
+  try {
+    await client.action(api.agents.deleteData, { visitor })
+    localStorage.removeItem('byoaDemo')
+    location.reload()
+  } catch (e) {
+    $('forgetmsg').innerHTML = box('Your data is not deleted yet', esc(e.data ?? e.message), true)
+    for (const b of [$('forgetyes'), $('forgetno')]) b.disabled = false
+    $('forgetyes').textContent = 'Delete my data'
+  }
+}
 
 client.mutation(api.demo.touch, { visitor })
 setInterval(() => client.mutation(api.demo.touch, { visitor }).catch(() => {}), 5 * 60_000)
