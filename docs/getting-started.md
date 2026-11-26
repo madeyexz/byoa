@@ -12,16 +12,16 @@ This page takes you from `npm install` to a first agent job: one `agents` object
 
 Your app pays for the sandboxes, so your app needs its own account and API key at one sandbox provider. Make an account, make a key, and put the key in your backend's environment. Do not send the key to the browser.
 
-- **E2B**: [sign up](https://console.e2b.dev/sign-up), then copy a key from [API keys](https://console.e2b.dev/?tab=keys). byoa reads `E2B_API_KEY`. The free plan gives $100 of credit one time, runs 10 sandboxes at a time, and runs each sandbox for 1 hour at most ([pricing](https://e2b.dev/pricing)).
+- **E2B**: [sign up](https://console.e2b.dev/sign-up), then copy a key from [API keys](https://console.e2b.dev/?tab=keys). byoa reads `E2B_API_KEY`. The free plan gives $100 of credit one time and runs 10 sandboxes at a time; a paused sandbox does not count. A sandbox runs for 1 hour at most before it must pause, so one job can take at most 1 hour ([billing and limits](https://e2b.dev/docs/billing)).
 - **Daytona**: [sign up](https://app.daytona.io), then make a key in [API keys](https://app.daytona.io/dashboard/keys). byoa reads `DAYTONA_API_KEY`. A new account gets $200 of compute ([pricing](https://www.daytona.io/pricing)). On Tier 1 and 2, a sandbox can reach only [allowed domains](https://www.daytona.io/docs/en/network-limits).
-- **Instabox**: [sign up](https://dashboard.instabox.sh), then make a key in [API keys](https://dashboard.instabox.sh/dashboard/api-keys). byoa reads `INSTABOX_API_KEY`. The free plan runs 1 sandbox at a time, so 1 user's kept sandbox or 1 job ([pricing](https://instabox.sh/pricing)).
+- **Instabox**: [sign up](https://dashboard.instabox.sh), then make a key in [API keys](https://dashboard.instabox.sh/dashboard/api-keys). byoa reads `INSTABOX_API_KEY`. The free plan has 1 sandbox in all, also when it is stopped, so it is enough for 1 user's kept sandbox or 1 job ([limits](https://instabox.sh/docs/account/limits)).
 
 ```sh
 export E2B_API_KEY=e2b_...
 ```
 
 - With the variable set, `e2b()`, `daytona()` and `instabox()` read the key themselves. To give the key from somewhere else, such as your secret store, pass it: `e2b({ apiKey })`.
-- A Daytona key needs `write:sandboxes` and `delete:sandboxes`, and for `cliLogin` also `write:volumes` and `delete:volumes`. An Instabox key needs `machines:write` and `machines:delete`.
+- A Daytona key needs `write:sandboxes` and `delete:sandboxes`, and for `cliLogin` also `read:volumes`, `write:volumes` and `delete:volumes`. An Instabox key needs `machines:write` and `machines:delete`.
 - For development and tests, `localSandbox()` needs no key. It isolates nothing. See [Testing](testing.md).
 
 You need no AI key. Each user signs in to their own Claude, ChatGPT or Grok plan, and that plan pays for the AI. To compare the providers, see [Sandbox providers](providers.md).

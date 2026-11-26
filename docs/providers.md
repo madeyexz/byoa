@@ -42,7 +42,7 @@ Use `instabox({ apiKey?, apiUrl?, template?, snapshot?, timeoutMs? })`. It calls
 - byoa stops the user's sandbox after each job (not Instabox's pause), so the next job starts it again with its files and no process of the last one. A sandbox that paused itself (idle for 30 minutes, or at the plan's longest run) is booted again. A sandbox for one job is deleted after it, and at the latest at its `timeoutMs`.
 - byoa gives a sandbox none of your account's Vault items or org Secrets, and leaves its commands out of Instabox's command history, which would otherwise keep their output (and so the AI login that byoa reads back).
 - Instabox has no volumes, so `cliLogin` does not work there; the default stored login does. Instabox sandboxes reach every public domain, so a tunnel works for `proxyUrl`.
-- On the free plan, a workspace has one sandbox at a time (so one user with one kept sandbox, or one job), three starts a minute (byoa waits when Instabox answers 429), and a run of 2 hours at most before Instabox pauses the sandbox.
+- On the free plan, a workspace has one sandbox in all, also when it is stopped (so one user with one kept sandbox, or one job), and three starts a minute (byoa waits when Instabox answers 429). A run starts with 2 hours before Instabox pauses the sandbox, and grows to 8 hours at most while the sandbox is in use ([limits](https://instabox.sh/docs/account/limits)).
 
 ## The local sandbox
 
