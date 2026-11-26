@@ -118,17 +118,27 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
      *  it read under the lease. */
     async function take(user: string, h: HarnessName, alone = false, onWait?: (ahead: number) => void): Promise<{ lease: string; version: string; text: string }> {
       const id = randomToken(12), k = leaseKey(user, h)
+      /** A compare-and-set of this take wrote the lease, or may have. */
+      let tried = false
       return inLine(store, lineKey(user, h), async () => {
         const login = await store.get(loginKey(user, h))
         if (!login?.value) throw new Error(`byoa: ${h} is not signed in for this user`)
         const text = await open(await key, login.value, loginKey(user, h))
         const share = parallel && !alone && refreshDue(h, JSON.parse(text)) - now() > leaseMs
         const e = await store.get(k), l = readLease(e?.value)
+        // a cas of an earlier call wrote the lease and still answered an error or false (spec/tla/Store.tla): this job
+        // holds it, and read the login under it. A shared lease of a login that is due now goes back.
+        if (l.alone?.id === id || l.shared?.[id]) {
+          if (l.alone?.id === id || share) return { lease: id, version: login.version, text }
+          await give(user, h, id)
+          return undefined
+        }
         const free = !l.alone && (share ? !l.want : !Object.keys(l.shared ?? {}).length)
         if (free) {
           const until = now() + leaseMs
           const next: Lease = share ? { shared: { ...l.shared, [id]: until } } : { alone: { id, until } }
-          if (await store.cas(k, e?.version ?? null, JSON.stringify(next))) {
+          tried = true
+          if (await store.cas(k, e?.version ?? null, JSON.stringify(next)).catch(() => false)) {
             // a job that held the login alone saved a refresh between the two reads: decide again with the new login
             if ((await store.get(loginKey(user, h)))?.version === login.version) return { lease: id, version: login.version, text }
             await give(user, h, id)
@@ -139,6 +149,8 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
         if (!share && !l.alone && !l.want) await store.cas(k, e?.version ?? null, JSON.stringify({ ...l, want: now() + 5_000 }))
         return undefined
       }, { until: o.waitMs === undefined ? undefined : now() + o.waitMs, onWait }, () => new Error(`byoa: another job of this user still holds the ${h} login; try again when it ends`))
+        // the job does not get the login (waitMs passed, or the store failed): a lease that it may have written goes back
+        .catch(async (err) => { if (tried) await give(user, h, id).catch(() => {}); throw err })
     }
     async function give(user: string, h: HarnessName, id: string) {
       await update(store, leaseKey(user, h), (v) => {

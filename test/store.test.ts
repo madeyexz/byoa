@@ -12,6 +12,7 @@ import { convexFunctions, convexStore, convexTable } from '../src/store/convex.t
 import { keys } from '../src/keys.ts'
 import type { SandboxProvider } from '../src/sandbox/types.ts'
 import { slots } from '../src/slots.ts'
+import { clock, now } from '../src/time.ts'
 
 async function pg(): Promise<Store> {
   const db = new PGlite()
@@ -90,5 +91,51 @@ for (const lost of ['an error', 'false from a second send'] as const) {
     const sl = slots(store, { name: 'p' } as SandboxProvider, { leaseMs: 60_000, waitMs: 1_500 })
     const held = await sl.take('u', 'codex', '')
     assert.equal(JSON.parse((await mem.get(k))!.value).holder, held.holder)
+  })
+}
+
+// The job's heartbeat renews its slot every minute while the job starts (job.ts), also while set writes the new
+// sandbox: a renew that writes between set's read and its write must not make set fail, or the job ends, destroys the
+// new sandbox and never gives the slot back (spec/tla/Store.tla, Store_lease_main_beat).
+for (const until of ['a new sandbox', 'the slot given back'] as const) {
+  test(`slots.set with ${until}, while a renew of the same holder writes`, async () => {
+    const mem = memoryStore()
+    const sl = slots(mem, { name: 'p' } as SandboxProvider, { leaseMs: 60_000 })
+    const held = await sl.take('u', 'codex', '')
+    const t = until === 'a new sandbox' ? now() + 120_000 : 0
+    // the renew reads first and writes first: set read the slot before that write
+    const [, set] = await Promise.all([sl.renew(held, now() + 90_000), sl.set(held, 'sbx-new', t)])
+    assert.equal(set, true)
+    assert.deepEqual(JSON.parse((await mem.get(keys.slot('u', 'p', 'codex', '')))!.value), { sandbox: 'sbx-new', ...(t ? { holder: held.holder } : {}), until: t })
+  })
+}
+
+// A lost answer of take's cas, and the read after it fails too (the network is still down), or the job gives up
+// (waitMs) right after: the job holds the slot, or leaves no lease (Store_lease_main_getfail, _fixed_getfail).
+for (const then of ['the next read works', 'the job gives up'] as const) {
+  test(`slots.take: a cas that wrote but answered an error, and a read after it that failed, then ${then}: the job holds the slot or leaves no lease`, async () => {
+    const k = keys.slot('u', 'p', 'codex', '')
+    const mem = memoryStore()
+    let armed = true, failGets = 0
+    const real = clock.now
+    const store: Store = {
+      async get(key) { if (key === k && failGets > 0) { failGets--; throw new Error('connection refused') } return mem.get(key) },
+      put: (key, v) => mem.put(key, v), delete: (key) => mem.delete(key),
+      async cas(key, version, value) {
+        const wrote = await mem.cas(key, version, value)
+        if (!armed || key !== k || !wrote) return wrote
+        armed = false
+        failGets = 1
+        if (then === 'the job gives up') { const t = real() + 5_000; clock.now = () => t }
+        throw new Error('connection reset')
+      },
+    }
+    try {
+      const sl = slots(store, { name: 'p' } as SandboxProvider, { leaseMs: 60_000, waitMs: 1_500 })
+      const held = await sl.take('u', 'codex', '').catch(() => undefined)
+      const slot = JSON.parse((await mem.get(k))!.value)
+      if (then === 'the next read works') assert.equal(slot.holder, held?.holder, 'the job holds the slot')
+      else assert.ok(!held && slot.holder === undefined, `no lease of a job that did not get the slot: ${JSON.stringify(slot)}`)
+    } finally { clock.now = real }
   })
 }

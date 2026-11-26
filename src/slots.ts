@@ -19,47 +19,59 @@ export function slots(store: Store, provider: SandboxProvider, o: { leaseMs: num
   const changeIndex = (user: string, f: (list: Indexed[]) => Indexed[]) =>
     update(store, keys.slots(user, provider.name), (v) => JSON.stringify(f(v ? JSON.parse(v) : [])))
 
+  /** Changes the slot while `s.holder` holds it: the sandbox it has now, and a lease (`until`), or 0 to give it back.
+   *  False when it does not hold it (deleteSandbox removed it meanwhile). Set and renew try again while the holder
+   *  holds it, so a renew of the job's own heartbeat between the read and the write does not make it fail. */
+  async function set(s: Pick<Held, 'k' | 'holder'>, sandbox: string | undefined, until: number): Promise<boolean> {
+    for (;;) {
+      const e = await store.get(s.k)
+      if (!e || (JSON.parse(e.value) as Slot).holder !== s.holder) return false
+      if (await store.cas(s.k, e.version, JSON.stringify({ sandbox, ...(until ? { holder: s.holder } : {}), until } satisfies Slot))) return true
+    }
+  }
+
   return {
     /** Takes the user's sandbox of this harness and key, in line after the jobs that came first (R5.8). */
     async take(user: string, h: RunHarness, key: string, onWait?: (ahead: number) => void): Promise<Held> {
       const k = keys.slot(user, provider.name, h, key), holder = randomToken(12)
       const index = () => changeIndex(user, (l) => l.some(([x, y]) => x === h && y === key) ? l : [...l, [h, key]])
+      const mine = () => store.get(k).then((a) => !!a && (JSON.parse(a.value) as Slot).holder === holder, () => false)
+      /** The slot that this take's last compare-and-set wrote, or may have written. */
+      let tried: Slot | undefined
       return inLine(store, keys.slotLine(user, provider.name, h, key), async () => {
         const e = await store.get(k)
         // a new slot is in the index before it exists, so a backend that dies cannot leave one that no index lists;
         // and again after, in case a remove took it out of the index meanwhile (spec/tla/Index.tla)
         if (!e) await index()
         const cur: Slot = e ? JSON.parse(e.value) : { until: 0 }
-        if (cur.until >= now()) return undefined
         // a cas can write and still answer an error (the network failed after the commit), or false (the app's query
-        // function sent it again): then the slot names this holder, and the job holds it (spec/tla/Store.tla)
-        const mine = async () => { const a = await store.get(k); return !!a && (JSON.parse(a.value) as Slot).holder === holder }
-        const won = await store.cas(k, e?.version ?? null, JSON.stringify({ sandbox: cur.sandbox, holder, until: now() + o.leaseMs }))
-          .catch(async (err) => { if (await mine().catch(() => false)) return true; throw err })
-        if (won || (await mine())) {
-          if (!e) await index()
-          return { k, holder, sandbox: cur.sandbox }
+        // function sent it again): then the slot names this holder, and the job holds it. When the read after it fails
+        // too, the next call of this function finds it (spec/tla/Store.tla)
+        const held = cur.holder === holder && cur.until >= now()
+        if (!held) {
+          if (cur.until >= now()) return undefined
+          tried = { sandbox: cur.sandbox, holder, until: now() + o.leaseMs }
+          if (!(await store.cas(k, e?.version ?? null, JSON.stringify(tried)).catch(() => false)) && !(await mine())) return undefined
         }
-        return undefined
+        if (!e || held) await index()
+        return { k, holder, sandbox: cur.sandbox }
       }, { until: o.waitMs === undefined ? undefined : now() + o.waitMs, onWait },
       () => new Error(`byoa: another job of this user still holds the ${h} sandbox${key ? ` ${JSON.stringify(key)}` : ''}; try again when it ends`))
+        // the job does not get the slot (waitMs passed, or the store failed): a lease that it may have written goes back
+        .catch(async (err) => { if (tried) await set({ k, holder }, tried.sandbox, 0).catch(() => {}); throw err })
     },
 
-    /** Changes the slot while `s.holder` holds it: the sandbox it has now, and a lease (`until`), or 0 to give it
-     *  back. False when it does not hold it (deleteSandbox removed it meanwhile). */
-    async set(s: Held, sandbox: string | undefined, until: number): Promise<boolean> {
-      const e = await store.get(s.k)
-      if (!e || (JSON.parse(e.value) as Slot).holder !== s.holder) return false
-      return store.cas(s.k, e.version, JSON.stringify({ sandbox, ...(until ? { holder: s.holder } : {}), until } satisfies Slot))
-    },
+    set,
 
     /** Moves the end of `s.holder`'s lease to `until`, and keeps the sandbox the slot has. False when it does not hold
      *  the slot. */
     async renew(s: Held, until: number): Promise<boolean> {
-      const e = await store.get(s.k)
-      const cur = e && (JSON.parse(e.value) as Slot)
-      if (!cur || cur.holder !== s.holder) return false
-      return store.cas(s.k, e.version, JSON.stringify({ ...cur, until } satisfies Slot))
+      for (;;) {
+        const e = await store.get(s.k)
+        const cur = e && (JSON.parse(e.value) as Slot)
+        if (!cur || cur.holder !== s.holder) return false
+        if (await store.cas(s.k, e.version, JSON.stringify({ ...cur, until } satisfies Slot))) return true
+      }
     },
 
     /** Deletes the user's kept sandboxes at this provider: all of them, or those of one harness or one key. */
