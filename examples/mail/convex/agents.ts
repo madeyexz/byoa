@@ -98,9 +98,11 @@ export const runJob = internalAction({
 
 /** Sign-out and Delete my data end the visitor's sandboxes, so they refuse while the visitor's job is in line or runs
  *  (for sign-out, a job of that lab). A job ends within JOB_MS. */
-async function noJob(ctx: ActionCtx, visitor: string, harness?: (typeof LABS)[number]) {
-  const r: { error?: string } = await ctx.runQuery(internal.demo.idle, { visitor, harness })
+/** Throws while the visitor's job (of `harness`) waits or runs; else returns the visitor's `seen`. */
+async function noJob(ctx: ActionCtx, visitor: string, harness?: (typeof LABS)[number]): Promise<number> {
+  const r: { error?: string; seen?: number } = await ctx.runQuery(internal.demo.idle, { visitor, harness })
   if (r.error) throw new ConvexError(r.error)
+  return r.seen ?? 0
 }
 
 /** The visitor's "Sign out" of one lab: byoa's signOut, which signs out with the CLI, deletes the stored login and
@@ -116,14 +118,17 @@ export const signOut = action({
 
 /** Signs out each AI login with the CLI, ends a sign-in that has not finished, deletes the visitor's sandboxes, then
  *  their rows (demo.drop). `quiet`: go on after an error, for the sweep, which does not run again for this visitor. */
-async function forgetVisitor(ctx: ActionCtx, visitor: string, quiet: boolean) {
+async function forgetVisitor(ctx: ActionCtx, visitor: string, quiet: boolean, at: number) {
   const ag = agents(ctx), step = (p: Promise<unknown>) => quiet ? p.catch(() => {}) : p
   for (const h of LABS) {
     await step(ag.cancelLogin(visitor, h))
-    if (await ag.loginState(visitor, h) !== 'signed-out') await step(ag.signOut(visitor, h))
+    // also when the state says signed-out: a sign-in that finishes now saves its login before it sets its state.
+    // byoa's signOut starts a sandbox only when a login is stored
+    await step(ag.signOut(visitor, h))
   }
   await step(ag.deleteSandbox(visitor))
-  await ctx.runMutation(internal.demo.drop, { visitor })
+  const dropped: boolean = await ctx.runMutation(internal.demo.drop, { visitor, at })
+  if (!dropped && !quiet) throw new ConvexError('You used the demo while it deleted your data, so some of it may stay. Try again.')
 }
 
 /** The visitor's "Delete my data": the same as the sweep's forget, now. The page then forgets its visitor id. */
@@ -131,13 +136,13 @@ export const deleteData = action({
   args: { visitor: v.string() },
   handler: async (ctx, { visitor }): Promise<void> => {
     checkVisitor(visitor)
-    await noJob(ctx, visitor)
-    await forgetVisitor(ctx, visitor, false)
+    const at = await noJob(ctx, visitor)
+    await forgetVisitor(ctx, visitor, false, at)
   },
 })
 
 /** An hour after the visitor's last request (demo.sweep). */
 export const forget = internalAction({
-  args: { visitor: v.string() },
-  handler: (ctx, { visitor }) => forgetVisitor(ctx, visitor, true),
+  args: { visitor: v.string(), at: v.number() },
+  handler: (ctx, { visitor, at }) => forgetVisitor(ctx, visitor, true, at),
 })

@@ -102,8 +102,10 @@ export const startJob = mutation({
     if (!harnesses().includes(a.harness)) return { error: `harness: one of ${harnesses().join(', ')}` }
     const u = await usage(ctx)
     if (u.busy) return refused(ctx, a.visitor, 'job', BUDGET)
+    // the visitor's last job, also one that waited in line for more than an hour
+    const last = await ctx.db.query('jobs').withIndex('by_visitor', (q) => q.eq('visitor', a.visitor)).order('desc').first()
+    if (last && (last.state === 'queued' || last.state === 'running')) return { error: 'Your last job has not ended yet.' }
     const mine = await ctx.db.query('jobs').withIndex('by_visitor', (q) => q.eq('visitor', a.visitor).gt('at', Date.now() - HOUR)).collect()
-    if (mine.some((j) => j.state === 'queued' || j.state === 'running')) return { error: 'Your last job has not ended yet.' }
     if (mine.length >= u.perHour) return refused(ctx, a.visitor, 'job', 'Too many jobs this hour. Try again later.')
     // only the app's own task; the fake harness needs its `call` lines
     const job = await ctx.db.insert('jobs', { visitor: a.visitor, harness: a.harness, task: a.harness === 'fake' ? a.task : undefined, state: 'queued', at: Date.now() })
@@ -155,9 +157,11 @@ export const beginSignin = internalMutation({
     if (u.busy) return refused(ctx, a.visitor, 'login', BUDGET)
     const recent = await ctx.db.query('signins').withIndex('by_visitor', (q) => q.eq('visitor', a.visitor)).filter((q) => q.gt(q.field('at'), Date.now() - HOUR)).collect()
     if (recent.length >= u.perHour) return refused(ctx, a.visitor, 'login', 'Too many sign-ins this hour. Try again later.')
+    // the old sign-in of this lab ends (connectLogin ends its sandbox first), so its place is free, if it has one
     const old = await pendingSignin(ctx, a.visitor, a.harness)
+    const counted = old && old.seen > Date.now() - STALE_SIGNIN_MS ? 1 : 0
+    if (u.used - counted >= u.max) return refused(ctx, a.visitor, 'login', 'Too many people are signing in right now. Try again in a minute.')
     if (old) await end(ctx, old)
-    else if (u.used >= u.max) return refused(ctx, a.visitor, 'login', 'Too many people are signing in right now. Try again in a minute.')
     await ctx.db.insert('signins', { visitor: a.visitor, harness: a.harness, pending: true, at: Date.now(), seen: Date.now() })
     return {}
   },
@@ -202,9 +206,15 @@ export const sweep = internalMutation({
       await addUsage(ctx, JOB_MS)
     }
     for (const r of await ctx.db.query('visitors').withIndex('by_seen', (q) => q.lt('seen', now - FORGET_MS)).take(20)) {
+      const j = await ctx.db.query('jobs').withIndex('by_visitor', (q) => q.eq('visitor', r.visitor)).order('desc').first()
+      // a job that waited in line for the hour does not start: it would start a sandbox after the forget
+      if (j?.state === 'queued') await ctx.db.patch(j._id, { state: 'failed', ended: now, result: 'The job waited in line for an hour after your last visit, so the demo deleted your data.' })
+      // a job that runs ends within STALE_JOB_MS: look again in a minute
+      if (j?.state === 'running') { await ctx.db.patch(r._id, { seen: now - FORGET_MS }); continue }
       // not again for 10 minutes, while the action runs (it deletes the visitor at the end)
-      await ctx.db.patch(r._id, { seen: now - FORGET_MS + 10 * 60_000 })
-      await ctx.scheduler.runAfter(0, internal.agents.forget, { visitor: r.visitor })
+      const at = now - FORGET_MS + 10 * 60_000
+      await ctx.db.patch(r._id, { seen: at })
+      await ctx.scheduler.runAfter(0, internal.agents.forget, { visitor: r.visitor, at })
     }
     await pump(ctx)
   },
@@ -213,17 +223,23 @@ export const sweep = internalMutation({
 /** For sign-out and Delete my data (agents.ts): why not now, while the visitor's job (of `harness`) waits or runs. */
 export const idle = internalQuery({
   args: { visitor: v.string(), harness: v.optional(v.string()) },
-  handler: async (ctx, a): Promise<{ error?: string }> => {
+  handler: async (ctx, a): Promise<{ error?: string; seen?: number }> => {
     const j = await ctx.db.query('jobs').withIndex('by_visitor', (q) => q.eq('visitor', a.visitor)).order('desc').first()
     if (j && (j.state === 'queued' || j.state === 'running') && (!a.harness || j.harness === a.harness)) return { error: 'Your triage job has not ended yet. Try again when it ends.' }
-    return {}
+    const r = await ctx.db.query('visitors').withIndex('by_visitor', (q) => q.eq('visitor', a.visitor)).unique()
+    return { seen: r?.seen ?? 0 }
   },
 })
 
-/** The last step of forgetting a visitor: their rows. The AI logins and sandboxes are gone already (agents.ts). */
+/** The last step of forgetting a visitor: their rows. The AI logins and sandboxes are gone already (agents.ts).
+ *  `at`: the visitor's `seen` when the forget began. A visitor who made a request since then (a job, a sign-in) may
+ *  have a sandbox or a login that the forget did not see: then nothing goes (false), and the sweep forgets them an hour
+ *  after it. (A request changes `seen`, so this compares the value, not times, which can be the same millisecond.) */
 export const drop = internalMutation({
-  args: { visitor: v.string() },
-  handler: async (ctx, { visitor }) => {
+  args: { visitor: v.string(), at: v.number() },
+  handler: async (ctx, { visitor, at }): Promise<boolean> => {
+    const me = await ctx.db.query('visitors').withIndex('by_visitor', (q) => q.eq('visitor', visitor)).unique()
+    if (me && me.seen !== at) return false
     await reset(ctx, visitor)
     for (const j of await ctx.db.query('jobs').withIndex('by_visitor', (q) => q.eq('visitor', visitor)).collect()) {
       for (const e of await ctx.db.query('events').withIndex('by_job', (q) => q.eq('job', j._id)).collect()) await ctx.db.delete(e._id)
@@ -234,8 +250,8 @@ export const drop = internalMutation({
       if (s.pending) await end(ctx, s)
       await ctx.db.delete(s._id)
     }
-    const r = await ctx.db.query('visitors').withIndex('by_visitor', (q) => q.eq('visitor', visitor)).unique()
-    if (r) await ctx.db.delete(r._id)
+    if (me) await ctx.db.delete(me._id)
     await pump(ctx)
+    return true
   },
 })

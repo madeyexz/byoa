@@ -127,3 +127,113 @@ test("the agent's tools change only the visitor's own copy of the inbox, and und
   await t.mutation(api.demo.undo, { visitor: A })
   assert.equal((await view(t, A)).messages.filter((x: any) => x.decision || x.draft).length, 0)
 })
+
+// ---- found with the TLA+ model spec/tla/Demo.tla (V22)
+
+const visitorRow = (t: any, visitor: string) => t.run(async (ctx: any) => ctx.db.query('visitors').withIndex('by_visitor', (q: any) => q.eq('visitor', visitor)).unique())
+const ago = (t: any, visitor: string, ms: number) => t.run(async (ctx: any) => {
+  const r = await ctx.db.query('visitors').withIndex('by_visitor', (q: any) => q.eq('visitor', visitor)).unique()
+  await ctx.db.patch(r._id, { seen: Date.now() - ms })
+})
+
+test('the sweep never starts the job of a visitor it forgets, and waits while their job runs (Demo_main_queue)', async () => {
+  process.env.MAX_SANDBOXES = '3'
+  process.env.SIGNIN_PLACES = '1'
+  scheduled.length = 0
+  const t = convexTest(schema, modules)
+  const C = 'c'.repeat(32)
+  // two job places: B's job and C's job run, A's waits in line
+  const b = await t.mutation(api.demo.startJob, { visitor: B, harness: 'codex' })
+  const c = await t.mutation(api.demo.startJob, { visitor: C, harness: 'codex' })
+  const a = await t.mutation(api.demo.startJob, { visitor: A, harness: 'codex' })
+  assert.equal((await view(t, A)).job.state, 'queued')
+  // an hour later: B's action died 12 minutes ago (STALE_JOB_MS is 11), C's job runs, and all three left the page
+  await t.run(async (ctx: any) => { await ctx.db.patch(b.job, { started: Date.now() - 12 * 60_000 }) })
+  for (const v of [A, B, C]) await ago(t, v, 61 * 60_000)
+  await t.mutation(internal.demo.sweep, {})
+  await t.finishAllScheduledFunctions(() => {})
+  // A is forgotten: A's job, which waited in line for the hour, must not start in B's place (its sandbox would
+  // start after the forget deleted A's sandboxes, and no visitors row would lead to it)
+  assert.ok(scheduled.includes(`forget ${A}`))
+  assert.ok(!scheduled.includes(`runJob ${a.job}`), "the sweep started the job of a visitor that it forgets")
+  assert.equal((await t.query(internal.demo.job, { job: a.job })).state, 'failed')
+  // C's job runs: C is forgotten after it ends, not while it runs
+  assert.ok(!scheduled.includes(`forget ${C}`), 'the sweep forgets a visitor whose job runs')
+  await t.mutation(internal.demo.endJob, { job: c.job, ok: true })
+  await t.mutation(internal.demo.sweep, {})
+  await t.finishAllScheduledFunctions(() => {})
+  assert.ok(scheduled.includes(`forget ${C}`))
+})
+
+test("a forget keeps the rows of a visitor who came back while it ran (Demo_main_return)", async () => {
+  process.env.MAX_SANDBOXES = '3'
+  process.env.SIGNIN_PLACES = '1'
+  process.env.BYOA_KEY = Buffer.alloc(32, 7).toString('base64')
+  process.env.CONVEX_SITE_URL = 'https://example.convex.site'
+  scheduled.length = 0
+  // the real forget (convex/agents.ts) with byoa; runJob is a stand-in
+  const t = convexTest(schema, {
+    ...modules,
+    '/convex/agents.ts': async () => ({ ...(await import('./convex/agents.ts')), runJob: stub('runJob') }),
+    '/convex/byoa.ts': () => import('./convex/byoa.ts'),
+  })
+  await t.mutation(api.demo.touch, { visitor: A })
+  await ago(t, A, 61 * 60_000)
+  await t.mutation(internal.demo.sweep, {})
+  // A comes back before the forget action runs, and starts a job
+  const a = await t.mutation(api.demo.startJob, { visitor: A, harness: 'codex' })
+  await t.finishAllScheduledFunctions(() => {})
+  assert.equal((await t.query(internal.demo.job, { job: a.job }))?.state, 'running')
+  // A's job runs (its sandbox may start after the forget's deleteSandbox): A's row must stay, so that the sweep
+  // forgets A an hour after this request and deletes that sandbox
+  assert.ok(await visitorRow(t, A), "the forget deleted the row of a visitor whose job runs: nothing deletes that job's sandbox")
+})
+
+test('a visitor whose job has waited in line for over an hour cannot start a second one (Demo_main_onejob)', async () => {
+  process.env.MAX_SANDBOXES = '2'
+  process.env.SIGNIN_PLACES = '1'
+  const t = convexTest(schema, modules)
+  await t.mutation(api.demo.startJob, { visitor: B, harness: 'codex' })
+  const a = await t.mutation(api.demo.startJob, { visitor: A, harness: 'codex' })
+  assert.equal((await view(t, A)).job.state, 'queued')
+  // A keeps the page open (touch) while the line is long: A's job has waited 61 minutes
+  await t.run(async (ctx: any) => { await ctx.db.patch(a.job, { at: Date.now() - 61 * 60_000 }) })
+  const r = await t.mutation(api.demo.startJob, { visitor: A, harness: 'codex' })
+  assert.match(r.error ?? 'a second job', /not ended/)
+})
+
+test('a new sign-in takes a place only when one is free, also when an old sign-in of that lab is still pending (Demo_main_old)', async () => {
+  process.env.MAX_SANDBOXES = '1'
+  process.env.SIGNIN_PLACES = '0'
+  const t = convexTest(schema, modules)
+  assert.deepEqual(await t.mutation(internal.demo.beginSignin, { visitor: A, harness: 'claude' }), {})
+  // A's page stopped checking in 3.5 minutes ago: the sign-in no longer counts, and the sweep has not ended it yet
+  await t.run(async (ctx: any) => {
+    const s = await ctx.db.query('signins').withIndex('by_visitor', (q: any) => q.eq('visitor', A).eq('harness', 'claude')).unique()
+    await ctx.db.patch(s._id, { seen: Date.now() - 3.5 * 60_000 })
+  })
+  // B's job takes the one place
+  await t.mutation(api.demo.startJob, { visitor: B, harness: 'codex' })
+  assert.equal((await view(t, B)).job.state, 'running')
+  assert.equal((await view(t, A)).load.sandboxes, 1)
+  // A starts that sign-in again: no place is free
+  const r = await t.mutation(internal.demo.beginSignin, { visitor: A, harness: 'claude' })
+  assert.match(r.error ?? 'a second sandbox', /Too many people/)
+})
+
+test('Delete my data deletes a stored login whose state is not saved yet (Demo_main_delete)', async () => {
+  process.env.BYOA_KEY = Buffer.alloc(32, 7).toString('base64')
+  process.env.CONVEX_SITE_URL = 'https://example.convex.site'
+  const t = convexTest(schema, {
+    ...modules,
+    '/convex/agents.ts': () => import('./convex/agents.ts'),
+    '/convex/byoa.ts': () => import('./convex/byoa.ts'),
+  })
+  await t.mutation(api.demo.touch, { visitor: A })
+  // finishLogin of A's Claude sign-in has saved the login (login-stored.ts signedIn) and has not yet set its state
+  // (login.ts 208-209), when A's other tab runs Delete my data
+  await t.run(async (ctx: any) => { await ctx.db.insert('byoa', { key: `ailogin/${A}/claude`, value: 'sealed login files', n: 1 }) })
+  await t.action(api.agents.deleteData, { visitor: A })
+  const left = await t.run(async (ctx: any) => (await ctx.db.query('byoa').collect()).filter((r: any) => r.key.startsWith('ailogin/')).map((r: any) => r.key))
+  assert.deepEqual(left, [], 'a login stays after Delete my data returned')
+})
