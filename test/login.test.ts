@@ -783,3 +783,123 @@ test('R1.9 / V23: a used-up plan is usage-limit, with its reset when the CLI say
   assert.equal(err(await collect(agents.run('lia', { harness: 'codex', task: 'refused' }))).code, 'expired')
   assert.equal(await agents.loginState('lia', 'codex'), 'expired')
 })
+
+/** A login that is not due for hours, so the jobs of one user share it and run at the same time. */
+const sharing = async () => { const a = await testApp({ env: { ...env, FAKE_CLAUDE_EXP: String(Date.now() + 10 * 3600_000) } }); closers.push(a.close); return a }
+const errOf = (ev: Awaited<ReturnType<typeof collect>>) => ev.find((e) => e.type === 'error') as Extract<typeof ev[number], { type: 'error' }>
+
+test('R1.9: a job that worked ends only the hold it read, not one that another job set while it ran', async () => {
+  // spec/tla/UsageLimit.tla (UsageLimit_main_clear): a job read a hold that had ended and ran; meanwhile another job
+  // found the plan used up and kept that; then the first job ended well and deleted the new hold
+  const { keys } = await import('../src/keys.ts')
+  const { agents, store, sandbox } = await sharing()
+  await agents.connectLogin('ola', 'claude')
+  await agents.finishLogin('ola', 'claude', { code: 'good-code' })
+  // a hold that ended a minute ago
+  await store.put(keys.usageLimit('ola', 'claude'), JSON.stringify({ message: 'old', until: Date.now() - 60_000, at: Date.now() - 16 * 60_000 }))
+  const first = agents.run('ola', { harness: 'claude', task: 'hi', sandboxKey: 'a' })
+  const evs = [(await first.next()).value]
+  assert.equal(evs[0].type, 'start', 'job 1 read the hold that ended, and runs')
+  const e = (await collect(agents.run('ola', { harness: 'claude', task: 'limit now', sandboxKey: 'b' }))).find((x) => x.type === 'error')
+  assert.equal(e?.type === 'error' && e.code, 'usage-limit')
+  assert.ok(await agents.usageLimit('ola', 'claude'), 'job 2 kept the used-up plan')
+  for await (const ev of first) evs.push(ev)
+  assert.equal((evs.at(-1) as { ok: boolean }).ok, true)
+  assert.ok(await agents.usageLimit('ola', 'claude'), 'job 1 worked before job 2 found the plan used up: the hold stays')
+  const created = sandbox.created
+  assert.equal(errOf(await collect(agents.run('ola', { harness: 'claude', task: 'hi' }))).code, 'usage-limit')
+  assert.equal(sandbox.created, created, 'the next job starts no sandbox')
+})
+
+test('R1.9: a new sign-in ends the hold, also when a job of the old sign-in finds its plan used up after it', { todo: 'open: spec/tla UsageLimit_signin' }, async () => {
+  // spec/tla/UsageLimit.tla (UsageLimit_signin): job 1 has the old login in its sandbox; the user signs in again
+  // (maybe another account), which ends the hold; then job 1's CLI finds the old account's plan used up, and byoa
+  // keeps that for the new sign-in
+  const { agents, sandbox } = await sharing()
+  await agents.connectLogin('pia', 'claude')
+  await agents.finishLogin('pia', 'claude', { code: 'good-code' })
+  const first = agents.run('pia', { harness: 'claude', task: 'limit now', sandboxKey: 'a' })
+  assert.equal((await first.next()).value.type, 'start')
+  await agents.connectLogin('pia', 'claude')
+  assert.deepEqual(await agents.finishLogin('pia', 'claude', { code: 'good-code' }), { state: 'signed-in' })
+  assert.equal(errOf(await collect(first)).code, 'usage-limit')
+  assert.equal(await agents.usageLimit('pia', 'claude'), undefined, 'the old sign-in\'s used-up plan is not the new one\'s')
+  const created = sandbox.created
+  assert.equal((await collect(agents.run('pia', { harness: 'claude', task: 'hi' }))).at(-1)!.type === 'end' && sandbox.created > created, true, 'a job of the new sign-in runs')
+})
+
+test('R3.1 / R3.4: a job that waits in line keeps its job token for its whole time', async () => {
+  // spec/tla/Tokens.tla (Tokens_main_wait): the job token's time (the job timeout + 5 minutes) started when the job
+  // began, before its wait in line for the sandbox or the AI login; a job that waited longer than 5 minutes lost its
+  // MCP servers and its plan's relay before its time ended
+  const { clock } = await import('../src/time.ts')
+  const { storedLogin } = await import('../src/index.ts')
+  const a = await testApp({ env, login: storedLogin({ parallel: false }) }); closers.push(a.close)
+  await a.agents.connectLogin('uma', 'claude')
+  await a.agents.finishLogin('uma', 'claude', { code: 'good-code' })
+  const real = clock.now
+  const first = await a.agents.session('uma', { harness: 'claude', sandboxKey: 'a' })
+  let inLine!: () => void
+  const waiting = new Promise<void>((r) => { inLine = r })
+  const second = a.agents.session('uma', { harness: 'claude', sandboxKey: 'b', onWait: (w) => { if (w.for === 'login') inLine() } })
+  await waiting
+  // the proxy checked the token when it answers anything but 401 (here 403: the job has no server `notes`)
+  const proxy = (token: string) => fetch(`${a.proxyUrl}/notes`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: '{}' }).then((r) => r.status)
+  try {
+    clock.now = () => real() + 36 * 60_000
+    await first.close()
+    const s2 = await second
+    assert.equal(await proxy(s2.token), 403, 'the token works when the harness starts')
+    clock.now = () => real() + (36 + 29) * 60_000
+    assert.equal(await proxy(s2.token), 403, 'the token works until the job\'s time ends')
+    await s2.close()
+    assert.equal(await proxy(s2.token), 401, 'R3.4: refused after the job')
+  } finally { clock.now = real }
+  await a.agents.deleteSandbox('uma')
+})
+
+test('R1.9: a new sign-in does not end a hold that a job of that new sign-in kept', { todo: 'open: spec/tla UsageLimit_signin_lost' }, async () => {
+  // spec/tla/UsageLimit.tla (UsageLimit_signin_lost): finishLogin saves the new login, then ends the hold; a job that
+  // starts in between runs with the new login, finds its plan used up and keeps that; then finishLogin's clear
+  // deletes it, and the next job starts a sandbox on the used-up plan
+  const { keys } = await import('../src/keys.ts')
+  const a = await sharing()
+  const { agents, store, sandbox } = a
+  const del = store.delete.bind(store)
+  let gate: Promise<void> | undefined, release!: () => void, reached!: () => void
+  const at = new Promise<void>((r) => { reached = r })
+  store.delete = async (k) => { if (gate && k === keys.usageLimit('ria', 'claude')) { reached(); await gate } return del(k) }
+  await agents.connectLogin('ria', 'claude')
+  await agents.finishLogin('ria', 'claude', { code: 'good-code' })
+  await agents.connectLogin('ria', 'claude')
+  gate = new Promise<void>((r) => { release = r })
+  const signIn = agents.finishLogin('ria', 'claude', { code: 'good-code' })
+  await at // the new login is saved; the clear has not run yet
+  assert.equal(errOf(await collect(agents.run('ria', { harness: 'claude', task: 'limit now' }))).code, 'usage-limit')
+  release()
+  assert.deepEqual(await signIn, { state: 'signed-in' })
+  assert.ok(await agents.usageLimit('ria', 'claude'), 'the new sign-in\'s plan is used up: the hold stays')
+  const created = sandbox.created
+  assert.equal(errOf(await collect(agents.run('ria', { harness: 'claude', task: 'hi' }))).code, 'usage-limit')
+  assert.equal(sandbox.created, created)
+})
+
+test('R1.9: a used-up plan holds until its latest reset, also when a job keeps an earlier one after it', async () => {
+  // spec/tla/UsageLimit.tla (UsageLimit_main_stale): a plan job read the limit its relay kept (credential.ts event)
+  // and keeps it again (job.ts) after another job's relay kept a later reset (the plan's weekly limit, after its
+  // 5-hour one): the hold ended at the earlier reset, and the next job ran on the used-up plan
+  const { usageLimits } = await import('../src/limits.ts')
+  const limits = usageLimits(memoryStore())
+  const hour = Date.now() + 3600_000, week = Date.now() + 7 * 24 * 3600_000
+  await limits.set('sia', 'opencode-go', { message: 'the weekly limit', resetsAt: week })
+  await limits.set('sia', 'opencode-go', { message: 'the 5-hour limit', resetsAt: hour })
+  assert.equal((await limits.get('sia', 'opencode-go'))!.until, week)
+  // a hold that ended says nothing: the new one replaces it
+  const { clock } = await import('../src/time.ts')
+  const real = clock.now
+  try {
+    clock.now = () => week + 1
+    await limits.set('sia', 'opencode-go', { message: 'no time' })
+    assert.equal((await limits.get('sia', 'opencode-go'))!.until, week + 1 + 15 * 60_000)
+  } finally { clock.now = real }
+})

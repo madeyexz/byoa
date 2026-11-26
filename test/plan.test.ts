@@ -195,3 +195,77 @@ test('R1.9 / V23: OpenCode\'s 429 with a used-up limit is usage-limit, with the 
   assert.equal(await agents.usageLimit('ann', PLAN), undefined)
   assert.equal(((await job()).at(-1) as any).ok, true)
 })
+
+/** Holds OpenCode's answer to the next model request, after OpenCode gave it, until `release`: the relay reads it
+ *  then. `at`: OpenCode has answered. */
+function holdNextAnswer() {
+  const real = globalThis.fetch
+  let release!: () => void, reached!: () => void
+  const gate = new Promise<void>((r) => { release = r })
+  const at = new Promise<void>((r) => { reached = r })
+  let taken = false
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const u = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    const res = await real(input, init)
+    if (!taken && /\/inference\/go\/(?:anthropic|openai)\//.test(u)) { taken = true; reached(); await gate }
+    return res
+  }) as typeof fetch
+  return { at, release, restore: () => { globalThis.fetch = real } }
+}
+
+test('R1.6: a new key is signed-in, also when OpenCode\'s 401 to the old key comes to the relay after it', { todo: 'open: spec/tla PlanKey_newkey' }, async () => {
+  // spec/tla/PlanKey.tla (PlanKey_newkey): a job's request with the old key, which OpenCode no longer takes; while
+  // its 401 comes back, the user connects a new key; then the relay sets `expired`, over the new key's state
+  const { agents } = await app()
+  await agents.connectKey('ann', PLAN, 'oc_sk_good')
+  const hold = holdNextAnswer()
+  try {
+    go.mode = '401' // the user revoked the key in OpenCode's Console
+    const job = collect(agents.run('ann', { harness: 'claude', plan: PLAN, model: 'kimi-k3', task: 'hi' }))
+    await hold.at
+    go.mode = 'ok'
+    // the user's new key (the stand-in knows one good key: for byoa, each connectKey is a new key)
+    assert.deepEqual(await agents.connectKey('ann', PLAN, 'oc_sk_good'), { state: 'signed-in' })
+    hold.release()
+    assert.equal(error(await job).code, 'expired')
+  } finally { hold.restore(); go.mode = 'ok' }
+  assert.equal(await agents.loginState('ann', PLAN), 'signed-in', 'the old key\'s 401 is not the new key\'s state')
+})
+
+test('R1.6: a job that worked before another job\'s 401 does not make the key signed-in again', { todo: 'open: spec/tla PlanKey_report' }, async () => {
+  // spec/tla/PlanKey.tla (PlanKey_report): job 1's request works; then OpenCode refuses the key (401) to job 2, and the
+  // key is expired; then job 1 ends well, and its report sets signed-in over the newer answer
+  const { agents } = await app()
+  await agents.connectKey('ann', PLAN, 'oc_sk_good')
+  const hold = holdNextAnswer()
+  try {
+    const first = collect(agents.run('ann', { harness: 'claude', plan: PLAN, model: 'kimi-k3', task: 'hi', sandboxKey: 'a' }))
+    await hold.at
+    go.mode = '401'
+    assert.equal(error(await collect(agents.run('ann', { harness: 'claude', plan: PLAN, model: 'kimi-k3', task: 'hi', sandboxKey: 'b' }))).code, 'expired')
+    assert.equal(await agents.loginState('ann', PLAN), 'expired')
+    hold.release()
+    assert.equal(((await first).at(-1) as { ok: boolean }).ok, true)
+  } finally { hold.restore(); go.mode = 'ok' }
+  assert.equal(await agents.loginState('ann', PLAN), 'expired', 'OpenCode refused the key after job 1\'s last answer')
+})
+
+test('R1.9: a new key ends the hold, also when the relay finds the old key\'s plan used up after it', { todo: 'open: spec/tla UsageLimit_newkey' }, async () => {
+  // spec/tla/UsageLimit.tla (UsageLimit_newkey): a job's request with the old key gets OpenCode's 429; while it comes
+  // back, the user connects a new key, which ends the hold; then the relay asks the usage meter with the old key and
+  // keeps the old plan's limit for the new key
+  const { agents } = await app()
+  await agents.connectKey('ann', PLAN, 'oc_sk_good')
+  const hold = holdNextAnswer()
+  try {
+    go.mode = '429'
+    const job = collect(agents.run('ann', { harness: 'claude', plan: PLAN, model: 'kimi-k3', task: 'hi' }))
+    await hold.at
+    go.mode = 'ok'
+    assert.deepEqual(await agents.connectKey('ann', PLAN, 'oc_sk_good'), { state: 'signed-in' })
+    go.mode = '429' // the old key's plan, which the relay's usage meter asks about
+    hold.release()
+    assert.equal(error(await job).code, 'usage-limit')
+  } finally { hold.restore(); go.mode = 'ok' }
+  assert.equal(await agents.usageLimit('ann', PLAN), undefined, 'the old key\'s used-up plan is not the new key\'s')
+})
