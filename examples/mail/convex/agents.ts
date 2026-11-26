@@ -1,6 +1,6 @@
 'use node'
 // The demo's byoa calls that need a sandbox, as Node actions (the sandbox SDKs need Node): the sign-in on the lab's own
-// page, the triage job, and forgetting a visitor. demo.ts decides whether each may run.
+// page, the triage job, sign-out, and forgetting a visitor. demo.ts decides whether each may run.
 // SANDBOX (default e2b): `e2b` (E2B_API_KEY) or `instabox` (INSTABOX_API_KEY). Instabox's free plan allows one sandbox
 // in all, so the demo needs a paid Instabox plan; E2B's free plan runs 10 at a time.
 import { e2b } from '@madeyexz/byoa/sandbox/e2b'
@@ -96,14 +96,48 @@ export const runJob = internalAction({
   },
 })
 
-/** An hour after the visitor's last request: signs out each AI login with the CLI, deletes their sandboxes, then
- *  their rows. */
-export const forget = internalAction({
+/** Sign-out and Delete my data end the visitor's sandboxes, so they refuse while the visitor's job is in line or runs
+ *  (for sign-out, a job of that lab). A job ends within JOB_MS. */
+async function noJob(ctx: ActionCtx, visitor: string, harness?: (typeof LABS)[number]) {
+  const r: { error?: string } = await ctx.runQuery(internal.demo.idle, { visitor, harness })
+  if (r.error) throw new ConvexError(r.error)
+}
+
+/** The visitor's "Sign out" of one lab: byoa's signOut, which signs out with the CLI, deletes the stored login and
+ *  that lab's sandbox. */
+export const signOut = action({
+  args: { visitor: v.string(), harness: lab },
+  handler: async (ctx, a): Promise<void> => {
+    checkVisitor(a.visitor)
+    await noJob(ctx, a.visitor, a.harness)
+    await agents(ctx).signOut(a.visitor, a.harness)
+  },
+})
+
+/** Signs out each AI login with the CLI, ends a sign-in that has not finished, deletes the visitor's sandboxes, then
+ *  their rows (demo.drop). `quiet`: go on after an error, for the sweep, which does not run again for this visitor. */
+async function forgetVisitor(ctx: ActionCtx, visitor: string, quiet: boolean) {
+  const ag = agents(ctx), step = (p: Promise<unknown>) => quiet ? p.catch(() => {}) : p
+  for (const h of LABS) {
+    await step(ag.cancelLogin(visitor, h))
+    if (await ag.loginState(visitor, h) !== 'signed-out') await step(ag.signOut(visitor, h))
+  }
+  await step(ag.deleteSandbox(visitor))
+  await ctx.runMutation(internal.demo.drop, { visitor })
+}
+
+/** The visitor's "Delete my data": the same as the sweep's forget, now. The page then forgets its visitor id. */
+export const deleteData = action({
   args: { visitor: v.string() },
   handler: async (ctx, { visitor }): Promise<void> => {
-    const ag = agents(ctx)
-    for (const h of LABS) if (await ag.loginState(visitor, h) !== 'signed-out') await ag.signOut(visitor, h).catch(() => {})
-    await ag.deleteSandbox(visitor).catch(() => {})
-    await ctx.runMutation(internal.demo.drop, { visitor })
+    checkVisitor(visitor)
+    await noJob(ctx, visitor)
+    await forgetVisitor(ctx, visitor, false)
   },
+})
+
+/** An hour after the visitor's last request (demo.sweep). */
+export const forget = internalAction({
+  args: { visitor: v.string() },
+  handler: (ctx, { visitor }) => forgetVisitor(ctx, visitor, true),
 })

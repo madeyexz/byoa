@@ -16,7 +16,7 @@ The agent gets five tools of this app (byoa's `tools` option, R2.7) and `access:
 | [page.html](page.html) | The page: connect Gmail, sign in to the AI plan, triage, undo, and the decisions. |
 | [mail.test.ts](mail.test.ts) | Tests with byoa's fake harness and a fake Gmail. |
 | [demo.html](demo.html), [convex/](convex) | The hosted demo: a static page and its Convex backend (below). |
-| [demo.test.ts](demo.test.ts) | The demo's limits and mail tools on convex-test. |
+| [demo.test.ts](demo.test.ts) | The demo's limits, mail tools, sign-out and Delete my data on convex-test. |
 
 ## Google setup (once per app)
 
@@ -55,7 +55,7 @@ The page, [demo.html](demo.html), is static: `site/build.mjs` copies it to the s
 | File | What it does |
 |---|---|
 | [demo.ts](convex/demo.ts) | What the page reads and starts, and the limits (below). Jobs wait in a line in the database. |
-| [agents.ts](convex/agents.ts) | byoa's calls that need a sandbox, as Node actions: the sign-in, the job (its events go to a table that the page reads live), and forgetting a visitor. |
+| [agents.ts](convex/agents.ts) | byoa's calls that need a sandbox, as Node actions: the sign-in, the job (its events go to a table that the page reads live), sign-out, and forgetting a visitor. |
 | [lib.ts](convex/lib.ts) | `createAgents` with `convexStore` and the mail tools on the visitor's copy of the inbox ([mail.ts](convex/mail.ts)). |
 | [http.ts](convex/http.ts) | byoa's proxy as an HTTP action, at `<deployment>.convex.site/byoa/mcp`: the job's agent calls the mail tools there. |
 | [crons.ts](convex/crons.ts) | Every minute: ends sign-ins the page left, fails jobs whose action died, forgets visitors, starts jobs in line. |
@@ -74,7 +74,13 @@ Each visitor is a random id that the page keeps (128 bits): it is the only key t
 | `POSTHOG_KEY` | | A PostHog project's public key: `demo_signin_started`, `demo_signin_finished`, `demo_job` (harness, ok, labels, seconds waited and run) and `demo_refused`. The page itself counts its views with the site's PostHog snippet. |
 | `FAKE` | off | `1` also offers byoa's fake harness (no model), to check the deployment end to end with no AI plan. Not for the public demo. |
 
-One hour after a visitor's last request, the demo signs out their AI logins with the CLI, and deletes their sandboxes, labels and drafts. Until then it keeps their AI logins (byoa's default `storedLogin()`), encrypted. The labs' terms restrict this; see the [Lab rules](../../SPEC.md#lab-rules).
+The demo keeps a visitor's AI logins (byoa's default `storedLogin()`), encrypted, until one of these, and the labs' terms restrict this; see the [Lab rules](../../SPEC.md#lab-rules):
+
+- **Sign out** (in Accounts, for each connected lab; `agents.signOut`): byoa's `signOut` for that visitor and lab. It signs out with the lab's CLI, so the lab can revoke the login, and deletes the stored login and that lab's sandbox.
+- **Delete my data** (in the sidebar; `agents.deleteData`): signs out of each lab the same way, ends a sign-in that has not finished, and deletes the visitor's sandboxes, labels, drafts, jobs, the agent's events and the visitor row at once. The page then forgets its visitor id and starts again.
+- One hour after the visitor's last request, the sweep does the same as Delete my data.
+
+Sign out and Delete my data refuse while the visitor's job waits in line or runs (for Sign out, a job of that lab), because they end its sandbox; a job ends within 5 minutes.
 
 To deploy your own: create a Convex project, set the variables (`npx convex env set`), run `npm run deploy` with its `CONVEX_DEPLOY_KEY`, and put its URLs in `CONVEX` and `SITE` at the top of demo.html's script.
 

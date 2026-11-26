@@ -68,6 +68,53 @@ test('jobs wait in line behind sign-ins, one job a visitor, the daily budget sto
   assert.ok(!scheduled.includes(`forget ${B}`))
 })
 
+test("sign-out and Delete my data wait for the visitor's job, then delete only that visitor's login and data", async () => {
+  // the real actions (convex/agents.ts) with byoa: no stored login file and no sandbox here, so none starts
+  process.env.BYOA_KEY = Buffer.alloc(32, 7).toString('base64')
+  process.env.CONVEX_SITE_URL = 'https://example.convex.site'
+  const t = convexTest(schema, {
+    ...modules,
+    '/convex/agents.ts': () => import('./convex/agents.ts'),
+    '/convex/byoa.ts': () => import('./convex/byoa.ts'),
+  })
+  const rows = (table: string, visitor: string) => t.run(async (ctx: any) => (await ctx.db.query(table).collect()).filter((r: any) => r.visitor === visitor).length)
+  const logins = (visitor: string) => t.action(api.agents.logins, { visitor })
+  await t.run(async (ctx: any) => {
+    for (const k of [`login/${A}/claude`, `login/${A}/codex`, `login/${B}/claude`]) await ctx.db.insert('byoa', { key: k, value: 'signed-in', n: 1 })
+  })
+  for (const v of [A, B]) {
+    await t.mutation(api.demo.touch, { visitor: v })
+    await t.mutation(internal.mail.label, { visitor: v, id: 'm1', category: 'spam', reason: 'x' })
+    await t.mutation(internal.mail.draft, { visitor: v, id: 'm3', body: 'Sure.' })
+  }
+  assert.deepEqual(await t.mutation(internal.demo.beginSignin, { visitor: A, harness: 'grok' }), {})
+  const job = await t.run(async (ctx: any) => {
+    const job = await ctx.db.insert('jobs', { visitor: A, harness: 'codex', state: 'running', at: Date.now(), started: Date.now() })
+    await ctx.db.insert('events', { job, n: 0, e: '{"type":"start"}' })
+    return job
+  })
+
+  // while A's Codex job runs: A may sign out of Claude, not of Codex, and may not delete their data yet
+  await t.action(api.agents.signOut, { visitor: A, harness: 'claude' })
+  assert.deepEqual(await logins(A), { claude: 'signed-out', codex: 'signed-in', grok: 'signed-out' })
+  await assert.rejects(t.action(api.agents.signOut, { visitor: A, harness: 'codex' }), /not ended/)
+  await assert.rejects(t.action(api.agents.deleteData, { visitor: A }), /not ended/)
+  assert.equal(await rows('drafts', A), 1)
+  await assert.rejects(t.action(api.agents.deleteData, { visitor: 'A'.repeat(32) }), /bad visitor id/)
+
+  // the job ends: Delete my data signs A out of every lab and deletes all of A's rows, the sign-in that had not
+  // finished too, at once
+  await t.mutation(internal.demo.endJob, { job, ok: true })
+  await t.action(api.agents.deleteData, { visitor: A })
+  assert.deepEqual(await logins(A), { claude: 'signed-out', codex: 'signed-out', grok: 'signed-out' })
+  for (const table of ['visitors', 'signins', 'jobs', 'mail', 'decisions', 'drafts']) assert.equal(await rows(table, A), 0, table)
+  assert.equal(await t.run(async (ctx: any) => (await ctx.db.query('events').collect()).length), 0)
+  assert.equal((await view(t, A)).load.sandboxes, 0)
+  // B keeps everything
+  assert.deepEqual(await logins(B), { claude: 'signed-in', codex: 'signed-out', grok: 'signed-out' })
+  for (const table of ['visitors', 'mail', 'decisions', 'drafts']) assert.equal(await rows(table, B), 1, table)
+})
+
 test("the agent's tools change only the visitor's own copy of the inbox, and undo puts it back", async () => {
   const t = convexTest(schema, modules)
   assert.equal(await t.mutation(internal.mail.label, { visitor: A, id: 'm1', category: 'spam', reason: 'look-alike domain' }), 'labeled AI/Spam')
