@@ -187,7 +187,8 @@ export interface JobDeps {
   slots: Slots
   conversations: Conversations
   limits: UsageLimits
-  jobToken(user: string, r: { mcp?: string[] }, plan?: PlanName): Promise<JobToken>
+  /** `extend`: the token works that long from now. */
+  jobToken(user: string, r: { mcp?: string[] }, plan?: PlanName): Promise<JobToken & { extend(ttlMs: number): Promise<void> }>
   serversOf(user: string): Promise<Set<string>>
 }
 
@@ -282,11 +283,13 @@ export function jobs(d: JobDeps) {
       const { bin, version } = await x.install(sbx, d.pins)
       // the login leaves the sandbox before the provider pauses or ends it (it does at timeout + 1 min)
       const loaded = await cred.load(sbx, { token: t.token, job: { deadline: now() + d.timeout + 45_000, onWait: (ahead) => r.onWait?.({ for: 'login', ahead }) } })
-      // the harness starts now, after the wait for the login: the sandbox's time and the lease of the kept sandbox start
-      // again, so the harness gets its whole time and the login's watcher runs before the provider pauses the sandbox
+      // the harness starts now, after the wait for the login: the sandbox's time, the lease of the kept sandbox and the
+      // job token's time start again, so the harness gets its whole time and the login's watcher runs before the
+      // provider pauses the sandbox
       clearInterval(beat)
       await sbx.setTimeout?.(d.timeout + 60_000)
       await renew()
+      await t.extend(d.timeout + 5 * 60_000)
       const box = sbx
       if (cred.checkpoint) {
         // saves what the CLI changed in its login every minute, so a backend that dies loses at most that (R1.4)
@@ -354,7 +357,7 @@ export function jobs(d: JobDeps) {
       const h = r.harness
       let s: Session | undefined
       let end: AgentEvent = { type: 'end', ok: false }
-      let held: UsageLimit | undefined
+      let held: Awaited<ReturnType<UsageLimits['get']>>
       try {
         for (const m of await missingOf(user, r)) yield { type: 'error', code: 'mcp', message: `${m} is not connected for this user; the job runs without it` }
         try {
@@ -425,8 +428,8 @@ export function jobs(d: JobDeps) {
           }
           if (end.type === 'end' && end.ok) {
             await s.reportLogin('signed-in')
-            // the plan reset: a limit that ended goes
-            if (held) await d.limits.clear(user, r.plan ?? r.harness)
+            // the plan reset: the limit that ended goes, but not one that another job kept while this one ran
+            if (held) await d.limits.clear(user, r.plan ?? r.harness, held)
           }
         } catch (e) {
           if (e instanceof LoginError) yield { type: 'error', code: 'signed-out', message: e.message }

@@ -106,7 +106,7 @@ export function createAgents(o: AgentsOptions) {
 
   /** A job token for these servers, refused after close (R3.4) and after `ttlMs`. `plan`: the relay takes it for that
    *  plan (R1.8); jobs only. */
-  async function issue(user: string, r: { mcp?: string[]; ttlMs?: number }, plan?: PlanName): Promise<JobToken> {
+  async function issue(user: string, r: { mcp?: string[]; ttlMs?: number }, plan?: PlanName): Promise<JobToken & { extend(ttlMs: number): Promise<void> }> {
     const want = [...new Set(r.mcp ?? [])]
     const have = await serversOf(user)
     const servers = want.filter((s) => have.has(s))
@@ -117,6 +117,7 @@ export function createAgents(o: AgentsOptions) {
       mcp: servers.map((name) => ({ name, url: serverUrl(o.proxyUrl, name) })),
       missing: want.filter((s) => !have.has(s)),
       async close() { if (!closed) { closed = true; await tokens.end(job) } },
+      extend: (ttlMs) => tokens.extend(job, ttlMs),
     }
   }
 
@@ -193,7 +194,7 @@ export function createAgents(o: AgentsOptions) {
     /** A job token with no sandbox (R3), for an app's own program that runs a harness somewhere else, such as on the
      *  user's own computer. The same rules as a job's token: one user, only the servers named that this user has
      *  connected, refused after `close` (R3.4) and after `ttlMs` (default: the job timeout and 5 minutes). */
-    jobToken: (user: string, r: { mcp?: string[]; ttlMs?: number } = {}, /** @internal */ plan?: PlanName) => issue(user, r, plan),
+    jobToken: (user: string, r: { mcp?: string[]; ttlMs?: number } = {}, /** @internal */ plan?: PlanName): Promise<JobToken> => issue(user, r, plan),
     /** The MCP proxy, a fetch handler (Request → Response). Serve it at `proxyUrl` and below. */
     proxy: mcpProxy({ proxyUrl: o.proxyUrl, jobs: tokens, grants, tools, relay: { prefix: RELAY_PREFIX, handle: plans.relay } }),
     /** The Client ID Metadata Document to serve at `oauth.clientMetadataUrl`. */

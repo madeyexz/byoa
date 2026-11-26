@@ -38,6 +38,14 @@ export class JobTokens {
     return null
   }
 
+  /** The token works `ttlMs` from now (a job whose harness starts after it waited in line). A compare-and-set, so a
+   *  token that `end` removed stays removed. */
+  async extend(job: string, ttlMs: number) {
+    const h = await this.store.get(jobKey(job))
+    const e = h ? await this.store.get(tokenKey(h.value)) : null
+    if (h && e) await this.store.cas(tokenKey(h.value), e.version, JSON.stringify({ ...(JSON.parse(e.value) as JobRecord), until: now() + ttlMs }))
+  }
+
   async end(job: string) {
     const e = await this.store.get(jobKey(job))
     if (e) await this.store.delete(tokenKey(e.value))
