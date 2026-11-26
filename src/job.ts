@@ -159,8 +159,9 @@ console.log(JSON.stringify(await Promise.all(servers.map((s) => one(s)))))
 const EXIT_WAIT_MS = 10_000
 /** How often a job saves what the CLI changed in its login while it runs (R1.4). */
 const CHECKPOINT_MS = 60_000
-/** How often a job renews the lease of its kept sandbox until its harness starts (R5.4): the wait for the AI login
- *  has no limit, and the lease runs out the job timeout and 5 minutes after it was last renewed. */
+/** How often a job renews the lease of its kept sandbox, and the sandbox's time, until its harness starts (R5.4, R5.8):
+ *  the wait for the AI login has no limit, the lease runs out the job timeout and 5 minutes after it was last renewed,
+ *  and the provider pauses or ends the sandbox when its time runs out. */
 const SLOT_RENEW_MS = 60_000
 
 /** One task, or several messages to one agent (R5.8): the agent gets them all at once and decides the order. */
@@ -243,11 +244,13 @@ export function jobs(d: JobDeps) {
     try {
       const setup: Setup = { agentsMd: r.setup?.agentsMd, skills: [...(r.setup?.skills ?? []), ...plugins.flatMap((p) => p.setup.skills ?? [])] }
       const files = harnessFiles(h, setup, { proxyUrl: d.proxyUrl, servers: t.mcp.map((m) => m.name), access: r.access })
+      // until the harness starts, the setup and the wait for the AI login may take longer than the lease of the kept
+      // sandbox and than the sandbox's own time: both are set again every minute (the sandbox's time to one minute more
+      // than the job timeout + 60 s, so the login's watcher still runs first if this backend dies before setTimeout)
+      beat = setInterval(() => { void renew(); void sbx?.setTimeout?.(d.timeout + 60_000 + SLOT_RENEW_MS).catch(() => {}) }, SLOT_RENEW_MS)
+      beat.unref?.()
       if (d.keep) {
         slot = await d.slots.take(user, h, key, (ahead) => r.onWait?.({ for: 'sandbox', ahead }))
-        // until the harness starts: the setup and the wait for the AI login may take longer than the lease
-        beat = setInterval(() => { void renew() }, SLOT_RENEW_MS)
-        beat.unref?.()
         if (slot.sandbox) {
           try { sbx = await d.sandbox.resume(slot.sandbox, { timeoutMs: d.timeout + 60_000 }) } catch (e) {
             // deleted or expired at the provider: the user gets a new one

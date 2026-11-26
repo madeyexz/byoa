@@ -177,15 +177,16 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
           if (now) ({ version, text } = now)
         }
         await store.put(lk, JSON.stringify({ version }))
-        for (const [p, body] of Object.entries(JSON.parse(text) as Record<string, string>)) await sbx.writeFile(`${sbx.home}/${p}`, body)
-        await sbx.run(`chmod 600 ${LOGIN_FILES[h].map((p) => q(`${sbx.home}/${p}`)).join(' ')} 2>/dev/null; true`)
         if (deadline) {
-          // the files leave the sandbox before the provider pauses it, also when this backend dies
+          // the files leave the sandbox before the provider pauses it, also when this backend dies: the watcher starts
+          // before the files are there, so a backend that dies while it writes them leaves none behind
           const nonce = randomToken(12), m = q(marker(sbx))
           await sbx.writeFile(marker(sbx), nonce)
           const s = Math.max(1, Math.floor((deadline - now()) / 1000))
           await sbx.run(`sleep ${s}; [ "$(cat ${m} 2>/dev/null)" = ${q(nonce)} ] && rm -f ${fileArgs(sbx, h)} ${m}; true`, { background: true })
         }
+        for (const [p, body] of Object.entries(JSON.parse(text) as Record<string, string>)) await sbx.writeFile(`${sbx.home}/${p}`, body)
+        await sbx.run(`chmod 600 ${LOGIN_FILES[h].map((p) => q(`${sbx.home}/${p}`)).join(' ')} 2>/dev/null; true`)
         held.set(sbx.id, { version, lease, text })
       } catch (e) {
         await store.delete(lk).catch(() => {})
