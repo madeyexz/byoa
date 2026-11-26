@@ -790,18 +790,40 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 }
 
 </script>
-<!-- The help agent: the robot in the corner of each page opens a chat with Codex, which runs in a sandbox on byoa,
+<!-- The help agent: the robot in the corner of each page jumps in, says what it is in a speech bubble, and opens a chat with Codex, which runs in a sandbox on byoa,
      reads byoa's docs and code, and logs the visitor's feedback. Its backend is the Convex deployment of
      madeyexz/byoa-help; this page calls its functions through Convex's HTTP API. build.mjs puts this before </body>. -->
 <style>
+  /* the site's fonts, colors and type, set here too, so the widget looks the same on a page with other styles (/demo) */
+  @font-face { font-family: "Geist"; src: url(/fonts/Geist-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+  @font-face { font-family: "Geist Mono"; src: url(/fonts/GeistMono-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+  #bh, #bh-open, #bh-say { --paper: #f8f6f0; --paper2: #f1eee5; --card: #fffdf8; --rule: #e3dfd4; --rule2: #d3cdbe; --ink: #141418; --ink2: #3d3d48;
+    --muted: #6b6977; --dim: #9895a1; --cobalt: #2f4cff; --cobalt2: #2238d8; --peri: #9db6ff; --peri2: #dfe6ff; --navy: #121428;
+    --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
   #bh-open { position: fixed; right: 20px; bottom: 16px; z-index: 60; width: 64px; height: 84px; padding: 0; border: 0; background: none; cursor: pointer; }
   #bh-open img { width: 54px; margin: 0 auto; image-rendering: pixelated; animation: bh-bob 1.6s steps(2) infinite; filter: drop-shadow(3px 3px 0 rgba(20,20,24,.18)); transform-origin: 50% 100%; }
   #bh-open:hover img, #bh-open:focus-visible img { animation: bh-wave .5s steps(2) 3; }
-  #bh-open .tip { position: absolute; right: 64px; bottom: 50px; background: var(--ink, #141418); color: var(--paper, #f8f6f0); font: 13px/1.2 var(--sans, system-ui); padding: 7px 10px; white-space: nowrap; opacity: 0; transform: translateX(6px); transition: opacity .15s, transform .15s; pointer-events: none; }
-  #bh-open:hover .tip, #bh-open:focus-visible .tip { opacity: 1; transform: none; }
   #bh-open.busy img { animation-duration: .5s; }
+  /* it jumps in from below the page, then hops each time it says something */
+  #bh-open.enter img { animation: bh-enter .9s cubic-bezier(.3,.7,.4,1) both; }
+  #bh-open.hop img { animation: bh-hop .55s ease-out; }
   @keyframes bh-bob { 50% { transform: translateY(-4px); } }
   @keyframes bh-wave { 50% { transform: rotate(-8deg) translateY(-3px); } }
+  @keyframes bh-enter { 0% { transform: translateY(130%); } 55% { transform: translateY(-30px); } 75% { transform: translateY(0) scaleY(.9); } 88% { transform: translateY(-8px); } 100% { transform: none; } }
+  @keyframes bh-hop { 35% { transform: translateY(-18px) rotate(-4deg); } 70% { transform: translateY(0) scaleY(.92); } }
+  /* the speech bubble beside the robot while the chat is closed */
+  #bh-say { position: fixed; right: 92px; bottom: 46px; z-index: 60; width: max-content; max-width: min(270px, calc(100vw - 112px)); display: flex; align-items: flex-start;
+    background: var(--ink); color: var(--paper); border: 0; box-shadow: 4px 4px 0 rgba(20,20,24,.18); font: 14px/1.4 var(--sans); transition: opacity .2s, transform .2s; }
+  #bh-say[hidden] { display: none; }
+  #bh-say.out { opacity: 0; transform: translateY(6px); pointer-events: none; }
+  /* the tail, a pixel step pointing at the robot */
+  #bh-say::after { content: ""; position: absolute; right: -10px; bottom: 14px; width: 10px; height: 10px; background: var(--ink); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+  #bh-say .text { all: unset; cursor: pointer; padding: 10px 4px 11px 13px; transition: opacity .18s; }
+  #bh-say .text.fade { opacity: 0; }
+  #bh-say .text b { color: var(--peri); font-weight: 600; }
+  #bh-say .x { all: unset; cursor: pointer; padding: 6px 9px; font-size: 13px; line-height: 1; color: var(--dim); }
+  #bh-say .x:hover, #bh-say .text:focus-visible, #bh-say .x:focus-visible { color: var(--paper); outline: 1px solid var(--peri); outline-offset: -1px; }
+  @media (prefers-reduced-motion: reduce) { #bh-open img, #bh-open.enter img, #bh-open.hop img, #bh .work img { animation: none !important; } #bh-say, #bh-say .text { transition: none; } }
   #bh { position: fixed; right: 20px; bottom: 108px; z-index: 61; width: 390px; max-width: calc(100vw - 24px); height: min(600px, calc(100vh - 140px)); display: flex; flex-direction: column;
     background: var(--card, #fffdf8); color: var(--ink, #141418); border: 1px solid var(--ink, #141418); box-shadow: 6px 6px 0 rgba(20,20,24,.14); font: 15px/1.5 var(--sans, system-ui); }
   #bh[hidden] { display: none; }
@@ -827,9 +849,15 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   #bh .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   #bh .chips button { border: 1px solid var(--rule2, #d3cdbe); background: var(--paper, #f8f6f0); padding: 6px 10px; font: 13.5px/1.3 var(--sans, system-ui); cursor: pointer; text-align: left; color: var(--ink, #141418); }
   #bh .chips button:hover { background: var(--peri2, #dfe6ff); border-color: var(--peri, #9db6ff); }
-  #bh .work { display: flex; gap: 8px; align-items: center; color: var(--muted, #6b6977); font-size: 13px; }
-  #bh .work img { width: 16px; image-rendering: pixelated; animation: bh-bob .5s steps(2) infinite; }
-  #bh .work span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono, monospace); font-size: 12px; }
+  #bh .work { display: flex; gap: 8px; align-items: flex-start; color: var(--muted, #6b6977); font-size: 13px; }
+  #bh .work img { width: 16px; margin-top: 2px; image-rendering: pixelated; animation: bh-bob .5s steps(2) infinite; }
+  #bh .work ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; min-width: 0; }
+  #bh .work li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #bh .work li.done { color: var(--dim, #9895a1); }
+  #bh .work li.done::before { content: "✓ "; color: var(--mint, #2fbf8a); }
+  #bh .work code { background: none; border: 0; padding: 0; font-size: 12px; }
+  #bh .took { font-size: 11.5px; color: var(--dim, #9895a1); margin-top: 4px; }
+  #bh .status { border-left: 3px solid var(--butter, #ffc93c); padding: 6px 0 6px 10px; color: var(--ink2, #3d3d48); }
   #bh form { display: flex; gap: 0; border-top: 1px solid var(--rule, #e3dfd4); }
   #bh textarea { flex: 1; resize: none; border: 0; padding: 12px; font: 15px/1.4 var(--sans, system-ui); background: transparent; color: inherit; height: 64px; outline: none; }
   #bh form button { width: 64px; border: 0; border-left: 1px solid var(--rule, #e3dfd4); background: var(--ink, #141418); color: var(--paper, #f8f6f0); font: 600 14px var(--sans, system-ui); cursor: pointer; }
@@ -841,9 +869,11 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   @media (max-width: 520px) {
     #bh { right: 0; bottom: 0; width: 100vw; max-width: none; height: 86vh; box-shadow: 0 -6px 0 rgba(20,20,24,.1); }
     #bh-open { right: 10px; bottom: 10px; }
+    #bh-say { right: 80px; bottom: 38px; font-size: 13px; }
   }
 </style>
-<button id="bh-open" type="button" aria-label="Ask byoa's help agent" aria-controls="bh" aria-expanded="false"><span class="tip">Questions? Ask the agent</span><img src="/art/agent.png" alt=""></button>
+<div id="bh-say" role="status" hidden><button class="text" type="button"></button><button class="x" type="button" aria-label="Hide this message">✕</button></div>
+<button id="bh-open" type="button" aria-label="Ask byoa's help agent" aria-controls="bh" aria-expanded="false"><img src="/art/agent.png" alt=""></button>
 <section id="bh" role="dialog" aria-label="byoa help agent" hidden>
   <header>
     <img src="/art/agent.png" alt="">
@@ -902,33 +932,50 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     return out.join('')
   }
 
-  /** What the agent does now, from its last event. */
-  function doing(job) {
-    if (job.state === 'queued') return job.ahead ? `Waiting in line: ${job.ahead} ahead of you` : 'Starting a sandbox…'
-    const e = [...job.events].reverse().find((x) => x.type === 'tool_call')
-    if (!e) return job.events.length ? 'Thinking…' : 'Starting a sandbox…'
-    if (e.name === 'log_feedback') return 'Logging your feedback…'
-    let cmd = e.input
-    try { const i = JSON.parse(e.input); cmd = Array.isArray(i?.command) ? i.command.join(' ') : i?.command ?? e.input } catch {}
-    return String(cmd).replace(/^(bash|sh) -lc /, '').replace(/^['"]|['"]$/g, '').slice(0, 90)
+  const secs = (ms) => `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)} s`
+  /** A time the server named ({time}), in the visitor's own time zone, with the day when it is not today. */
+  function when(at) {
+    const d = new Date(at), t = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    return d.toDateString() === new Date().toDateString() ? t : `${d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}, ${t}`
   }
+  const withTime = (text, until) => until ? text.replaceAll('{time}', when(until)) : text
+  /** What the agent does now, step by step: the line, the sandbox, Codex, and its last command. */
+  function doing(job) {
+    if (job.state === 'queued') return [job.ahead ? `Waiting in line: ${job.ahead} ahead of you` : 'Waiting for a free sandbox…']
+    const start = job.events.find((x) => x.type === 'start')
+    const since = Math.max(0, Date.now() - (job.started ?? Date.now()))
+    if (!start) return [`Starting your sandbox and Codex… ${secs(since)}`]
+    const steps = [{ done: true, text: `Sandbox ready in ${secs(start.t)}, starting Codex now` }]
+    const e = [...job.events].reverse().find((x) => x.type === 'tool_call' || x.type === 'text')
+    if (!e || e.type === 'text') steps.push(`Codex is thinking… ${secs(since - start.t)}`)
+    else if (e.name === 'log_feedback') steps.push('Logging your feedback for the developer…')
+    else {
+      let cmd = e.input
+      try { const i = JSON.parse(e.input); cmd = Array.isArray(i?.command) ? i.command.join(' ') : i?.command ?? e.input } catch {}
+      steps.push({ code: String(cmd).replace(/^\/bin\/bash -lc |^(bash|sh) -lc /, '').replace(/^['"]|['"]$/g, '').slice(0, 120) })
+    }
+    return steps
+  }
+  const step = (x) => typeof x === 'string' ? `<li>${esc(x)}</li>` : x.done ? `<li class="done">${esc(x.text)}</li>` : `<li>Reading: <code>${esc(x.code)}</code></li>`
+  const took = (m) => m.timing && m.ok !== false ? `<div class="took">Answered in ${secs(m.timing.total)}${m.timing.sandbox !== undefined ? ` · sandbox ready in ${secs(m.timing.sandbox)} · Codex ${secs(m.timing.codex)}` : ''}</div>` : ''
 
-  const HELLO = `<div class="m agent hello"><p>Hi, I'm byoa's help agent. I read byoa's docs and code to answer you, and I can pass your feedback to the maintainer.</p></div>`
+  const HELLO = `<div class="m agent hello"><p>Hi! I'm byoa's help agent. I'm powered by byoa itself, on the developer's own ChatGPT subscription. I read byoa's docs and code to answer you, and I can pass your feedback, and questions I can't answer, on to the developer. Try chatting with me!</p></div>`
   const CHIPS = ['What is byoa, in short?', 'How do I add byoa to a Convex app?', 'Which AI plans and sandboxes work?', 'I have feedback on the docs']
   let view = null, timer = null, sent = ''
   function render() {
     const msgs = view?.messages ?? []
-    let html = HELLO + msgs.map((m) => m.role === 'visitor' ? `<div class="m visitor">${esc(m.text)}</div>` : `<div class="m agent${m.ok === false ? ' failed' : ''}">${md(m.text)}</div>`).join('')
+    let html = HELLO + msgs.map((m) => m.role === 'visitor' ? `<div class="m visitor">${esc(m.text)}</div>` : `<div class="m agent${m.ok === false ? ' failed' : ''}">${md(withTime(m.text, m.until))}${took(m)}</div>`).join('')
     if (sent && !msgs.some((m) => m.role === 'visitor' && m.text === sent)) html += `<div class="m visitor">${esc(sent)}</div>`
     const job = view?.job
-    if (job || sent) html += `<div class="work"><img src="/art/agent.png" alt=""><span>${esc(job ? doing(job) : 'Sending…')}</span></div>`
+    if (job || sent) html += `<div class="work"><img src="/art/agent.png" alt=""><ol>${(job ? doing(job) : ['Sending…']).map(step).join('')}</ol></div>`
+    // why the agent cannot answer now, in place of the suggestions
+    else if (view?.status) html += `<div class="m agent status">${md(withTime(view.status.text, view.status.until))}</div>`
     else if (!msgs.length) html += `<div class="chips">${CHIPS.map((c) => `<button type="button">${esc(c)}</button>`).join('')}</div>`
     const end = log.scrollHeight - log.scrollTop - log.clientHeight < 40
     log.innerHTML = html
     if (end) log.scrollTop = log.scrollHeight
     send.disabled = !!(job || sent)
     open.classList.toggle('busy', !!job)
-    if (view?.load?.offline && !job) err.textContent = 'The help agent is offline right now. The docs have the answers too.'
   }
   async function refresh() {
     clearTimeout(timer)
@@ -942,13 +989,35 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     err.textContent = ''; sent = text; input.value = ''; render()
     try {
       const r = await call('mutation', 'help:ask', { text, page: location.pathname + location.hash })
-      if (r.error) { err.textContent = r.error; input.value = text }
+      if (r.error) { err.innerHTML = inline(withTime(r.error, r.until)); input.value = text }
     } catch (e) { err.textContent = e.message; input.value = text }
     sent = ''
     await refresh()
   }
+  // the speech bubble: what the agent is and what it does, in turns, while the chat is closed; ✕ hides it for the visit
+  const say = $('#bh-say'), sayText = $('#bh-say .text')
+  const LINES = [
+    `<b>Hi! I'm byoa's help agent.</b> I'm powered by byoa, on the developer's ChatGPT plan. Try chatting with me!`,
+    `I can pass your feedback, and questions I can't answer, on to the developer.`,
+  ]
+  let line = 0, sayTimer = null
+  const hop = (cls) => { open.classList.remove('enter', 'hop'); void open.offsetWidth; open.classList.add(cls) }
+  open.addEventListener('animationend', () => open.classList.remove('enter', 'hop'))
+  function speak(on) {
+    clearInterval(sayTimer)
+    if (!on || sessionStorage.getItem('byoa-help-quiet')) { say.classList.add('out'); return }
+    say.hidden = false; sayText.innerHTML = LINES[line]; requestAnimationFrame(() => say.classList.remove('out'))
+    sayTimer = setInterval(() => {
+      sayText.classList.add('fade')
+      setTimeout(() => { line = (line + 1) % LINES.length; sayText.innerHTML = LINES[line]; sayText.classList.remove('fade'); hop('hop') }, 180)
+    }, 5000)
+  }
+  sayText.addEventListener('click', () => show(true))
+  $('#bh-say .x').addEventListener('click', () => { sessionStorage.setItem('byoa-help-quiet', '1'); speak(false) })
+
   function show(on) {
     box.hidden = !on; open.setAttribute('aria-expanded', String(on)); sessionStorage.setItem('byoa-help-open', on ? '1' : '')
+    speak(!on)
     if (on) { refresh(); input.focus() } else clearTimeout(timer)
   }
   open.addEventListener('click', () => show(box.hidden))
@@ -965,6 +1034,14 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(input.value) } })
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !box.hidden) show(false) })
   if (sessionStorage.getItem('byoa-help-open')) show(true)
+  else {
+    // the first page of a visit: it jumps in from below, then speaks; later pages: it is there and speaks at once
+    say.classList.add('out')
+    const first = !sessionStorage.getItem('byoa-help-seen')
+    sessionStorage.setItem('byoa-help-seen', '1')
+    if (first) { open.style.visibility = 'hidden'; setTimeout(() => { open.style.visibility = ''; hop('enter'); setTimeout(() => speak(true), 700) }, 900) }
+    else speak(true)
+  }
 })()
 </script>
 </body>

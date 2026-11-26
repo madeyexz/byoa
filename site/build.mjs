@@ -27,7 +27,7 @@ const write = (path, text) => { writeFileSync(new URL(`./${path}`, import.meta.u
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 // every page counts its visits: posthog.html goes before </head>
 const posthog = local('posthog.html')
-// and has the help agent's chat in its corner (madeyexz/byoa-help): help.html goes before </body>
+// and has the help agent's chat in its corner (madeyexz/byoa-help): help.html goes before </body>, on /demo too
 const help = local('help.html')
 const fill = (template, slots, name) => {
   if (!template.includes('</head>') || !template.includes('</body>')) throw new Error(`${name} has no </head> or </body>`)
@@ -471,7 +471,7 @@ write('llms-full.txt', full)
 
 // ---- demo.html: the mail example's live demo, a static page that talks to its Convex deployment
 const demo = read('examples/mail/demo.html')
-write('demo.html', demo.replace('</head>', () => `${posthog}</head>`))
+write('demo.html', demo.replace('</head>', () => `${posthog}</head>`).replace('</body>', () => `${help}</body>`))
 
 // ---- sitemap.xml: the pages for search engines
 write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
