@@ -499,6 +499,36 @@ test('R1.7: two connectLogin at once leave one sign-in, and cancelLogin ends it 
   assert.equal(running(sandbox), 0, `no sign-in sandbox after cancelLogin (the first connectLogin: ${first instanceof Error ? first.message : 'returned'})`)
 })
 
+test('R1.7: a cancelLogin while finishLogin saves the login wins: no login stays', async () => {
+  // spec/tla/SignIn.tla found it: finishLogin checked that its sign-in was in progress, cancelLogin ended it, and then
+  // finishLogin saved the login, which stayed while finishLogin answered that the sign-in was cancelled
+  const a = await app()
+  await a.agents.connectLogin('ned', 'claude')
+  const cas = a.store.cas.bind(a.store)
+  let cancelled = false
+  a.store.cas = async (key, version, value) => {
+    if (key.startsWith('ailogin/') && value && !cancelled) { cancelled = true; await a.agents.cancelLogin('ned', 'claude') }
+    return cas(key, version, value)
+  }
+  const r = await a.agents.finishLogin('ned', 'claude', { code: 'good-code' })
+  assert.ok(cancelled)
+  assert.deepEqual(r, { state: 'signed-out', error: 'the sign-in was cancelled' })
+  assert.ok(!(await Promise.all(a.store.keys().filter((k) => k.startsWith('ailogin/')).map((k) => a.store.get(k)))).some((e) => e?.value), 'no login stored')
+  assert.equal((await collect(a.agents.run('ned', { harness: 'claude', task: 'cred' })))[0]!.type, 'error', 'no job runs with the login')
+  assert.equal(running(a.sandbox), 0)
+})
+
+test('R1.7: a sign-in sandbox that finishLogin could not destroy stays known, so cancelLogin destroys it', async () => {
+  const a = await app()
+  await a.agents.connectLogin('ona', 'claude')
+  const resume = a.sandbox.resume
+  a.sandbox.resume = async (id, o) => { const s = await resume(id, o); s.destroy = async () => { throw new Error('provider down') }; return s }
+  assert.deepEqual(await a.agents.finishLogin('ona', 'claude', { code: 'good-code' }), { state: 'signed-in' })
+  assert.equal(running(a.sandbox), 1, 'the provider did not destroy it')
+  await a.agents.cancelLogin('ona', 'claude')
+  assert.equal(running(a.sandbox), 0)
+})
+
 for (const login of ['storedLogin', 'cliLogin'] as const) {
   test(`R1.6: a signOut while finishLogin saves the login wins (${login})`, async () => {
     // spec/tla/SignIn.tla found it: finishLogin read the login, signOut ran, and then finishLogin saved it
