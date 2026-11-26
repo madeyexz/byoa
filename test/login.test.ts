@@ -302,6 +302,104 @@ test('R5.4 / R1.4: a job that waits in line for the AI login keeps its sandbox, 
   await a.agents.deleteSandbox('kim')
 })
 
+/** spec/tla/JobTiming.tla: job 1 (sandbox key `a`) holds the login alone; job 2 (key `b`) has its sandbox and waits in
+ *  line for the login `minutes` minutes, while the job's intervals (the beat) run as time goes. The provider is a
+ *  stand-in for E2B's timer: a sandbox whose time ran out pauses, and a call to it then fails. */
+async function waitForLogin(t: import('node:test').TestContext, minutes: number) {
+  const { clock } = await import('../src/time.ts')
+  const { storedLogin } = await import('../src/index.ts')
+  const a = await testApp({ env, login: storedLogin({ parallel: false }) }); closers.push(a.close)
+  const out = { paused: [] as string[], late: [] as string[] }
+  const create = a.sandbox.create
+  let timed = false
+  a.sandbox.create = async (o) => {
+    const s = await create(o)
+    // job 1's sandbox has no timer here: it closes after the time a real one would have
+    if (!timed) return s
+    let end = clock.now() + o!.timeoutMs!
+    const due = async () => {
+      if (clock.now() < end) return
+      if (!out.paused.includes(s.id)) { out.paused.push(s.id); await s.pause() }
+      throw new Error(`stand-in: the sandbox ${s.id} paused at its time`)
+    }
+    const { run, writeFile } = s
+    s.run = async (cmd, ro) => {
+      await due()
+      // the login's watcher: it must run before the provider pauses the sandbox, also if this backend dies now
+      const m = /^sleep (\d+); \[/.exec(cmd)
+      if (m && clock.now() + Number(m[1]) * 1000 >= end) out.late.push(`the watcher runs ${(clock.now() + Number(m[1]) * 1000 - end) / 1000} s after the sandbox's time`)
+      return run(cmd, ro)
+    }
+    s.writeFile = async (p, d) => { await due(); return writeFile(p, d) }
+    s.setTimeout = async (ms) => { await due(); end = clock.now() + ms }
+    return s
+  }
+  await a.agents.connectLogin('kim', 'claude')
+  assert.deepEqual(await a.agents.finishLogin('kim', 'claude', { code: 'good-code' }), { state: 'signed-in' })
+  t.mock.timers.enable({ apis: ['setInterval'] })
+  const real = clock.now
+  const first = await a.agents.session('kim', { harness: 'claude', sandboxKey: 'a' })
+  timed = true
+  let inLine!: () => void
+  const waiting = new Promise<void>((r) => { inLine = r })
+  const second = a.agents.session('kim', { harness: 'claude', sandboxKey: 'b', onWait: (w) => { if (w.for === 'login') inLine() } })
+  second.catch(() => {})
+  await waiting
+  try {
+    for (let i = 1; i <= minutes; i++) {
+      clock.now = () => real() + i * 60_000
+      t.mock.timers.tick(60_000)
+      await new Promise((r) => setTimeout(r, 20))
+    }
+    await first.close()
+    const s2 = await second.catch((e: Error) => e)
+    if (!(s2 instanceof Error)) await s2.close()
+    return { ...out, error: s2 instanceof Error ? s2.message : undefined }
+  } finally {
+    clock.now = real
+    await a.agents.deleteSandbox('kim')
+  }
+}
+
+test('R5.8 / R5.4: a job that waits in line for the AI login longer than its sandbox\'s time keeps its sandbox', async (t) => {
+  // spec/tla/JobTiming.tla found it (JobTiming_main_wait): the sandbox's time (jobTimeoutMs + 60 s from its create or
+  // resume) ran out while its job still waited for the login, so E2B paused it, load could not write the login, the
+  // job failed, and close destroyed the user's kept sandbox
+  const r = await waitForLogin(t, 34)
+  assert.equal(r.error, undefined, 'the job that waited 34 minutes for the login starts')
+  assert.deepEqual(r.paused, [], 'no sandbox paused while its job waited')
+})
+
+test('R1.4: the login\'s watcher runs before the provider would pause the sandbox, also before the job sets the sandbox\'s time again', async (t) => {
+  // spec/tla/JobTiming.tla found it (JobTiming_main_settime): after a wait of 2 minutes, the sandbox's time still was the
+  // one of its create (jobTimeoutMs + 60 s), and the watcher's the wait's later (jobTimeoutMs + 45 s from the login);
+  // a backend that died before job.ts's setTimeout left the login in the sandbox that E2B then paused
+  const r = await waitForLogin(t, 2)
+  assert.equal(r.error, undefined)
+  assert.deepEqual(r.late, [])
+})
+
+test('R1.4: a backend that dies while load writes the login into the sandbox leaves no login there once the watcher ran', async () => {
+  // spec/tla/JobTiming.tla found it (JobTiming_main_load): load wrote the login files, and only then started the
+  // watcher; a backend that died in between left them in the sandbox that the provider later paused
+  const a = await app()
+  await a.agents.connectLogin('lou', 'claude')
+  assert.deepEqual(await a.agents.finishLogin('lou', 'claude', { code: 'good-code' }), { state: 'signed-in' })
+  const seen: string[] = []
+  const create = a.sandbox.create
+  a.sandbox.create = async (o) => {
+    const s = await create(o)
+    const run = s.run
+    // the backend dies at the chmod after the files are written: that call never returns
+    s.run = (cmd, ro) => { seen.push(cmd); return cmd.startsWith('chmod 600') ? new Promise(() => {}) : run(cmd, ro) }
+    return s
+  }
+  void a.agents.session('lou', { harness: 'claude' })
+  for (let i = 0; i < 200 && !seen.some((c) => c.startsWith('chmod 600')); i++) await new Promise((r) => setTimeout(r, 25))
+  assert.ok(seen.some((c) => c.startsWith('chmod 600')), 'load wrote the files')
+  assert.ok(seen.some((c) => /^sleep \d+; \[/.test(c)), 'the watcher already runs in the sandbox')
+})
+
 test('R1.4: byoa saves a login from a sandbox only when it is the same account and not older', async () => {
   const { accept } = await import('../src/login-stored.ts')
   const codex = (account: string, last: string, t = 'a') => ({ '.codex/auth.json': JSON.stringify({ tokens: { access_token: t, account_id: account }, last_refresh: last }) })
