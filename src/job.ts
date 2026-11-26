@@ -400,11 +400,12 @@ export function jobs(d: JobDeps) {
           yield { type: 'start', harness: h, version: s.version, sandbox: d.sandbox.name, ...(conv !== undefined ? { conversation: conv, resumed: turn!.resume } : {}) }
 
           for await (let ev of stream(s.sandbox, cmd, { cwd: s.work, env: s.env, timeoutMs: d.timeout }, reader)) {
+            const taken = takenAtEnd.get(ev) ?? reader.taken ?? 0
             ev = await cred.event(ev)
             if (ev.type === 'end') {
               // R5.10: a message is still to come, so this was one turn; the job ends after the turn that answers the
               // last one, and the driver then ends the harness
-              if (steer && !ended && messages.length > (reader.taken ?? 0)) {
+              if (steer && !ended && messages.length > taken) {
                 yield { type: 'turn', ok: ev.ok, ...(ev.result !== undefined ? { result: ev.result } : {}), ...(ev.usage ? { usage: ev.usage } : {}) }
                 continue
               }
@@ -491,13 +492,21 @@ export function jobs(d: JobDeps) {
 /** Ends every process that runs in the job's folder: the harness and what it started. */
 const stopJob = (work: string) => `for d in /proc/[0-9]*; do [ "$(readlink "$d/cwd" 2>/dev/null)" = ${q(work)} ] && kill -KILL "\${d#/proc/}" 2>/dev/null; done; true`
 
+/** R5.10: how many messages the harness had taken when its reader read this end event. The reader reads on while the
+ *  app is still on earlier events, so by the time the job handles a turn's end, it may have counted the message that
+ *  the next turn took: the job would end then, without that turn's answer (spec/tla/Steer.tla). */
+const takenAtEnd = new WeakMap<AgentEvent, number>()
+
 /** Runs the command and turns its output, line by line, into events as they come. When the reader stops early (the
  *  harness gave its end event, or the app stopped the job), it waits for the command to exit: after an end event up to
  *  EXIT_WAIT_MS, then it ends the job's processes. So no harness of the job runs when the job closes. */
 async function* stream(sbx: Sandbox, cmd: string, opts: { cwd: string; env: Record<string, string>; timeoutMs: number }, reader: EventReader): AsyncGenerator<AgentEvent> {
   const queue: AgentEvent[] = []
   let wake: (() => void) | undefined, done = false, ended = false, buf = ''
-  const push = (evs: AgentEvent[]) => { if (evs.length) { queue.push(...evs); wake?.(); wake = undefined } }
+  const push = (evs: AgentEvent[]) => {
+    for (const ev of evs) if (ev.type === 'end' && reader.taken !== undefined) takenAtEnd.set(ev, reader.taken)
+    if (evs.length) { queue.push(...evs); wake?.(); wake = undefined }
+  }
   const lines = (chunk: string) => {
     buf += chunk
     let k
