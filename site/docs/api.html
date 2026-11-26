@@ -537,11 +537,11 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 </tr>
 <tr>
 <td><code>finishLogin(user, h, { code?, waitMs? })</code></td>
-<td><code>{ state: &#39;signed-in&#39; | &#39;signed-out&#39; | &#39;expired&#39; | &#39;pending&#39;, error? }</code>. Claude: pass <code>code</code> (the code Anthropic&#39;s page shows); with no code, it only checks in and says <code>pending</code>. Codex and Grok: no code; <code>waitMs</code> waits that long; call again while <code>pending</code>. Each call keeps the sign-in&#39;s sandbox alive for 2 more minutes; with no call for 2 minutes it ends (on E2B and Daytona; Instabox ends it after 15 minutes). A sign-in lasts 15 minutes at most.</td>
+<td><code>{ state: &#39;signed-in&#39; | &#39;signed-out&#39; | &#39;expired&#39; | &#39;pending&#39;, error? }</code>. Claude: pass <code>code</code> (the code Anthropic&#39;s page shows); with no code, it only checks in and says <code>pending</code>. Codex and Grok: no code; <code>waitMs</code> waits that long; call again while <code>pending</code> (also right after <code>connectLogin</code>, while its sandbox starts). After a <code>cancelLogin</code> or <code>signOut</code> meanwhile, no login it saved stays (<code>storedLogin()</code>; with <code>cliLogin</code> the volume keeps what the CLI wrote) and it answers the state with <code>error: &#39;the sign-in was cancelled&#39;</code>. Each call keeps the sign-in&#39;s sandbox alive for 2 more minutes; with no call for 2 minutes it ends (on E2B and Daytona; Instabox ends it after 15 minutes). A sign-in lasts 15 minutes at most.</td>
 </tr>
 <tr>
 <td><code>cancelLogin(user, h)</code></td>
-<td><code>void</code>. Ends a sign-in that has not finished, and its sandbox, at once. Call it when the user closes the sign-in.</td>
+<td><code>void</code>. Ends a sign-in that has not finished, and its sandbox, at once, also one that <code>connectLogin</code> still starts (that call then throws &quot;the sign-in was cancelled&quot;). Call it when the user closes the sign-in.</td>
 </tr>
 <tr>
 <td><code>loginState(user, h)</code></td>
