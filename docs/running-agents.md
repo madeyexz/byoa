@@ -29,7 +29,7 @@ By default (`access: 'full'`), the agent has every tool of its harness, with no 
 agents.run(userId, { harness: 'codex', task, mcp: ['mail'], setup: { skills }, access: 'read-only' })
 ```
 
-The agent can then call the job's MCP tools and read files, so the harness can still read its skills and AGENTS.md. It cannot change a file or reach the network by itself. byoa only sets each CLI's own options: Codex runs in its own `read-only` sandbox, Claude Code gets only its tools that read, and Grok Build gets rules that deny its shell, file changes and web fetch (and its web search finds nothing); each tool a CLI refuses is a `permission` event or an error for the model. `read-only` does not hide files: the agent can read each file that its user can read. Use it always with `localSandbox()` on a user's own computer, where the sandbox isolates nothing.
+The agent can then call the job's MCP tools and read files, so the harness can still read its skills and AGENTS.md. It cannot change a file or reach the network by itself. byoa only sets each CLI's own options: Codex runs in its own sandbox with a read-only permission profile, which also denies its commands Codex's home folder (CODEX_HOME), where its login is, Claude Code gets only its tools that read, and Grok Build gets rules that deny its shell, file changes and web fetch (and its web search finds nothing); each tool a CLI refuses is a `permission` event or an error for the model. Apart from Codex's home folder, `read-only` does not hide files: the agent can read each file that its user can read, also Claude Code's and Grok Build's login files. Use it always with `localSandbox()` on a user's own computer, where the sandbox isolates nothing.
 
 ## Sandbox modes
 

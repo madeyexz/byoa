@@ -184,8 +184,9 @@ test('R5.6: access read-only starts each CLI with its own limits, and the job\'s
   const { claude } = await import('../src/harness/claude.ts')
   const { harnessFiles } = await import('../src/harness/index.ts')
   const { grok } = await import('../src/harness/grok.ts')
-  // Codex: its own sandbox for the thread (the shell stays, to read skills), and the job's MCP tools approved in its config
-  assert.equal(codex.driver!.setup({ work: '/w', access: 'read-only', servers: [], model: [] }).sandbox, 'read-only')
+  // Codex: its own sandbox for the thread, with a permission profile (the shell stays, to read skills), and the job's MCP
+  // tools approved in its config
+  assert.equal(codex.driver!.setup({ work: '/w', access: 'read-only', servers: [], model: [] }).readOnly, true)
   const o = { proxyUrl: 'https://app.example.com/byoa/mcp', servers: ['todos'] }
   const toml = harnessFiles('codex', {}, { ...o, access: 'read-only' })['.codex/config.toml']!
   assert.equal(toml, harnessFiles('codex', {}, o)['.codex/config.toml'] + 'default_tools_approval_mode = "approve"\n')
@@ -197,7 +198,10 @@ test('R5.6: access read-only starts each CLI with its own limits, and the job\'s
   await a.agents.connectLogin('gus', 'codex')
   assert.deepEqual(await a.agents.finishLogin('gus', 'codex', { waitMs: 10_000 }), { state: 'signed-in' })
   const text = (await collect(a.agents.run('gus', { harness: 'codex', task: 'who am I?', access: 'read-only' }))).find((e) => e.type === 'text') as { text: string }
-  assert.match(text.text, /"sandbox":"read-only","approvalPolicy":"never"/)
+  // read-only, no network, and the login's folder (CODEX_HOME) denied to each command; no sandbox mode, which would
+  // make Codex ignore the profile
+  assert.match(text.text, /"approvalPolicy":"never","config":\{"default_permissions":"byoa-read-only","permissions":\{"byoa-read-only":\{"extends":":read-only","filesystem":\{"\/[^"]+\/\.codex":"deny"\},"network":\{"enabled":false\}\}\}\}/)
+  assert.doesNotMatch(text.text, /"sandbox"/)
   // Grok Build: no --always-approve; its project config denies the shell, file changes and web_fetch, and allows MCP
   assert.ok(!grok.args({ work: '/w', access: 'read-only', servers: [], model: [] }).includes('--always-approve'))
   assert.equal(harnessFiles('grok', {}, { ...o, access: 'read-only' })['.grok/config.toml'], harnessFiles('grok', {}, o)['.grok/config.toml'] + '\n[permission]\ndeny = ["Bash", "Write", "Edit", "WebFetch"]\nallow = ["MCPTool(*)"]\n')

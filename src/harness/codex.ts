@@ -111,7 +111,12 @@ const r = rpc((m, l) => {
 let chain = (async () => {
   await r.call('initialize', { clientInfo: { name: 'byoa', version: '1' } })
   r.notify('initialized')
-  const o = { cwd: setup.cwd, sandbox: setup.sandbox, approvalPolicy: 'never' }
+  // R5.6 read-only: Codex's own permission profile, extended from its :read-only, with no network and with CODEX_HOME,
+  // which holds the login, denied to each command, so the agent cannot read the login. A profile needs no sandbox
+  // mode: Codex ignores default_permissions when one is given.
+  const home = process.env.CODEX_HOME
+  const readOnly = { default_permissions: 'byoa-read-only', permissions: { 'byoa-read-only': { extends: ':read-only', filesystem: { [home]: 'deny' }, network: { enabled: false } } } }
+  const o = setup.readOnly ? { cwd: setup.cwd, approvalPolicy: 'never', config: readOnly } : { cwd: setup.cwd, sandbox: 'danger-full-access', approvalPolicy: 'never' }
   thread = (setup.resume ? await r.call('thread/resume', { ...o, threadId: setup.resume }) : await r.call('thread/start', { ...o, ephemeral: setup.ephemeral })).thread.id
 })()
 const say = async (text) => {
@@ -159,11 +164,12 @@ export const codex: LabHarness = {
     js: CODEX_DRIVER,
     setup: (o) => ({
       cwd: o.work,
-      // R5.6: Codex's own sandbox. Its shell stays, because Codex reads a skill with `cat`, but a command cannot change
-      // a file or reach the network; the job's MCP tools are approved in config.toml. Checked with 0.171.0 on E2B: the
-      // skill was read, the MCP call went through, and `echo x > file` and `curl` failed. With `full`, no sandbox: the
-      // sandbox is the job's alone, has no real tokens (R3.3), and is destroyed after the job (R5.4).
-      sandbox: o.access === 'read-only' ? 'read-only' : 'danger-full-access',
+      // R5.6: Codex's own sandbox, with the driver's permission profile. Its shell stays, because Codex reads a skill
+      // with `cat`, but a command cannot change a file, reach the network or read CODEX_HOME (the login); the job's MCP
+      // tools are approved in config.toml. Checked with 0.171.0 on E2B: the skill was read, the MCP call went through,
+      // and `echo x > file`, `curl` and `cat $CODEX_HOME/auth.json` failed. With `full`, no sandbox: the sandbox is the
+      // job's alone, has no real tokens (R3.3), and is destroyed after the job (R5.4).
+      readOnly: o.access === 'read-only',
       // R5.9: a conversation's first job keeps its thread (not ephemeral), which Codex names in thread/started; the
       // next jobs resume it (checked with 0.171.0: also from the rollout file alone, in a new CODEX_HOME)
       ephemeral: !o.conversation,
