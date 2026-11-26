@@ -100,6 +100,10 @@
   .welcome a, .ai a { text-decoration: underline; text-underline-offset: 3px; }
   .code { font: 500 13px/1 ui-monospace, 'SF Mono', monospace; padding: 4px 8px; border-radius: 8px; background: var(--muted); border: 1px solid var(--border); color: var(--t1); }
   .code.big { font-size: 24px; padding: 8px 12px; }
+  .alert > section p { margin: 0; }
+  .tools { display: grid; grid-template-columns: max-content 1fr; gap: 6px 12px; margin: 10px 0 12px; }
+  .tools dt { font: 500 12px/1.6 ui-monospace, 'SF Mono', monospace; color: var(--t1); }
+  .tools dd { margin: 0; line-height: 1.6; }
   .tint { background: color-mix(in oklch, var(--c) 15%, transparent) !important; color: var(--c) !important; border-color: transparent !important; }
   .cat-spam { --c: oklch(0.6 0.21 27); } .cat-sign-in { --c: oklch(0.66 0.15 70); } .cat-needs-reply { --c: oklch(0.58 0.18 255); }
   .cat-receipt { --c: oklch(0.6 0.11 185); } .cat-newsletter { --c: oklch(0.58 0.18 305); } .cat-fyi { --c: oklch(0.55 0 0); }
@@ -248,7 +252,17 @@ function renderPane() {
         <li><span><b>Click Triage inbox.</b> Your own, unmodified Claude Code, Codex or Grok Build runs in a sandbox, reads each email, and labels it.</span></li>
         <li><span><b>Open an email</b> to see why the agent labeled it, and the reply it drafted in your style.</span></li>
       </ol>
-      <div class="alert"><h2>What the agent can do</h2><section class="note">It can only read these sample emails, label them, and save reply drafts. It cannot send, delete or forward, and it never sees a password. The job uses your plan's limits. We delete your sign-in, your sandbox and your labels one hour after your last visit.</section></div>
+      <div class="alert"><h2>What the agent can do</h2><section class="note">
+        <p>The app gives your agent these five tools, and no others:</p>
+        <dl class="tools">
+          <dt>list_inbox</dt><dd>Lists the emails that do not have a label yet.</dd>
+          <dt>read_message</dt><dd>Reads the text of one email. The agent treats it as untrusted data.</dd>
+          <dt>label_message</dt><dd>Gives one email a label (Needs reply, Sign-in, Spam, Receipt, Newsletter or FYI) and a short reason.</dd>
+          <dt>my_sent_mail</dt><dd>Reads 10 sample sent emails, so that the drafts match a person's style.</dd>
+          <dt>save_draft</dt><dd>Saves a reply draft. It does not send the draft.</dd>
+        </dl>
+        <p>The agent cannot send, delete or forward an email, change a file, or connect to the network. It never sees a password. The job uses your plan's limits. We delete your sign-in, your sandbox and your labels one hour after your last visit.</p>
+      </section></div>
       <p class="note muted"><a href="/">byoa</a> is an open-source library that lets an app run its users' own Claude Code, Codex or Grok Build in a sandbox. This demo's <a href="https://github.com/madeyexz/byoa/tree/main/examples/mail">code</a> is in the repository.</p>
     </div>`
     return
