@@ -28,6 +28,9 @@
 @font-face { font-family: "Geist"; src: url(/fonts/Geist-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: "Geist Mono"; src: url(/fonts/GeistMono-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: "Geist Pixel"; src: url(/fonts/GeistPixel-Square.woff2) format("woff2"); font-display: swap; }
+/* Until Geist loads: Arial (or Arimo, its metric twin on ChromeOS and Linux) scaled to Geist's width and line height, so
+   the text does not move when Geist arrives (CLS). The numbers are Geist's metrics over Arial's, from @capsizecss. */
+@font-face { font-family: "Geist Fallback"; src: local("Arial"), local("ArialMT"), local("Arimo Regular"), local("Arimo-Regular"); size-adjust: 104.76%; ascent-override: 95.94%; descent-override: 28.16%; line-gap-override: 0%; }
 
 :root {
   --paper: #f8f6f0; --paper2: #f1eee5; --card: #fffdf8;
@@ -36,7 +39,7 @@
   --cobalt: #2f4cff; --cobalt2: #2238d8; --peri: #9db6ff; --peri2: #dfe6ff;
   --tomato: #ff5a36; --butter: #ffc93c; --mint: #2fbf8a; --navy: #121428;
   --g: clamp(16px, 8.3vw, 120px);           /* gutter: the ruled columns at the page edges */
-  --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --pixel: "Geist Pixel", "Geist Mono", ui-monospace, monospace;
 }
