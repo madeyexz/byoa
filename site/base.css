@@ -36,23 +36,26 @@ nav.top { position: sticky; top: 0; z-index: 30; background: rgba(248,246,240,.9
 nav.top .row { display: flex; height: 56px; }
 nav.top a { display: flex; align-items: center; padding: 0 18px; text-decoration: none; font-size: 15px; border-right: 1px solid var(--rule); color: var(--ink2); white-space: nowrap; }
 nav.top a:hover { background: var(--paper2); color: var(--ink); }
-nav.top .brand { gap: 9px; font-weight: 640; font-size: 19px; letter-spacing: -.02em; color: var(--ink); width: var(--g); min-width: 120px; padding: 0 14px; }
+/* the brand and GitHub cells are as wide as the gutter, so their rules continue the frame's rules below; the 1px is their own border */
+nav.top .brand { gap: 9px; font-weight: 640; font-size: 19px; letter-spacing: -.02em; color: var(--ink); width: calc(var(--g) + 1px); min-width: max-content; padding: 0 12px; }
 nav.top .brand img { width: 18px; height: auto; }
 nav.top .sp { flex: 1; }
 nav.top .r { border-right: 0; border-left: 1px solid var(--rule); }
-nav.top .gh { background: var(--ink); color: var(--paper); border: 0; gap: 10px; }
+nav.top .gh { background: var(--ink); color: var(--paper); border: 0; gap: 10px; width: calc(var(--g) + 1px); min-width: max-content; padding: 0 12px; justify-content: center; }
 nav.top .gh:hover { background: #000; color: #fff; }
 .chev { display: inline-block; width: 10px; height: 10px; background:
   linear-gradient(currentColor,currentColor) 0 0/3px 3px no-repeat, linear-gradient(currentColor,currentColor) 3px 3px/3px 3px no-repeat,
   linear-gradient(currentColor,currentColor) 6px 3px/0 0 no-repeat, linear-gradient(currentColor,currentColor) 0 6px/3px 3px no-repeat; }
 
 /* buttons */
-.btn { display: inline-flex; align-items: center; gap: 12px; padding: 13px 18px; font-size: 16px; font-weight: 520; text-decoration: none; background: var(--paper2); border: 1px solid var(--rule); color: var(--ink); transition: background .12s; }
+.btn { display: inline-flex; align-items: center; gap: 12px; padding: 13px 18px; font-size: 16px; line-height: 24px; font-weight: 520; text-decoration: none; background: var(--paper2); border: 1px solid var(--rule); color: var(--ink); transition: background .12s; }
 .btn:hover { background: #e9e5da; }
 .btn.dark { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .btn.dark:hover { background: #000; }
-.btn .ico { width: 30px; height: 30px; margin: -6px 0 -6px -8px; display: grid; place-items: center; background: var(--cobalt); }
-.btn .ico img { width: 20px; }
+/* the icon is a square cell flush with the button's left edge */
+.btn:has(.ico) { padding-left: 0; }
+.btn .ico { width: 50px; height: 50px; margin: -13px 6px -13px 0; display: grid; place-items: center; background: var(--cobalt); }
+.btn .ico img { width: 28px; }
 
 .badge { font: 11px var(--pixel); letter-spacing: .08em; padding: 3px 7px 2px; line-height: 1.2; display: inline-block; }
 .badge.v1 { background: var(--cobalt); color: #fff; }
