@@ -146,7 +146,7 @@ function grokReader(): EventReader {
  *  its `turn_completed`. Grok asks for permission only in a read-only job (the rules in `.grok/config.toml` deny the
  *  tools that change files, so it seldom does), and the driver refuses: Grok then ends the turn. */
 const GROK_DRIVER = driver(String.raw`
-let session, running = false, interjecting = 0
+let session, running = false, interjecting = 0, completed = 0
 const r = rpc((m, l) => {
   if (m.method === 'session/request_permission') {
     const no = (m.params?.options ?? []).find((x) => x.kind === 'reject_once')
@@ -155,7 +155,7 @@ const r = rpc((m, l) => {
   }
   if (m.id !== undefined) return r.refuse(m.id, 'byoa answers no request')
   if (m.method === '_x.ai/session/interjection') { interjecting--; running = true }
-  if (m.method === '_x.ai/session_notification' && m.params?.update?.sessionUpdate === 'turn_completed') running = false
+  if (m.method === '_x.ai/session_notification' && m.params?.update?.sessionUpdate === 'turn_completed') { running = false; completed++ }
   print(l)
 })
 let chain = (async () => {
@@ -170,8 +170,11 @@ const say = async (text) => {
   if (running || interjecting) { interjecting++; await r.call('_x.ai/interject', { sessionId: session, text }); return }
   running = true
   print({ byoa: 'taken' })
-  // its turn_completed ends the turn; an answer with an error and no turn_completed is a turn that did not start
-  r.call('session/prompt', { sessionId: session, prompt: [{ type: 'text', text }] }).catch((e) => { if (running) fail(e) })
+  // its turn_completed ends the turn; an answer with an error and no turn_completed since the prompt is a turn that
+  // did not start. Grok answers a failed turn's prompt with an error after its turn_completed, and that answer may
+  // come when the next turn runs (spec/tla/Steer.tla)
+  const at = completed
+  r.call('session/prompt', { sessionId: session, prompt: [{ type: 'text', text }] }).catch((e) => { if (completed === at) fail(e) })
 }
 inbox((text) => { chain = chain.then(() => say(text)).catch(fail) }, () => { chain = chain.then(close) })
 `)

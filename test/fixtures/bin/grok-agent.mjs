@@ -5,7 +5,7 @@
 // turn ends with Grok's `turn_completed`. The task drives it as the other stand-ins: `who am I` (an MCP call through
 // use_tool), `cred`, `together`, `write` (denied by a `deny = [... "Write" ...]` rule in `.grok/config.toml`, else
 // approved with --always-approve, else asked for, and a refusal ends the turn), `expire`, `limit` and `busy` (a
-// turn that fails as grok 1.0.92's do); any other message gets one answer that
+// turn that fails as grok 1.0.92's do), `late` (the prompt's answer comes late); any other message gets one answer that
 // says what the session remembers.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
@@ -95,6 +95,9 @@ async function turn(m) {
   running = false
   const agent_result = stop === 'error' ? result : null
   send({ method: '_x.ai/session_notification', params: { sessionId: session, update: { sessionUpdate: 'turn_completed', prompt_id: id, stop_reason: stop, usage, agent_result, ...(kind ? { error_kind: kind } : {}) } } })
+  // `late`: the answer to the prompt comes 1 s after its turn_completed, as it may when the two lines reach the driver
+  // apart
+  if (m && task.includes('late')) await sleep(1000)
   if (m) send({ id: m.id, ...(stop === 'error' ? { error: { code: -32603, message: 'Internal error', data: { message: agent_result } } } : { result: { stopReason: stop } }) })
   // an interjection that came as the turn ended gets a turn of its own
   if (pending.length) turn()

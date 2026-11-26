@@ -676,6 +676,48 @@ for (const h of ['codex', 'grok'] as const) {
   })
 }
 
+for (const h of ['claude', 'codex', 'grok'] as const) {
+  // spec/tla/Steer.tla (Steer_main_*): the reader reads the CLI's output while the app is still on an earlier event,
+  // so when the job handles the end of the first turn, the reader may have counted the next message already
+  test(`R5.10: a ${h} job whose app reads its events slowly still answers the message it sent before it ends`, async () => {
+    const { agents } = await app()
+    await agents.connectLogin('sam', h)
+    await agents.finishLogin('sam', h, h === 'claude' ? { code: 'good-code' } : { waitMs: 10_000 })
+    const job = agents.run('sam', { harness: h, task: 'first', conversation: 'c' })
+    const ev: Awaited<ReturnType<typeof collect>> = []
+    for await (const e of job) {
+      ev.push(e)
+      // an app that stores each event before it reads the next one: both turns run meanwhile (the CLI starts when
+      // the app reads past `start`)
+      if (e.type === 'start') assert.equal(await job.send('and a second one'), true)
+      if (e.type === 'text' && ev.filter((x) => x.type === 'text').length === 1) await new Promise((r) => setTimeout(r, 2000))
+    }
+    const types = ev.map((e) => e.type)
+    assert.deepEqual(types.filter((t) => t === 'turn' || t === 'end'), ['turn', 'end'], types.join(' '))
+    assert.ok(ev.slice(types.indexOf('turn')).some((e) => e.type === 'text' && /remembers 1: /.test(e.text)), JSON.stringify(ev))
+  })
+}
+
+// spec/tla/Steer.tla (Steer_main_grok_fail): Grok answers the prompt of a failed turn with an error after its
+// turn_completed; when that answer reaches the driver after the next turn started, the driver took it for a turn
+// that did not start, and failed the job
+test('R5.10: a grok job goes on with the next message after a failed turn, also when the failed prompt is answered late', async () => {
+  const { agents } = await app()
+  await agents.connectLogin('ray', 'grok')
+  await agents.finishLogin('ray', 'grok', { waitMs: 10_000 })
+  const job = agents.run('ray', { harness: 'grok', task: 'busy late', conversation: 'c' })
+  const ev: Awaited<ReturnType<typeof collect>> = []
+  for await (const e of job) {
+    ev.push(e)
+    // the first turn failed: the app sends the next message, whose turn runs when the late answer comes
+    if (e.type === 'error' && e.code === 'rate-limited' && ev.filter((x) => x.type === 'error').length === 1) assert.equal(await job.send('slow second'), true)
+  }
+  const types = ev.map((e) => e.type)
+  assert.deepEqual(types.filter((t) => t === 'turn' || t === 'end'), ['turn', 'end'], JSON.stringify(ev))
+  assert.ok(ev.some((e) => e.type === 'text' && e.text.startsWith('remembers 1: slow second')), JSON.stringify(ev))
+  assert.equal((ev.at(-1) as { ok: boolean }).ok, true, JSON.stringify(ev))
+})
+
 test('R1.9 / V23: a used-up plan is usage-limit, with its reset when the CLI says; until then a job starts no sandbox', async () => {
   const { clock } = await import('../src/time.ts')
   const { agents, sandbox } = await app()
