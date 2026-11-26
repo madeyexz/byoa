@@ -182,7 +182,7 @@ test('R1.4: when a login is due, byoa reads only the time its access token ends'
 test('R5.6: access read-only starts each CLI with its own limits, and the job\'s MCP tools stay', async () => {
   const { codex } = await import('../src/harness/codex.ts')
   const { claude } = await import('../src/harness/claude.ts')
-  const { harnessFiles } = await import('../src/index.ts')
+  const { harnessFiles } = await import('../src/harness/index.ts')
   const { grok } = await import('../src/harness/grok.ts')
   // Codex: its own sandbox for the thread (the shell stays, to read skills), and the job's MCP tools approved in its config
   assert.equal(codex.driver!.setup({ work: '/w', access: 'read-only', servers: [], model: [] }).sandbox, 'read-only')

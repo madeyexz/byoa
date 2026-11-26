@@ -8,7 +8,7 @@ This is the API in https://github.com/madeyexz/byoa today. Version 1.0.0 is on n
 
 | Import | What it gives |
 |---|---|
-| `@madeyexz/byoa` | `createAgents`, `LoginError`, `ProxyError`, `SandboxGoneError`, `memoryStore`, `storedLogin`, `cliLogin`, `harnessFiles`, `readPlugin`, `JOB_TOKEN_ENV`, `PINS`, `PACKAGES`, `ensureHarness`, `LOGIN_FILES`, `clientMetadataDocument`, `PLANS`; types `Agents` (what `createAgents` returns), `AgentsOptions`, `RunOptions`, `Job` (what `run` returns), `RunHarness`, `ConnectResult`, `Session`, `SessionOptions`, `JobToken`, `Store`, `Entry`, `Sandbox`, `SandboxProvider`, `Capabilities`, `AgentEvent`, `Usage`, `AppTools`, `AppTool`, `Access`, `Setup`, `Skill`, `Plugin`, `LoginState`, `LoginStart`, `LoginResult`, `PlanName`, `PlanState` |
+| `@madeyexz/byoa` | `createAgents`, `LoginError`, `ProxyError`, `SandboxGoneError`, `memoryStore`, `storedLogin`, `cliLogin`, `readPlugin`, `JOB_TOKEN_ENV`, `PINS`, `clientMetadataDocument`, `PLANS`; types `Agents` (what `createAgents` returns), `AgentsOptions`, `RunOptions`, `Job` (what `run` returns), `RunHarness`, `ConnectResult`, `Session`, `SessionOptions`, `JobToken`, `Store`, `Entry`, `Sandbox`, `SandboxProvider`, `Capabilities`, `AgentEvent`, `Usage`, `AppTools`, `AppTool`, `Access`, `Setup`, `Skill`, `Plugin`, `LoginState`, `LoginStart`, `LoginResult`, `PlanName`, `PlanState` |
 | `@madeyexz/byoa/sandbox/e2b` | `e2b({ apiKey?, template?, timeoutMs? })`, `buildE2BTemplate(name?, { apiKey?, pins? })`, `e2bTemplate(pins?)`. Needs the `e2b` package. |
 | `@madeyexz/byoa/sandbox/daytona` | `daytona({ apiKey?, client?, snapshot?, volume?, timeoutMs? })`. Needs `@daytona/sdk`. |
 | `@madeyexz/byoa/sandbox/instabox` | `instabox({ apiKey?, apiUrl?, template?, snapshot?, timeoutMs? })`. Needs no package. No volumes: use `storedLogin()`, not `cliLogin`. |
@@ -17,6 +17,8 @@ This is the API in https://github.com/madeyexz/byoa today. Version 1.0.0 is on n
 | `@madeyexz/byoa/store/convex` | `convexTable()`, `convexFunctions(table?)`, `convexStore(ctx, fns)`. Needs `convex`. |
 | `@madeyexz/byoa/node` | `toNodeListener(handler)` (a fetch handler as a `node:http` listener), `readPluginDir(dir)` |
 | `@madeyexz/byoa/verify` | `verifyHarness(sandbox, harness, bin, pins?)`: checks the installed binary against the published npm package |
+
+`@madeyexz/byoa` still exports `harnessFiles`, `ensureHarness`, `PACKAGES` and `LOGIN_FILES`, which byoa's own tests use. They are deprecated, and version 2.0 removes them: do not use them in an app.
 
 ## createAgents(options)
 
