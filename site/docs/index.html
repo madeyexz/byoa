@@ -107,6 +107,47 @@ nav.top .gh:hover { background: #000; color: #fff; }
 .ascii .lg-daytona { background-image: url(/art/logo-daytona.png); }
 .ascii .lg-instabox { background-image: url(/art/logo-instabox.png); }
 
+/* what each user pays (build.mjs, priceBars): the home page's "Why" and the docs' "What your users pay". The bars
+   adapt to the width of their box, so they fit the home page, the docs column and a phone. */
+  .prices .ph { color: var(--ink2); font-size: 16px; margin: 0 0 16px; }
+  .prices .nt { display: inline-block; min-width: 3ch; text-align: center; color: var(--cobalt); border-bottom: 2px dotted var(--cobalt); cursor: ew-resize; user-select: none; touch-action: none; font-variant-numeric: tabular-nums; outline: 0; }
+  .prices .nt:hover, .prices .nt:focus-visible, .prices .nt.on { background: var(--peri2); border-bottom-style: solid; }
+  .prices .bars { border: 1px solid var(--rule); background: var(--card); padding: 6px 24px; }
+  .prices .br { position: relative; display: grid; grid-template-columns: 260px 1fr 210px; gap: 22px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--rule); outline: 0; }
+  .prices .br:last-of-type { border-bottom: 0; }
+  .prices .nm { font-size: 16.5px; color: var(--ink); font-weight: 520; }
+  .prices .nm u { text-decoration: underline dotted var(--dim); text-underline-offset: 4px; cursor: help; }
+  .prices .tr { display: flex; height: 14px; background: var(--paper2); overflow: hidden; }
+  .prices .tr i { transition: width .15s ease-out; }
+  .prices .ax { display: grid; grid-template-columns: 260px 1fr 210px; gap: 22px; padding: 12px 0 0; font: 12.5px var(--mono); color: var(--muted); }
+  .prices .ax .tk { display: flex; justify-content: space-between; border-bottom: 1px solid var(--rule2); padding-bottom: 4px; }
+  .prices .tr i { display: block; height: 100%; min-width: 3px; background: var(--tomato); }
+  .prices .tr i.up { min-width: 0; background: repeating-linear-gradient(135deg, var(--tomato) 0 3px, #ffc2b3 3px 7px); }
+  .prices .low .tr i { background: #ff9a80; }
+  .prices .br b { font-size: 24px; letter-spacing: -.03em; font-weight: 560; text-align: right; white-space: nowrap; }
+  .prices .br b small { font-size: 13px; letter-spacing: 0; font-weight: 400; color: var(--muted); }
+  .prices .by .tr i { background: var(--cobalt); }
+  .prices .by .nm, .prices .by b { color: var(--cobalt); }
+  /* the models of a bar, on hover, or on tap (focus) on a phone */
+  .prices .tip { display: none; position: absolute; z-index: 5; left: 0; top: calc(100% - 6px); min-width: 250px; padding: 8px 12px; background: var(--navy); color: #e8eaf8; font-size: 14px; font-weight: 400; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+  .prices .tip span { display: flex; justify-content: space-between; gap: 18px; padding: 3px 0; }
+  .prices .tip b { font: 500 14px var(--mono); color: #fff; letter-spacing: 0; }
+  .prices .br:hover .tip, .prices .br:focus .tip { display: block; }
+  .prices .br:focus-visible .nm u { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+.prices .bars { container-type: inline-size; }
+@container (max-width: 760px) {
+  .prices .br, .prices .ax { grid-template-columns: 190px 1fr 140px; gap: 16px; }
+  .prices .br b { font-size: 19px; }
+  .prices .nm { font-size: 15.5px; }
+}
+@container (max-width: 600px) {
+  .prices .br { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; }
+  .prices .br .tr { grid-column: 1 / -1; grid-row: 2; }
+  .prices .ax { grid-template-columns: 1fr; padding-top: 10px; } .prices .ax > span:not(.tk) { display: none; }
+  .prices .br b { font-size: 17px; }
+}
+@media (max-width: 720px) { .prices .bars { padding: 4px 16px; } }
+
 footer { background: var(--navy); color: #8b90b0; font-size: 14px; }
 footer .frame { border-color: rgba(255,255,255,.1); display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; padding: 22px 24px 30px; }
 footer a { color: #b8bdd8; text-decoration: none; }
@@ -220,6 +261,48 @@ footer a { color: #b8bdd8; text-decoration: none; }
   .tbl td { color: var(--ink2); }
   .diagram { margin: 8px 0 24px; padding: 28px 12px; border: 1px solid var(--rule); background: var(--paper2); }
   .diagram .ascii-wrap { margin: 0 auto; }
+  .diagram.cost { padding: 0; border: 0; background: none; } /* the price bars have their own box */
+
+  /* illustrations (diagrams/*.html other than who): calm panels and box drawings in the page's own colours */
+  .ill { font-size: 14px; line-height: 1.4; color: var(--ink2); }
+  .ill b { color: var(--ink); font-weight: 600; }
+  .ill code { font-size: 12px; }
+
+  /* plan, job, parts: two panels side by side, in the home page's style (its battery, app tiles and dashed wires) */
+  .ill .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .ill .bx { border: 1px solid var(--rule); background: var(--card); padding: 16px; display: flex; flex-direction: column; }
+  .ill .bx.on { border-color: var(--cobalt); }
+  .ill .tag { display: block; font: 11px var(--pixel); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  .ill .on .tag { color: var(--cobalt); }
+  .ill .src { display: grid; justify-items: center; gap: 4px; min-height: 92px; align-content: end; }
+  .ill .src small { font: 12px var(--mono); color: var(--muted); }
+  .ill .labs { font: 13px var(--mono); letter-spacing: .06em; border: 1px solid var(--ink2); padding: 10px 14px; color: var(--ink2); }
+  .ill .bat { width: 56px; height: auto; }
+  .ill .apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; position: relative; margin-top: 36px; }
+  .ill .apps::before { content: ""; position: absolute; left: calc(100% / 6); right: calc(100% / 6); top: -16px; border-top: 2px dashed var(--tomato); }
+  .ill .apps::after { content: ""; position: absolute; left: 50%; top: -30px; height: 14px; border-left: 2px dashed var(--tomato); }
+  .ill .app { border: 1px solid var(--rule); background: var(--paper); padding: 9px 4px; text-align: center; font-size: 13.5px; position: relative; color: var(--ink); }
+  .ill .app::before { content: ""; position: absolute; left: 50%; top: -16px; height: 15px; border-left: 2px dashed var(--tomato); }
+  .ill .app i { display: block; font: 10px var(--pixel); font-style: normal; letter-spacing: .1em; color: var(--muted); margin-bottom: 2px; }
+  .ill .app em { display: block; white-space: nowrap; font: 10.5px var(--mono); font-style: normal; color: var(--tomato); margin-top: 4px; }
+  .ill .grey .apps::before, .ill .grey .apps::after, .ill .grey .app::before { border-color: var(--rule2); }
+  .ill .cap { margin: 14px 0 0; text-align: center; }
+  .ill .ic { width: 34px; height: auto; margin: -4px 0 8px; }
+  .ill ul { margin: 0; padding: 0; list-style: none; }
+  .ill li { padding: 5px 0; border-top: 1px solid var(--rule); color: var(--ink); font-size: 14.5px; }
+  .ill .lgs { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 13px; color: var(--ink2); }
+  .ill .lgs span { display: inline-flex; align-items: center; gap: 5px; } .ill .lgs img { width: 14px; height: 14px; }
+  .ill .join { margin: 12px 0 0; text-align: center; font-size: 14.5px; } .ill .join b { color: var(--cobalt); }
+  .ill .stack { display: grid; gap: 4px; align-content: start; flex: 1; }
+  .ill .blk { border: 1px solid var(--rule2); background: var(--paper); padding: 8px 10px; font: 13px var(--mono); color: var(--ink); }
+  .ill .blk.x { background: var(--paper2); }
+  .ill .blk.b { border: 2px solid var(--cobalt); color: var(--cobalt); background: var(--card); }
+  .ill .blk.b b { color: inherit; }
+  .ill .bill { margin: 12px 0 0; padding-top: 10px; border-top: 1px dashed var(--rule2); font-size: 13.5px; color: #13744f; }
+  .ill .bill.bad { color: #c23a17; }
+  @media (prefers-color-scheme: dark) { .ill .bill { color: var(--mint); } .ill .bill.bad { color: var(--tomato); } .ill img.mono { filter: invert(1); } }
+
+  @media (max-width: 560px) { .ill .two { grid-template-columns: 1fr; } }
 
   /* flow diagrams (build.mjs draws them from ```flow blocks; docs.js lays them out) */
   .flow { margin: 10px 0 28px; padding: 18px 18px 20px; border: 1px solid var(--rule); background: var(--card); }
@@ -353,11 +436,42 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <h1>byoa docs</h1>
 <p><strong>byoa, short for &quot;bring your own agent&quot;, is the simplest way to let your users bring their own AI subscription to power the agents in your app.</strong></p>
 <h2 id="the-future-of-ai-native-apps"><a class="anchor" href="#the-future-of-ai-native-apps" aria-hidden="true" tabindex="-1">#</a>The future of AI-native apps</h2>
-<p>AI-native apps are the future. But an app cannot pay for each user&#39;s AI by usage: the numbers do not work. AI subscriptions solve this. We bet on a future where everyone has a $20 AI plan, or the same in another form, and that plan powers every app they use. In that future, every app is AI-native, so nobody says &quot;AI-native app&quot; anymore.</p>
+<p>AI-native apps are the future. But an app that buys its AI at API prices must pass that cost on to its users. So it must choose: a frontier model, and a high price for each user, or a cheap model, and a worse agent. AI subscriptions solve this. We bet on a future where everyone has a $20 AI plan, or the same in another form, and that plan powers every app they use. In that future, every app is AI-native, so nobody says &quot;AI-native app&quot; anymore.</p>
 <p>AI is like electricity, and an AI subscription is like a portable battery pack. Battery packs come in different sizes, and one pack powers all the appliances in your home. This is the economy we bet on. We build byoa to make it come sooner, so that every developer can build on it.</p>
+<figure class="diagram plan"><div class="ill" role="img" aria-label="Where the power comes from and who pays for it. Today: the AI labs sell tokens to each app through its API key, and each app, such as a notes app, a mail app and your app, pays per token and puts that cost in its price. With byoa: each user owns one battery, their own AI plan, and it plugs into every app they use. Your app passes on only the cost of the sandbox.">
+  <div class="two" aria-hidden="true">
+    <div class="bx"><span class="tag">Today</span>
+      <div class="src"><span class="labs">AI LABS</span><small>your API key</small></div>
+      <div class="pk grey"><div class="apps"><div class="app"><i>APP</i>Notes<em>$ / token</em></div><div class="app"><i>APP</i>Mail<em>$ / token</em></div><div class="app"><i>APP</i>Your app<em>$ / token</em></div></div></div>
+      <p class="cap">Each app buys tokens, and puts them in its price.</p></div>
+    <div class="bx on"><span class="tag">With byoa</span>
+      <div class="src"><img class="px bat" src="/art/battery.png" alt=""><small>the user's own plan</small></div>
+      <div class="pk"><div class="apps"><div class="app"><i>APP</i>Notes</div><div class="app"><i>APP</i>Mail</div><div class="app"><i>APP</i>Your app</div></div></div>
+      <p class="cap">Each user owns one battery. It plugs into every app.</p></div>
+  </div>
+</div>
+</figure>
 <h2 id="what-byoa-does"><a class="anchor" href="#what-byoa-does" aria-hidden="true" tabindex="-1">#</a>What byoa does</h2>
 <p>Each user powers the agent features of your app with their own AI subscription: they sign in to it one time. Today byoa supports Claude (in Claude Code), ChatGPT (in Codex), Grok (in Grok Build) and OpenCode Go (beta), and more are coming soon. When your app has work for the AI, byoa runs that user&#39;s own Claude Code, Codex or Grok Build in a sandbox, with the user&#39;s tools, and streams the result back. The user&#39;s plan pays for the AI. Your app pays only for the sandbox.</p>
+<figure class="diagram job"><div class="ill" role="img" aria-label="Who brings what. Your app brings the product, the sandbox account, and one call: agents.run. Each user brings their AI plan, such as Claude, ChatGPT or Grok, and their tools, such as Notion or Gmail. byoa puts them together in a new sandbox for each job: it runs the user's own Claude Code, Codex or Grok Build with their tools, and streams the result back to your app. The user's plan pays for the AI. Your app pays only for the sandbox.">
+  <div class="two" aria-hidden="true">
+    <div class="bx"><span class="tag">Your app brings</span><img class="px ic" src="/art/crate.png" alt="">
+      <ul><li>the product</li><li>the sandbox account</li><li>one call: <code>agents.run</code></li></ul></div>
+    <div class="bx"><span class="tag">Each user brings</span><img class="px ic" src="/art/battery.png" alt="">
+      <ul><li>their AI plan<span class="lgs"><span><img src="/art/logo-claude.png" alt="">Claude</span><span><img class="mono" src="/art/logo-openai.png" alt="">ChatGPT</span><span><img class="mono" src="/art/logo-grok.png" alt="">Grok</span></span></li><li>their tools, such as Notion or Gmail</li></ul></div>
+  </div>
+  <p class="join" aria-hidden="true"><b>byoa</b> puts them together in a new sandbox for each job.</p>
+</div>
+</figure>
 <p>byoa is an open-source library (Apache 2.0). It runs inside your app&#39;s own backend. It is not a hosted service. Start with <a href="/docs/getting-started">Getting started</a>. To learn the parts first, read the <a href="/docs/concepts">Overview</a>. To see which plans work, read <a href="/docs/subscriptions">Supported AI subscriptions</a>.</p>
+<h2 id="what-your-users-pay"><a class="anchor" href="#what-your-users-pay" aria-hidden="true" tabindex="-1">#</a>What your users pay</h2>
+<p>Your app passes its AI costs on to its users, in its price. So the real question is what each user pays for the same agent:</p>
+<ul>
+<li><strong>Without byoa,</strong> your app buys the AI at API prices. A frontier model gives a good agent and a high price. A cheap open-weight model gives a low price and a worse agent.</li>
+<li><strong>With byoa,</strong> each user brings the AI, on a plan that they already pay for and that powers every app they use. Your app passes on only the cost of the sandbox.</li>
+</ul>
+<figure class="diagram cost"><div class="prices" role="group" aria-label="What each user pays a month for small agent tasks, when your app passes its AI costs on. With your API key, frontier models cost each user a lot, and cheaper models cost less for a weaker agent. With byoa, the user's own plan pays for a frontier model, and your app passes on only the sandbox. The numbers come from the cost tables in the FAQ."><p class="ph">What each user pays a month for <span class="nt" data-scrub role="slider" tabindex="0" aria-label="Tasks for each user, a month" aria-valuemin="1" aria-valuemax="2000" aria-valuenow="100" title="Drag left or right to change it">100</span> small agent tasks. Drag the number to change it.</p><div class="bars"><div class="ax" aria-hidden="true"><span></span><span class="tk"><span>$0</span><span data-scale>$104</span></span><span></span></div><div class="br" tabindex="0"><span class="nm"><u>Frontier models at API rates</u><span class="tip" role="tooltip"><span>Claude Opus 5.5<b data-n="0.49">$49.00</b></span><span>Kimi K3<b data-n="0.435">$43.50</b></span><span>GPT-6.2 Sol<b data-n="0.245">$24.50</b></span></span></span><span class="tr"><i data-w="0.245" style="width:23.64%"></i><i class="up" data-w="0.245" style="width:23.64%"></i></span><b><span data-n="0.245">$24.50</span>–<span data-n="0.49">$49.00</span></b></div><div class="br low" tabindex="0"><span class="nm"><u>Cheaper models at API rates</u><span class="tip" role="tooltip"><span>DeepSeek V4.1 Flash<b data-n="0.0297">$2.97</b></span></span></span><span class="tr"><i data-w="0.0297" style="width:2.87%"></i></span><b><span data-n="0.0297">$2.97</span></b></div><div class="br by" tabindex="0"><span class="nm"><u>byoa, on the user's own plan</u><span class="tip" role="tooltip"><span>Sandbox on E2B<b data-n="0.0138">$1.38</b></span></span></span><span class="tr"><i data-w="0.0138" style="width:1.33%"></i></span><b><span data-n="0.0138">$1.38</span><small> + their plan</small></b></div></div><script>{const r=document.currentScript.closest('.prices'),k=r.querySelector('[data-scrub]'),MIN=1,MAX=2000,TOP=0.49;let t=100;const usd=(n) => (n >= 100 ? `$${Math.round(n).toLocaleString('en-US')}` : `$${n.toFixed(2)}`),scale=(t, top, max) => top * max * (t / max) ** 0.75,label=(n) => (n >= 10 ? `$${Math.round(n).toLocaleString('en-US')}` : `$${n.toFixed(2)}`);const set=(v)=>{t=Math.min(MAX,Math.max(MIN,Math.round(v)));k.textContent=t.toLocaleString('en-US');k.setAttribute('aria-valuenow',t);const S=scale(t,TOP,MAX);r.querySelector('[data-scale]').textContent=label(S);for(const e of r.querySelectorAll('[data-n]'))e.textContent=usd(t*e.dataset.n);for(const e of r.querySelectorAll('[data-w]'))e.style.width=(100*t*e.dataset.w/S)+'%'};let x0=0,t0=0;k.addEventListener('pointerdown',(e)=>{x0=e.clientX;t0=t;k.setPointerCapture(e.pointerId);k.classList.add('on')});k.addEventListener('pointermove',(e)=>{if(k.hasPointerCapture(e.pointerId)){const d=e.clientX-x0;set(t0+Math.sign(d)*Math.max(Math.abs(d)/4,Math.abs(d)*t0/250))}});k.addEventListener('pointerup',()=>k.classList.remove('on'));k.addEventListener('keydown',(e)=>{const s={ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1,PageUp:10,PageDown:-10}[e.key];if(s){e.preventDefault();set(t+s*(e.shiftKey?10:1))}else if(e.key==='Home'){e.preventDefault();set(MIN)}else if(e.key==='End'){e.preventDefault();set(MAX)}});set(t)}</script></div></figure>
+<p>These are estimates for a small agent task, from the <a href="/docs/faq#what-does-an-ai-job-cost-with-byoa-and-with-an-api-key">FAQ</a>. byoa does not make tokens cheaper: it moves them to the user&#39;s plan. The plan has limits, and a user who runs many long tasks reaches them.</p>
 <h2 id="why-and-when-you-need-byoa"><a class="anchor" href="#why-and-when-you-need-byoa" aria-hidden="true" tabindex="-1">#</a>Why and when you need byoa</h2>
 <p>You want your app to have an AI agent that does real work for each user: it reads and changes the user&#39;s data, calls the user&#39;s tools, and writes files. To build this yourself, you need many parts:</p>
 <ul>
@@ -366,7 +480,18 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <li>a sign-in to each user&#39;s AI plan, and safe storage of that login;</li>
 <li>an OAuth connection to each of the user&#39;s MCP tools, with the tokens kept out of the agent&#39;s reach.</li>
 </ul>
-<p>And with your own API key, your app pays for every token. byoa gives you all of these parts as one library, and the user&#39;s own plan pays for the AI.</p>
+<p>And with your own API key, your app buys every token at API prices, and your users pay for them in your price. byoa gives you all of these parts as one library, and the user&#39;s own plan pays for the AI.</p>
+<figure class="diagram parts"><div class="ill" role="img" aria-label="Your backend, before and after. Build it yourself: your app, an agent loop, sandbox control, AI sign-in and login storage, and MCP OAuth and token storage, and an AI bill per token, at API prices. With byoa: your app and byoa, one npm install, and no AI bill, because the user's plan pays.">
+  <div class="two" aria-hidden="true">
+    <div class="bx"><span class="tag">Build it yourself</span>
+      <div class="stack"><div class="blk">your app</div><div class="blk x">agent loop</div><div class="blk x">sandbox control</div><div class="blk x">AI sign-in and login storage</div><div class="blk x">MCP OAuth and token storage</div></div>
+      <p class="bill bad">AI bill: per token, at API prices</p></div>
+    <div class="bx on"><span class="tag">With byoa</span>
+      <div class="stack"><div class="blk">your app</div><div class="blk b"><b>byoa</b> · one npm install</div></div>
+      <p class="bill">AI bill: none. The user's plan pays.</p></div>
+  </div>
+</div>
+</figure>
 <p>Use byoa when:</p>
 <ul>
 <li>your users already pay for Claude, ChatGPT, Grok or OpenCode Go, and you do not want to pay for their AI or sell them AI credits;</li>
@@ -377,8 +502,9 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <p>You do not need byoa when:</p>
 <ul>
 <li>your app needs only one model call at a time, such as a summary or a chat reply: an API key costs less there (<a href="/docs/faq#what-does-an-ai-job-cost-with-byoa-and-with-an-api-key">FAQ</a>);</li>
+<li>your agent needs no shell and no files, so an agent loop of your own can run it without a sandbox, such as on AWS Lambda, and a cheap model is good enough for it;</li>
 <li>your app pays for the AI itself and does not want the user&#39;s plan;</li>
-<li>your users do not have an AI plan.</li>
+<li>your users do not have an AI plan, or use the agent only a little: a few tasks on a cheap model at API prices cost them less than a $20 plan.</li>
 </ul>
 <p>These pages are the Markdown files in <a href="https://github.com/madeyexz/byoa/tree/main/docs" rel="noopener">docs/</a> of the repository. The site at <a href="https://byoa.rippling.computer/docs">https://byoa.rippling.computer/docs</a> shows the same pages, and serves each page as Markdown for LLMs (add <code>.md</code> to its address) and all of them in <a href="https://byoa.rippling.computer/llms-full.txt">llms-full.txt</a>.</p>
 <h2 id="learn"><a class="anchor" href="#learn" aria-hidden="true" tabindex="-1">#</a>Learn</h2>
@@ -416,7 +542,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     <nav class="pn" aria-label="Pages"><a class="next" href="/docs/concepts"><span>Next</span>Overview</a></nav>
     <p class="edit"><a href="https://github.com/madeyexz/byoa/blob/main/docs/README.md">Edit this page on GitHub</a> · <a href="/docs/index.md">This page as Markdown</a></p>
   </main>
-  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#the-future-of-ai-native-apps">The future of AI-native apps</a></li><li><a href="#what-byoa-does">What byoa does</a></li><li><a href="#why-and-when-you-need-byoa">Why and when you need byoa</a></li><li><a href="#learn">Learn</a></li><li><a href="#how-it-works">How it works</a></li><li><a href="#how-to">How to</a></li><li><a href="#plans-and-rules">Plans and rules</a></li><li><a href="#reference">Reference</a></li></ul>
+  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#the-future-of-ai-native-apps">The future of AI-native apps</a></li><li><a href="#what-byoa-does">What byoa does</a></li><li><a href="#what-your-users-pay">What your users pay</a></li><li><a href="#why-and-when-you-need-byoa">Why and when you need byoa</a></li><li><a href="#learn">Learn</a></li><li><a href="#how-it-works">How it works</a></li><li><a href="#how-to">How to</a></li><li><a href="#plans-and-rules">Plans and rules</a></li><li><a href="#reference">Reference</a></li></ul>
     <button class="copy-page" type="button" data-md="/docs/index.md">Copy page</button>
     <div class="tools"><a href="/docs/index.md">This page as Markdown</a><a href="/llms.txt">llms.txt</a><a href="/llms-full.txt">llms-full.txt</a></div>
   </aside>

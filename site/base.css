@@ -91,6 +91,47 @@ nav.top .gh:hover { background: #000; color: #fff; }
 .ascii .lg-daytona { background-image: url(/art/logo-daytona.png); }
 .ascii .lg-instabox { background-image: url(/art/logo-instabox.png); }
 
+/* what each user pays (build.mjs, priceBars): the home page's "Why" and the docs' "What your users pay". The bars
+   adapt to the width of their box, so they fit the home page, the docs column and a phone. */
+  .prices .ph { color: var(--ink2); font-size: 16px; margin: 0 0 16px; }
+  .prices .nt { display: inline-block; min-width: 3ch; text-align: center; color: var(--cobalt); border-bottom: 2px dotted var(--cobalt); cursor: ew-resize; user-select: none; touch-action: none; font-variant-numeric: tabular-nums; outline: 0; }
+  .prices .nt:hover, .prices .nt:focus-visible, .prices .nt.on { background: var(--peri2); border-bottom-style: solid; }
+  .prices .bars { border: 1px solid var(--rule); background: var(--card); padding: 6px 24px; }
+  .prices .br { position: relative; display: grid; grid-template-columns: 260px 1fr 210px; gap: 22px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--rule); outline: 0; }
+  .prices .br:last-of-type { border-bottom: 0; }
+  .prices .nm { font-size: 16.5px; color: var(--ink); font-weight: 520; }
+  .prices .nm u { text-decoration: underline dotted var(--dim); text-underline-offset: 4px; cursor: help; }
+  .prices .tr { display: flex; height: 14px; background: var(--paper2); overflow: hidden; }
+  .prices .tr i { transition: width .15s ease-out; }
+  .prices .ax { display: grid; grid-template-columns: 260px 1fr 210px; gap: 22px; padding: 12px 0 0; font: 12.5px var(--mono); color: var(--muted); }
+  .prices .ax .tk { display: flex; justify-content: space-between; border-bottom: 1px solid var(--rule2); padding-bottom: 4px; }
+  .prices .tr i { display: block; height: 100%; min-width: 3px; background: var(--tomato); }
+  .prices .tr i.up { min-width: 0; background: repeating-linear-gradient(135deg, var(--tomato) 0 3px, #ffc2b3 3px 7px); }
+  .prices .low .tr i { background: #ff9a80; }
+  .prices .br b { font-size: 24px; letter-spacing: -.03em; font-weight: 560; text-align: right; white-space: nowrap; }
+  .prices .br b small { font-size: 13px; letter-spacing: 0; font-weight: 400; color: var(--muted); }
+  .prices .by .tr i { background: var(--cobalt); }
+  .prices .by .nm, .prices .by b { color: var(--cobalt); }
+  /* the models of a bar, on hover, or on tap (focus) on a phone */
+  .prices .tip { display: none; position: absolute; z-index: 5; left: 0; top: calc(100% - 6px); min-width: 250px; padding: 8px 12px; background: var(--navy); color: #e8eaf8; font-size: 14px; font-weight: 400; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+  .prices .tip span { display: flex; justify-content: space-between; gap: 18px; padding: 3px 0; }
+  .prices .tip b { font: 500 14px var(--mono); color: #fff; letter-spacing: 0; }
+  .prices .br:hover .tip, .prices .br:focus .tip { display: block; }
+  .prices .br:focus-visible .nm u { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+.prices .bars { container-type: inline-size; }
+@container (max-width: 760px) {
+  .prices .br, .prices .ax { grid-template-columns: 190px 1fr 140px; gap: 16px; }
+  .prices .br b { font-size: 19px; }
+  .prices .nm { font-size: 15.5px; }
+}
+@container (max-width: 600px) {
+  .prices .br { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; }
+  .prices .br .tr { grid-column: 1 / -1; grid-row: 2; }
+  .prices .ax { grid-template-columns: 1fr; padding-top: 10px; } .prices .ax > span:not(.tk) { display: none; }
+  .prices .br b { font-size: 17px; }
+}
+@media (max-width: 720px) { .prices .bars { padding: 4px 16px; } }
+
 footer { background: var(--navy); color: #8b90b0; font-size: 14px; }
 footer .frame { border-color: rgba(255,255,255,.1); display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; padding: 22px 24px 30px; }
 footer a { color: #b8bdd8; text-decoration: none; }

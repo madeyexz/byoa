@@ -62,6 +62,8 @@ if (!pitch) throw new Error('README.md has no **pitch** line')
 write('index.html', fill(local('template.html'), {
   base_css: baseCss,
   who,
+  prices: priceBars(),
+  tasks: scrub(),
   // only the commands; the README has the notes around them
   install: code(installCode.replace(/^```\w*\n|\n```$/g, ''), 'sh'),
   repo: REPO,
@@ -70,7 +72,7 @@ write('index.html', fill(local('template.html'), {
 // ---- the docs
 // GitHub's heading anchors, so a link such as ai-login.md#sign-out works on GitHub and on the site
 const slug = (h) => h.toLowerCase().replace(/<[^>]+>/g, '').replace(/[^\p{L}\p{N} _-]/gu, '').replace(/ /g, '-')
-const plainText = (html) => html.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+const plainText = (html) => html.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#(?:39|x27);/g, "'").replace(/&amp;/g, '&')
 
 // The menu: each "## " group of docs/README.md, and its list of pages: - [Title](file.md): what the page has
 const index = read('docs/README.md')
@@ -211,11 +213,97 @@ function flowText(src) {
   return out.join('\n')
 }
 
-// The ASCII text of the "Who brings what" diagram: its wide version without the colours
-const whoText = plainText(who.match(/<pre class="ascii wide"[^>]*>([\s\S]*?)<\/pre>/)[1])
-const whoAlt = plainText(who.match(/aria-label="([^"]*)"/)[1])
-// `<!-- diagram: who -->` and the image on the line after it (for GitHub): the diagram of the home page
-const DIAGRAM = /^<!-- diagram: who -->\n(?:!\[[^\]]*\]\([^)]*\)\n)?/m
+// `<!-- diagram: NAME -->` and an image on the line after it (for GitHub): the drawing in diagrams/NAME.html, such as
+// "who", the "Who brings what" diagram of the home page. For LLMs it is its aria-label, and the text of each ASCII
+// drawing in it (of "who", only the wide version) without the colours.
+const DIAGRAM = /^<!-- diagram: ([\w-]+) -->\n(?:!\[[^\]]*\]\([^)]*\)\n)?/gm
+const diagram = (name) => (name === 'who' ? who : name === 'cost' ? docsPrices() : local(`diagrams/${name}.html`))
+// The price bars (priceBars) take their numbers from the cost tables of docs/faq.md, so they have one source.
+function costs() {
+  const faq = read('docs/faq.md')
+  const num = (s) => Number(s.replace(/,/g, ''))
+  const head = faq.match(/^\| Model \| Kind \| ([\d,]+) uncached input \| ([\d,]+) cached input \| ([\d,]+) output \|/m)
+  const minutes = faq.match(/^\| Provider \|.*\| One task \(([\d.]+) minutes\) \|$/m)
+  const models = [...faq.matchAll(/^\| ([^|(]+?) \(\$([\d.]+) in, \$([\d.]+) cached, \$([\d.]+) out\) \| (\w[\w, -]*?) \|/gm)]
+    .map(([, name, input, cached, output, kind]) => ({ name, kind, input: num(input), cached: num(cached), output: num(output) }))
+  const sandboxes = [...faq.matchAll(/^\| (\w+) \([^)]*\) \| \$[\d.]+ \| \$[\d.]+ \| \$([\d.]+) \|/gm)].map(([, name, hour]) => ({ name, hour: num(hour) }))
+  const plan = faq.match(/such as \$(\d+) a month for Claude Pro/)
+  if (!head || !minutes || models.length < 2 || sandboxes.length < 2 || !plan) throw new Error('docs/faq.md: the cost tables are not in the form that build.mjs reads for the price bars')
+  return { task: { uncached: num(head[1]), cached: num(head[2]), output: num(head[3]), minutes: num(minutes[1]) }, models, sandboxes, plan: num(plan[1]) }
+}
+// The price bars, on the home page and in the docs (`<!-- diagram: cost -->`): what each user pays a month, in three
+// groups: a frontier model with your API key (from the cheapest to the dearest frontier model of the FAQ), a smaller
+// open-weight model with your API key, and byoa on the first sandbox provider of the FAQ. They go in a `.prices` box
+// with the number of tasks (scrub()) in its text. The page shows 100 tasks; the reader drags that number (the script
+// below) to count again in the browser from the same numbers, and the bars and their axis follow. Each bar names its
+// models on hover.
+function scrub() {
+  return '<span class="nt" data-scrub role="slider" tabindex="0" aria-label="Tasks for each user, a month" aria-valuemin="1" aria-valuemax="2000" aria-valuenow="100" title="Drag left or right to change it">100</span>'
+}
+function docsPrices() {
+  return `<div class="prices" role="group" aria-label="What each user pays a month for small agent tasks, when your app passes its AI costs on. With your API key, frontier models cost each user a lot, and cheaper models cost less for a weaker agent. With byoa, the user's own plan pays for a frontier model, and your app passes on only the sandbox. The numbers come from the cost tables in the FAQ.">`
+    + `<p class="ph">What each user pays a month for ${scrub()} small agent tasks. Drag the number to change it.</p>${priceBars()}</div>`
+}
+function priceBars() {
+  const c = costs()
+  const perTask = (m) => (c.task.uncached * m.input + c.task.cached * m.cached + c.task.output * m.output) / 1e6
+  const models = c.models.map((m) => ({ name: m.name, n: perTask(m) })).sort((a, b) => b.n - a.n)
+  const frontier = models.filter((m) => c.models.find((x) => x.name === m.name).kind.startsWith('frontier'))
+  const smaller = models.filter((m) => !frontier.includes(m))
+  if (!frontier.length || !smaller.length) throw new Error('docs/faq.md: the home page needs a frontier model and a smaller model in the Kind column')
+  const box = { name: c.sandboxes[0].name, n: (c.sandboxes[0].hour * c.task.minutes) / 60 }
+  // The bars are dollars on one axis from $0. The axis grows smoothly with the number of tasks, slower than the prices,
+  // so the bars grow as the number grows, never jump, and the dearest one fills the axis at the most tasks (2,000).
+  // All bars share the axis, so their ratios stay true.
+  const MAX = 2000
+  const scale = (t, top, max) => top * max * (t / max) ** 0.75
+  const label = (n) => (n >= 10 ? `$${Math.round(n).toLocaleString('en-US')}` : `$${n.toFixed(2)}`)
+  const usd = (n) => (n >= 100 ? `$${Math.round(n).toLocaleString('en-US')}` : `$${n.toFixed(2)}`)
+  const T = 100, S = scale(T, models[0].n, MAX) // the page before the script runs: 100 tasks
+  const w = (n) => `${((100 * T * n) / S).toFixed(2)}%`
+  const tip = (list) => `<span class="tip" role="tooltip">${list.map((m) => `<span>${esc(m.name)}<b data-n="${m.n}">${usd(T * m.n)}</b></span>`).join('')}</span>`
+  const row = (cls, name, list, lo, hi, after = '') => `<div class="br${cls}" tabindex="0"><span class="nm"><u>${name}</u>${tip(list)}</span>`
+    + `<span class="tr"><i data-w="${lo}" style="width:${w(lo)}"></i>${hi > lo ? `<i class="up" data-w="${hi - lo}" style="width:${w(hi - lo)}"></i>` : ''}</span>`
+    + `<b><span data-n="${lo}">${usd(T * lo)}</span>${hi > lo ? `–<span data-n="${hi}">${usd(T * hi)}</span>` : ''}${after}</b></div>`
+  return `<div class="bars"><div class="ax" aria-hidden="true"><span></span><span class="tk"><span>$0</span><span data-scale>${label(S)}</span></span><span></span></div>`
+    + row('', 'Frontier models at API rates', frontier, frontier.at(-1).n, frontier[0].n)
+    + row(' low', 'Cheaper models at API rates', smaller, smaller.at(-1).n, smaller[0].n)
+    + row(' by', 'byoa, on the user\'s own plan', [{ name: `Sandbox on ${box.name}`, n: box.n }], box.n, box.n, '<small> + their plan</small>') + '</div>'
+    // the number of tasks in the heading: drag it left or right (on a phone too), or use the arrow keys
+    + `<script>{const r=document.currentScript.closest('.prices'),k=r.querySelector('[data-scrub]'),MIN=1,MAX=${MAX},TOP=${models[0].n};let t=${T};`
+    + `const usd=${usd.toString()},scale=${scale.toString()},label=${label.toString()};`
+    + `const set=(v)=>{t=Math.min(MAX,Math.max(MIN,Math.round(v)));k.textContent=t.toLocaleString('en-US');k.setAttribute('aria-valuenow',t);`
+    + `const S=scale(t,TOP,MAX);r.querySelector('[data-scale]').textContent=label(S);`
+    + `for(const e of r.querySelectorAll('[data-n]'))e.textContent=usd(t*e.dataset.n);for(const e of r.querySelectorAll('[data-w]'))e.style.width=(100*t*e.dataset.w/S)+'%'};`
+    + `let x0=0,t0=0;k.addEventListener('pointerdown',(e)=>{x0=e.clientX;t0=t;k.setPointerCapture(e.pointerId);k.classList.add('on')});`
+    + `k.addEventListener('pointermove',(e)=>{if(k.hasPointerCapture(e.pointerId)){const d=e.clientX-x0;set(t0+Math.sign(d)*Math.max(Math.abs(d)/4,Math.abs(d)*t0/250))}});`
+    + `k.addEventListener('pointerup',()=>k.classList.remove('on'));`
+    + `k.addEventListener('keydown',(e)=>{const s={ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1,PageUp:10,PageDown:-10}[e.key];if(s){e.preventDefault();set(t+s*(e.shiftKey?10:1))}else if(e.key==='Home'){e.preventDefault();set(MIN)}else if(e.key==='End'){e.preventDefault();set(MAX)}});set(t)}</script>`
+}
+
+// What each user pays a month for `tasks` FAQ-size tasks, because the app passes its AI costs on: the tokens at API
+// prices for each model, or the sandbox with byoa: the price bars as text, for LLMs.
+function userPays(tasks) {
+  const c = costs()
+  const usd = (n) => (n >= 100 ? `$${Math.round(n).toLocaleString('en-US')}` : `$${n.toFixed(2)}`)
+  const tok = (m) => tasks * (c.task.uncached * m.input + c.task.cached * m.cached + c.task.output * m.output) / 1e6
+  return {
+    api: c.models.map((m) => ({ name: m.name, kind: m.kind, usd: usd(tok(m)), n: tok(m) })),
+    byoa: c.sandboxes.map((s) => ({ name: s.name, usd: usd(tasks * s.hour * c.task.minutes / 60) })),
+    plan: c.plan,
+  }
+}
+function diagramText(name) {
+  const html = diagram(name)
+  const alt = html.match(/aria-label="([^"]*)"/)?.[1]
+  if (!alt) throw new Error(`diagrams/${name}.html has no aria-label`)
+  const ascii = [...html.matchAll(/<pre class="ascii(?: wide)?"[^>]*>([\s\S]*?)<\/pre>/g)].map((m) => `\n\`\`\`text\n${plainText(m[1]).replace(/\n$/, '')}\n\`\`\`\n`)
+  if (name === 'cost') { // the price bars' numbers for 100 tasks, as a table
+    const p = userPays(100)
+    ascii.push(`\nFor 100 tasks for each user, a month:\n\n| How your app gets the AI | Each user pays a month |\n|---|---|\n${p.api.map((m) => `| Your API key: ${m.name} (${m.kind}) | ${m.usd} |`).join('\n')}\n${p.byoa.map((s) => `| byoa on ${s.name}: the user's own plan, with a frontier model | ${s.usd} and their plan |`).join('\n')}\n`)
+  }
+  return `Diagram: ${plainText(alt)}\n${ascii.join('')}`
+}
 
 let page // the page that the renderer is on: its headings
 const md = new Marked({
@@ -253,7 +341,7 @@ const escapeTypes = (text) => text.split(/(^```[\s\S]*?^```$|`[^`\n]*`)/m).map((
 /** A docs page as Markdown for LLMs: its includes, each diagram as text, and links that work outside the site. */
 function pageMarkdown(text) {
   return text
-    .replace(DIAGRAM, () => `Diagram: ${whoAlt}\n\n\`\`\`text\n${whoText.replace(/\n$/, '')}\n\`\`\`\n`)
+    .replace(DIAGRAM, (_, name) => diagramText(name))
     .replace(/^```flow\n([\s\S]*?)^```$/gm, (_, src) => flowText(src))
     .split(/(^```[\s\S]*?^```$)/m)
     .map((part, i) => (i % 2 ? part : part.replace(/\]\(([^)\s]+)\)/g, (_, link) => `](${resolveLink(link, 'md')})`)))
@@ -278,8 +366,8 @@ for (const [i, p] of PAGES.entries()) {
   // under the title, as a lead: what the page has, from its line in the list of pages (docs/README.md)
   // no lead on the docs home, and on Getting started, whose first paragraph says it
   const lead = ['README', 'getting-started'].includes(p.file) ? '' : `<p class="lead">${md.parseInline(sentence(p.about))}</p>\n`
-  const content = md.parse(escapeTypes(source).replace(DIAGRAM, '\n@@who@@\n\n'))
-    .replace('<p>@@who@@</p>', `<figure class="diagram strings">${who}</figure>`)
+  const content = md.parse(escapeTypes(source).replace(DIAGRAM, '\n@@diagram:$1@@\n\n'))
+    .replace(/<p>@@diagram:([\w-]+)@@<\/p>/g, (_, name) => `<figure class="diagram${name === 'who' ? ' strings' : ` ${name}`}">${diagram(name)}</figure>`)
     .replace('</h1>\n', () => `</h1>\n${lead}`)
   const nav = groups.map((g) => `<div class="ng">${esc(g.name)}</div><ul>${g.pages.map((x) => `<li><a href="${pageUrl(x.file)}"${x.file === p.file ? ' aria-current="page"' : ''}>${esc(x.title)}</a></li>`).join('')}</ul>`).join('')
   const navAll = `<ul><li><a href="/docs"${p.file === 'README' ? ' aria-current="page"' : ''}>Introduction</a></li></ul>${nav}`

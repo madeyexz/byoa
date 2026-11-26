@@ -43,7 +43,7 @@ The model and effort that you give `run`, else the harness's default from `creat
 
 ## What does an AI job cost with byoa, and with an API key?
 
-With byoa, the user's plan pays for the model, and your app pays for the sandbox. With an API key, your app pays for every token. The model is by far the larger cost, so for an agent that runs small tasks, byoa costs your app about 18 to 300 times less.
+Your app passes its AI costs on to its users, in its price, so the question is what each user pays. With an API key, your app buys every token at API prices. With byoa, the user's own plan pays for the model, and your app passes on only the sandbox. For 100 small tasks a month, that takes each user's cost from $24.50 to $49 with a frontier model, or from $3 with a cheap open-weight model and a worse agent, down to $1.38 on E2B, and a frontier agent on the plan they already pay for.
 
 ### One small task
 
@@ -53,10 +53,12 @@ These are estimates. To get your own numbers, read the `usage` of each job's `en
 
 **The model, at API prices** (per million tokens, from the labs' price pages on 25 November 2026):
 
-| Model | 50,000 uncached input | 450,000 cached input | 10,000 output | One task |
-|---|---|---|---|---|
-| GPT-6.2 Sol ($2.00 in, $0.10 cached, $10.00 out) | $0.100 | $0.045 | $0.100 | **$0.245** |
-| Kimi K3 ($3.00 in, $0.30 cached, $15.00 out) | $0.150 | $0.135 | $0.150 | **$0.435** |
+| Model | Kind | 50,000 uncached input | 450,000 cached input | 10,000 output | One task |
+|---|---|---|---|---|---|
+| Claude Opus 5.5 ($4.00 in, $0.20 cached, $20.00 out) | frontier | $0.200 | $0.090 | $0.200 | **$0.490** |
+| GPT-6.2 Sol ($2.00 in, $0.10 cached, $10.00 out) | frontier | $0.100 | $0.045 | $0.100 | **$0.245** |
+| Kimi K3 ($3.00 in, $0.30 cached, $15.00 out) | frontier, open-weight | $0.150 | $0.135 | $0.150 | **$0.435** |
+| DeepSeek V4.1 Flash ($0.30 in, $0.006 cached, $1.20 out) | smaller, open-weight | $0.015 | $0.0027 | $0.012 | **$0.0297** |
 
 **The sandbox,** 2 vCPU and 4 GiB of memory, for 5 minutes (prices per hour, billed by the second, only while it runs):
 
@@ -66,27 +68,55 @@ These are estimates. To get your own numbers, read the `usage` of each job's `en
 | Daytona (the same rates) | $0.1008 | $0.0648 | $0.1656 | **$0.0138** |
 | Instabox ($0.004 a vCPU, $0.00225 a GiB) | $0.008 | $0.009 | $0.017 | **$0.0014** |
 
-Sources: [OpenAI API pricing](https://developers.openai.com/api/docs/pricing), [Kimi API pricing](https://platform.kimi.ai/docs/pricing/chat), [E2B pricing](https://e2b.dev/pricing), [Daytona pricing](https://www.daytona.io/pricing), [Instabox pricing](https://instabox.sh/pricing).
+Claude Opus 5.5 has a cache write price too ($5.00), which this leaves out. DeepSeek's prices are its weekday peak prices; at other times they are half.
+
+Sources: [Claude pricing](https://platform.claude.com/docs/en/about-claude/pricing), [OpenAI API pricing](https://developers.openai.com/api/docs/pricing), [Kimi API pricing](https://platform.kimi.ai/docs/pricing/chat), [DeepSeek API pricing](https://api-docs.deepseek.com/quick_start/pricing/), [E2B pricing](https://e2b.dev/pricing), [Daytona pricing](https://www.daytona.io/pricing), [Instabox pricing](https://instabox.sh/pricing).
 
 ### For a month
 
-A user who runs 100 such tasks a month costs your app:
+What each user pays a month for 100 such tasks, when your app passes its costs on:
 
 | | Model at API prices | Sandbox with byoa |
 |---|---|---|
+| Claude Opus 5.5 | $49.00 | |
 | GPT-6.2 Sol | $24.50 | |
 | Kimi K3 | $43.50 | |
+| DeepSeek V4.1 Flash | $2.97 | |
 | E2B or Daytona | | $1.38 |
 | Instabox | | $0.14 |
 
 The user already pays for their own plan, such as $20 a month for Claude Pro or ChatGPT Plus, and the task uses its allowance.
+
+To try other numbers of tasks:
+
+Diagram: What each user pays a month for small agent tasks, when your app passes its AI costs on. With your API key, frontier models cost each user a lot, and cheaper models cost less for a weaker agent. With byoa, the user's own plan pays for a frontier model, and your app passes on only the sandbox. The numbers come from the cost tables in the FAQ.
+
+For 100 tasks for each user, a month:
+
+| How your app gets the AI | Each user pays a month |
+|---|---|
+| Your API key: Claude Opus 5.5 (frontier) | $49.00 |
+| Your API key: GPT-6.2 Sol (frontier) | $24.50 |
+| Your API key: Kimi K3 (frontier, open-weight) | $43.50 |
+| Your API key: DeepSeek V4.1 Flash (smaller, open-weight) | $2.97 |
+| byoa on E2B: the user's own plan, with a frontier model | $1.38 and their plan |
+| byoa on Daytona: the user's own plan, with a frontier model | $1.38 and their plan |
+| byoa on Instabox: the user's own plan, with a frontier model | $0.14 and their plan |
 
 ### What the numbers leave out
 
 - **Plan fees at the provider.** E2B's Pro plan is $150 a month, and Instabox's Pro plan is $20 a month with $20 of usage in it. Daytona has no plan fee.
 - **A kept sandbox between jobs.** A paused or stopped sandbox costs no compute. It can cost a little for its disk: Daytona bills disk past the first 5 GiB.
 - **The sign-in sandbox,** once for each user and harness, for a few minutes.
-- **An agent needs a sandbox either way.** With an API key, your app also pays for the sandbox, and for the tokens on top. byoa takes the token bill off your app. An app that only chats, with no tools and no files, needs no sandbox; there an API key can cost less for small use.
+- **An agent with no sandbox.** An agent that only calls your app's own API, with no shell and no files, can run as an agent loop of your own, such as on AWS Lambda, with no sandbox. Then an API key costs only the tokens. byoa needs a sandbox, because Claude Code, Codex and Grok Build need a shell.
 - **The user's plan has limits.** A user who runs many long tasks reaches the five-hour or weekly limit of their plan, and the jobs stop until it resets.
 
-It is also simpler: your app has no per-user token bill, no usage metering or credits to sell, and no API key for the model to keep secret.
+### When an API key costs the user less
+
+- **The user has no plan.** Then they must buy one, such as $20 a month, before your agent works.
+- **The user runs only a few tasks.** 10 small tasks on DeepSeek V4.1 Flash cost $0.30 at API prices, much less than a plan. A plan pays off when the user uses it in many apps, or uses your agent a lot.
+- **The user runs many long tasks.** They reach the limits of their plan.
+
+### What your app gets
+
+Your costs do not grow with each user's tokens. You do not have to choose between a good agent and a low price. Your app has no per-user token bill, no usage metering or credits to sell, and no API key for the model to keep secret.

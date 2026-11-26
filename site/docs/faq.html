@@ -107,6 +107,47 @@ nav.top .gh:hover { background: #000; color: #fff; }
 .ascii .lg-daytona { background-image: url(/art/logo-daytona.png); }
 .ascii .lg-instabox { background-image: url(/art/logo-instabox.png); }
 
+/* what each user pays (build.mjs, priceBars): the home page's "Why" and the docs' "What your users pay". The bars
+   adapt to the width of their box, so they fit the home page, the docs column and a phone. */
+  .prices .ph { color: var(--ink2); font-size: 16px; margin: 0 0 16px; }
+  .prices .nt { display: inline-block; min-width: 3ch; text-align: center; color: var(--cobalt); border-bottom: 2px dotted var(--cobalt); cursor: ew-resize; user-select: none; touch-action: none; font-variant-numeric: tabular-nums; outline: 0; }
+  .prices .nt:hover, .prices .nt:focus-visible, .prices .nt.on { background: var(--peri2); border-bottom-style: solid; }
+  .prices .bars { border: 1px solid var(--rule); background: var(--card); padding: 6px 24px; }
+  .prices .br { position: relative; display: grid; grid-template-columns: 260px 1fr 210px; gap: 22px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--rule); outline: 0; }
+  .prices .br:last-of-type { border-bottom: 0; }
+  .prices .nm { font-size: 16.5px; color: var(--ink); font-weight: 520; }
+  .prices .nm u { text-decoration: underline dotted var(--dim); text-underline-offset: 4px; cursor: help; }
+  .prices .tr { display: flex; height: 14px; background: var(--paper2); overflow: hidden; }
+  .prices .tr i { transition: width .15s ease-out; }
+  .prices .ax { display: grid; grid-template-columns: 260px 1fr 210px; gap: 22px; padding: 12px 0 0; font: 12.5px var(--mono); color: var(--muted); }
+  .prices .ax .tk { display: flex; justify-content: space-between; border-bottom: 1px solid var(--rule2); padding-bottom: 4px; }
+  .prices .tr i { display: block; height: 100%; min-width: 3px; background: var(--tomato); }
+  .prices .tr i.up { min-width: 0; background: repeating-linear-gradient(135deg, var(--tomato) 0 3px, #ffc2b3 3px 7px); }
+  .prices .low .tr i { background: #ff9a80; }
+  .prices .br b { font-size: 24px; letter-spacing: -.03em; font-weight: 560; text-align: right; white-space: nowrap; }
+  .prices .br b small { font-size: 13px; letter-spacing: 0; font-weight: 400; color: var(--muted); }
+  .prices .by .tr i { background: var(--cobalt); }
+  .prices .by .nm, .prices .by b { color: var(--cobalt); }
+  /* the models of a bar, on hover, or on tap (focus) on a phone */
+  .prices .tip { display: none; position: absolute; z-index: 5; left: 0; top: calc(100% - 6px); min-width: 250px; padding: 8px 12px; background: var(--navy); color: #e8eaf8; font-size: 14px; font-weight: 400; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+  .prices .tip span { display: flex; justify-content: space-between; gap: 18px; padding: 3px 0; }
+  .prices .tip b { font: 500 14px var(--mono); color: #fff; letter-spacing: 0; }
+  .prices .br:hover .tip, .prices .br:focus .tip { display: block; }
+  .prices .br:focus-visible .nm u { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+.prices .bars { container-type: inline-size; }
+@container (max-width: 760px) {
+  .prices .br, .prices .ax { grid-template-columns: 190px 1fr 140px; gap: 16px; }
+  .prices .br b { font-size: 19px; }
+  .prices .nm { font-size: 15.5px; }
+}
+@container (max-width: 600px) {
+  .prices .br { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; }
+  .prices .br .tr { grid-column: 1 / -1; grid-row: 2; }
+  .prices .ax { grid-template-columns: 1fr; padding-top: 10px; } .prices .ax > span:not(.tk) { display: none; }
+  .prices .br b { font-size: 17px; }
+}
+@media (max-width: 720px) { .prices .bars { padding: 4px 16px; } }
+
 footer { background: var(--navy); color: #8b90b0; font-size: 14px; }
 footer .frame { border-color: rgba(255,255,255,.1); display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; padding: 22px 24px 30px; }
 footer a { color: #b8bdd8; text-decoration: none; }
@@ -220,6 +261,48 @@ footer a { color: #b8bdd8; text-decoration: none; }
   .tbl td { color: var(--ink2); }
   .diagram { margin: 8px 0 24px; padding: 28px 12px; border: 1px solid var(--rule); background: var(--paper2); }
   .diagram .ascii-wrap { margin: 0 auto; }
+  .diagram.cost { padding: 0; border: 0; background: none; } /* the price bars have their own box */
+
+  /* illustrations (diagrams/*.html other than who): calm panels and box drawings in the page's own colours */
+  .ill { font-size: 14px; line-height: 1.4; color: var(--ink2); }
+  .ill b { color: var(--ink); font-weight: 600; }
+  .ill code { font-size: 12px; }
+
+  /* plan, job, parts: two panels side by side, in the home page's style (its battery, app tiles and dashed wires) */
+  .ill .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .ill .bx { border: 1px solid var(--rule); background: var(--card); padding: 16px; display: flex; flex-direction: column; }
+  .ill .bx.on { border-color: var(--cobalt); }
+  .ill .tag { display: block; font: 11px var(--pixel); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  .ill .on .tag { color: var(--cobalt); }
+  .ill .src { display: grid; justify-items: center; gap: 4px; min-height: 92px; align-content: end; }
+  .ill .src small { font: 12px var(--mono); color: var(--muted); }
+  .ill .labs { font: 13px var(--mono); letter-spacing: .06em; border: 1px solid var(--ink2); padding: 10px 14px; color: var(--ink2); }
+  .ill .bat { width: 56px; height: auto; }
+  .ill .apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; position: relative; margin-top: 36px; }
+  .ill .apps::before { content: ""; position: absolute; left: calc(100% / 6); right: calc(100% / 6); top: -16px; border-top: 2px dashed var(--tomato); }
+  .ill .apps::after { content: ""; position: absolute; left: 50%; top: -30px; height: 14px; border-left: 2px dashed var(--tomato); }
+  .ill .app { border: 1px solid var(--rule); background: var(--paper); padding: 9px 4px; text-align: center; font-size: 13.5px; position: relative; color: var(--ink); }
+  .ill .app::before { content: ""; position: absolute; left: 50%; top: -16px; height: 15px; border-left: 2px dashed var(--tomato); }
+  .ill .app i { display: block; font: 10px var(--pixel); font-style: normal; letter-spacing: .1em; color: var(--muted); margin-bottom: 2px; }
+  .ill .app em { display: block; white-space: nowrap; font: 10.5px var(--mono); font-style: normal; color: var(--tomato); margin-top: 4px; }
+  .ill .grey .apps::before, .ill .grey .apps::after, .ill .grey .app::before { border-color: var(--rule2); }
+  .ill .cap { margin: 14px 0 0; text-align: center; }
+  .ill .ic { width: 34px; height: auto; margin: -4px 0 8px; }
+  .ill ul { margin: 0; padding: 0; list-style: none; }
+  .ill li { padding: 5px 0; border-top: 1px solid var(--rule); color: var(--ink); font-size: 14.5px; }
+  .ill .lgs { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 13px; color: var(--ink2); }
+  .ill .lgs span { display: inline-flex; align-items: center; gap: 5px; } .ill .lgs img { width: 14px; height: 14px; }
+  .ill .join { margin: 12px 0 0; text-align: center; font-size: 14.5px; } .ill .join b { color: var(--cobalt); }
+  .ill .stack { display: grid; gap: 4px; align-content: start; flex: 1; }
+  .ill .blk { border: 1px solid var(--rule2); background: var(--paper); padding: 8px 10px; font: 13px var(--mono); color: var(--ink); }
+  .ill .blk.x { background: var(--paper2); }
+  .ill .blk.b { border: 2px solid var(--cobalt); color: var(--cobalt); background: var(--card); }
+  .ill .blk.b b { color: inherit; }
+  .ill .bill { margin: 12px 0 0; padding-top: 10px; border-top: 1px dashed var(--rule2); font-size: 13.5px; color: #13744f; }
+  .ill .bill.bad { color: #c23a17; }
+  @media (prefers-color-scheme: dark) { .ill .bill { color: var(--mint); } .ill .bill.bad { color: var(--tomato); } .ill img.mono { filter: invert(1); } }
+
+  @media (max-width: 560px) { .ill .two { grid-template-columns: 1fr; } }
 
   /* flow diagrams (build.mjs draws them from ```flow blocks; docs.js lays them out) */
   .flow { margin: 10px 0 28px; padding: 18px 18px 20px; border: 1px solid var(--rule); background: var(--card); }
@@ -383,7 +466,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <h2 id="which-model-does-a-job-use"><a class="anchor" href="#which-model-does-a-job-use" aria-hidden="true" tabindex="-1">#</a>Which model does a job use?</h2>
 <p>The model and effort that you give <code>run</code>, else the harness&#39;s default from <code>createAgents({ models })</code>, else the CLI&#39;s own default. <code>agents.listModels(userId, harness)</code> lists the models that the user&#39;s plan can use, and the efforts of each, as the CLI lists them with the user&#39;s login. Pick from that list, because each plan has its own models. A job on an OpenCode Go key (beta) needs a Go model: <code>agents.listModels(userId, &#39;opencode-go&#39;)</code> lists them from OpenCode&#39;s API, with no sandbox. See <a href="/docs/running-agents#models-and-effort">Running agents</a>.</p>
 <h2 id="what-does-an-ai-job-cost-with-byoa-and-with-an-api-key"><a class="anchor" href="#what-does-an-ai-job-cost-with-byoa-and-with-an-api-key" aria-hidden="true" tabindex="-1">#</a>What does an AI job cost with byoa, and with an API key?</h2>
-<p>With byoa, the user&#39;s plan pays for the model, and your app pays for the sandbox. With an API key, your app pays for every token. The model is by far the larger cost, so for an agent that runs small tasks, byoa costs your app about 18 to 300 times less.</p>
+<p>Your app passes its AI costs on to its users, in its price, so the question is what each user pays. With an API key, your app buys every token at API prices. With byoa, the user&#39;s own plan pays for the model, and your app passes on only the sandbox. For 100 small tasks a month, that takes each user&#39;s cost from $24.50 to $49 with a frontier model, or from $3 with a cheap open-weight model and a worse agent, down to $1.38 on E2B, and a frontier agent on the plan they already pay for.</p>
 <h3 id="one-small-task"><a class="anchor" href="#one-small-task" aria-hidden="true" tabindex="-1">#</a>One small task</h3>
 <p>Take a small task in an AI-native app, such as &quot;add these three to-dos and sort them by date&quot;. The agent makes about 20 model calls. Each call sends the conversation so far, so the inputs add up to about 500,000 tokens, of which about 90% are cache hits. The agent writes about 10,000 tokens, with its reasoning. The job takes about 5 minutes of sandbox time, from start to <code>close()</code>.</p>
 <p>These are estimates. To get your own numbers, read the <code>usage</code> of each job&#39;s <code>end</code> event (<code>input</code>, <code>output</code>, <code>cached</code>, and <code>costUsd</code> when the CLI reports it).</p>
@@ -392,6 +475,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <thead>
 <tr>
 <th>Model</th>
+<th>Kind</th>
 <th>50,000 uncached input</th>
 <th>450,000 cached input</th>
 <th>10,000 output</th>
@@ -399,7 +483,16 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 </tr>
 </thead>
 <tbody><tr>
+<td>Claude Opus 5.5 ($4.00 in, $0.20 cached, $20.00 out)</td>
+<td>frontier</td>
+<td>$0.200</td>
+<td>$0.090</td>
+<td>$0.200</td>
+<td><strong>$0.490</strong></td>
+</tr>
+<tr>
 <td>GPT-6.2 Sol ($2.00 in, $0.10 cached, $10.00 out)</td>
+<td>frontier</td>
 <td>$0.100</td>
 <td>$0.045</td>
 <td>$0.100</td>
@@ -407,10 +500,19 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 </tr>
 <tr>
 <td>Kimi K3 ($3.00 in, $0.30 cached, $15.00 out)</td>
+<td>frontier, open-weight</td>
 <td>$0.150</td>
 <td>$0.135</td>
 <td>$0.150</td>
 <td><strong>$0.435</strong></td>
+</tr>
+<tr>
+<td>DeepSeek V4.1 Flash ($0.30 in, $0.006 cached, $1.20 out)</td>
+<td>smaller, open-weight</td>
+<td>$0.015</td>
+<td>$0.0027</td>
+<td>$0.012</td>
+<td><strong>$0.0297</strong></td>
 </tr>
 </tbody></table>
 </div><p><strong>The sandbox,</strong> 2 vCPU and 4 GiB of memory, for 5 minutes (prices per hour, billed by the second, only while it runs):</p>
@@ -446,9 +548,10 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <td><strong>$0.0014</strong></td>
 </tr>
 </tbody></table>
-</div><p>Sources: <a href="https://developers.openai.com/api/docs/pricing" rel="noopener">OpenAI API pricing</a>, <a href="https://platform.kimi.ai/docs/pricing/chat" rel="noopener">Kimi API pricing</a>, <a href="https://e2b.dev/pricing" rel="noopener">E2B pricing</a>, <a href="https://www.daytona.io/pricing" rel="noopener">Daytona pricing</a>, <a href="https://instabox.sh/pricing" rel="noopener">Instabox pricing</a>.</p>
+</div><p>Claude Opus 5.5 has a cache write price too ($5.00), which this leaves out. DeepSeek&#39;s prices are its weekday peak prices; at other times they are half.</p>
+<p>Sources: <a href="https://platform.claude.com/docs/en/about-claude/pricing" rel="noopener">Claude pricing</a>, <a href="https://developers.openai.com/api/docs/pricing" rel="noopener">OpenAI API pricing</a>, <a href="https://platform.kimi.ai/docs/pricing/chat" rel="noopener">Kimi API pricing</a>, <a href="https://api-docs.deepseek.com/quick_start/pricing/" rel="noopener">DeepSeek API pricing</a>, <a href="https://e2b.dev/pricing" rel="noopener">E2B pricing</a>, <a href="https://www.daytona.io/pricing" rel="noopener">Daytona pricing</a>, <a href="https://instabox.sh/pricing" rel="noopener">Instabox pricing</a>.</p>
 <h3 id="for-a-month"><a class="anchor" href="#for-a-month" aria-hidden="true" tabindex="-1">#</a>For a month</h3>
-<p>A user who runs 100 such tasks a month costs your app:</p>
+<p>What each user pays a month for 100 such tasks, when your app passes its costs on:</p>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -458,6 +561,11 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 </tr>
 </thead>
 <tbody><tr>
+<td>Claude Opus 5.5</td>
+<td>$49.00</td>
+<td></td>
+</tr>
+<tr>
 <td>GPT-6.2 Sol</td>
 <td>$24.50</td>
 <td></td>
@@ -465,6 +573,11 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <tr>
 <td>Kimi K3</td>
 <td>$43.50</td>
+<td></td>
+</tr>
+<tr>
+<td>DeepSeek V4.1 Flash</td>
+<td>$2.97</td>
 <td></td>
 </tr>
 <tr>
@@ -479,15 +592,24 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 </tr>
 </tbody></table>
 </div><p>The user already pays for their own plan, such as $20 a month for Claude Pro or ChatGPT Plus, and the task uses its allowance.</p>
+<p>To try other numbers of tasks:</p>
+<figure class="diagram cost"><div class="prices" role="group" aria-label="What each user pays a month for small agent tasks, when your app passes its AI costs on. With your API key, frontier models cost each user a lot, and cheaper models cost less for a weaker agent. With byoa, the user's own plan pays for a frontier model, and your app passes on only the sandbox. The numbers come from the cost tables in the FAQ."><p class="ph">What each user pays a month for <span class="nt" data-scrub role="slider" tabindex="0" aria-label="Tasks for each user, a month" aria-valuemin="1" aria-valuemax="2000" aria-valuenow="100" title="Drag left or right to change it">100</span> small agent tasks. Drag the number to change it.</p><div class="bars"><div class="ax" aria-hidden="true"><span></span><span class="tk"><span>$0</span><span data-scale>$104</span></span><span></span></div><div class="br" tabindex="0"><span class="nm"><u>Frontier models at API rates</u><span class="tip" role="tooltip"><span>Claude Opus 5.5<b data-n="0.49">$49.00</b></span><span>Kimi K3<b data-n="0.435">$43.50</b></span><span>GPT-6.2 Sol<b data-n="0.245">$24.50</b></span></span></span><span class="tr"><i data-w="0.245" style="width:23.64%"></i><i class="up" data-w="0.245" style="width:23.64%"></i></span><b><span data-n="0.245">$24.50</span>–<span data-n="0.49">$49.00</span></b></div><div class="br low" tabindex="0"><span class="nm"><u>Cheaper models at API rates</u><span class="tip" role="tooltip"><span>DeepSeek V4.1 Flash<b data-n="0.0297">$2.97</b></span></span></span><span class="tr"><i data-w="0.0297" style="width:2.87%"></i></span><b><span data-n="0.0297">$2.97</span></b></div><div class="br by" tabindex="0"><span class="nm"><u>byoa, on the user's own plan</u><span class="tip" role="tooltip"><span>Sandbox on E2B<b data-n="0.0138">$1.38</b></span></span></span><span class="tr"><i data-w="0.0138" style="width:1.33%"></i></span><b><span data-n="0.0138">$1.38</span><small> + their plan</small></b></div></div><script>{const r=document.currentScript.closest('.prices'),k=r.querySelector('[data-scrub]'),MIN=1,MAX=2000,TOP=0.49;let t=100;const usd=(n) => (n >= 100 ? `$${Math.round(n).toLocaleString('en-US')}` : `$${n.toFixed(2)}`),scale=(t, top, max) => top * max * (t / max) ** 0.75,label=(n) => (n >= 10 ? `$${Math.round(n).toLocaleString('en-US')}` : `$${n.toFixed(2)}`);const set=(v)=>{t=Math.min(MAX,Math.max(MIN,Math.round(v)));k.textContent=t.toLocaleString('en-US');k.setAttribute('aria-valuenow',t);const S=scale(t,TOP,MAX);r.querySelector('[data-scale]').textContent=label(S);for(const e of r.querySelectorAll('[data-n]'))e.textContent=usd(t*e.dataset.n);for(const e of r.querySelectorAll('[data-w]'))e.style.width=(100*t*e.dataset.w/S)+'%'};let x0=0,t0=0;k.addEventListener('pointerdown',(e)=>{x0=e.clientX;t0=t;k.setPointerCapture(e.pointerId);k.classList.add('on')});k.addEventListener('pointermove',(e)=>{if(k.hasPointerCapture(e.pointerId)){const d=e.clientX-x0;set(t0+Math.sign(d)*Math.max(Math.abs(d)/4,Math.abs(d)*t0/250))}});k.addEventListener('pointerup',()=>k.classList.remove('on'));k.addEventListener('keydown',(e)=>{const s={ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1,PageUp:10,PageDown:-10}[e.key];if(s){e.preventDefault();set(t+s*(e.shiftKey?10:1))}else if(e.key==='Home'){e.preventDefault();set(MIN)}else if(e.key==='End'){e.preventDefault();set(MAX)}});set(t)}</script></div></figure>
 <h3 id="what-the-numbers-leave-out"><a class="anchor" href="#what-the-numbers-leave-out" aria-hidden="true" tabindex="-1">#</a>What the numbers leave out</h3>
 <ul>
 <li><strong>Plan fees at the provider.</strong> E2B&#39;s Pro plan is $150 a month, and Instabox&#39;s Pro plan is $20 a month with $20 of usage in it. Daytona has no plan fee.</li>
 <li><strong>A kept sandbox between jobs.</strong> A paused or stopped sandbox costs no compute. It can cost a little for its disk: Daytona bills disk past the first 5 GiB.</li>
 <li><strong>The sign-in sandbox,</strong> once for each user and harness, for a few minutes.</li>
-<li><strong>An agent needs a sandbox either way.</strong> With an API key, your app also pays for the sandbox, and for the tokens on top. byoa takes the token bill off your app. An app that only chats, with no tools and no files, needs no sandbox; there an API key can cost less for small use.</li>
+<li><strong>An agent with no sandbox.</strong> An agent that only calls your app&#39;s own API, with no shell and no files, can run as an agent loop of your own, such as on AWS Lambda, with no sandbox. Then an API key costs only the tokens. byoa needs a sandbox, because Claude Code, Codex and Grok Build need a shell.</li>
 <li><strong>The user&#39;s plan has limits.</strong> A user who runs many long tasks reaches the five-hour or weekly limit of their plan, and the jobs stop until it resets.</li>
 </ul>
-<p>It is also simpler: your app has no per-user token bill, no usage metering or credits to sell, and no API key for the model to keep secret.</p>
+<h3 id="when-an-api-key-costs-the-user-less"><a class="anchor" href="#when-an-api-key-costs-the-user-less" aria-hidden="true" tabindex="-1">#</a>When an API key costs the user less</h3>
+<ul>
+<li><strong>The user has no plan.</strong> Then they must buy one, such as $20 a month, before your agent works.</li>
+<li><strong>The user runs only a few tasks.</strong> 10 small tasks on DeepSeek V4.1 Flash cost $0.30 at API prices, much less than a plan. A plan pays off when the user uses it in many apps, or uses your agent a lot.</li>
+<li><strong>The user runs many long tasks.</strong> They reach the limits of their plan.</li>
+</ul>
+<h3 id="what-your-app-gets"><a class="anchor" href="#what-your-app-gets" aria-hidden="true" tabindex="-1">#</a>What your app gets</h3>
+<p>Your costs do not grow with each user&#39;s tokens. You do not have to choose between a good agent and a low price. Your app has no per-user token bill, no usage metering or credits to sell, and no API key for the model to keep secret.</p>
 
     </article>
     <nav class="pn" aria-label="Pages"><a class="prev" href="/docs/lab-rules"><span>Previous</span>Lab rules</a><a class="next" href="/docs/api"><span>Next</span>API reference</a></nav>

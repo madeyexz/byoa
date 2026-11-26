@@ -124,6 +124,48 @@
   .tbl td { color: var(--ink2); }
   .diagram { margin: 8px 0 24px; padding: 28px 12px; border: 1px solid var(--rule); background: var(--paper2); }
   .diagram .ascii-wrap { margin: 0 auto; }
+  .diagram.cost { padding: 0; border: 0; background: none; } /* the price bars have their own box */
+
+  /* illustrations (diagrams/*.html other than who): calm panels and box drawings in the page's own colours */
+  .ill { font-size: 14px; line-height: 1.4; color: var(--ink2); }
+  .ill b { color: var(--ink); font-weight: 600; }
+  .ill code { font-size: 12px; }
+
+  /* plan, job, parts: two panels side by side, in the home page's style (its battery, app tiles and dashed wires) */
+  .ill .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .ill .bx { border: 1px solid var(--rule); background: var(--card); padding: 16px; display: flex; flex-direction: column; }
+  .ill .bx.on { border-color: var(--cobalt); }
+  .ill .tag { display: block; font: 11px var(--pixel); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  .ill .on .tag { color: var(--cobalt); }
+  .ill .src { display: grid; justify-items: center; gap: 4px; min-height: 92px; align-content: end; }
+  .ill .src small { font: 12px var(--mono); color: var(--muted); }
+  .ill .labs { font: 13px var(--mono); letter-spacing: .06em; border: 1px solid var(--ink2); padding: 10px 14px; color: var(--ink2); }
+  .ill .bat { width: 56px; height: auto; }
+  .ill .apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; position: relative; margin-top: 36px; }
+  .ill .apps::before { content: ""; position: absolute; left: calc(100% / 6); right: calc(100% / 6); top: -16px; border-top: 2px dashed var(--tomato); }
+  .ill .apps::after { content: ""; position: absolute; left: 50%; top: -30px; height: 14px; border-left: 2px dashed var(--tomato); }
+  .ill .app { border: 1px solid var(--rule); background: var(--paper); padding: 9px 4px; text-align: center; font-size: 13.5px; position: relative; color: var(--ink); }
+  .ill .app::before { content: ""; position: absolute; left: 50%; top: -16px; height: 15px; border-left: 2px dashed var(--tomato); }
+  .ill .app i { display: block; font: 10px var(--pixel); font-style: normal; letter-spacing: .1em; color: var(--muted); margin-bottom: 2px; }
+  .ill .app em { display: block; white-space: nowrap; font: 10.5px var(--mono); font-style: normal; color: var(--tomato); margin-top: 4px; }
+  .ill .grey .apps::before, .ill .grey .apps::after, .ill .grey .app::before { border-color: var(--rule2); }
+  .ill .cap { margin: 14px 0 0; text-align: center; }
+  .ill .ic { width: 34px; height: auto; margin: -4px 0 8px; }
+  .ill ul { margin: 0; padding: 0; list-style: none; }
+  .ill li { padding: 5px 0; border-top: 1px solid var(--rule); color: var(--ink); font-size: 14.5px; }
+  .ill .lgs { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 13px; color: var(--ink2); }
+  .ill .lgs span { display: inline-flex; align-items: center; gap: 5px; } .ill .lgs img { width: 14px; height: 14px; }
+  .ill .join { margin: 12px 0 0; text-align: center; font-size: 14.5px; } .ill .join b { color: var(--cobalt); }
+  .ill .stack { display: grid; gap: 4px; align-content: start; flex: 1; }
+  .ill .blk { border: 1px solid var(--rule2); background: var(--paper); padding: 8px 10px; font: 13px var(--mono); color: var(--ink); }
+  .ill .blk.x { background: var(--paper2); }
+  .ill .blk.b { border: 2px solid var(--cobalt); color: var(--cobalt); background: var(--card); }
+  .ill .blk.b b { color: inherit; }
+  .ill .bill { margin: 12px 0 0; padding-top: 10px; border-top: 1px dashed var(--rule2); font-size: 13.5px; color: #13744f; }
+  .ill .bill.bad { color: #c23a17; }
+  @media (prefers-color-scheme: dark) { .ill .bill { color: var(--mint); } .ill .bill.bad { color: var(--tomato); } .ill img.mono { filter: invert(1); } }
+
+  @media (max-width: 560px) { .ill .two { grid-template-columns: 1fr; } }
 
   /* flow diagrams (build.mjs draws them from ```flow blocks; docs.js lays them out) */
   .flow { margin: 10px 0 28px; padding: 18px 18px 20px; border: 1px solid var(--rule); background: var(--card); }

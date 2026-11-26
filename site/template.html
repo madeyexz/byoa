@@ -74,18 +74,24 @@
   .whygrid p b { color: var(--ink); font-weight: 600; }
   .pack { position: relative; border: 1px solid var(--rule); background: var(--card); padding: 34px 28px 26px; display: grid; justify-items: center; gap: 22px; }
   .pack .bat { width: 92px; height: auto; }
-  .pack .apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
-  .pack .apps { position: relative; }
-  .pack .apps::before { content: ""; position: absolute; left: calc(100% / 6); right: calc(100% / 6); top: -23px; border-top: 2px dashed var(--tomato); }
+  /* the wires: one from the battery down to a bus, and one from the bus down to each app */
+  .pack .apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; position: relative; margin-top: 12px; }
+  .pack .apps::before { content: ""; position: absolute; left: calc(100% / 6); right: calc(100% / 6); top: -18px; border-top: 2px dashed var(--tomato); }
+  .pack .apps::after { content: ""; position: absolute; left: 50%; top: -34px; height: 16px; border-left: 2px dashed var(--tomato); }
   .pack .app { border: 1px solid var(--rule); background: var(--paper); padding: 12px 8px; text-align: center; font-size: 14.5px; position: relative; }
-  .pack .app::before { content: ""; position: absolute; left: 50%; top: -23px; height: 22px; border-left: 2px dashed var(--tomato); }
+  .pack .app::before { content: ""; position: absolute; left: 50%; top: -18px; height: 17px; border-left: 2px dashed var(--tomato); }
   .pack .app i { display: block; font: 11px var(--pixel); font-style: normal; letter-spacing: .1em; color: var(--muted); margin-bottom: 4px; }
-  .pack .cap { font: 11.5px var(--pixel); letter-spacing: .1em; color: var(--muted); text-transform: uppercase; }
-  .facts { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--rule); margin-top: 56px; }
-  .facts div { padding: 22px 24px; border-right: 1px solid var(--rule); }
-  .facts div:last-child { border-right: 0; }
-  .facts b { display: block; font-size: 30px; letter-spacing: -.04em; font-weight: 560; line-height: 1.1; margin-bottom: 6px; }
-  .facts span { color: var(--ink2); font-size: 15.5px; }
+  .pack .cap { font-size: 15.5px; color: var(--ink2); text-align: center; }
+  .prices { margin-top: 56px; }
+  .prices h3 { margin: 0 0 4px; }
+  .prices .notes { margin: 14px 0 0; padding: 0; list-style: none; font-size: 14.5px; color: var(--ink2); max-width: 820px; }
+  .prices .notes li { padding: 3px 0 3px 18px; position: relative; }
+  .prices .notes li::before { content: ""; position: absolute; left: 0; top: 11px; width: 7px; height: 7px; background: var(--rule2); }
+  .prices .notes a { color: var(--cobalt); }
+  /* the content of these sections stays at most 1080px wide, so it reads well on a wide screen */
+  :where(#who, #why, #start, #works) > .frame.pad { --side: max(clamp(20px, 4vw, 56px), calc((100vw - 2 * var(--g) - 1080px) / 2)); padding-left: var(--side); padding-right: var(--side); }
+  .prices .pf { margin: 12px 0 0; font-size: 14px; color: var(--muted); }
+  .prices .pf a { color: var(--cobalt); }
 
   /* get started */
   .codegrid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 24px 56px; align-items: end; margin-bottom: 40px; }
@@ -147,9 +153,6 @@
     .targets .frame { grid-template-columns: 1fr; }
     .targets .grp { border-right: 0; border-bottom: 1px solid var(--rule); }
     .targets .grp:last-child { border-top: 0; border-bottom: 0; }
-    .facts { grid-template-columns: 1fr; }
-    .facts div { border-right: 0; border-bottom: 1px solid var(--rule); }
-    .facts div:last-child { border-bottom: 0; }
     .pack .apps { grid-template-columns: 1fr 1fr 1fr; }
   }
   @media (prefers-reduced-motion: reduce) { h1 .spr, .hero .s-agent { animation: none; } html { scroll-behavior: auto; } }
@@ -209,8 +212,8 @@
     </div>
     <div class="grp">
       <div class="hd">Backends <span class="badge v1">SUPPORTED</span></div>
-      <div class="its"><span class="nm"><img src="art/logo-node.png" alt="">Node</span><span class="nm"><img src="art/logo-convex.png" alt="">Convex</span></div>
-      <p class="note">byoa runs inside your own backend.</p>
+      <div class="its"><span class="nm"><img src="art/logo-node.png" alt="">Node</span><span class="nm"><img src="art/logo-bun.png" alt="">Bun</span><span class="nm"><img src="art/logo-convex.png" alt="">Convex</span></div>
+      <p class="note">Any Node or Bun framework. Any database, through a store adapter.</p>
     </div>
   </div>
 </section>
@@ -229,25 +232,30 @@
     <div class="whygrid">
       <div>
         <div class="kick">The future of AI-native apps</div>
-        <h2>AI is electricity.<br>A plan is a battery pack.</h2>
-        <p>AI-native apps are the future. But an app cannot pay for each user's AI by usage: the numbers do not work. <b>AI subscriptions solve this.</b> We bet on a future where everyone has a $20 AI plan, or the same in another form, and that plan powers every app they use. In that future, every app is AI-native, so nobody says "AI-native app" anymore.</p>
+        <h2>AI is electricity.<br>An AI subscription is a battery pack.</h2>
+        <p>AI-native apps are the future. But an app that buys its AI at API prices must pass that cost on to its users. So it must choose: a frontier model, and a high price for each user, or a cheap model, and a worse agent. <b>AI subscriptions solve this.</b> We bet on a future where everyone has a $20 AI plan, or the same in another form, and that plan powers every app they use. In that future, every app is AI-native, so nobody says "AI-native app" anymore.</p>
         <p>Battery packs come in different sizes, and one pack powers all the appliances in your home. This is the economy we bet on. We build byoa to make it come sooner, so that every developer can build on it.</p>
       </div>
       <div class="pack" aria-hidden="true">
-        <span class="cap">One user · one plan</span>
+        <span class="cap">Each user owns a small battery</span>
         <img class="bat px" src="art/battery.png" alt="">
         <div class="apps">
           <div class="app"><i>APP</i>Your app</div>
           <div class="app"><i>APP</i>Notes</div>
           <div class="app"><i>APP</i>Email</div>
         </div>
-        <span class="cap">powers every app they use</span>
+        <span class="cap">that plugs into any AI-native app</span>
       </div>
     </div>
-    <div class="facts">
-      <div><b>Their plan</b><span>Each user signs in to their own AI plan one time. Their plan pays for the AI.</span></div>
-      <div><b>Their agent</b><span>byoa runs the user's own Claude Code, Codex or Grok Build in a sandbox, with their tools.</span></div>
-      <div><b>Your sandbox</b><span>Your app pays only for the sandbox. byoa streams the result back to your app.</span></div>
+    <div class="prices">
+      <h3>What each user pays a month for {{tasks}} small agent tasks</h3>
+      <p class="ph">Your app passes its AI costs on to its users, in its price. Drag the number to change it.</p>
+      {{prices}}
+      <ul class="notes">
+        <li>With your API key, every token is a cost that grows with each user's use. Even with a smaller model, a heavy user takes from your margin. With byoa, the user's tokens never reach your bill.</li>
+        <li>Open-weight models, such as Kimi, on the user's OpenCode Go plan, are planned.</li>
+        <li>The user's own plan pays for the AI, within its limits. <a href="/docs#what-your-users-pay">How we count</a></li>
+      </ul>
     </div>
   </div>
 </section>
@@ -285,7 +293,7 @@
         <span class="it">Claude Code</span><span class="it">Codex</span><span class="it">Grok Build</span><span class="it dash">Gemini / Antigravity <span class="badge maybe">MAYBE LATER</span></span>
       </div></div>
       <div class="row"><a class="k" href="/docs/subscriptions"><img class="px" src="art/key.png" alt="">User plans <span class="chev"></span></a><div class="v">
-        <span class="it">Claude plan</span><span class="it">ChatGPT plan</span><span class="it">Grok plan</span><span class="it">OpenCode Go key <span class="badge maybe">BETA</span></span>
+        <span class="it">Claude plan</span><span class="it">ChatGPT plan</span><span class="it">Grok plan</span><span class="it">OpenCode Go key <span class="badge plan">PLANNED</span></span>
       </div></div>
       <div class="row"><a class="k" href="/docs/providers"><img class="px" src="art/crate.png" alt="">Sandboxes <span class="chev"></span></a><div class="v">
         <span class="it">E2B</span><span class="it">Daytona</span><span class="it">Instabox</span><span class="it">Other providers <span class="badge plan">PLANNED</span></span>
@@ -312,8 +320,8 @@
 </section>
 <footer>
   <div class="frame">
-    <span>byoa · bring your own agent · Apache 2.0 · made by <a href="https://www.ianhsiao.me">Ian Hsiao</a></span>
-    <span><a href="/docs">Docs</a> · <a href="/docs/getting-started">Getting started</a> · <a href="/llms.txt">llms.txt</a> · <a href="{{repo}}">{{repo}}</a></span>
+    <span>byoa · Apache 2.0 · made by <a href="https://www.ianhsiao.me">Ian Hsiao</a></span>
+    <span><a href="/docs">Docs</a> · <a href="/llms.txt">llms.txt</a> · <a href="{{repo}}">GitHub</a></span>
   </div>
 </footer>
 

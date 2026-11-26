@@ -6,7 +6,7 @@ Think of the user's AI subscription as a battery pack, and of your app as an app
 
 ## Who brings what
 
-Diagram: You build the app and import byoa. You pay only for the sandbox. Each user signs in with their own Claude, ChatGPT or Grok plan, which pays for the AI, and connects their tools once. Your app code calls agents.run. byoa is a library inside your app&#x27;s backend, and keeps AI logins and MCP grants in your database. Below your backend&#x27;s edge, byoa drives three things that run outside it: a new sandbox for each job at E2B, Daytona or Instabox on your account, where the user&#x27;s own Claude Code, Codex or Grok Build runs; the AI labs, whose model calls the user&#x27;s own plan pays; and the user&#x27;s MCP servers, which get the real token from byoa&#x27;s proxy.
+Diagram: You build the app and import byoa. You pay only for the sandbox. Each user signs in with their own Claude, ChatGPT or Grok plan, which pays for the AI, and connects their tools once. Your app code calls agents.run. byoa is a library inside your app's backend, and keeps AI logins and MCP grants in your database. Below your backend's edge, byoa drives three things that run outside it: a new sandbox for each job at E2B, Daytona or Instabox on your account, where the user's own Claude Code, Codex or Grok Build runs; the AI labs, whose model calls the user's own plan pays; and the user's MCP servers, which get the real token from byoa's proxy.
 
 ```text
 DEVELOPER · YOU                                           END USER
@@ -16,10 +16,10 @@ DEVELOPER · YOU                                           END USER
 │ owns the database                  │                    │    Claude     ChatGPT     Grok     │
 │ pays only for the sandbox          │                    │ has MCP tools and skills           │
 └──────────────────┬─────────────────┘                    └──────────────────┬─────────────────┘
-                   │ imports byoa             signs in on the lab&#x27;s own page │
+                   │ imports byoa             signs in on the lab's own page │
                    │                             connects each MCP tool once │
                    ▼                                                         ▼
-┌─ YOUR APP&#x27;S BACKEND · you run it ────────────────────────────────────────────────────────────┐
+┌─ YOUR APP'S BACKEND · you run it ────────────────────────────────────────────────────────────┐
 │  your app code                                            your database                      │
 │        │ agents.run(userId, task)                               ▲ AI logins, MCP grants      │
 │        ▼                                                        │                            │
@@ -33,8 +33,8 @@ DEVELOPER · YOU                                           END USER
   ┃ ┌─ SANDBOX ────────────────┐  ┌─ AI LABS ────────────────┐  ┌─ MCP SERVERS ────────────┐ ┃
   ┃ │    E2B,    Daytona or    │  │ Anthropic · OpenAI · xAI │  │ Notion · Gmail · …       │ ┃
   ┃ │    Instabox,             │  │                          │  │                          │ ┃
-  ┃ │ on your account          ├─▶│ model calls, paid by     │  │ the user&#x27;s own accounts  │ ┃
-  ┃ │ runs the user&#x27;s own      │  │ the user&#x27;s own plan      │  │                          │ ┃
+  ┃ │ on your account          ├─▶│ model calls, paid by     │  │ the user's own accounts  │ ┃
+  ┃ │ runs the user's own      │  │ the user's own plan      │  │                          │ ┃
   ┃ │ Claude Code, Codex or    │  │                          │  │                          │ ┃
   ┃ │ Grok Build               │  │                          │  │                          │ ┃
   ┃ └──────────────────────────┘  └──────────────────────────┘  └──────────────────────────┘ ┃

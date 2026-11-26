@@ -1,7 +1,7 @@
 <a href="https://byoa.rippling.computer">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/banner-dark.png">
-  <img alt="byoa: your users bring their own agent. The simplest way to let your users bring their own AI subscription to power the agents in your app. Supported harnesses, on the user's plan: Claude Code, Codex and Grok Build. Supported sandboxes, on your account: E2B, Daytona and Instabox, with more coming soon. Supported backends: Node and Convex." src=".github/readme/banner-light.png">
+  <img alt="byoa: your users bring their own agent. The simplest way to let your users bring their own AI subscription to power the agents in your app. Supported harnesses, on the user's plan: Claude Code, Codex and Grok Build. Supported sandboxes, on your account: E2B, Daytona and Instabox, with more coming soon. Supported backends: Node, Bun and Convex, with any database through a store adapter." src=".github/readme/banner-light.png">
 </picture>
 </a>
 
@@ -23,7 +23,7 @@
 
 AI is like electricity, and an AI subscription is like a portable battery pack: one pack powers every app its user uses. We bet that everyone will have one, and that every app will run on it. [The future of AI-native apps](https://byoa.rippling.computer/docs#the-future-of-ai-native-apps) explains why.
 
-byoa is an open-source library that helps you build these apps fast. Your app runs the user's own Claude Code, Codex or Grok Build in a sandbox. The user signs in with their own ChatGPT, Claude or Grok plan, or gives the key of their OpenCode Go plan, so they pay for the AI work with a plan they already have. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
+byoa is an open-source library that helps you build these apps fast. Your app runs the user's own Claude Code, Codex or Grok Build in a sandbox. The user signs in with their own ChatGPT, Claude or Grok plan, or gives the key of their OpenCode Go plan, so they pay for the AI work with a plan they already have. Your app passes on only the sandbox cost, so it can offer a frontier agent at a low price. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
 
 Version 1 supports three sandbox providers: E2B, Daytona and Instabox. More providers come later. To change the provider, you change one adapter.
 
@@ -42,7 +42,7 @@ The [Overview](https://byoa.rippling.computer/docs/concepts) page explains the d
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/scope-dark.png">
-  <img alt="What byoa works with today. Agents: Claude Code, Codex and Grok Build (supported), Gemini or Antigravity maybe later. User plans: Claude, ChatGPT and Grok (supported), an OpenCode Go key (beta). Sandboxes: E2B, Daytona and Instabox (supported), other providers planned. Backends: Node and Convex actions (supported), Cloudflare Workers planned. Token stores: Convex and Postgres (supported), or your own with get, put, delete and compare-and-set." src=".github/readme/scope-light.png">
+  <img alt="What byoa works with today. Agents: Claude Code, Codex and Grok Build (supported), Gemini or Antigravity maybe later. User plans: Claude, ChatGPT and Grok (supported), an OpenCode Go key (planned). Sandboxes: E2B, Daytona and Instabox (supported), other providers planned. Backends: Node and Convex actions (supported), Cloudflare Workers planned. Token stores: Convex and Postgres (supported), or your own with get, put, delete and compare-and-set." src=".github/readme/scope-light.png">
 </picture>
 
 ## Install
