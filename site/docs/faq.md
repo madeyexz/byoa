@@ -27,6 +27,10 @@ So, before you launch:
 - Keep each user's jobs to the user's own requests, at a pace that a person would use.
 - Tell your users that the jobs use their own plan and its limits.
 
+## What happens when the user's plan runs out?
+
+The job ends with an `error` of code `usage-limit`, and `resetsAt` when the tool says when the plan resets (Claude Code, Codex and OpenCode Go say it; Grok Build does not). byoa keeps this until the reset, or for 15 minutes when it does not know the time. Until then, a job of that user and harness ends at once and starts no sandbox, so a used-up plan does not cost you a sandbox for each try. `agents.usageLimit(userId, harness)` tells you before a job. A refusal for now, such as a lab that is overloaded, is `rate-limited`: try again in a moment. See [When the plan is used up](https://byoa.rippling.computer/docs/running-agents.md#when-the-plan-is-used-up).
+
 ## Can one user run many agents at the same time?
 
 Yes, with one sign-in, for Claude Code, Codex and Grok Build. Give each agent its own sandbox: a `sandboxKey` for each, or `sandboxPer: 'job'`. The jobs then share the user's login while it is not due for a refresh. Jobs in one sandbox wait in line instead, and one job can also carry several messages to one agent. See [Running agents](https://byoa.rippling.computer/docs/running-agents.md#jobs-at-the-same-time).

@@ -518,3 +518,69 @@ for (const h of ['codex', 'grok'] as const) {
     assert.equal((ev.at(-1) as { ok: boolean }).ok, true)
   })
 }
+
+test('R1.9 / V23: a used-up plan is usage-limit, with its reset when the CLI says; until then a job starts no sandbox', async () => {
+  const { clock } = await import('../src/time.ts')
+  const { agents, sandbox } = await app()
+  const err = (ev: Awaited<ReturnType<typeof collect>>) => ev.find((e) => e.type === 'error') as Extract<typeof ev[number], { type: 'error' }>
+  await agents.connectLogin('lia', 'claude')
+  await agents.finishLogin('lia', 'claude', { code: 'good-code' })
+  await agents.connectLogin('lia', 'codex')
+  await agents.finishLogin('lia', 'codex', { waitMs: 10_000 })
+  await agents.connectLogin('lia', 'grok')
+  await agents.finishLogin('lia', 'grok', { waitMs: 10_000 })
+  // 2100-01-01, the stand-ins' reset; Codex's is its used-up 5-hour window, not its weekly one at 40%
+  const RESET = 4102444800_000
+  const limited = { claude: /You've hit your session limit/, codex: /You’ve hit your usage limit/, grok: /hit the rate limit for your plan/ }
+  for (const h of ['claude', 'codex', 'grok'] as const) {
+    assert.equal(await agents.usageLimit('lia', h), undefined)
+    const e = err(await collect(agents.run('lia', { harness: h, task: 'limit now' })))
+    assert.equal(e.code, 'usage-limit', h)
+    assert.match(e.message, limited[h])
+    // Grok Build says no reset time; Grok's own class (rate_limit) would say rate-limited, its words say the plan
+    assert.equal(e.resetsAt, h === 'grok' ? undefined : RESET, h)
+    const l = (await agents.usageLimit('lia', h))!
+    assert.equal(l.until, h === 'grok' ? l.until : RESET)
+    if (h === 'grok') assert.ok(Math.abs(l.until - Date.now() - 15 * 60_000) < 60_000, 'no reset time: 15 minutes')
+    // the next job ends at once: the same code, and no sandbox resumed or created
+    const created = sandbox.created, cmds = sandbox.envs.length
+    const next = await collect(agents.run('lia', { harness: h, task: 'who am I?' }))
+    assert.deepEqual(next.map((x) => x.type === 'error' ? x.code : x.type), ['usage-limit', 'end'])
+    assert.equal(err(next).resetsAt, h === 'grok' ? undefined : RESET)
+    assert.match(err(next).message, /byoa did not start this job/)
+    assert.equal(sandbox.created, created)
+    assert.equal(sandbox.envs.length, cmds, 'no command ran in a sandbox')
+    assert.equal(await agents.loginState('lia', h), 'signed-in', 'a used-up plan is still signed in')
+  }
+  // the hold ends at its time, and the next job that works removes it
+  const real = clock.now
+  try {
+    clock.now = () => real() + 16 * 60_000
+    assert.equal(await agents.usageLimit('lia', 'grok'), undefined)
+    assert.equal((await collect(agents.run('lia', { harness: 'grok', task: 'hello' }))).at(-1)!.type === 'end', true)
+  } finally { clock.now = real }
+  assert.equal(await agents.usageLimit('lia', 'grok'), undefined, 'a job that worked removed the hold')
+  // one harness's limit is not another's, and a new sign-in (maybe another account) ends it
+  assert.ok(await agents.usageLimit('lia', 'claude'))
+  await agents.connectLogin('lia', 'claude')
+  await agents.finishLogin('lia', 'claude', { code: 'good-code' })
+  assert.equal(await agents.usageLimit('lia', 'claude'), undefined)
+  await agents.signOut('lia', 'codex')
+  assert.equal(await agents.usageLimit('lia', 'codex'), undefined)
+
+  // R1.9: a lab that refuses for now is rate-limited, kept nowhere; Codex's unauthorized is a login that does not work
+  const codes = [
+    ['claude', 'busy'], ['grok', 'busy'],
+  ] as const
+  for (const [h, task] of codes) {
+    const e = err(await collect(agents.run('lia', { harness: h, task })))
+    assert.equal(e.code, 'rate-limited', h)
+    assert.equal(e.resetsAt, undefined)
+    assert.equal(await agents.usageLimit('lia', h), undefined)
+  }
+  await agents.connectLogin('lia', 'codex')
+  await agents.finishLogin('lia', 'codex', { waitMs: 10_000 })
+  assert.equal(err(await collect(agents.run('lia', { harness: 'codex', task: 'busy' }))).code, 'rate-limited')
+  assert.equal(err(await collect(agents.run('lia', { harness: 'codex', task: 'refused' }))).code, 'expired')
+  assert.equal(await agents.loginState('lia', 'codex'), 'expired')
+})

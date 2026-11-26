@@ -164,3 +164,34 @@ test('R1.8 / R5.8: jobs with a plan need no lease: one user\'s jobs in two sandb
     assert.equal(go.maxInFlight, 2)
   } finally { go.delayMs = 0 }
 })
+
+test('R1.9 / V23: OpenCode\'s 429 with a used-up limit is usage-limit, with the meter\'s reset; the plan holds for both harnesses', async () => {
+  const { agents, sandbox } = await app()
+  await agents.connectKey('ann', PLAN, 'oc_sk_good')
+  const job = (harness: 'claude' | 'codex' = 'claude') => collect(agents.run('ann', { harness, plan: PLAN, model: 'kimi-k3', task: 'hi' }))
+  try {
+    // a 429 while no limit is used up: for now, kept nowhere
+    go.mode = '429-busy'
+    assert.equal(error(await job()).code, 'rate-limited')
+    assert.equal(await agents.usageLimit('ann', PLAN), undefined)
+    // the weekly limit is used up: the relay asked the usage meter, with the user's key
+    go.mode = '429'
+    const n = go.seen.length
+    const e = error(await job())
+    assert.equal(e.code, 'usage-limit')
+    assert.equal(e.resetsAt, Date.parse('2100-01-04T00:00:00.000Z'), 'the used-up meter\'s reset, not the 5-hour one\'s')
+    const meter = go.seen.slice(n).find((s) => s.path === '/inference/go/v1/usage')!
+    assert.equal(meter.headers.authorization, 'Bearer oc_sk_good')
+    assert.equal((await agents.usageLimit('ann', PLAN))!.until, e.resetsAt)
+  } finally { go.mode = 'ok' }
+  // until then, a job of either harness with the plan ends at once: no sandbox, no request to OpenCode
+  const created = sandbox.created, seen = go.seen.length
+  for (const h of ['claude', 'codex'] as const) assert.deepEqual((await job(h)).map((x) => x.type === 'error' ? x.code : x.type), ['usage-limit', 'end'])
+  assert.equal(sandbox.created, created)
+  assert.equal(go.seen.length, seen)
+  assert.equal(await agents.usageLimit('ann', 'claude'), undefined, 'the plan\'s limit is not the Claude login\'s')
+  // a new key ends it
+  await agents.connectKey('ann', PLAN, 'oc_sk_good')
+  assert.equal(await agents.usageLimit('ann', PLAN), undefined)
+  assert.equal(((await job()).at(-1) as any).ok, true)
+})

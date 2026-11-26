@@ -9,13 +9,16 @@
 // agent and session id, which OpenCode Go wants), and streams the answer back. So a job token, which stops working
 // when its job ends (R3.4), is all the agent can read. A key does not rotate, so jobs need no lease and run at the
 // same time. OpenCode answers 401 to a key that is wrong, revoked or expired (`expired`; a key cannot be renewed), and
-// 403 "OpenCode Go subscription required" to a key whose workspace has no Go plan (`no-plan`).
+// 403 "OpenCode Go subscription required" to a key whose workspace has no Go plan (`no-plan`). It answers 429 when a
+// request is refused; then the relay asks its usage meter whether the plan's 5-hour, weekly or monthly limit is used
+// up, and when it resets, and keeps that (R1.9, limits.ts).
 // Only OpenCode's documented API and its documented settings for Claude Code and Codex: no OpenCode client, no
 // Console CLI sign-in (it has OpenCode's own client ID; SPEC.md, Lab rules).
 // How each harness runs with the plan (its environment and flags) is in its adapter (harness/<name>.ts, `plan`).
 import type { ModelInfo } from './harness/models.ts'
 import { open, seal } from './crypto.ts'
 import { keys } from './keys.ts'
+import type { UsageLimits } from './limits.ts'
 import type { LoginState } from './login.ts'
 import type { JobRecord } from './mcp/proxy.ts'
 import type { Store } from './store.ts'
@@ -52,7 +55,16 @@ const keyKey = keys.planKey
 const stateKey = keys.planState
 const UA = 'byoa'
 
-export function planKeys(store: Store, key: Promise<CryptoKey>) {
+/** The latest reset of the meters that OpenCode's usage meter says are used up (`rate-limited`), in ms since 1970; 0
+ *  when one is used up and says no time; undefined when none is. Its answer: { usage: { rolling, weekly, monthly } },
+ *  each { status, percent, resetsAt (ISO 8601) } (https://opencode.ai/docs/console/go#usage). */
+export function usedUp(doc: any): number | undefined {
+  const meters = Object.values(doc?.usage ?? {}).filter((m: any) => m?.status === 'rate-limited') as any[]
+  if (!meters.length) return undefined
+  return Math.max(0, ...meters.map((m) => Date.parse(m.resetsAt ?? '') || 0))
+}
+
+export function planKeys(store: Store, key: Promise<CryptoKey>, limits: UsageLimits) {
   const get = async (user: string, p: PlanName) => {
     const e = await store.get(keyKey(user, p))
     return e ? open(await key, e.value, keyKey(user, p)) : undefined
@@ -130,10 +142,17 @@ export function planKeys(store: Store, key: Promise<CryptoKey>) {
       } catch (e) { return fail(502, `OpenCode did not answer: ${(e as Error).message}`) }
       const down = new Headers()
       res.headers.forEach((v, k) => { if (!DROP_DOWN.has(k)) down.set(k, v) })
-      if (res.status === 401 || res.status === 403) {
+      if (res.status === 401 || res.status === 403 || res.status === 429) {
         const text = await res.text()
         if (res.status === 401) await setState(job.user, p, 'expired')
-        else if (NO_PLAN.test(text)) await setState(job.user, p, 'no-plan')
+        else if (res.status === 403) { if (NO_PLAN.test(text)) await setState(job.user, p, 'no-plan') }
+        else {
+          // a 429 is the plan's limit only when the usage meter says so; else it is a limit for now (`rate-limited`)
+          const doc = await fetch(`${GO_API}/v1/usage`, { headers: { authorization: `Bearer ${apiKey}`, 'user-agent': UA }, signal: AbortSignal.timeout(15_000) })
+            .then((r) => (r.ok ? r.json() : undefined), () => undefined)
+          const reset = usedUp(doc)
+          if (reset !== undefined) await limits.set(job.user, p, { message: `the OpenCode Go plan is used up: ${message(text).slice(0, 300)}`, ...(reset ? { resetsAt: reset } : {}) })
+        }
         return new Response(text, { status: res.status, headers: down })
       }
       return new Response(res.body, { status: res.status, headers: down })

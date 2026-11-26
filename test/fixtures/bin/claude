@@ -86,6 +86,20 @@ JS
       echo "boom" >&2
       exit 3
     fi
+    if [[ "$task" == *limit* ]]; then
+      # a used-up plan, as Claude Code 2.1.330's stream-json says it: a rate_limit_event that refuses, the API error's
+      # assistant message with its kind (error, api_error, api_error_params.rate_limit_info), and the result
+      echo '{"type":"rate_limit_event","rate_limit_info":{"status":"rejected","resetsAt":4102444800,"rateLimitType":"five_hour","isUsingOverage":false},"uuid":"r1","session_id":"s1"}'
+      echo "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"You've hit your session limit · resets 12am (UTC)\"}]},\"parent_tool_use_id\":null,\"error\":\"rate_limit\",\"is_api_error_message\":true,\"api_error_status\":429,\"api_error\":\"usage_limit_reached\",\"api_error_params\":{\"rate_limit_info\":{\"status\":\"rejected\",\"resetsAt\":4102444800,\"rateLimitType\":\"five_hour\",\"isUsingOverage\":false}},\"uuid\":\"a1\",\"session_id\":\"s1\"}"
+      echo "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":true,\"result\":\"You've hit your session limit · resets 12am (UTC)\",\"usage\":{}}"
+      return
+    fi
+    if [[ "$task" == *busy* ]]; then
+      # Anthropic's API is overloaded (529), after Claude Code's own retries
+      echo '{"type":"assistant","message":{"content":[{"type":"text","text":"API Error: Repeated 529 errors"}]},"error":"overloaded","is_api_error_message":true,"api_error_status":529,"uuid":"a1","session_id":"s1"}'
+      echo '{"type":"result","subtype":"success","is_error":true,"result":"API Error: Repeated 529 errors","usage":{}}'
+      return
+    fi
     if [[ "$task" == *expire* ]]; then
       echo '{"type":"result","subtype":"success","is_error":true,"result":"OAuth token has expired. Please run /login","usage":{}}'
       return

@@ -34,6 +34,20 @@ async function runTurn(id) {
   const task = taken.at(-1)
   const usage = (input, cached, output) => note('thread/tokenUsage/updated', { threadId: thread, turnId: id, tokenUsage: { last: { inputTokens: input, cachedInputTokens: cached, outputTokens: output }, total: {} } })
   if (!params.ephemeral) say(`remembers ${lines(rollout(thread)).length - taken.length}: ${taken.join(' | ')}`)
+  // a turn that fails as codex-cli 0.171.0's does: an error notification with Codex's own code, then turn/completed
+  const fail = (message, codexErrorInfo) => {
+    note('error', { threadId: thread, turnId: id, willRetry: false, error: { message, codexErrorInfo } })
+    turn = undefined
+    note('turn/completed', { threadId: thread, turn: { id, status: 'failed', items: [], error: { message, codexErrorInfo } } })
+  }
+  if (task.includes('limit')) {
+    // a used-up plan: Codex sends the refused response's rate limits first (its x-codex-* headers), the 5-hour window
+    // used up, then the error with its text for a Plus plan
+    note('account/rateLimits/updated', { rateLimits: { limitId: 'codex', primary: { usedPercent: 100, windowDurationMins: 300, resetsAt: 4102444800 }, secondary: { usedPercent: 40, windowDurationMins: 10080, resetsAt: 4103049600 }, rateLimitReachedType: 'rate_limit_reached', planType: 'plus' } })
+    return fail('You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/settings/usage to purchase more credits or try again at 12:00 AM.', 'usageLimitExceeded')
+  }
+  if (task.includes('busy')) return fail('Selected model is at capacity. Please try a different model.', 'serverOverloaded')
+  if (task.includes('refused')) return fail('Your access token could not be refreshed. Please log out and log back in.', 'unauthorized')
   if (task.includes('cred')) {
     const t = /"access_token":"([^"]*)"/.exec(readFileSync(`${home}/auth.json`, 'utf8'))?.[1]
     if (t) writeFileSync(`${home}/auth.json`, JSON.stringify({ tokens: { access_token: `${t}x` } }))

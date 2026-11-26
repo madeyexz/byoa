@@ -4,7 +4,8 @@
 // 2 s, and an `_x.ai/interject` during it is a message of that turn (one when no turn runs gets a turn of its own). Each
 // turn ends with Grok's `turn_completed`. The task drives it as the other stand-ins: `who am I` (an MCP call through
 // use_tool), `cred`, `together`, `write` (denied by a `deny = [... "Write" ...]` rule in `.grok/config.toml`, else
-// approved with --always-approve, else asked for, and a refusal ends the turn); any other message gets one answer that
+// approved with --always-approve, else asked for, and a refusal ends the turn), `expire`, `limit` and `busy` (a
+// turn that fails as grok 1.0.92's do); any other message gets one answer that
 // says what the session remembers.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
@@ -44,7 +45,7 @@ async function turn(m) {
   take()
   if (taken.some((t) => t.includes('slow'))) { await sleep(2000); take() }
   const task = taken.at(-1)
-  let stop = 'end_turn', usage = { totalTokens: 0, inputTokens: 0, outputTokens: 0, thoughtTokens: 0, cachedReadTokens: 0, cachedWriteTokens: 0 }
+  let stop = 'end_turn', result = null, kind = null, usage = { totalTokens: 0, inputTokens: 0, outputTokens: 0, thoughtTokens: 0, cachedReadTokens: 0, cachedWriteTokens: 0 }
   if (task.includes('who am I')) {
     say(`args: ${argv.join(' ')}; session: ${how}; home: ${home.split('/').at(-1)}; autoupdater off: ${process.env.GROK_DISABLE_AUTOUPDATER}; memory: ${process.env.GROK_MEMORY}`)
     // an MCP tool, called through Grok's use_tool, and its output wrapped in Grok's own JSON
@@ -82,13 +83,18 @@ async function turn(m) {
       stop = 'cancelled'
     }
   } else if (task.includes('expire')) {
-    stop = 'error'
+    stop = 'error'; result = 'Unauthorized (401) from https://api.x.ai/v1/responses: the token has expired'
+  } else if (task.includes('limit')) {
+    // a used-up plan, in grok 1.0.92's words; its class for a 429 is rate_limit (also for 503 and 529)
+    stop = 'error'; kind = 'rate_limit'; result = 'You’ve hit the rate limit for your plan. Upgrade your account or try again later.'
+  } else if (task.includes('busy')) {
+    stop = 'error'; kind = 'rate_limit'; result = 'Grok is temporarily overloaded. Please try again in a moment. (HTTP 503)'
   } else {
     say(`remembers ${before.length}: ${taken.join(' | ')}; session: ${how}; config: ${process.env.GROK_CONFIG ?? ''}`)
   }
   running = false
-  const agent_result = stop === 'error' ? 'Unauthorized (401) from https://api.x.ai/v1/responses: the token has expired' : null
-  send({ method: '_x.ai/session_notification', params: { sessionId: session, update: { sessionUpdate: 'turn_completed', prompt_id: id, stop_reason: stop, usage, agent_result } } })
+  const agent_result = stop === 'error' ? result : null
+  send({ method: '_x.ai/session_notification', params: { sessionId: session, update: { sessionUpdate: 'turn_completed', prompt_id: id, stop_reason: stop, usage, agent_result, ...(kind ? { error_kind: kind } : {}) } } })
   if (m) send({ id: m.id, ...(stop === 'error' ? { error: { code: -32603, message: 'Internal error', data: { message: agent_result } } } : { result: { stopReason: stop } }) })
   // an interjection that came as the turn ended gets a turn of its own
   if (pending.length) turn()

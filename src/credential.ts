@@ -6,10 +6,12 @@
 import type { AgentEvent } from './harness/events.ts'
 import { harnessEnv } from './harness/index.ts'
 import type { Harness, LabHarness, ModelChoice } from './harness/types.ts'
+import type { UsageLimits } from './limits.ts'
 import type { JobLogin, LoginDriver } from './login.ts'
 import { NO_PLAN, relayUrl, type PlanKeys, type PlanName } from './plan.ts'
 import type { Sandbox, Volume } from './sandbox/types.ts'
 import { q } from './sh.ts'
+import { now } from './time.ts'
 
 /** The harness has no login for this user. */
 export class LoginError extends Error { readonly code = 'signed-out' }
@@ -30,8 +32,8 @@ export interface Credential {
   release(sbx: Sandbox): Promise<void>
   /** What a job showed of the credential (R1.6). */
   report(state: 'signed-in' | 'expired'): Promise<void>
-  /** An event of the harness, in this credential's terms (a plan's `no-plan`). */
-  event(ev: AgentEvent): AgentEvent
+  /** An event of the harness, in this credential's terms (a plan's `no-plan`, or `usage-limit` that the relay saw). */
+  event(ev: AgentEvent): AgentEvent | Promise<AgentEvent>
 }
 
 /** The user's own lab login: the CLI's login files, through the login driver. */
@@ -54,8 +56,9 @@ export function labLogin(login: LoginDriver, user: string, x: LabHarness, model:
 }
 
 /** A plan that the user brought as a key (R1.8). The key never enters the sandbox. */
-export function planKey(plans: PlanKeys, login: LoginDriver, user: string, plan: PlanName, x: Harness & { plan: NonNullable<Harness['plan']> }, o: { proxyUrl: string; model: string; effort?: string }): Credential {
+export function planKey(plans: PlanKeys, login: LoginDriver, limits: UsageLimits, user: string, plan: PlanName, x: Harness & { plan: NonNullable<Harness['plan']> }, o: { proxyUrl: string; model: string; effort?: string }): Credential {
   const h = x.name as LabHarness['name']
+  const since = now()
   return {
     async ready() { if (!(await plans.has(user, plan))) throw new LoginError(`${plan} is not connected for this user; call connectKey first`) },
     // the user's kept sandbox of this harness is the same for both kinds, so it mounts the login volume of cliLogin too
@@ -70,7 +73,17 @@ export function planKey(plans: PlanKeys, login: LoginDriver, user: string, plan:
     release: async (sbx) => { await login.release?.(sbx, user, h) },
     // the relay saw OpenCode's answer and set `expired` or `no-plan` itself; a job that worked is signed in
     async report(state) { if (state === 'signed-in' && (await plans.state(user, plan)) !== 'signed-in') await plans.setState(user, plan, 'signed-in') },
-    event: (ev) => (ev.type === 'error' && NO_PLAN.test(ev.message) ? { ...ev, code: 'no-plan' } : ev),
+    async event(ev) {
+      if (ev.type !== 'error') return ev
+      if (NO_PLAN.test(ev.message)) return { ...ev, code: 'no-plan' }
+      // R1.9: the harness saw OpenCode's 429 in its own words; the relay asked OpenCode's usage meter whether the plan
+      // is used up, and kept it during this job
+      if (ev.code !== 'harness' && ev.code !== 'rate-limited' && ev.code !== 'usage-limit') return ev
+      const l = await limits.get(user, plan)
+      if (!l || l.at < since) return ev
+      const { resetsAt: _, ...rest } = ev
+      return { ...rest, code: 'usage-limit', ...(l.resetsAt ? { resetsAt: l.resetsAt } : {}) }
+    },
   }
 }
 

@@ -9,6 +9,7 @@ import { isLab } from './harness/index.ts'
 import { PINS, type HarnessName, type Pins } from './harness/pins.ts'
 import type { ModelChoice, RunHarness } from './harness/types.ts'
 import { jobs, type JobToken } from './job.ts'
+import { usageLimits, type UsageLimit } from './limits.ts'
 import { storedLogin } from './login-stored.ts'
 import type { LoginDeps, LoginDriver } from './login.ts'
 import { mcpConnections } from './mcp/connect.ts'
@@ -20,10 +21,12 @@ import { PLANS, RELAY_PREFIX, isPlan, planKeys, type PlanName, type PlanState } 
 import type { SandboxProvider } from './sandbox/types.ts'
 import { slots } from './slots.ts'
 import type { Store } from './store.ts'
+import { now } from './time.ts'
 
 export { LoginError } from './credential.ts'
-export { ProxyError, taskText, type Job, type JobToken, type RunOptions, type Session, type SessionOptions, type Waiting } from './job.ts'
+export { ProxyError, UsageLimitError, taskText, type Job, type JobToken, type RunOptions, type Session, type SessionOptions, type Waiting } from './job.ts'
 export type { ConnectResult } from './mcp/connect.ts'
+export type { UsageLimit } from './limits.ts'
 export type { ModelChoice, RunHarness } from './harness/types.ts'
 
 export interface AgentsOptions {
@@ -86,7 +89,8 @@ export function createAgents(o: AgentsOptions) {
   const keep = (o.sandboxPer ?? 'user') === 'user'
   const grants = new Grants(o.store, key, oauth)
   const tokens = new JobTokens(o.store)
-  const plans = planKeys(o.store, key)
+  const limits = usageLimits(o.store)
+  const plans = planKeys(o.store, key, limits)
   const login = (o.login ?? storedLogin())({ sandbox: o.sandbox, store: o.store, app: o.app, pins, encryptionKey: o.encryptionKey, jobTimeoutMs: o.jobTimeoutMs })
   const sandboxes = slots(o.store, o.sandbox, { leaseMs: timeout + 5 * 60_000, waitMs: o.waitMs })
   const convs = conversations(o.store, key, { maxBytes: o.transcriptBytes ?? 700_000 })
@@ -116,7 +120,7 @@ export function createAgents(o: AgentsOptions) {
     }
   }
 
-  const job = jobs({ app: o.app, proxyUrl: o.proxyUrl, sandbox: o.sandbox, login, plans, pins, models: o.models, timeout, keep, slots: sandboxes, conversations: convs, jobToken: issue, serversOf })
+  const job = jobs({ app: o.app, proxyUrl: o.proxyUrl, sandbox: o.sandbox, login, plans, pins, models: o.models, timeout, keep, slots: sandboxes, conversations: convs, limits, jobToken: issue, serversOf })
 
   /** Deletes the user's kept sandboxes of this app at this provider (R5.4): all of them, or those of one harness or one
    *  sandbox key. For sign-out, when the app deletes the user, and when it deletes a project or conversation that had
@@ -130,24 +134,38 @@ export function createAgents(o: AgentsOptions) {
     /** Claude Code: pass the code Anthropic's page shows. Codex: call again until the state is not `pending`. With no
      *  code (Claude Code) and no wait, it only checks in: the sign-in sandbox lives while the app's sign-in UI calls it
      *  at least every 2 minutes, and ends 2 minutes after the last call (R1.7). */
-    finishLogin: (user: string, h: HarnessName, input?: { code?: string; waitMs?: number }) => login.finish(user, h, input),
+    finishLogin: async (user: string, h: HarnessName, input?: { code?: string; waitMs?: number }) => {
+      const r = await login.finish(user, h, input)
+      // a new sign-in may be another account: a used-up plan of the old one goes (R1.9)
+      if (r.state === 'signed-in') await limits.clear(user, h)
+      return r
+    },
     /** Ends a sign-in that has not finished, and its sandbox, at once: call it when the user closes the sign-in. */
     cancelLogin: (user: string, h: HarnessName) => login.cancel(user, h),
     /** Keeps the user's key of a plan (R1.8): `'opencode-go'`, an OpenCode Console API key (`oc_sk_…`). byoa checks it
      *  with OpenCode first: `signed-in`; `no-plan` (kept: its workspace has no Go plan yet); or, when OpenCode refuses
      *  it, the state before with an `error`, and the key is not kept. */
-    connectKey: (user: string, plan: PlanName, apiKey: string): Promise<{ state: PlanState; error?: string }> => {
+    connectKey: async (user: string, plan: PlanName, apiKey: string): Promise<{ state: PlanState; error?: string }> => {
       if (!isPlan(plan)) throw new Error(`byoa: plan: ${PLANS.join(', ')}`)
-      return plans.connect(user, plan, apiKey)
+      const r = await plans.connect(user, plan, apiKey)
+      if (r.state === 'signed-in') await limits.clear(user, plan)
+      return r
     },
     /** `signed-in`, `signed-out` or `expired` (R1.6); for a plan's key also `no-plan`. */
     loginState: (user: string, h: HarnessName | PlanName): Promise<PlanState> => isPlan(h) ? plans.state(user, h) : login.state(user, h),
+    /** The user's plan of this harness, or of a plan's key, is used up (R1.9): a job found it so, and it has not reset
+     *  yet. Until `until` (its `resetsAt`, when the tool said; else 15 minutes after), `run` ends at once with a
+     *  `usage-limit` error and starts no sandbox. Undefined when it is not used up, as byoa knows. No sandbox. */
+    usageLimit: async (user: string, h: HarnessName | PlanName): Promise<UsageLimit | undefined> => {
+      const l = await limits.get(user, h)
+      return l && l.until > now() ? { message: l.message, ...(l.resetsAt ? { resetsAt: l.resetsAt } : {}), until: l.until } : undefined
+    },
     /** Signs the user out with the CLI, deletes the stored login (or the login volume), and deletes the user's
      *  sandboxes of this harness. For a plan: deletes the user's key; the relay refuses the jobs that run with it. */
     signOut: async (user: string, h: HarnessName | PlanName) => {
-      if (isPlan(h)) return plans.remove(user, h)
+      if (isPlan(h)) { await limits.clear(user, h); return plans.remove(user, h) }
       if (!isLab(h)) throw new Error(`byoa: signOut: a harness or a plan`)
-      await deleteSandbox(user, { harness: h }); await login.signOut(user, h)
+      await deleteSandbox(user, { harness: h }); await login.signOut(user, h); await limits.clear(user, h)
     },
     deleteSandbox,
     /** Deletes a conversation of the user (R5.9): its sessions and transcripts in the store, of every harness, and its

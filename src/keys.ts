@@ -36,6 +36,8 @@ export const keys = {
   planKey: (user: string, plan: string) => `aikey/${enc(user)}/${plan}`,
   /** `signed-in`, `expired` or `no-plan` of a plan's key */
   planState: (user: string, plan: string) => `aikeystate/${enc(user)}/${plan}`,
+  /** a used-up plan of a lab login (by harness) or of a plan's key (by plan), until it resets (R1.9) */
+  usageLimit: (user: string, name: string) => `usagelimit/${enc(user)}/${name}`,
 
   // Sandboxes (R5.4)
   /** a kept sandbox of a user: its id at the provider and the lease of the job that uses it */

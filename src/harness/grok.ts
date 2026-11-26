@@ -3,7 +3,7 @@
 // docs (ACP, and the `x.ai/` extensions) and its answers.
 import { JOB_TOKEN_ENV, MCP_STARTUP_SEC, serverUrl, tomlString } from '../config.ts'
 import { driver, driverFailure } from './driver.ts'
-import { AUTH_FAILED, clip, type AgentEvent, type EventReader } from './events.ts'
+import { AUTH_FAILED, clip, codeOf, errorEvent, type AgentEvent, type ErrorCode, type EventReader } from './events.ts'
 import { installPinned } from './install.ts'
 import { PACKAGES } from './pins.ts'
 import { REFRESH_WINDOW_MS, type JobArgs, type LabHarness, type ModelChoice } from './types.ts'
@@ -49,8 +49,20 @@ const unwrap = (text: string): string => {
 const contentText = (c: unknown): string => Array.isArray(c)
   ? c.map((x: any) => x?.content?.text ?? x?.text ?? '').join('')
   : typeof c === 'string' ? c : ''
-const failure = (message: string): AgentEvent[] =>
-  [{ type: 'error', message: clip(message, 500), code: AUTH_FAILED.test(message) || /authentication required|unauthorized \(401\)/i.test(message) ? 'expired' : 'harness' }, { type: 'end', ok: false }]
+/** Grok's own words for a login that does not work. */
+const GROK_AUTH = new RegExp(`${AUTH_FAILED.source}|authentication required|unauthorized \\(401\\)`, 'i')
+/** The code of a failed turn (R1.9): its text first, because Grok 1.0.92 also classes a 503 or 529 (overloaded) as
+ *  `rate_limit`; then `error_kind` of turn_completed, with the kinds its binary names. Grok says no reset time. */
+function grokCode(message: string, kind: unknown): ErrorCode {
+  const code = codeOf(message, GROK_AUTH)
+  if (code !== 'harness') return code
+  const k = String(kind ?? '')
+  if (k === 'authentication_failed' || k === 'unauthorized') return 'expired'
+  if (k === 'usage_limit_reached' || k === 'free_usage_exhausted' || k === 'usage_pool_exhausted') return 'usage-limit'
+  if (k === 'rate_limit' || k === 'rate_limited' || k === 'overloaded' || k === 'global_rate_limit' || k === 'concurrency_limit') return 'rate-limited'
+  return 'harness'
+}
+const failure = (message: string, kind?: unknown): AgentEvent[] => [errorEvent(message, grokCode(message, kind)), { type: 'end', ok: false }]
 
 /** ACP's session/update notifications (agent_message_chunk, tool_call, tool_call_update) and Grok's own: each message
  *  that it takes into a turn (`_x.ai/session/interjection`, and the driver's line for each prompt), and the end of each
@@ -81,7 +93,7 @@ function grokReader(): EventReader {
     // Grok writes 0 for usage it does not know: all-zero usage is unknown, not free
     const usage = input || output ? { usage: { input, output, cached: Number(n.cachedReadTokens) || 0 } } : {}
     if (u.stop_reason === 'end_turn') return [...out, { type: 'end', ok: true, result: last, ...usage }]
-    const [error] = failure(String(u.agent_result || `the turn ended: ${u.stop_reason}`))
+    const [error] = failure(String(u.agent_result || `the turn ended: ${u.stop_reason}`), u.error_kind)
     return [...out, error!, { type: 'end', ok: false, ...usage }]
   }
   return {

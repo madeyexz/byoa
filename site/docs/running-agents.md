@@ -16,10 +16,33 @@ for await (const ev of agents.run(userId, {
 ```
 
 - The events are the same for every harness. The schema is in the [API reference](https://byoa.rippling.computer/docs/api.md#events-one-schema-for-every-harness).
-- `run` does not throw when a job fails. It gives `error` events (`code`: `signed-out`, `expired`, `no-plan`, `harness`, `sandbox`, `mcp` or `conversation`), and always ends with one `end` event (`ok`, `result`, `usage`, and in a conversation `session`). On `signed-out` or `expired`, show the sign-in again (for `plan: 'opencode-go'`, ask for a new key). On `no-plan`, tell the user that the key's workspace has no OpenCode Go plan.
+- `run` does not throw when a job fails. It gives `error` events (`code`: `signed-out`, `expired`, `no-plan`, `usage-limit`, `rate-limited`, `harness`, `sandbox`, `mcp` or `conversation`), and always ends with one `end` event (`ok`, `result`, `usage`, and in a conversation `session`). On `signed-out` or `expired`, show the sign-in again (for `plan: 'opencode-go'`, ask for a new key). On `no-plan`, tell the user that the key's workspace has no OpenCode Go plan. On `usage-limit` and `rate-limited`, see [When the plan is used up](#when-the-plan-is-used-up).
 - byoa writes skills where each harness reads them (`.claude/skills/`, `.agents/skills/`), AGENTS.md (and CLAUDE.md for Claude Code) from one source, and the MCP config in each harness's own format. `plugins` adds the skills and MCP servers of an Agent Plugins package (`readPlugin(readPluginDir(dir))`).
 - byoa installs the pinned version of each harness in each sandbox, so a new pin reaches every user at their next job.
 - If the client goes away, stop the loop (or call `return()` on the generator). byoa still ends the job token, takes the login out, and pauses or destroys the sandbox.
+
+## When the plan is used up
+
+Each plan has limits: Claude's and ChatGPT's 5-hour and weekly limits, Grok's plan limit, OpenCode Go's 5-hour, weekly and monthly limits. When the user's plan is used up, the job ends with an `error` of code `usage-limit`. Its `resetsAt` (ms since 1970) is when the plan resets, when the tool says: Claude Code and Codex say it, and for OpenCode Go byoa asks OpenCode's usage meter; Grok Build does not say it. `message` is the tool's own words.
+
+```ts
+if (ev.type === 'error' && ev.code === 'usage-limit') {
+  show(ev.resetsAt ? `Your plan is used up. It resets at ${new Date(ev.resetsAt).toLocaleString()}.` : ev.message)
+}
+```
+
+byoa keeps the used-up plan in the store, for that user and harness (with `plan: 'opencode-go'`, for that user and plan, with both harnesses), until `resetsAt`, or for 15 minutes when the tool did not say. Until then, a job of that user and harness ends at once with the same error, and starts no sandbox. To check before a job, with no sandbox:
+
+```ts
+const limit = await agents.usageLimit(userId, 'codex')   // undefined, or { message, resetsAt?, until }
+if (limit) return show(`Your plan is used up until ${new Date(limit.until).toLocaleString()}.`)
+```
+
+A new sign-in (`finishLogin` that says `signed-in`), a new key (`connectKey`), `signOut`, and a job that works end it. One user's plan is one user's: an app that runs every visitor on one user's login (such as byoa's own help agent) gets one check for all of them.
+
+`rate-limited` is a refusal for now: too many requests, or the lab is overloaded. byoa keeps nothing; try again in a moment. A login that the lab refuses is `expired`, as before.
+
+byoa reads each CLI's own code first, and its words only when the code is missing: Claude Code's API error and its `rate_limit_event`, Codex's `codexErrorInfo` and its rate limits, Grok Build's `error_kind`. These checks use output in the shape that each pinned binary writes; no check has run a real plan out.
 
 ## What the agent may do
 

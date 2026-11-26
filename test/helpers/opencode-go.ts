@@ -8,10 +8,11 @@ import type { AddressInfo } from 'node:net'
 export interface Seen { method: string; path: string; headers: Record<string, string>; body: string }
 
 /** `oc_sk_good` works; `oc_sk_noplan` has no Go plan (403); every other key is refused (401). `mode` changes what a
- *  model request gets, for every key. `delayMs`: each model request waits that long. */
+ *  model request gets, for every key: `429` with the weekly limit used up (the usage meter says so), `429-busy` with no
+ *  limit used up. `delayMs`: each model request waits that long. */
 export async function fakeOpenCodeGo() {
   const seen: Seen[] = []
-  const s = { seen, mode: 'ok' as 'ok' | '401' | '403', delayMs: 0, inFlight: 0, maxInFlight: 0 }
+  const s = { seen, mode: 'ok' as 'ok' | '401' | '403' | '429' | '429-busy', delayMs: 0, inFlight: 0, maxInFlight: 0 }
   const json = (res: any, status: number, body: unknown) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)) }
   const server = createServer(async (req, res) => {
     let body = ''
@@ -22,7 +23,14 @@ export async function fakeOpenCodeGo() {
     const status = s.mode === '401' || (key !== 'oc_sk_good' && key !== 'oc_sk_noplan') ? 401 : s.mode === '403' || key === 'oc_sk_noplan' ? 403 : 200
     if (status === 401) return json(res, 401, { type: 'error', error: { type: 'AuthError', message: 'Invalid API key.' } })
     if (status === 403) return json(res, 403, { type: 'error', error: { type: 'EntitlementError', message: 'OpenCode Go subscription required.' } })
-    if (path === '/v1/usage') return json(res, 200, { rolling: { status: 'ok', percent: 1 }, weekly: { status: 'ok', percent: 1 }, monthly: { status: 'ok', percent: 1 } })
+    // the meter's answer as the docs show it (https://opencode.ai/docs/console/go#usage)
+    if (path === '/v1/usage') return json(res, 200, { usage: {
+      rolling: { status: 'ok', percent: 30, resetsAt: '2099-12-31T20:00:00.000Z' },
+      weekly: s.mode === '429' ? { status: 'rate-limited', percent: 100, resetsAt: '2100-01-04T00:00:00.000Z' } : { status: 'ok', percent: 1, resetsAt: '2100-01-04T00:00:00.000Z' },
+      monthly: { status: 'ok', percent: 50, resetsAt: '2100-02-01T00:00:00.000Z' },
+    } })
+    // the docs do not show the body of a refused request: a stand-in in the API's error shape
+    if (s.mode === '429' || s.mode === '429-busy') return json(res, 429, { type: 'error', error: { type: 'RateLimitError', message: 'Rate limit exceeded.' } })
     if (path === '/v1/models') {
       return json(res, 200, { object: 'list', data: [
         { id: 'kimi-k3', type: 'chat', name: 'Kimi K3', description: 'Moonshot', capabilities: { reasoning: { supported: true, effort: ['max'] } }, go: { monthly_usage: { go: 15 } } },

@@ -3,7 +3,7 @@
 // against its `codex app-server generate-json-schema`.
 import { JOB_TOKEN_ENV, MCP_STARTUP_SEC, serverUrl, tomlString } from '../config.ts'
 import { driver, driverFailure } from './driver.ts'
-import { AUTH_FAILED, clip, type AgentEvent, type EventReader } from './events.ts'
+import { clip, codeOf, errorEvent, type AgentEvent, type ErrorCode, type EventReader } from './events.ts'
 import { installPinned } from './install.ts'
 import { PACKAGES } from './pins.ts'
 import { REFRESH_WINDOW_MS, type JobArgs, type LabHarness, type ModelChoice } from './types.ts'
@@ -35,14 +35,36 @@ const out = (r: unknown): string => {
   if (Array.isArray(content)) return content.map((x: any) => x?.text ?? '').join('')
   return r === undefined || r === null ? '' : JSON.stringify(r)
 }
-const failure = (message: string): AgentEvent[] =>
-  [{ type: 'error', message: clip(message, 500), code: AUTH_FAILED.test(message) ? 'expired' : 'harness' }, { type: 'end', ok: false }]
+/** The code of a failure (R1.9): Codex's own `codexErrorInfo` (0.171.0, protocol/src/error.rs), else its text.
+ *  usageLimitExceeded is a used-up plan (and a ChatGPT workspace out of credits or over its spend cap);
+ *  rateLimitExceeded, serverOverloaded and the capacity codes are for now; unauthorized is a refresh that failed. An
+ *  HTTP failure names its status. */
+function codexCode(info: unknown, message: string): ErrorCode {
+  if (info === 'usageLimitExceeded') return 'usage-limit'
+  if (info === 'rateLimitExceeded' || info === 'serverOverloaded' || info === 'policyCapacityUnavailable' || info === 'flexUnavailable') return 'rate-limited'
+  if (info === 'unauthorized') return 'expired'
+  const status = info && typeof info === 'object' ? Number((Object.values(info)[0] as any)?.httpStatusCode) : 0
+  if (status === 401) return 'expired'
+  if (status === 429) return 'rate-limited'
+  return codeOf(message)
+}
+/** When a used-up plan resets (ms since 1970): the latest of the windows that are used up, in the last rate limits
+ *  Codex sent (`account/rateLimits/updated`, which it sends from the refused response's headers before the error). */
+const resetOf = (limits: any): number | undefined => {
+  const ends = [limits?.primary, limits?.secondary].filter((w) => w && Number(w.usedPercent) >= 100 && Number(w.resetsAt) > 0).map((w) => Number(w.resetsAt) * 1000)
+  return ends.length ? Math.max(...ends) : undefined
+}
+const failure = (message: string, info?: unknown, limits?: unknown): AgentEvent[] => {
+  const code = codexCode(info, message)
+  return [errorEvent(message, code, code === 'usage-limit' ? resetOf(limits) : undefined), { type: 'end', ok: false }]
+}
 
 /** The app server's notifications (codex-cli 0.171.0, `codex app-server generate-json-schema`): thread/started (the
  *  thread id), item/started and item/completed (userMessage, agentMessage, mcpToolCall, commandExecution, ...),
- *  thread/tokenUsage/updated (the tokens of each model call, `last`), error, and turn/completed, one for each turn. */
+ *  thread/tokenUsage/updated (the tokens of each model call, `last`), account/rateLimits/updated (the plan's windows),
+ *  error (with `codexErrorInfo`), and turn/completed, one for each turn. */
 function codexReader(): EventReader {
-  let ended = false, last = '', failed = '', session: string | undefined, taken = 0
+  let ended = false, last = '', failed = '', info: unknown, limits: any, session: string | undefined, taken = 0
   let usage = { input: 0, output: 0, cached: 0 }
   return {
     get session() { return session },
@@ -77,21 +99,23 @@ function codexReader(): EventReader {
           usage = { input: usage.input + (Number(u.inputTokens) || 0), output: usage.output + (Number(u.outputTokens) || 0), cached: usage.cached + (Number(u.cachedInputTokens) || 0) }
           return []
         }
+        // a sparse update: its values go on top of the last ones
+        case 'account/rateLimits/updated': if (p.rateLimits) limits = { ...limits, ...Object.fromEntries(Object.entries(p.rateLimits).filter(([, v]) => v != null)) }; return []
         // an error that Codex retries is not the turn's end
-        case 'error': if (!p.willRetry) failed = String(p.error?.message ?? ''); return []
+        case 'error': if (!p.willRetry) { failed = String(p.error?.message ?? ''); info = p.error?.codexErrorInfo ?? info }; return []
         case 'turn/completed': {
           const t = p.turn ?? {}, u = usage
           usage = { input: 0, output: 0, cached: 0 }
           ended = true
           if (t.status === 'completed') return [{ type: 'end', ok: true, result: last, usage: u }]
-          return failure(String(t.error?.message || failed || `the turn ${t.status ?? 'failed'}`))
+          return failure(String(t.error?.message || failed || `the turn ${t.status ?? 'failed'}`), t.error?.codexErrorInfo ?? info, limits)
         }
         default: return []
       }
     },
     exit(code, stderr) {
       if (ended) return []
-      return failure(failed || stderr.trim().split('\n').slice(-3).join(' ') || `codex exited with code ${code}`)
+      return failure(failed || stderr.trim().split('\n').slice(-3).join(' ') || `codex exited with code ${code}`, info, limits)
     },
   }
 }

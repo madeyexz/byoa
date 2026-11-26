@@ -1,9 +1,10 @@
 // Claude Code: `claude -p` with stream-json input and output. Flags checked against `claude --help` of 2.1.330.
-// Events: system/init (with the session id), assistant (text, tool_use), user (tool_result), result (subtype,
-// is_error, result, usage, permission_denials), one result for each turn.
+// Events: system/init (with the session id), assistant (text, tool_use; an API error's kind), user (tool_result),
+// rate_limit_event (the plan's limit), result (subtype, is_error, result, usage, permission_denials), one result for
+// each turn.
 import { JOB_TOKEN_ENV, MCP_STARTUP_SEC, serverUrl } from '../config.ts'
 import { driver } from './driver.ts'
-import { AUTH_FAILED, clip, type AgentEvent, type EventReader } from './events.ts'
+import { clip, codeOf, errorEvent, type AgentEvent, type ErrorCode, type EventReader } from './events.ts'
 import { installPinned } from './install.ts'
 import { PACKAGES } from './pins.ts'
 import { REFRESH_WINDOW_MS, type JobArgs, type LabHarness, type ModelChoice } from './types.ts'
@@ -31,9 +32,26 @@ const mcpName = (n: string): { name: string; server?: string } => {
 }
 const textOf = (c: unknown): string => Array.isArray(c) ? c.map((x: any) => x?.text ?? '').join('') : String(c ?? '')
 
+/** The code of a failed turn (R1.9) from the API error that Claude Code 2.1.330 puts on its assistant message: `error`
+ *  (authentication_failed, rate_limit, overloaded, ...), and `api_error` usage_limit_reached for the account's own
+ *  plan limit (a session, weekly or model limit, or a spend cap), with `api_error_params.rate_limit_info.resetsAt` (s);
+ *  or a `rate_limit_event` that said `rejected`. Else the text. */
+function claudeCode(api: any, rejected: any, message: string): { code: ErrorCode; resetsAt?: number } {
+  const at = (i: any) => (Number(i?.resetsAt) > 0 ? Number(i.resetsAt) * 1000 : undefined)
+  if (api?.api_error === 'usage_limit_reached') return { code: 'usage-limit', resetsAt: at(api.api_error_params?.rate_limit_info) ?? at(rejected) }
+  if (api?.error === 'rate_limit' && rejected) return { code: 'usage-limit', resetsAt: at(rejected) }
+  if (api?.error === 'authentication_failed') return { code: 'expired' }
+  const code = codeOf(message)
+  if (code === 'usage-limit') return { code, resetsAt: at(rejected) }
+  if (code === 'harness' && (api?.error === 'rate_limit' || api?.error === 'overloaded')) return { code: 'rate-limited' }
+  return { code }
+}
+
 /** Claude Code's stream-json output (system/init, assistant, user, result). Each `result` is the end of one turn. */
 function claudeReader(): EventReader {
   let ended = false, session: string | undefined, taken = 0
+  /** This turn's API error, and the plan's limit when the last rate_limit_event said that it refuses. */
+  let api: any, rejected: any
   return {
     get session() { return session },
     get taken() { return taken },
@@ -45,7 +63,11 @@ function claudeReader(): EventReader {
         case 'system':
           if (ev.subtype === 'init' && typeof ev.session_id === 'string' && ev.session_id) session = ev.session_id
           break
+        case 'rate_limit_event':
+          rejected = ev.rate_limit_info?.status === 'rejected' ? ev.rate_limit_info : undefined
+          break
         case 'assistant':
+          if (ev.error) api = ev
           for (const c of ev.message?.content ?? []) {
             if (c.type === 'text' && c.text) out.push({ type: 'text', text: c.text })
             else if (c.type === 'tool_use') out.push({ type: 'tool_call', id: String(c.id), ...mcpName(String(c.name)), input: c.input ?? {} })
@@ -67,8 +89,10 @@ function claudeReader(): EventReader {
           const cached = Number(u.cache_read_input_tokens) || 0
           if (!ok) {
             const msg = String(ev.result || ev.subtype || 'Claude Code failed')
-            out.push({ type: 'error', message: clip(msg, 500), code: AUTH_FAILED.test(msg) ? 'expired' : 'harness' })
+            const c = claudeCode(api, rejected, msg)
+            out.push(errorEvent(msg, c.code, c.resetsAt))
           }
+          api = undefined
           out.push({
             type: 'end', ok, ...(ok && typeof ev.result === 'string' ? { result: ev.result } : {}),
             usage: { input: (Number(u.input_tokens) || 0) + cached + (Number(u.cache_creation_input_tokens) || 0), output: Number(u.output_tokens) || 0, cached, ...(typeof ev.total_cost_usd === 'number' ? { costUsd: ev.total_cost_usd } : {}) },
@@ -82,7 +106,8 @@ function claudeReader(): EventReader {
     exit(code, stderr) {
       if (ended) return []
       const msg = stderr.trim().split('\n').slice(-3).join(' ') || `claude exited with code ${code}`
-      return [{ type: 'error', message: clip(msg, 500), code: AUTH_FAILED.test(msg) ? 'expired' : 'harness' }, { type: 'end', ok: false }]
+      const c = claudeCode(api, rejected, msg)
+      return [errorEvent(msg, c.code, c.resetsAt), { type: 'end', ok: false }]
     },
   }
 }

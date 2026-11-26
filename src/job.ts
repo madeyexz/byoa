@@ -12,6 +12,7 @@ import { MODELS_JS, type ModelInfo } from './harness/models.ts'
 import type { HarnessName, Pins } from './harness/pins.ts'
 import type { Harness, ModelChoice, RunHarness, Turn } from './harness/types.ts'
 import type { LoginDriver } from './login.ts'
+import type { UsageLimit, UsageLimits } from './limits.ts'
 import { GrantError } from './mcp/grants.ts'
 import { PROXY_HEADER } from './mcp/proxy.ts'
 import { PLANS, isPlan, type PlanKeys, type PlanName } from './plan.ts'
@@ -108,6 +109,16 @@ export interface JobToken {
   close(): Promise<void>
 }
 
+/** The user's plan is used up (R1.9): byoa keeps that until it resets, and a job until then starts no sandbox. */
+export class UsageLimitError extends Error {
+  readonly code = 'usage-limit'
+  readonly resetsAt?: number
+  constructor(l: UsageLimit) {
+    super(`the plan is used up until ${new Date(l.until).toISOString()}, so byoa did not start this job: ${l.message}`)
+    if (l.resetsAt) this.resetsAt = l.resetsAt
+  }
+}
+
 /** The job's sandbox cannot reach the MCP proxy at `proxyUrl` (R3.5), so no MCP tool of the job can work. */
 export class ProxyError extends Error { readonly code = 'mcp' }
 
@@ -174,6 +185,7 @@ export interface JobDeps {
   keep: boolean
   slots: Slots
   conversations: Conversations
+  limits: UsageLimits
   jobToken(user: string, r: { mcp?: string[] }, plan?: PlanName): Promise<JobToken>
   serversOf(user: string): Promise<Set<string>>
 }
@@ -187,7 +199,7 @@ export function jobs(d: JobDeps) {
     if (r.plan !== undefined) {
       if (!isPlan(r.plan) || !x.plan) throw new Error(`byoa: plan: ${PLANS.join(', ')}, with the harness ${Object.values(HARNESSES).filter((h) => h.plan).map((h) => h.name).join(' or ')}`)
       if (!choice.model) throw new Error(`byoa: a job with the plan ${r.plan} needs a model; listModels(user, '${r.plan}') lists them`)
-      return planKey(d.plans, d.login, user, r.plan, { ...x, plan: x.plan }, { proxyUrl: d.proxyUrl, model: choice.model, effort: choice.effort })
+      return planKey(d.plans, d.login, d.limits, user, r.plan, { ...x, plan: x.plan }, { proxyUrl: d.proxyUrl, model: choice.model, effort: choice.effort })
     }
     return isLab(x.name) ? labLogin(d.login, user, HARNESSES[x.name], choice) : noCredential(x)
   }
@@ -339,6 +351,7 @@ export function jobs(d: JobDeps) {
       const h = r.harness
       let s: Session | undefined
       let end: AgentEvent = { type: 'end', ok: false }
+      let held: UsageLimit | undefined
       try {
         for (const m of await missingOf(user, r)) yield { type: 'error', code: 'mcp', message: `${m} is not connected for this user; the job runs without it` }
         try {
@@ -346,6 +359,10 @@ export function jobs(d: JobDeps) {
           if (conv !== undefined && !validKey(conv)) throw new Error('byoa: conversation: a string of 1 to 128 characters')
           if (conv !== undefined && r.sandboxKey !== undefined && r.sandboxKey !== conv) throw new Error('byoa: a job of a conversation runs in its own kept sandbox: give no sandboxKey, or the conversation id')
           const task = taskText(r.task)
+          // R1.9: a plan that a job found used up stays so until it resets; until then no sandbox starts
+          const limitName = r.plan !== undefined ? (isPlan(r.plan) ? r.plan : undefined) : isLab(r.harness) ? r.harness : undefined
+          held = limitName === undefined ? undefined : await d.limits.get(user, limitName)
+          if (held && held.until > now()) throw new UsageLimitError(held)
           const opened = await open(user, conv !== undefined && d.keep ? { ...r, sandboxKey: conv } : r, { keepWork: conv !== undefined })
           s = opened.s
           const { x, cred } = opened
@@ -380,7 +397,7 @@ export function jobs(d: JobDeps) {
           yield { type: 'start', harness: h, version: s.version, sandbox: d.sandbox.name, ...(conv !== undefined ? { conversation: conv, resumed: turn!.resume } : {}) }
 
           for await (let ev of stream(s.sandbox, cmd, { cwd: s.work, env: s.env, timeoutMs: d.timeout }, reader)) {
-            ev = cred.event(ev)
+            ev = await cred.event(ev)
             if (ev.type === 'end') {
               // R5.10: a message is still to come, so this was one turn; the job ends after the turn that answers the
               // last one, and the driver then ends the harness
@@ -394,6 +411,7 @@ export function jobs(d: JobDeps) {
               break
             }
             if (ev.type === 'error' && ev.code === 'expired') await s.reportLogin('expired')
+            if (ev.type === 'error' && ev.code === 'usage-limit') await d.limits.set(user, r.plan ?? r.harness, ev)
             yield ev
           }
           ended = true
@@ -401,9 +419,14 @@ export function jobs(d: JobDeps) {
             const session = await d.conversations.finish(user, x, conv, s.sandbox, home, s.work, turn!, turns, reader.session)
             if (session && end.type === 'end') end = { ...end, session }
           }
-          if (end.type === 'end' && end.ok) await s.reportLogin('signed-in')
+          if (end.type === 'end' && end.ok) {
+            await s.reportLogin('signed-in')
+            // the plan reset: a limit that ended goes
+            if (held) await d.limits.clear(user, r.plan ?? r.harness)
+          }
         } catch (e) {
           if (e instanceof LoginError) yield { type: 'error', code: 'signed-out', message: e.message }
+          else if (e instanceof UsageLimitError) yield { type: 'error', code: 'usage-limit', message: e.message, ...(e.resetsAt ? { resetsAt: e.resetsAt } : {}) }
           else yield { type: 'error', code: e instanceof GrantError || e instanceof ProxyError ? 'mcp' : 'sandbox', message: (e as Error).message }
         }
         ended = true
