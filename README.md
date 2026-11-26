@@ -85,12 +85,18 @@ for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['n
 
 ## Agent skill
 
-[skills/byoa](skills/byoa) is a skill in the [Agent Skills](https://agentskills.io) format. It teaches a coding agent (Claude Code, Codex, Amp and others) to add byoa to an app: the install, `createAgents` with a store and a sandbox adapter, the sign-in, the MCP connections and their routes, `agents.run` and its events, and the lab rules. To install it in your app's repository:
+[skills/byoa](skills/byoa) is a skill in the [Agent Skills](https://agentskills.io) format. It teaches a coding agent (Claude Code, Codex, Amp and others) to add byoa to an app: the install, `createAgents` with a store and a sandbox adapter, the sign-in, the MCP connections and their routes, `agents.run` and its events, and the lab rules. Its `metadata.version` is the `version` in byoa's package.json next to it.
+
+The npm package has the skill in it (from the version after 1.0.0). After you install byoa, link the skill of the installed version into your app's repository for Claude Code, Codex, Amp, Cursor and others, so it always matches the package:
 
 ```sh
-npx skills add madeyexz/byoa              # Claude Code, Codex, Cursor and others
-amp skill add madeyexz/byoa/skills/byoa   # Amp
+npx skills experimental_sync -y
 ```
+
+`experimental_sync` is a preview command of the [skills](https://github.com/vercel-labs/skills) CLI. Without it, or with byoa 1.0.0, install the skill of one release from its tag (here 1.0.0; use the tag of your version), or the skill of `main`:
+
+- one release: `npx skills add madeyexz/byoa@v1.0.0 --skill byoa`
+- `main`: `npx skills add madeyexz/byoa`, or for Amp `amp skill add madeyexz/byoa/skills/byoa`
 
 For LLMs, the site also serves the docs as [llms.txt](https://byoa.rippling.computer/llms.txt) (an index) and [llms-full.txt](https://byoa.rippling.computer/llms-full.txt) (the docs, SPEC.md, the example and the skill in one file), and each docs page as Markdown (add `.md` to its address).
 

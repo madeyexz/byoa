@@ -10,7 +10,7 @@ const ROOT = new URL('../', import.meta.url)
 const DOCS = ['README.md', 'skills/byoa/SKILL.md', 'skills/byoa/reference/api.md',
   ...readdirSync(new URL('docs/', ROOT)).filter((f) => f.endsWith('.md')).map((f) => `docs/${f}`)]
 const text = (p: string) => readFileSync(new URL(p, ROOT), 'utf8')
-const pkg: { name: string; exports: Record<string, { bun: string }> } = JSON.parse(text('package.json'))
+const pkg: { name: string; version: string; files: string[]; exports: Record<string, { bun: string }> } = JSON.parse(text('package.json'))
 /** The package name, such as `@madeyexz/byoa`, as a regular expression with the subpath after it. */
 const SPEC = `${pkg.name.replace(/[/]/g, '\\/')}(?:\\/[\\w/]+)?`
 
@@ -49,4 +49,13 @@ test('every name the README, the docs and the skill import from byoa is exported
     for (const n of names) if (!(n in mod)) missing.push(`${spec}: ${n}`)
   }
   assert.deepEqual(missing, [])
+})
+
+// `npx skills experimental_sync` links the skill from node_modules, so it must ship in the package, and an agent reads its
+// version from metadata.version. A release that bumps package.json must bump the skill and the README's pinned install too.
+test('the skill ships in the package, with the package version in its metadata and in the README pinned install', () => {
+  assert.ok(pkg.files.includes('skills'), 'package.json files')
+  const front = /^---\n([\s\S]*?)\n---\n/.exec(text('skills/byoa/SKILL.md'))?.[1] ?? ''
+  assert.equal(/^metadata:\n(?: {2}.*\n)*? {2}version: "([^"]+)"$/m.exec(front)?.[1], pkg.version)
+  assert.deepEqual([...text('README.md').matchAll(/npx skills add madeyexz\/byoa@(\S+)/g)].map((m) => m[1]), [`v${pkg.version}`])
 })

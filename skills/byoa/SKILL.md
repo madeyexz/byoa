@@ -1,6 +1,8 @@
 ---
 name: byoa
 description: Adds byoa to an app, so the app runs each user's own Claude Code, Codex or Grok Build in a sandbox (E2B, Daytona, Instabox or local), on the user's own Claude, ChatGPT, Grok or OpenCode Go plan, with the user's MCP connections. Use when you add AI agent jobs to an app's backend with byoa, write its sign-in, MCP connect, proxy or callback routes, stream agents.run events to a UI, write a byoa store adapter, or test with byoa's fake harness.
+metadata:
+  version: "1.0.0"
 ---
 
 # Add byoa to an app
@@ -21,6 +23,8 @@ bun add @madeyexz/byoa
 ```
 
 Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona; Instabox needs none. byoa needs Node 22.18 or later, or Bun. The package is `@madeyexz/byoa`: do not write `npm install byoa` or `import ... from 'byoa'`, and do not install `byoa-sdk`, an unrelated package.
+
+`metadata.version` above is the `version` in the package.json next to this skill. The npm package has this skill in it (from the version after 1.0.0), so `npx skills experimental_sync -y` after the install links `node_modules/@madeyexz/byoa/skills/byoa` into the app's skills, and the skill always matches the installed byoa. When the installed version is not `metadata.version`, believe the installed version's types.
 
 This skill describes byoa's `main` branch. npm 1.0.0 has no Grok Build, no OpenCode Go, no `conversation` and no `job.send`. When one of these is a type error, the installed byoa is older than this skill: install from GitHub with `npm install github:madeyexz/byoa` (npm builds it on install), or use only what the installed version's types have. Do not write around the missing types.
 
