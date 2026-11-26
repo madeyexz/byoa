@@ -203,9 +203,12 @@ test('R5.6: access read-only starts each CLI with its own limits, and the job\'s
   assert.equal(harnessFiles('grok', {}, { ...o, access: 'read-only' })['.grok/config.toml'], harnessFiles('grok', {}, o)['.grok/config.toml'] + '\n[permission]\ndeny = ["Bash", "Write", "Edit", "WebFetch"]\nallow = ["MCPTool(*)"]\n')
   await a.agents.connectLogin('gus', 'grok')
   assert.deepEqual(await a.agents.finishLogin('gus', 'grok', { waitMs: 10_000 }), { state: 'signed-in' })
-  const write = async (access: 'full' | 'read-only') => ((await collect(a.agents.run('gus', { harness: 'grok', task: 'write a file', access }))).at(-1) as { result?: string }).result
-  assert.equal(await write('read-only'), 'I may not write.', 'denied by the rule, and the turn goes on')
-  assert.equal(await write('full'), 'Wrote it.')
+  const write = async (access: 'full' | 'read-only') => {
+    const ev = await collect(a.agents.run('gus', { harness: 'grok', task: 'write a file', access }))
+    return [(ev.find((e) => e.type === 'tool_result') as { output: string }).output, (ev.at(-1) as { result?: string }).result]
+  }
+  assert.deepEqual(await write('read-only'), ['Tool `write` was not executed: Denied by permission policy: deny rule on edit', 'I may not write.'], 'denied by the rule, and the turn goes on')
+  assert.deepEqual(await write('full'), ['wrote x.txt', 'Wrote it.'], 'the tool\'s text, not Grok\'s JSON')
   const bad = await collect(a.agents.run('gus', { harness: 'codex', task: 'x', access: 'none' as never }))
   assert.deepEqual(bad, [{ type: 'error', code: 'sandbox', message: "byoa: access: 'full' or 'read-only'" }, { type: 'end', ok: false }])
 })

@@ -113,8 +113,9 @@ function grokReader(): EventReader {
           const id = String(u.toolCallId)
           if (!calls.has(id) || (u.status !== 'completed' && u.status !== 'failed')) return []
           calls.delete(id)
-          const output = u.rawOutput !== undefined ? (typeof u.rawOutput === 'string' ? u.rawOutput : JSON.stringify(u.rawOutput)) : contentText(u.content)
-          return [{ type: 'tool_result', id, ok: u.status === 'completed', output: clip(unwrap(output)) }]
+          // the tool's text (a command's output, a file read, a refusal); an MCP call has only Grok's own JSON in rawOutput
+          const raw = u.rawOutput === undefined ? '' : typeof u.rawOutput === 'string' ? u.rawOutput : JSON.stringify(u.rawOutput)
+          return [{ type: 'tool_result', id, ok: u.status === 'completed', output: clip(contentText(u.content) || unwrap(raw)) }]
         }
         default: return []
       }

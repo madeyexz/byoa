@@ -74,7 +74,8 @@ async function turn(m) {
     } else if (argv.includes('--always-approve') || (await ask('session/request_permission', {
       sessionId: session, toolCall, options: [{ optionId: 'allow-once', name: 'Yes', kind: 'allow_once' }, { optionId: 'reject-once', name: 'No', kind: 'reject_once' }],
     })).outcome?.optionId === 'allow-once') {
-      update({ sessionUpdate: 'tool_call_update', toolCallId: 'w1', status: 'completed', rawOutput: 'wrote x.txt' })
+      // as grok 1.0.92: the tool's text in content, and Grok's own JSON in rawOutput
+      update({ sessionUpdate: 'tool_call_update', toolCallId: 'w1', status: 'completed', content: [{ type: 'content', content: { type: 'text', text: 'wrote x.txt' } }], rawOutput: { type: 'Write', path: 'x.txt' } })
       say('Wrote it.')
     } else {
       update({ sessionUpdate: 'tool_call_update', toolCallId: 'w1', status: 'failed', content: [{ type: 'content', content: { type: 'text', text: 'User rejected the execution for tool `write`' } }] })

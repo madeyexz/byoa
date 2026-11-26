@@ -6,8 +6,8 @@
 //                                                 Code, write the code that the page shows into $V21_DIR/claude.code.
 //                                                 It checks in until the sign-in ends, at most 20 minutes.
 //   node scripts/v21.ts check [harness...]        for each signed-in harness: a conversation of three jobs, the third
-//                                                 after the conversation's sandbox was destroyed at E2B; and for
-//                                                 Claude Code a job that takes a second message while it runs
+//                                                 after the conversation's sandbox was destroyed at E2B; and a job
+//                                                 that takes a second message while its turn runs (steering)
 //   node scripts/v21.ts cleanup                   signs out of each harness and deletes the user's sandboxes,
 //                                                 conversations and the folder
 //
@@ -78,9 +78,9 @@ async function check(h: HarnessName) {
   expect(three.end.ok && three.start?.resumed === true && !three.errors.some((e) => e.code === 'conversation'), 'job 3, in a new sandbox, resumes from the stored transcript')
   expect(!!three.end.result?.includes(word), `job 3 remembers the word (${JSON.stringify(three.end.result)})`)
 
-  if (h === 'claude') {
-    // R5.10: a second message while the job runs
-    const r = agents.run(USER, { harness: h, task: 'Count from 1 to 5, one number on each line, then stop.', conversation: conv })
+  {
+    // R5.10: a second message while the job runs; the shell command keeps the turn running when it comes
+    const r = agents.run(USER, { harness: h, task: 'Run the shell command `sleep 15`, then count from 1 to 5, one number on each line, then stop.', conversation: conv })
     const ev: AgentEvent[] = []
     let sent: boolean | undefined
     for await (const e of r) {
