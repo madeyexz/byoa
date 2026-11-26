@@ -162,7 +162,10 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
 
     /** Writes the stored login into the sandbox, under the lease. `alone`: no other sandbox has it meanwhile. */
     async function load(sbx: Sandbox, user: string, h: HarnessName, job: JobLogin & { alone?: boolean } = {}) {
+      const asked = now()
       let { lease, version, text } = await take(user, h, job.alone, job.onWait)
+      // the job's time starts once it has the login (JobLogin.deadline): the time it waited in line does not count
+      const deadline = job.deadline && job.deadline + now() - asked
       const lk = loanKey(user, h, sbx.id)
       try {
         const loan = await store.get(lk)
@@ -176,11 +179,11 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
         await store.put(lk, JSON.stringify({ version }))
         for (const [p, body] of Object.entries(JSON.parse(text) as Record<string, string>)) await sbx.writeFile(`${sbx.home}/${p}`, body)
         await sbx.run(`chmod 600 ${LOGIN_FILES[h].map((p) => q(`${sbx.home}/${p}`)).join(' ')} 2>/dev/null; true`)
-        if (job.deadline) {
+        if (deadline) {
           // the files leave the sandbox before the provider pauses it, also when this backend dies
           const nonce = randomToken(12), m = q(marker(sbx))
           await sbx.writeFile(marker(sbx), nonce)
-          const s = Math.max(1, Math.floor((job.deadline - now()) / 1000))
+          const s = Math.max(1, Math.floor((deadline - now()) / 1000))
           await sbx.run(`sleep ${s}; [ "$(cat ${m} 2>/dev/null)" = ${q(nonce)} ] && rm -f ${fileArgs(sbx, h)} ${m}; true`, { background: true })
         }
         held.set(sbx.id, { version, lease, text })

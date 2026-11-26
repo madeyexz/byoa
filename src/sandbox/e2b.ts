@@ -65,6 +65,10 @@ export function e2b(opts: E2BOptions = {}): SandboxProvider {
         await s.pause()
       }
     },
+    /** A kept sandbox pauses then (its lifecycle), another one ends. */
+    async setTimeout(ms) {
+      await s.setTimeout(ms)
+    },
     async destroy() {
       await s.kill()
     },

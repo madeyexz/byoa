@@ -68,7 +68,9 @@ export interface LoginDriver {
 }
 
 export interface JobLogin {
-  /** When the provider ends or pauses the job's sandbox (ms since 1970): the login files leave the sandbox before. */
+  /** When the provider ends or pauses the job's sandbox (ms since 1970), as the job saw it when it asked for the
+   *  login: the login files leave the sandbox before. The job's time starts again once it has the login (it sets the
+   *  sandbox's time again, Sandbox.setTimeout), so a driver that waits in line for the login adds the time it waited. */
   deadline?: number
   /** While the job waits in line for the login: how many jobs are ahead. */
   onWait?: (ahead: number) => void

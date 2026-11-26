@@ -245,12 +245,23 @@ test('R1.4: a backend that dies during a job: the next job in that kept sandbox 
   await b.deleteSandbox('gus')
 })
 
-test('R5.4 / R5.8: a job that waits in line for the AI login keeps its sandbox, also past the job timeout and 5 minutes', async () => {
-  // spec/tla/JobTiming.tla found this: the sandbox's lease ran out while its job still waited for the login, and the
-  // next job of that sandbox key took the sandbox while the first one ran in it
+test('R5.4 / R1.4: a job that waits in line for the AI login keeps its sandbox, and its time starts when it has the login', async () => {
+  // spec/tla/JobTiming.tla found these: the sandbox's lease ran out while its job still waited for the login, and the
+  // next job of that sandbox key took the sandbox while the first one ran in it; and the login's watcher and the
+  // provider's time counted the wait, so the watcher removed the login while the harness ran
   const { clock } = await import('../src/time.ts')
   const { storedLogin } = await import('../src/index.ts')
   const a = await testApp({ env, login: storedLogin({ parallel: false }), waitMs: 2_000 }); closers.push(a.close)
+  // each sandbox's time as the provider was told (Sandbox.setTimeout), and when each login watcher runs
+  const timeouts: number[] = [], watchers: number[] = []
+  const create = a.sandbox.create
+  a.sandbox.create = async (o) => {
+    const s = await create(o)
+    const run = s.run
+    s.run = (cmd, ro) => { const m = /^sleep (\d+); \[/.exec(cmd); if (m) watchers.push(clock.now() + Number(m[1]) * 1000); return run(cmd, ro) }
+    s.setTimeout = async (ms) => { timeouts.push(clock.now() + ms) }
+    return s
+  }
   await a.agents.connectLogin('kim', 'claude')
   assert.deepEqual(await a.agents.finishLogin('kim', 'claude', { code: 'good-code' }), { state: 'signed-in' })
   const real = clock.now
@@ -266,6 +277,10 @@ test('R5.4 / R5.8: a job that waits in line for the AI login keeps its sandbox, 
     clock.now = () => real() + 36 * 60_000
     await first.close()
     const s2 = await second
+    // job 2 has its whole time from now: the provider's time is set again, and the watcher runs after the harness's time
+    const t = clock.now(), timeout = 30 * 60_000
+    assert.ok(Math.abs(timeouts.at(-1)! - (t + timeout + 60_000)) < 5_000, `the sandbox's time: ${(timeouts.at(-1)! - t) / 1000} s`)
+    assert.ok(Math.abs(watchers.at(-1)! - (t + timeout + 45_000)) < 5_000, `the watcher: ${(watchers.at(-1)! - t) / 1000} s`)
     try {
       // job 3 of key `b` waits for job 2's sandbox, and gives up after waitMs
       const waits: string[] = []

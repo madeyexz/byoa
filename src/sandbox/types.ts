@@ -60,6 +60,11 @@ export interface Sandbox {
   /** Stops the sandbox at the provider and keeps its files and volumes; `resume` starts it again. Processes that run
    *  in it may stop (E2B pauses with no memory where it can; Daytona stops the sandbox). */
   pause(): Promise<void>
+  /** Sets the provider's time of this sandbox again, `ms` from now (as `timeoutMs` in CreateOptions): then the
+   *  provider pauses a kept sandbox, or ends one that is not kept; a shorter time than before counts too. byoa calls it
+   *  once a job has the user's AI login, so the time the job waited in line for the login does not count (R1.4).
+   *  Optional: without it, the sandbox keeps the time it was created or resumed with. */
+  setTimeout?(ms: number): Promise<void>
   /** Ends the sandbox at the provider. Its volumes stay. */
   destroy(): Promise<void>
 }

@@ -61,7 +61,8 @@ export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
   const volumeName = opts.volume ?? 'byoa'
   let volumeId: string | undefined
 
-  const wrap = (s: DaytonaSandbox): Sandbox => ({
+  /** `ttl`: a sandbox for one job, which Daytona deletes after its time to live. */
+  const wrap = (s: DaytonaSandbox, ttl = false): Sandbox => ({
     id: s.id,
     home: HOME,
     async run(cmd: string, o: RunOptions = {}): Promise<RunResult> {
@@ -125,6 +126,8 @@ export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
     async pause() {
       await s.stop(60)
     },
+    // a kept sandbox stops only when it is idle (autoStopInterval), so only a sandbox for one job has a time to set
+    ...(ttl ? { async setTimeout(ms: number) { await s.setTtl(Math.max(1, Math.ceil(ms / 60_000))) } } : {}),
     async destroy() {
       await s.delete(60, true)
     },
@@ -161,7 +164,7 @@ export function daytona(opts: DaytonaOptions = {}): SandboxProvider {
       ...(c.keep ? { ephemeral: false, ttlMinutes: 0 } : { ephemeral: true, ttlMinutes: minutes }),
       autoStopInterval: minutes,
     })
-    return wrap(s)
+    return wrap(s, !c.keep)
   }
 
   const get = async (id: string) => {

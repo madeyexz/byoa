@@ -33,9 +33,10 @@
 (*  - Heartbeat (the fix in job.ts) renews the slot's lease every 60 s     *)
 (*    until the harness starts, and once more when it starts. The model   *)
 (*    renews it at each step to what a renewal a minute ago would give.   *)
-(*  - TimeFromLogin is a proposed fix, not in the code: when the job has   *)
-(*    the login, the provider's timer is set again to now + jobTimeoutMs  *)
-(*    + 60 s, and the watcher's deadline is now + jobTimeoutMs + 45 s.    *)
+(*  - TimeFromLogin (the fix in job.ts and login-stored.ts): when the job  *)
+(*    has the login, the provider's timer is set again to now +           *)
+(*    jobTimeoutMs + 60 s (Sandbox.setTimeout), and the watcher's         *)
+(*    deadline is now + jobTimeoutMs + 45 s.                               *)
 (*  - A dead backend's harness ends at its own timeout (Daytona and        *)
 (*    Instabox run it under `timeout -s KILL`; on E2B the sandbox pauses). *)
 (***************************************************************************)
@@ -50,7 +51,7 @@ CONSTANTS
   Provider,      \* "e2b" or "notimer"
   Crash,         \* TRUE: a backend may die at any step of its job
   Heartbeat,     \* fix (job.ts): a job renews its slot's lease until its harness starts, and then
-  TimeFromLogin, \* proposed fix: once the job has the login, the provider's timer and the watcher start again
+  TimeFromLogin, \* fix: once the job has the login, the provider's timer and the watcher start again
   SlotExtra,     \* the slot lease beyond the job's time: 5 min (20 steps)
   TimerExtra,    \* the provider's timer beyond the job's time: 60 s (4 steps)
   WatchExtra,    \* the watcher beyond the job's time: 45 s (3 steps)

@@ -267,8 +267,10 @@ export function jobs(d: JobDeps) {
       const { bin, version } = await x.install(sbx, d.pins)
       // the login leaves the sandbox before the provider pauses or ends it (it does at timeout + 1 min)
       const loaded = await cred.load(sbx, { token: t.token, job: { deadline: now() + d.timeout + 45_000, onWait: (ahead) => r.onWait?.({ for: 'login', ahead }) } })
-      // the harness starts now: the lease of the kept sandbox lasts until its time and 5 minutes
+      // the harness starts now, after the wait for the login: the sandbox's time and the lease of the kept sandbox start
+      // again, so the harness gets its whole time and the login's watcher runs before the provider pauses the sandbox
       clearInterval(beat)
+      await sbx.setTimeout?.(d.timeout + 60_000)
       await renew()
       const box = sbx
       if (cred.checkpoint) {
@@ -443,6 +445,7 @@ export function jobs(d: JobDeps) {
       await labLogin(d.login, user, x, {}).check(sbx)
       const { bin } = await x.install(sbx, d.pins)
       const env = await d.login.env(sbx, user, h, { deadline: now() + 9 * 60_000 })
+      await sbx.setTimeout?.(10 * 60_000)
       const file = `${sbx.home}/.byoa/models.mjs`
       await sbx.writeFile(file, MODELS_JS)
       const r = await sbx.run(`node ${q(file)} ${q(bin)} ${x.models.protocol}`, { env, cwd: sbx.home, timeoutMs: 120_000 })

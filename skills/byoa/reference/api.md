@@ -201,6 +201,7 @@ interface Sandbox {
   writeFile(path: string, data: string | Uint8Array): Promise<void>
   readFile?(path: string): Promise<Uint8Array | null>  // optional; null when it is not there
   pause(): Promise<void>      // keeps the files; resume starts it again
+  setTimeout?(ms: number): Promise<void>  // optional: the provider's time again, ms from now (a kept one pauses then)
   destroy(): Promise<void>
 }
 ```
@@ -208,6 +209,7 @@ interface Sandbox {
 - `keep: true`: a sandbox byoa keeps for the user. When it times out, the provider pauses it instead of deleting it.
 - `run`: a command that exits with a non-zero code resolves; one that runs out of its `timeoutMs` resolves with exit code 137.
 - `readFile`: byoa reads the user's login files and a conversation's transcript with it. Without it, byoa reads a file as base64 on a command's stdout, which a provider may keep in its command history. E2B, Daytona, Instabox and the local provider have it.
+- `setTimeout`: byoa calls it when a job has the user's AI login, so the time the job waited in line for the login does not count. E2B has it, and Daytona for a sandbox of one job. Without it, a job that waited long for the login can reach the sandbox's time before its own ends.
 - An adapter of the app's own can check itself with the conformance check in byoa's tests (`test/helpers/conformance.ts`).
 - E2B: `pause` takes a snapshot of the files only where the team can (`mode: 'filesystem'`), else a full one after it ends the sandbox's processes. E2B keeps a paused sandbox with no time limit.
 - E2B: the default template is `byoa`; build it once per pin change with `buildE2BTemplate()`. Any template with Node 20 or later works (byoa installs the pinned harness when it is missing, more slowly).
