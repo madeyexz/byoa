@@ -232,7 +232,7 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
         }
       },
       async signOut(user, h) {
-        await cli.cancel(user, h)
+        await cli.cancel?.(user, h)
         // sign out with the CLI first, in a sandbox with the login written in, so the lab can revoke it
         if (await store.get(loginKey(user, h))) {
           try {

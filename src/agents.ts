@@ -141,7 +141,7 @@ export function createAgents(o: AgentsOptions) {
       return r
     },
     /** Ends a sign-in that has not finished, and its sandbox, at once: call it when the user closes the sign-in. */
-    cancelLogin: (user: string, h: HarnessName) => login.cancel(user, h),
+    cancelLogin: async (user: string, h: HarnessName) => { await login.cancel?.(user, h) },
     /** Keeps the user's key of a plan (R1.8): `'opencode-go'`, an OpenCode Console API key (`oc_sk_…`). byoa checks it
      *  with OpenCode first: `signed-in`; `no-plan` (kept: its workspace has no Go plan yet); or, when OpenCode refuses
      *  it, the state before with an `error`, and the key is not kept. */

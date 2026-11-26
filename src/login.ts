@@ -60,8 +60,9 @@ export interface LoginDriver {
    *  that long for the user to finish on the lab's page. With no code (Claude) or no wait (Codex, Grok), it only checks in: the
    *  sign-in sandbox lives while the app checks in (R1.7). */
   finish(user: string, h: HarnessName, input?: { code?: string; waitMs?: number }): Promise<LoginResult>
-  /** Ends a sign-in that has not finished, and its sandbox, at once. Nothing happens when none runs. */
-  cancel(user: string, h: HarnessName): Promise<void>
+  /** Ends a sign-in that has not finished, and its sandbox, at once. Nothing happens when none runs. Optional, so a
+   *  driver written for byoa 1.0.0 still fits: without it, `cancelLogin` does nothing and the sign-in ends at its time. */
+  cancel?(user: string, h: HarnessName): Promise<void>
   state(user: string, h: HarnessName): Promise<LoginState>
   setState(user: string, h: HarnessName, s: LoginState): Promise<void>
   signOut(user: string, h: HarnessName): Promise<void>

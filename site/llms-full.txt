@@ -341,15 +341,15 @@ for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['n
 
 [skills/byoa](https://github.com/madeyexz/byoa/tree/main/skills/byoa) is a skill in the [Agent Skills](https://agentskills.io) format. It teaches a coding agent (Claude Code, Codex, Amp and others) to add byoa to an app: the install, `createAgents` with a store and a sandbox adapter, the sign-in, the MCP connections and their routes, `agents.run` and its events, and the lab rules. Its `metadata.version` is the `version` in byoa's package.json next to it.
 
-The npm package has the skill in it (from the version after 1.0.0). After you install byoa, link the skill of the installed version into your app's repository for Claude Code, Codex, Amp, Cursor and others, so it always matches the package:
+The npm package has the skill in it (from 1.1.0). After you install byoa, link the skill of the installed version into your app's repository for Claude Code, Codex, Amp, Cursor and others, so it always matches the package:
 
 ```sh
 npx skills experimental_sync -y
 ```
 
-`experimental_sync` is a preview command of the [skills](https://github.com/vercel-labs/skills) CLI. Without it, or with byoa 1.0.0, install the skill of one release from its tag (here 1.0.0; use the tag of your version), or the skill of `main`:
+`experimental_sync` is a preview command of the [skills](https://github.com/vercel-labs/skills) CLI. Without it, or with byoa 1.0.0, install the skill of one release from its tag (here 1.1.0; use the tag of your version), or the skill of `main`:
 
-- one release: `npx skills add madeyexz/byoa@v1.0.0 --skill byoa`
+- one release: `npx skills add madeyexz/byoa@v1.1.0 --skill byoa`
 - `main`: `npx skills add madeyexz/byoa`, or for Amp `amp skill add madeyexz/byoa/skills/byoa`
 
 For LLMs, the site also serves the docs as [llms.txt](https://byoa.rippling.computer/llms.txt) (an index) and [llms-full.txt](https://byoa.rippling.computer/llms-full.txt) (the docs, SPEC.md, the example and the skill in one file), and each docs page as Markdown (add `.md` to its address).
@@ -1512,7 +1512,7 @@ Source: https://byoa.rippling.computer/docs/api
 
 This page is the agent skill's API reference, [skills/byoa/reference/api.md](https://byoa.rippling.computer/docs/api.md), so a coding agent and you read the same text.
 
-This is the API in https://github.com/madeyexz/byoa today. Version 1.0.0 is on npm; conversations (`conversation`, `Job.send`, `deleteConversation`, `transcriptBytes`), `readFile` and `capabilities` are on `main` and come in the next release. The source of truth is `src/agents.ts`, `src/index.ts` and the files they import.
+This is the API of byoa 1.1.0 (`@madeyexz/byoa` on npm). The source of truth is `src/agents.ts`, `src/index.ts` and the files they import.
 
 ## Imports
 
@@ -1915,7 +1915,7 @@ Source: https://github.com/madeyexz/byoa/blob/main/skills/byoa/SKILL.md
 name: byoa
 description: Adds byoa to an app, so the app runs each user's own Claude Code, Codex or Grok Build in a sandbox (E2B, Daytona, Instabox or local), on the user's own Claude, ChatGPT, Grok or OpenCode Go plan, with the user's MCP connections. Use when you add AI agent jobs to an app's backend with byoa, write its sign-in, MCP connect, proxy or callback routes, stream agents.run events to a UI, write a byoa store adapter, or test with byoa's fake harness.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Add byoa to an app
@@ -1937,9 +1937,9 @@ bun add @madeyexz/byoa
 
 Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona; Instabox needs none. byoa needs Node 22.18 or later, or Bun. The package is `@madeyexz/byoa`: do not write `npm install byoa` or `import ... from 'byoa'`, and do not install `byoa-sdk`, an unrelated package.
 
-`metadata.version` above is the `version` in the package.json next to this skill. The npm package has this skill in it (from the version after 1.0.0), so `npx skills experimental_sync -y` after the install links `node_modules/@madeyexz/byoa/skills/byoa` into the app's skills, and the skill always matches the installed byoa. When the installed version is not `metadata.version`, believe the installed version's types.
+`metadata.version` above is the `version` in the package.json next to this skill. The npm package has this skill in it (from 1.1.0), so `npx skills experimental_sync -y` after the install links `node_modules/@madeyexz/byoa/skills/byoa` into the app's skills, and the skill always matches the installed byoa. When the installed version is not `metadata.version`, believe the installed version's types.
 
-This skill describes byoa's `main` branch. npm 1.0.0 has no Grok Build, no OpenCode Go, no `conversation` and no `job.send`. When one of these is a type error, the installed byoa is older than this skill: install from GitHub with `npm install github:madeyexz/byoa` (npm builds it on install), or use only what the installed version's types have. Do not write around the missing types.
+When a name in this skill is a type error, the installed byoa is older than this skill: update it (`npm install @madeyexz/byoa@latest`), or use only what the installed version's types have. Do not write around the missing types.
 
 ## 2. One createAgents
 

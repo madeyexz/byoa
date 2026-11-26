@@ -2,7 +2,7 @@
 
 This page is the agent skill's API reference, [skills/byoa/reference/api.md](https://byoa.rippling.computer/docs/api.md), so a coding agent and you read the same text.
 
-This is the API in https://github.com/madeyexz/byoa today. Version 1.0.0 is on npm; conversations (`conversation`, `Job.send`, `deleteConversation`, `transcriptBytes`), `readFile` and `capabilities` are on `main` and come in the next release. The source of truth is `src/agents.ts`, `src/index.ts` and the files they import.
+This is the API of byoa 1.1.0 (`@madeyexz/byoa` on npm). The source of truth is `src/agents.ts`, `src/index.ts` and the files they import.
 
 ## Imports
 
