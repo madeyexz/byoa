@@ -45,11 +45,13 @@ async function addUsage(ctx: MutationCtx, ms: number) {
   else await ctx.db.insert('days', { day: today(), ms: Math.max(0, ms) })
 }
 
-async function seen(ctx: MutationCtx, visitor: string) {
+/** The visitor's request, now. `act`: a request that may start a sandbox or save a login (a job, a sign-in), which
+ *  demo.drop looks for; the page's touch and undo are not. */
+async function seen(ctx: MutationCtx, visitor: string, act = false) {
   checkVisitor(visitor)
   const r = await ctx.db.query('visitors').withIndex('by_visitor', (q) => q.eq('visitor', visitor)).unique()
-  if (r) await ctx.db.patch(r._id, { seen: Date.now() })
-  else await ctx.db.insert('visitors', { visitor, at: Date.now(), seen: Date.now() })
+  if (r) await ctx.db.patch(r._id, { seen: Date.now(), ...(act ? { acts: (r.acts ?? 0) + 1 } : {}) })
+  else await ctx.db.insert('visitors', { visitor, at: Date.now(), seen: Date.now(), acts: act ? 1 : 0 })
 }
 
 /** Starts the jobs in line while places are free; a job's place is free again at endJob. */
@@ -98,7 +100,7 @@ export const events = query({
 export const startJob = mutation({
   args: { visitor: v.string(), harness: v.string(), task: v.optional(v.string()) },
   handler: async (ctx, a): Promise<{ job: Id<'jobs'> } | { error: string }> => {
-    await seen(ctx, a.visitor)
+    await seen(ctx, a.visitor, true)
     if (!harnesses().includes(a.harness)) return { error: `harness: one of ${harnesses().join(', ')}` }
     const u = await usage(ctx)
     if (u.busy) return refused(ctx, a.visitor, 'job', BUDGET)
@@ -152,7 +154,7 @@ const pendingSignin = (ctx: QueryCtx, visitor: string, harness: string) =>
 export const beginSignin = internalMutation({
   args: { visitor: v.string(), harness: v.string() },
   handler: async (ctx, a): Promise<{ error?: string }> => {
-    await seen(ctx, a.visitor)
+    await seen(ctx, a.visitor, true)
     const u = await usage(ctx)
     if (u.busy) return refused(ctx, a.visitor, 'login', BUDGET)
     const recent = await ctx.db.query('signins').withIndex('by_visitor', (q) => q.eq('visitor', a.visitor)).filter((q) => q.gt(q.field('at'), Date.now() - HOUR)).collect()
@@ -170,7 +172,8 @@ export const beginSignin = internalMutation({
 export const seenSignin = internalMutation({
   args: { visitor: v.string(), harness: v.string() },
   handler: async (ctx, a) => {
-    await seen(ctx, a.visitor)
+    // finishLogin saves the login
+    await seen(ctx, a.visitor, true)
     const s = await pendingSignin(ctx, a.visitor, a.harness)
     if (s) await ctx.db.patch(s._id, { seen: Date.now() })
   },
@@ -214,7 +217,7 @@ export const sweep = internalMutation({
       // not again for 10 minutes, while the action runs (it deletes the visitor at the end)
       const at = now - FORGET_MS + 10 * 60_000
       await ctx.db.patch(r._id, { seen: at })
-      await ctx.scheduler.runAfter(0, internal.agents.forget, { visitor: r.visitor, at })
+      await ctx.scheduler.runAfter(0, internal.agents.forget, { visitor: r.visitor, acts: r.acts ?? 0 })
     }
     await pump(ctx)
   },
@@ -223,24 +226,38 @@ export const sweep = internalMutation({
 /** For sign-out and Delete my data (agents.ts): why not now, while the visitor's job (of `harness`) waits or runs. */
 export const idle = internalQuery({
   args: { visitor: v.string(), harness: v.optional(v.string()) },
-  handler: async (ctx, a): Promise<{ error?: string; seen?: number }> => {
+  handler: async (ctx, a): Promise<{ error?: string; acts?: number }> => {
     const j = await ctx.db.query('jobs').withIndex('by_visitor', (q) => q.eq('visitor', a.visitor)).order('desc').first()
     if (j && (j.state === 'queued' || j.state === 'running') && (!a.harness || j.harness === a.harness)) return { error: 'Your triage job has not ended yet. Try again when it ends.' }
     const r = await ctx.db.query('visitors').withIndex('by_visitor', (q) => q.eq('visitor', a.visitor)).unique()
-    return { seen: r?.seen ?? 0 }
+    return { acts: r?.acts ?? 0 }
   },
 })
 
+/** What byoa keeps of a visitor's AI logins after their sign-out (keys.ts): the login state, the sign-in's ended
+ *  entry, the login's lease, line and loans, a used-up plan, and the login itself if a sign-out failed. */
+const LOGIN_KEYS = ['login', 'loginjob', 'ailogin', 'ailoginlease', 'ailoginline', 'ailoginloan', 'usagelimit']
+
 /** The last step of forgetting a visitor: their rows. The AI logins and sandboxes are gone already (agents.ts).
- *  `at`: the visitor's `seen` when the forget began. A visitor who made a request since then (a job, a sign-in) may
- *  have a sandbox or a login that the forget did not see: then nothing goes (false), and the sweep forgets them an hour
- *  after it. (A request changes `seen`, so this compares the value, not times, which can be the same millisecond.) */
+ *  `acts`: the visitor's `acts` when the forget began. A visitor who started a job or a sign-in since then may have a
+ *  sandbox or a login that the forget did not see: then nothing goes (false), and the sweep forgets them an hour
+ *  after it. The page's touch while it runs changes nothing. */
 export const drop = internalMutation({
-  args: { visitor: v.string(), at: v.number() },
-  handler: async (ctx, { visitor, at }): Promise<boolean> => {
+  args: { visitor: v.string(), acts: v.number() },
+  handler: async (ctx, { visitor, acts }): Promise<boolean> => {
     const me = await ctx.db.query('visitors').withIndex('by_visitor', (q) => q.eq('visitor', visitor)).unique()
-    if (me && me.seen !== at) return false
+    if (me && (me.acts ?? 0) !== acts) return false
     await reset(ctx, visitor)
+    // the visitor id is the second part of these keys (a visitor id needs no encoding)
+    for (const k of LOGIN_KEYS) {
+      const prefix = `${k}/${visitor}/`
+      for (const r of await ctx.db.query('byoa').withIndex('by_key', (q) => q.gte('key', prefix).lt('key', `${prefix}\uffff`)).collect()) await ctx.db.delete(r._id)
+    }
+    // and the index of the visitor's sandboxes, which deleteSandbox leaves empty (one that lists a sandbox stays)
+    const slots = `usersandboxes/${visitor}/`
+    for (const r of await ctx.db.query('byoa').withIndex('by_key', (q) => q.gte('key', slots).lt('key', `${slots}\uffff`)).collect()) {
+      if (r.value === '[]') await ctx.db.delete(r._id)
+    }
     for (const j of await ctx.db.query('jobs').withIndex('by_visitor', (q) => q.eq('visitor', visitor)).collect()) {
       for (const e of await ctx.db.query('events').withIndex('by_job', (q) => q.eq('job', j._id)).collect()) await ctx.db.delete(e._id)
       if (j.state !== 'running' && j.state !== 'queued') await ctx.db.delete(j._id)
