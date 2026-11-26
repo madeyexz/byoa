@@ -50,7 +50,7 @@ Use `instabox({ apiKey?, apiUrl?, template?, snapshot?, timeoutMs? })`. It calls
 
 ## Write an adapter
 
-An adapter implements one interface ([src/sandbox/types.ts](https://github.com/madeyexz/byoa/blob/main/src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy, delete a volume, and optionally read a file, `capabilities`, and keepAlive (a new end time for a sandbox that is not kept: byoa uses it to end a sign-in 2 minutes after the app's last check-in).
+An adapter implements one interface ([src/sandbox/types.ts](https://github.com/madeyexz/byoa/blob/main/src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy, delete a volume, and optionally read a file, set a running sandbox's time again (`Sandbox.setTimeout`), `capabilities`, and keepAlive (a new end time for a sandbox that is not kept: byoa uses it to end a sign-in 2 minutes after the app's last check-in).
 
 ```ts
 interface SandboxProvider {
@@ -68,5 +68,6 @@ interface SandboxProvider {
 - A provider with no volumes refuses `create` with volumes, and says `capabilities: { volumes: false }`.
 - `run` resolves for a non-zero exit code, and with exit code 137 for a command that runs out of its `timeoutMs`; it does not throw.
 - `Sandbox.readFile(path)` (optional) reads a file through the provider's file API, or gives null. byoa reads the login files and a conversation's transcript with it; without it, byoa reads them as base64 on a command's output, which a provider may keep in its command history.
+- `Sandbox.setTimeout(ms)` (optional) sets the provider's time of a running sandbox again, `ms` from now, as `timeoutMs` at create: then a kept sandbox pauses, and another one ends. byoa calls it when a job has the user's AI login, so the time the job waited in line for the login does not count.
 - `test/helpers/conformance.ts` in byoa's repository checks what byoa needs of an adapter: run it on yours, as `test/fake.test.ts` does for the local one.
 - The [API reference](https://byoa.rippling.computer/docs/api.md#sandbox-adapter) has the `Sandbox` interface.

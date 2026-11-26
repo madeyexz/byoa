@@ -434,7 +434,7 @@ Diagram: A job whose backend dies, with the default storedLogin
 - byoa saves files from a sandbox only when they are the same account's login and not older than the stored one, because the agent of a job can change any file.
 - A job's waiting place in line also runs out about 30 s after its backend dies, so the jobs after it go on.
 - The slot's lease: until its harness starts, a job renews it every minute, so a job that waits long for the login keeps its sandbox; from the harness's start it lasts the job timeout + 5 minutes. So the lease of a dead job runs out at most the job timeout + 5 minutes after its backend died.
-- Known issue: the watcher's time and, on E2B, the sandbox's time start before the job waits in line for the login. A job that waited for the login longer than a few seconds can have its login files removed while its harness runs, and on E2B its sandbox can pause before the job's time ends. [spec/tla](https://github.com/madeyexz/byoa/blob/main/spec/tla/README.md) has the details and a proposed fix.
+- The job's time starts when it has the login, not when it resumed the sandbox: then byoa sets the sandbox's time again (E2B, and Daytona for a sandbox of one job) and starts the watcher. So a job that waited in line for the login still gets its whole time, and the watcher still runs before the provider pauses the sandbox.
 
 ## How each provider pauses and times out
 
@@ -1078,7 +1078,7 @@ Use `instabox({ apiKey?, apiUrl?, template?, snapshot?, timeoutMs? })`. It calls
 
 ## Write an adapter
 
-An adapter implements one interface ([src/sandbox/types.ts](https://github.com/madeyexz/byoa/blob/main/src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy, delete a volume, and optionally read a file, `capabilities`, and keepAlive (a new end time for a sandbox that is not kept: byoa uses it to end a sign-in 2 minutes after the app's last check-in).
+An adapter implements one interface ([src/sandbox/types.ts](https://github.com/madeyexz/byoa/blob/main/src/sandbox/types.ts)): create (with volumes), resume, run a command, write a file, pause, destroy, delete a volume, and optionally read a file, set a running sandbox's time again (`Sandbox.setTimeout`), `capabilities`, and keepAlive (a new end time for a sandbox that is not kept: byoa uses it to end a sign-in 2 minutes after the app's last check-in).
 
 ```ts
 interface SandboxProvider {
@@ -1096,6 +1096,7 @@ interface SandboxProvider {
 - A provider with no volumes refuses `create` with volumes, and says `capabilities: { volumes: false }`.
 - `run` resolves for a non-zero exit code, and with exit code 137 for a command that runs out of its `timeoutMs`; it does not throw.
 - `Sandbox.readFile(path)` (optional) reads a file through the provider's file API, or gives null. byoa reads the login files and a conversation's transcript with it; without it, byoa reads them as base64 on a command's output, which a provider may keep in its command history.
+- `Sandbox.setTimeout(ms)` (optional) sets the provider's time of a running sandbox again, `ms` from now, as `timeoutMs` at create: then a kept sandbox pauses, and another one ends. byoa calls it when a job has the user's AI login, so the time the job waited in line for the login does not count.
 - `test/helpers/conformance.ts` in byoa's repository checks what byoa needs of an adapter: run it on yours, as `test/fake.test.ts` does for the local one.
 - The [API reference](https://byoa.rippling.computer/docs/api.md#sandbox-adapter) has the `Sandbox` interface.
 
@@ -1659,6 +1660,7 @@ interface Sandbox {
   writeFile(path: string, data: string | Uint8Array): Promise<void>
   readFile?(path: string): Promise<Uint8Array | null>  // optional; null when it is not there
   pause(): Promise<void>      // keeps the files; resume starts it again
+  setTimeout?(ms: number): Promise<void>  // optional: the provider's time again, ms from now (a kept one pauses then)
   destroy(): Promise<void>
 }
 ```
@@ -1666,6 +1668,7 @@ interface Sandbox {
 - `keep: true`: a sandbox byoa keeps for the user. When it times out, the provider pauses it instead of deleting it.
 - `run`: a command that exits with a non-zero code resolves; one that runs out of its `timeoutMs` resolves with exit code 137.
 - `readFile`: byoa reads the user's login files and a conversation's transcript with it. Without it, byoa reads a file as base64 on a command's stdout, which a provider may keep in its command history. E2B, Daytona, Instabox and the local provider have it.
+- `setTimeout`: byoa calls it when a job has the user's AI login, so the time the job waited in line for the login does not count. E2B has it, and Daytona for a sandbox of one job. Without it, a job that waited long for the login can reach the sandbox's time before its own ends.
 - An adapter of the app's own can check itself with the conformance check in byoa's tests (`test/helpers/conformance.ts`).
 - E2B: `pause` takes a snapshot of the files only where the team can (`mode: 'filesystem'`), else a full one after it ends the sandbox's processes. E2B keeps a paused sandbox with no time limit.
 - E2B: the default template is `byoa`; build it once per pin change with `buildE2BTemplate()`. Any template with Node 20 or later works (byoa installs the pinned harness when it is missing, more slowly).
@@ -1756,7 +1759,7 @@ Out of scope for version 1:
 
 - **R5.1** byoa MUST install a pinned version of each harness in each sandbox, or use a provider template with that version.
 - **R5.2** A new harness version MUST reach every user at their next job. (Bookish had to copy a new core into old sandboxes, because a template reaches only new sandboxes.)
-- **R5.3** Each sandbox provider MUST be one adapter with one interface: create, resume, run a command, write a file, read a file, mount a volume, pause, destroy. A command that runs out of its time MUST end with exit code 137 on every provider, not throw. Reading a file is optional: without it, byoa reads a file as base64 on a command's output. A provider says what it can do (`capabilities`): a provider with no volumes (Instabox) refuses a volume, so the volume login of R1.5 does not work on it and createAgents refuses it; the stored login of R1.4 does. One conformance check (`test/helpers/conformance.ts`) MUST pass for each adapter.
+- **R5.3** Each sandbox provider MUST be one adapter with one interface: create, resume, run a command, write a file, read a file, mount a volume, pause, destroy. A command that runs out of its time MUST end with exit code 137 on every provider, not throw. Reading a file is optional: without it, byoa reads a file as base64 on a command's output. Setting a running sandbox's time again is optional too: byoa does it when a job has the AI login, so the job's wait in line for the login does not count. A provider says what it can do (`capabilities`): a provider with no volumes (Instabox) refuses a volume, so the volume login of R1.5 does not work on it and createAgents refuses it; the stored login of R1.4 does. One conformance check (`test/helpers/conformance.ts`) MUST pass for each adapter.
 - **R5.4** The lifecycle MUST be the app's choice, with the same app code on every provider:
   - **One kept sandbox per user (the default).** Each user has one sandbox of the app for each harness. The first job creates it. After each job, byoa pauses it (E2B: pause; Daytona and Instabox: stop), and the next job resumes it, with a new job folder. One job of a user and harness runs at a time; the others wait in line (R5.8). When the provider no longer has the sandbox (it was deleted, or it expired), the next job creates a new one. A sandbox that times out during a job (a crash, a lost network) is paused, not deleted, and no process of that job runs when it resumes. byoa MUST delete the user's sandbox at sign-out, and MUST give the app a way to delete it, such as when it deletes the user.
   - **Many kept sandboxes per user (a `sandboxKey` for each job).** The same, but each key that the app gives a job (such as a project), and each conversation (R5.9), has its own sandbox and its own lease, so jobs with different keys run at the same time. With the stored login of R1.4, jobs share the login by default, for every harness. The app MUST be able to delete the sandbox of one key, or all of the user's.

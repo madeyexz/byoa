@@ -23,11 +23,17 @@ export function slots(store: Store, provider: SandboxProvider, o: { leaseMs: num
     /** Takes the user's sandbox of this harness and key, in line after the jobs that came first (R5.8). */
     async take(user: string, h: RunHarness, key: string, onWait?: (ahead: number) => void): Promise<Held> {
       const k = keys.slot(user, provider.name, h, key), holder = randomToken(12)
+      const index = () => changeIndex(user, (l) => l.some(([x, y]) => x === h && y === key) ? l : [...l, [h, key]])
       return inLine(store, keys.slotLine(user, provider.name, h, key), async () => {
         const e = await store.get(k)
-        if (!e) await changeIndex(user, (l) => l.some(([x, y]) => x === h && y === key) ? l : [...l, [h, key]])
+        // a new slot is in the index before it exists, so a backend that dies cannot leave one that no index lists;
+        // and again after, in case a remove took it out of the index meanwhile (spec/tla/Index.tla)
+        if (!e) await index()
         const cur: Slot = e ? JSON.parse(e.value) : { until: 0 }
-        if (cur.until < now() && (await store.cas(k, e?.version ?? null, JSON.stringify({ sandbox: cur.sandbox, holder, until: now() + o.leaseMs })))) return { k, holder, sandbox: cur.sandbox }
+        if (cur.until < now() && (await store.cas(k, e?.version ?? null, JSON.stringify({ sandbox: cur.sandbox, holder, until: now() + o.leaseMs })))) {
+          if (!e) await index()
+          return { k, holder, sandbox: cur.sandbox }
+        }
         return undefined
       }, { until: o.waitMs === undefined ? undefined : now() + o.waitMs, onWait },
       () => new Error(`byoa: another job of this user still holds the ${h} sandbox${key ? ` ${JSON.stringify(key)}` : ''}; try again when it ends`))
@@ -63,6 +69,10 @@ export function slots(store: Store, provider: SandboxProvider, o: { leaseMs: num
         await store.delete(k)
       }
       await changeIndex(user, (l) => l.filter((x) => !list.some((y) => y[0] === x[0] && y[1] === x[1])))
+      // a job that started meanwhile wrote its slot again: it goes back in the index, so the next remove finds it
+      const back: Indexed[] = []
+      for (const [h, key] of list) if (await store.get(keys.slot(user, provider.name, h, key))) back.push([h, key])
+      if (back.length) await changeIndex(user, (l) => [...l, ...back.filter((x) => !l.some((y) => y[0] === x[0] && y[1] === x[1]))])
     },
   }
 }

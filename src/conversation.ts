@@ -43,6 +43,13 @@ export function conversations(store: Store, key: Promise<CryptoKey>, o: { maxByt
     return e ? JSON.parse(await open(await key, e.value, k)) as Record : undefined
   }
 
+  /** Adds conversations to the user's index, those that are not in it. */
+  const index = (user: string, add: Indexed[]) => add.length ? update(store, keys.conversations(user), (v) => {
+    const l: Indexed[] = v ? JSON.parse(v) : []
+    const more = add.filter(([a, b]) => !l.some(([x, y]) => x === a && y === b))
+    return more.length ? JSON.stringify([...l, ...more]) : undefined
+  }) : undefined
+
   return {
     /** The turn this job takes: the session to resume, or a new one. `lost`: the conversation had a session, but
      *  neither the sandbox nor the store has its transcript. `home`: the harness's home folder in the sandbox. */
@@ -75,11 +82,11 @@ export function conversations(store: Store, key: Promise<CryptoKey>, o: { maxByt
         ...(size <= o.maxBytes ? { transcript: Object.fromEntries(Object.entries(files).map(([p, b]) => [p, b64(b)])) } : {}),
       }
       const k = keys.conversation(user, x.name, id)
+      // in the index before the record, so a backend that dies cannot leave a record that no index lists; and again
+      // after, in case a remove took it out of the index meanwhile (spec/tla/Index.tla)
+      await index(user, [[x.name, id]])
       await store.put(k, await seal(await key, JSON.stringify(rec), k))
-      await update(store, keys.conversations(user), (v) => {
-        const l: Indexed[] = v ? JSON.parse(v) : []
-        return l.some(([a, b]) => a === x.name && b === id) ? undefined : JSON.stringify([...l, [x.name, id]])
-      })
+      await index(user, [[x.name, id]])
       return session
     },
 
@@ -89,6 +96,11 @@ export function conversations(store: Store, key: Promise<CryptoKey>, o: { maxByt
       const gone = (e ? JSON.parse(e.value) as Indexed[] : []).filter(([, c]) => id === undefined || c === id)
       for (const [h, c] of gone) await store.delete(keys.conversation(user, h, c))
       await update(store, keys.conversations(user), (v) => JSON.stringify((v ? JSON.parse(v) as Indexed[] : []).filter(([a, b]) => !gone.some(([x, y]) => x === a && y === b))))
+      // a job of one of them that ended meanwhile wrote its record again: it goes back in the index, so the next remove
+      // finds it
+      const back: Indexed[] = []
+      for (const [h, c] of gone) if (await store.get(keys.conversation(user, h, c))) back.push([h, c])
+      await index(user, back)
       return gone
     },
   }

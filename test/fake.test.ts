@@ -291,6 +291,32 @@ test('R5.9: a conversation: each job continues the harness\'s session in the con
   assert.equal(remembers(await say('who am I?')), 'fake harness remembers 0 earlier messages')
 })
 
+test('R5.9: deleteConversation while a job of that conversation saves it: the record stays in the index, so the next delete removes it', async () => {
+  // spec/tla/Index.tla found this: the job put its record back between the delete and the index update, and no index
+  // listed it, so no deleteConversation could find it again
+  const { agents, store } = await setup()
+  const say = (task: string) => collect(agents.run('alice', { harness: 'fake', task, conversation: 'c1' }))
+  await say('my name is Ann')
+  const rec = 'conversation/alice/fake/c1'
+  let removing: Promise<void> | undefined, deleted!: () => void, jobDone!: () => void
+  const wasDeleted = new Promise<void>((r) => { deleted = r }), jobFinished = new Promise<void>((r) => { jobDone = r })
+  const put = store.put.bind(store), del = store.delete.bind(store)
+  // the job saves its record just after the delete removed it, and the delete updates the index after the job ended
+  store.put = async (k, v) => {
+    if (k === rec && !removing) { removing = agents.deleteConversation('alice', 'c1'); await wasDeleted }
+    return put(k, v)
+  }
+  store.delete = async (k) => { await del(k); if (k === rec && removing) { deleted(); await jobFinished } }
+  try {
+    assert.equal((await say('what is my name?')).at(-1)!.type, 'end')
+    jobDone()
+    await removing
+  } finally { store.put = put; store.delete = del }
+  assert.ok(JSON.parse((await store.get('conversations/alice'))!.value).some(([, c]: string[]) => c === 'c1'), 'the index lists the record the job wrote')
+  await agents.deleteConversation('alice')
+  assert.equal(await store.get(rec), null)
+})
+
 test('R5.9: a transcript larger than transcriptBytes is not stored: a lost sandbox loses the conversation, and the job says so', async () => {
   const { agents, sandbox } = await setup({}, { transcriptBytes: 0 })
   const say = (task: string) => collect(agents.run('alice', { harness: 'fake', task, conversation: 'c1' }))

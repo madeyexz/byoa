@@ -16,7 +16,7 @@
 (*   reads the index, deletes each record, then takes them out of the      *)
 (*   index (update).                                                       *)
 (*                                                                         *)
-(* The proposed fix (not in the code): the writer adds the entry to the   *)
+(* The fix (in slots.ts and conversation.ts): the writer adds the entry to *)
 (* index before and after it writes it (PreAdd, PostAdd), and remove(),   *)
 (* after its index update, reads each entry again and puts one that a job *)
 (* wrote meanwhile back in the index (Recheck). remove() keeps its order, *)
