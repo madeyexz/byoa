@@ -116,6 +116,5 @@ export const fake: Harness = {
   reader: fakeReader,
   // the files of Claude Code, which it reads
   files: claude.files,
-  input: 'text',
   conversation: { choose: true, byFolder: false, transcript: (s) => [`sessions/${s}.jsonl`] },
 }

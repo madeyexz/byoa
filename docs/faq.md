@@ -35,7 +35,7 @@ All these jobs use the same plan, so they reach the plan's limits sooner. One ri
 
 ## Does the agent remember earlier jobs?
 
-Only in a conversation. A job with a `conversation` id continues the harness's own session of the earlier jobs with that id, in the conversation's own kept sandbox, and its job folder (`~/work`) stays. A job with no `conversation` starts a new session, and its job folder is new. byoa keeps a copy of each conversation's transcript, encrypted in your database, so the agent still remembers when the provider loses the sandbox. A running Claude Code job also takes more messages (`job.send`); Codex and Grok Build take the next message as the next job. See [Running agents](running-agents.md#conversations) and [what carries over between jobs](sandbox-lifecycle.md#what-carries-over-between-jobs).
+Only in a conversation. A job with a `conversation` id continues the harness's own session of the earlier jobs with that id, in the conversation's own kept sandbox, and its job folder (`~/work`) stays. A job with no `conversation` starts a new session, and its job folder is new. byoa keeps a copy of each conversation's transcript, encrypted in your database, so the agent still remembers when the provider loses the sandbox. A running job of each harness also takes more messages (`job.send`): Codex and Grok Build into the turn that runs, Claude Code after it. See [Running agents](running-agents.md#conversations) and [what carries over between jobs](sandbox-lifecycle.md#what-carries-over-between-jobs).
 
 ## Which model does a job use?
 

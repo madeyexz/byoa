@@ -1,7 +1,7 @@
 // One job (R5.4 to R5.10): the user's sandbox (kept, or one for the job), the credential (credential.ts), the pinned
 // harness, the setup in the job's folder, and a job token for the job's MCP servers; then the harness with the task,
 // read into events in one schema (R5.5). A job of a conversation (R5.9) continues the harness's own session, and a job
-// of a harness with stream-json input takes more messages while it runs (R5.10).
+// takes more messages while it runs, through the harness's driver (R5.10).
 import { ACCESS, JOB_TOKEN_ENV, MCP_PROTOCOL, type Access, type Plugin, type Setup } from './config.ts'
 import type { Conversations } from './conversation.ts'
 import { LoginError, labLogin, noCredential, planKey, type Credential } from './credential.ts'
@@ -58,10 +58,10 @@ export interface RunOptions extends SessionOptions {
 
 /** A running job: its events, and `send` for one more message while it runs (R5.10). */
 export interface Job extends AsyncGenerator<AgentEvent> {
-  /** Gives the running agent one more message. Claude Code takes it after its turn now ends (a `turn` event), or in
-   *  that turn; the job ends after the turn that answers the last message. False when the job's harness takes no
-   *  message while it runs (Codex, Grok Build, the fake harness: send it as the next job of the conversation), or when
-   *  the job ended. */
+  /** Gives the running agent one more message (steering). Codex and Grok Build take it into the turn that runs; Claude
+   *  Code takes it when that turn ends. A turn that is not the job's last gives a `turn` event; the job ends after the
+   *  turn that answers the last message. False when the job ended, or with the fake harness, which takes no message
+   *  while it runs. */
   send(message: string): Promise<boolean>
 }
 
@@ -141,22 +141,6 @@ const one = async (s, n = 0) => {
 }
 console.log(JSON.stringify(await Promise.all(servers.map((s) => one(s)))))
 `
-
-/** `node feed.mjs <dir>`: the stdin of a harness with stream-json input (R5.10). It prints each message that byoa
- *  writes into the folder as `<n>.json` (complete once `<n>.ok` is there), in order, and ends when `end` is there. */
-const FEED_JS = String.raw`
-import { existsSync, readFileSync } from 'node:fs'
-const dir = process.argv[2]
-let n = 0
-const tick = () => {
-  while (existsSync(dir + '/' + n + '.ok')) process.stdout.write(readFileSync(dir + '/' + n++ + '.json'))
-  if (existsSync(dir + '/end')) process.exit(0)
-  setTimeout(tick, 200)
-}
-tick()
-`
-/** One message of the job's input, in Claude Code's stream-json input format. */
-const userMessage = (text: string) => JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } }) + '\n'
 
 /** How long a job waits for the harness to exit after its last event. The CLI still writes files after it printed its
  *  result (Claude Code 2.1.330 exits about 0.6 s later, and may write its login files then), so the job's login is
@@ -324,14 +308,14 @@ export function jobs(d: JobDeps) {
   function run(user: string, r: RunOptions): Job {
     let x0: Harness | undefined
     try { x0 = harness(r.harness) } catch {}
-    const steer = x0?.input === 'stream-json'
+    const steer = !!x0?.driver
     /** The job's messages to the harness: the task first (R5.10). */
     const messages: string[] = []
     let inbox: { sbx: Sandbox; dir: string } | undefined, ended = false, writing: Promise<void> = Promise.resolve()
     const write = (n: number) => {
       const b = inbox!
       writing = writing.then(async () => {
-        await b.sbx.writeFile(`${b.dir}/${n}.json`, userMessage(messages[n]!))
+        await b.sbx.writeFile(`${b.dir}/${n}.json`, JSON.stringify(messages[n]))
         await b.sbx.writeFile(`${b.dir}/${n}.ok`, '')
       }).catch(() => {})
       return writing
@@ -362,23 +346,22 @@ export function jobs(d: JobDeps) {
             if (b.lost) yield { type: 'error', code: 'conversation', message: `the history of the conversation ${conv} is gone (the provider lost its sandbox, and its transcript was too large to keep); this job starts it again` }
           }
           // the model and effort flags come from s.args: the job's own, else the app's default (R5.7)
-          const args = x.args({ work: s.work, access: r.access, servers: s.mcp.map((m) => m.name), model: s.args, conversation: turn })
-          const line = x.command(s.bin, args).map(q).join(' ')
-          const reader: EventReader = x.reader({ plan: !!r.plan })
+          const jobArgs = { work: s.work, access: r.access, servers: s.mcp.map((m) => m.name), model: s.args, conversation: turn }
+          const line = x.command(s.bin, x.args(jobArgs))
+          const reader: EventReader = x.reader()
           let cmd: string
-          if (steer) {
-            // the task, and each message the app sends while the job runs, as a stream-json line (R5.10)
+          if (x.driver) {
+            // the driver starts the harness and gives it the task, then each message the app sends while the job runs
+            // (R5.10), from the job's inbox (harness/driver.ts)
             inbox = { sbx: s.sandbox, dir: `${s.work}/.byoa/in` }
-            const feed = `${s.work}/.byoa/feed.mjs`
-            await s.sandbox.writeFile(feed, FEED_JS)
+            const js = `${s.work}/.byoa/driver.mjs`
+            await s.sandbox.writeFile(js, x.driver.js)
             messages.unshift(task)
             for (let i = 0; i < messages.length; i++) await write(i)
-            // bash waits for both sides of the pipe, and the feed writes nothing more after the harness exits, so it
-            // gets no SIGPIPE: the harness's side writes `end` when it exits, and the feed stops then
-            cmd = `node ${q(feed)} ${q(inbox.dir)} | { ${line}; s=$?; : > ${q(inbox.dir + '/end')}; exit $s; }`
+            cmd = ['node', js, inbox.dir, JSON.stringify(x.driver.setup(jobArgs)), ...line].map(q).join(' ')
           } else {
             await s.sandbox.writeFile(`${s.work}/.byoa/task.md`, task)
-            cmd = `${line} < .byoa/task.md`
+            cmd = `${line.map(q).join(' ')} < .byoa/task.md`
           }
           yield { type: 'start', harness: h, version: s.version, sandbox: d.sandbox.name, ...(conv !== undefined ? { conversation: conv, resumed: turn!.resume } : {}) }
 
@@ -386,7 +369,7 @@ export function jobs(d: JobDeps) {
             ev = cred.event(ev)
             if (ev.type === 'end') {
               // R5.10: a message is still to come, so this was one turn; the job ends after the turn that answers the
-              // last one, and its input ends then, so the harness exits
+              // last one, and the driver then ends the harness
               if (steer && !ended && messages.length > (reader.taken ?? 0)) {
                 yield { type: 'turn', ok: ev.ok, ...(ev.result !== undefined ? { result: ev.result } : {}), ...(ev.usage ? { usage: ev.usage } : {}) }
                 continue

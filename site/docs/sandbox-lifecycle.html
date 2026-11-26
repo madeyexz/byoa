@@ -376,7 +376,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <p>&quot;Resume&quot; can mean two things. byoa does both:</p>
 <ul>
 <li><strong>Resume the sandbox.</strong> byoa starts the user&#39;s paused sandbox again for the next job. The files outside <code>~/work</code> and the installed harness are still there. This happens in every kept sandbox.</li>
-<li><strong>Resume the conversation.</strong> Only for a job that names a <code>conversation</code>. The harness continues its own session, so the agent knows the earlier messages and what it did. Each CLI does this with its own flags: Claude Code <code>--session-id</code>, then <code>--resume</code>; Codex <code>exec</code>, then <code>exec resume &lt;thread id&gt;</code>; Grok Build <code>-s</code>, then <code>-r</code>.</li>
+<li><strong>Resume the conversation.</strong> Only for a job that names a <code>conversation</code>. The harness continues its own session, so the agent knows the earlier messages and what it did. Each CLI does this its own way: Claude Code <code>--session-id</code>, then <code>--resume</code>; Codex&#39;s app server keeps the thread, then resumes it (<code>thread/resume</code>); Grok Build&#39;s agent mode names a session, then resumes it (<code>session/resume</code>). While a job runs, it also takes more messages (<code>job.send</code>, see <a href="/docs/running-agents#more-messages-while-a-job-runs-steering">Running agents</a>).</li>
 </ul>
 <div class="tbl"><table>
 <thead>

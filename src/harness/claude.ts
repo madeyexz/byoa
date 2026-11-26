@@ -2,7 +2,8 @@
 // Events: system/init (with the session id), assistant (text, tool_use), user (tool_result), result (subtype,
 // is_error, result, usage, permission_denials), one result for each turn.
 import { JOB_TOKEN_ENV, MCP_STARTUP_SEC, serverUrl } from '../config.ts'
-import { streamJsonReader } from './events.ts'
+import { driver } from './driver.ts'
+import { AUTH_FAILED, clip, type AgentEvent, type EventReader } from './events.ts'
 import { installPinned } from './install.ts'
 import { PACKAGES } from './pins.ts'
 import { REFRESH_WINDOW_MS, type JobArgs, type LabHarness, type ModelChoice } from './types.ts'
@@ -23,6 +24,74 @@ const modelArgs = (o: ModelChoice): string[] => [...(o.model ? ['--model', o.mod
 const mcpConfig = (servers: string[], o: { proxyUrl: string }) => JSON.stringify({
   mcpServers: Object.fromEntries(servers.map((s) => [s, { type: 'http', url: serverUrl(o.proxyUrl, s), headers: { Authorization: `Bearer \${${JOB_TOKEN_ENV}}` } }])),
 }, null, 2) + '\n'
+
+const mcpName = (n: string): { name: string; server?: string } => {
+  const m = /^mcp__(.+?)__(.+)$/.exec(n)
+  return m ? { server: m[1]!, name: m[2]! } : { name: n }
+}
+const textOf = (c: unknown): string => Array.isArray(c) ? c.map((x: any) => x?.text ?? '').join('') : String(c ?? '')
+
+/** Claude Code's stream-json output (system/init, assistant, user, result). Each `result` is the end of one turn. */
+function claudeReader(): EventReader {
+  let ended = false, session: string | undefined, taken = 0
+  return {
+    get session() { return session },
+    get taken() { return taken },
+    line(l) {
+      let ev: any
+      try { ev = JSON.parse(l) } catch { return [] }
+      const out: AgentEvent[] = []
+      switch (ev?.type) {
+        case 'system':
+          if (ev.subtype === 'init' && typeof ev.session_id === 'string' && ev.session_id) session = ev.session_id
+          break
+        case 'assistant':
+          for (const c of ev.message?.content ?? []) {
+            if (c.type === 'text' && c.text) out.push({ type: 'text', text: c.text })
+            else if (c.type === 'tool_use') out.push({ type: 'tool_call', id: String(c.id), ...mcpName(String(c.name)), input: c.input ?? {} })
+          }
+          break
+        case 'user':
+          // messages of the job's input, echoed when Claude Code takes them (--replay-user-messages). Each message that
+          // byoa sends is one text block; messages that wait while a turn runs come back together, as one echo with a
+          // block for each (checked with 2.1.330), and get one turn.
+          if (ev.isReplay) { ended = false; taken += Array.isArray(ev.message?.content) ? ev.message.content.filter((c: any) => c?.type === 'text').length || 1 : 1; break }
+          for (const c of ev.message?.content ?? []) {
+            if (c.type === 'tool_result') out.push({ type: 'tool_result', id: String(c.tool_use_id), ok: !c.is_error, output: clip(textOf(c.content)) })
+          }
+          break
+        case 'result': {
+          for (const d of ev.permission_denials ?? []) out.push({ type: 'permission', tool: String(d.tool_name), decision: 'denied', input: d.tool_input })
+          const ok = ev.subtype === 'success' && !ev.is_error
+          const u = ev.usage ?? {}
+          const cached = Number(u.cache_read_input_tokens) || 0
+          if (!ok) {
+            const msg = String(ev.result || ev.subtype || 'Claude Code failed')
+            out.push({ type: 'error', message: clip(msg, 500), code: AUTH_FAILED.test(msg) ? 'expired' : 'harness' })
+          }
+          out.push({
+            type: 'end', ok, ...(ok && typeof ev.result === 'string' ? { result: ev.result } : {}),
+            usage: { input: (Number(u.input_tokens) || 0) + cached + (Number(u.cache_creation_input_tokens) || 0), output: Number(u.output_tokens) || 0, cached, ...(typeof ev.total_cost_usd === 'number' ? { costUsd: ev.total_cost_usd } : {}) },
+          })
+          ended = true
+          break
+        }
+      }
+      return out
+    },
+    exit(code, stderr) {
+      if (ended) return []
+      const msg = stderr.trim().split('\n').slice(-3).join(' ') || `claude exited with code ${code}`
+      return [{ type: 'error', message: clip(msg, 500), code: AUTH_FAILED.test(msg) ? 'expired' : 'harness' }, { type: 'end', ok: false }]
+    },
+  }
+}
+
+/** The task and each later message as one stream-json line on Claude Code's stdin; it exits when its input ends. */
+const CLAUDE_DRIVER = driver(String.raw`
+onLine(print)
+inbox((text) => cli.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } }) + '\n'), () => cli.stdin.end())
+`)
 
 export const claude: LabHarness = {
   name: 'claude',
@@ -54,9 +123,9 @@ export const claude: LabHarness = {
     ...o.model,
   ],
   modelArgs,
-  reader: () => streamJsonReader('claude'),
+  reader: claudeReader,
   files: { skills: '.claude/skills', claudeMd: true, mcpPath: CLAUDE_MCP_CONFIG, mcp: mcpConfig },
-  input: 'stream-json',
+  driver: { js: CLAUDE_DRIVER, setup: () => ({}) },
   // the transcript is `projects/<the cwd, with each other character as ->/<id>.jsonl`, and a folder of the same name
   // for its subagents; a transcript copied into another config folder resumes there (checked with 2.1.330)
   conversation: { choose: true, byFolder: true, transcript: (s) => [`projects/*/${s}.jsonl`, `projects/*/${s}/*`] },

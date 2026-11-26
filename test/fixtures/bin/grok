@@ -17,48 +17,6 @@ case "$*" in
     sleep 1 # the user approves the code on xAI's page
     login lab-secret-grok ;;
   logout) rm -f "$auth" ;;
-  "--no-auto-update agent stdio")
-    # ACP: the initialize answer of grok 1.0.92 holds the models this login may use
-    read -r line
-    echo '{"jsonrpc":"2.0","id":"byoa-models","result":{"protocolVersion":1,"_meta":{"modelState":{"currentModelId":"grok-4.7","availableModels":[{"modelId":"grok-4.7","name":"Grok 4.7","description":"Frontier","_meta":{"supportsReasoningEffort":true,"reasoningEfforts":[{"id":"high","value":"high"},{"id":"low","value":"low"}]}},{"modelId":"grok-4.5","name":"Grok 4.5","description":null,"_meta":{"supportsReasoningEffort":false}}]}}}}'
-    cat >/dev/null ;;
-  --trust\ -p*)
-    task=$(cat)
-    # R5.9: like grok 1.0.92, it saves the session under GROK_HOME/sessions/<cwd>/<id>/; -s names a new one, -r resumes
-    args=("$@"); sid=; resume=
-    for ((i = 0; i < ${#args[@]}; i++)); do
-      [ "${args[i]}" = -s ] && sid=${args[i+1]}
-      [ "${args[i]}" = -r ] && { sid=${args[i+1]}; resume=1; }
-    done
-    if [ -n "$sid" ]; then
-      updates=$GROK_HOME/sessions/%2Fwork/$sid/updates.jsonl
-      if [ -n "$resume" ] && [ ! -s "$updates" ]; then echo "Error: no session $sid" >&2; exit 1; fi
-      n=$(cat "$updates" 2>/dev/null | wc -l | tr -d ' ')
-      mkdir -p "$(dirname "$updates")" && printf '%s\n' "$task" | head -1 >> "$updates"
-    fi
-    echo "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"${sid:-s1}\",\"model\":\"grok-4.7\",\"tools\":[]}"
-    [ -n "$sid" ] && echo "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"remembers $n\"}]}}"
-    if [ ! -s "$auth" ]; then
-      echo '{"type":"result","subtype":"error_during_execution","is_error":true,"usage":{"input_tokens":0,"output_tokens":0},"errors":["Not signed in. To authenticate without a browser, run:\n  grok login --device-code"]}'
-      exit 0
-    fi
-    if [[ "$task" == *cred* ]]; then
-      # like a token refresh: report the login it found, then replace it with a newer one
-      t=$(sed -E 's/.*"key":"([^"]*)".*/\1/' "$auth")
-      echo "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"cred: $t\",\"usage\":{\"input_tokens\":0,\"output_tokens\":0}}"
-      FAKE_GROK_EXP=$(date -u -d '+7 hours' +%Y-%m-%dT%H:%M:%S.000000000Z) login "${t}x"
-      exit 0
-    fi
-    if [[ "$task" == *together* ]]; then
-      # how many jobs run now: each one leaves a file in FAKE_GROK_DIR while it runs
-      mkdir -p "$FAKE_GROK_DIR"; touch "$FAKE_GROK_DIR/$$"; sleep 1
-      n=$(ls "$FAKE_GROK_DIR" | wc -l | tr -d ' '); rm -f "$FAKE_GROK_DIR/$$"
-      echo "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"together: $n\",\"usage\":{}}"
-      exit 0
-    fi
-    # an MCP tool, called through Grok's use_tool, and its output wrapped in Grok's own JSON
-    echo "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"args: $*; home: ${GROK_HOME##*/}; autoupdater off: $GROK_DISABLE_AUTOUPDATER\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"use_tool\",\"input\":{\"tool_name\":\"notes__whoami\",\"tool_input\":{}}}]}}"
-    echo '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"{\"type\":\"MCP\",\"tool_name\":\"whoami\",\"server_name\":\"notes\",\"output\":{\"OkayOutput\":\"you are alice\"}}","is_error":false}]}}'
-    echo '{"type":"result","subtype":"success","is_error":false,"result":"You are alice.","usage":{"input_tokens":10,"cache_read_input_tokens":5,"output_tokens":3},"total_cost_usd":0.01}'
-    ;;
+  # ACP on stdin, as grok 1.0.92's agent mode: the model list (listModels), and jobs
+  "--no-auto-update agent stdio" | "--trust --no-auto-update agent "*) exec node "$(dirname "$0")/grok-agent.mjs" "$@" ;;
 esac

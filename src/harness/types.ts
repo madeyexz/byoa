@@ -74,8 +74,8 @@ export interface Harness {
   args(o: JobArgs): string[]
   /** The flags of a model and effort (R5.7). */
   modelArgs(m: ModelChoice): string[]
-  /** Its output, one line at a time, into byoa's events (R5.5). `plan`: the job runs with a plan's key. */
-  reader(o?: { plan?: boolean }): EventReader
+  /** Its output (or its driver's), one line at a time, into byoa's events (R5.5). */
+  reader(): EventReader
   /** The files in the job's folder for this harness (R4): where it reads skills, whether it reads CLAUDE.md, and its
    *  MCP config at `mcpPath`. */
   files: {
@@ -84,9 +84,10 @@ export interface Harness {
     mcpPath: string
     mcp(servers: string[], o: { proxyUrl: string; access?: Access }): string | undefined
   }
-  /** `text`: the task on stdin, read to its end. `stream-json`: the task and each later message as a stream-json line,
-   *  so a running job takes more messages (R5.10). */
-  input: 'text' | 'stream-json'
+  /** How a running job takes more messages (R5.10): the driver script that starts the CLI and speaks its protocol
+   *  (harness/driver.ts), and the setup it gets for this job. A harness with no driver reads its task on stdin, to its
+   *  end, and takes no more. */
+  driver?: { js: string; setup(o: JobArgs): { env?: Record<string, string>; [k: string]: unknown } }
   /** How it keeps a conversation (R5.9). `choose`: byoa picks the session id of a new conversation (a UUID); else the
    *  harness names it, and its reader reports it. `transcript`: the session's files, as `find -path` patterns relative
    *  to the harness's home folder. `byFolder`: it keeps its sessions under the job folder's path, so a stored

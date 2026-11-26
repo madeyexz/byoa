@@ -29,7 +29,7 @@ By default (`access: 'full'`), the agent has every tool of its harness, with no 
 agents.run(userId, { harness: 'codex', task, mcp: ['mail'], setup: { skills }, access: 'read-only' })
 ```
 
-The agent can then call the job's MCP tools and read files, so the harness can still read its skills and AGENTS.md. It cannot change a file or reach the network by itself. byoa only sets each CLI's own options: Codex runs in its own `read-only` sandbox, and Claude Code and Grok Build get only their tools that read (Grok Build with its web search off); each tool it refuses is a `permission` event. `read-only` does not hide files: the agent can read each file that its user can read. Use it always with `localSandbox()` on a user's own computer, where the sandbox isolates nothing.
+The agent can then call the job's MCP tools and read files, so the harness can still read its skills and AGENTS.md. It cannot change a file or reach the network by itself. byoa only sets each CLI's own options: Codex runs in its own `read-only` sandbox, Claude Code gets only its tools that read, and Grok Build gets rules that deny its shell, file changes and web fetch (and its web search finds nothing); each tool a CLI refuses is a `permission` event or an error for the model. `read-only` does not hide files: the agent can read each file that its user can read. Use it always with `localSandbox()` on a user's own computer, where the sandbox isolates nothing.
 
 ## Sandbox modes
 
@@ -66,12 +66,12 @@ agents.run(userId, { ...chat, task: 'What is my name?' })
 - `agents.deleteConversation(userId, chatId)` deletes it, with its sandbox. [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle.md#what-carries-over-between-jobs) has what carries over between jobs.
 - The harness must be the same for each job of a conversation: each harness has its own sessions.
 
-### More messages while a job runs (Claude Code)
+### More messages while a job runs (steering)
 
-`run` returns a `Job`. With Claude Code, `job.send(message)` gives the running agent one more message:
+`run` returns a `Job`. `job.send(message)` gives the running agent one more message, with each harness:
 
 ```ts
-const job = agents.run(userId, { harness: 'claude', task, conversation: chatId })
+const job = agents.run(userId, { harness: 'codex', task, conversation: chatId })
 for await (const ev of job) {
   if (ev.type === 'turn') show(ev.result)     // one turn ended; the agent now reads the next message
   if (ev.type === 'end') show(ev.result)      // the turn that answered the last message
@@ -80,7 +80,7 @@ for await (const ev of job) {
 await job.send('Also add the dates.')         // true; false once the job ended
 ```
 
-A message that comes during a turn waits for it. Claude Code reads its input as stream-json lines, so this uses only its own flags. Codex (`codex exec`) and Grok Build (`grok -p`) read their whole task before they start and read no input while they run, so `send` returns false for them: send the message as the next job of the conversation.
+Codex and Grok Build take a message that comes during a turn into that turn: the agent reads it at its next step, and answers both in the same turn. Claude Code takes it when the turn ends, as the next turn. A message that comes after a turn ended starts the next turn. byoa uses only each CLI's own protocol, through a small driver script in the sandbox: Claude Code's stream-json input, Codex's app server (`turn/steer`) and Grok Build's Agent Client Protocol (`x.ai/interject`). Once the job ended, `send` returns false: send the message as the next job of the conversation.
 
 ## Jobs at the same time
 

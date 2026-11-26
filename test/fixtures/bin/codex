@@ -24,49 +24,6 @@ case "$1" in
       echo "Successfully logged in"
     fi ;;
   logout) rm -f "$CODEX_HOME/auth.json" ;;
-  app-server)
-    # JSON-RPC on stdin, as codex-cli 0.171.0's app server: model/list answers in two pages
-    while read -r line; do
-      case "$line" in
-        *'"model/list"'*'"cursor"'*) echo '{"id":"byoa-models","result":{"data":[{"model":"gpt-secret","displayName":"Hidden","description":"","hidden":true,"isDefault":false,"supportedReasoningEfforts":[]}],"nextCursor":null}}' ;;
-        *'"model/list"'*) echo '{"id":"byoa-models","result":{"data":[{"model":"gpt-6.2-sol","displayName":"GPT-6.2-Sol","description":"Fast","hidden":false,"isDefault":true,"supportedReasoningEfforts":[{"reasoningEffort":"low","description":""},{"reasoningEffort":"ultra","description":""}]}],"nextCursor":"p2"}}' ;;
-      esac
-    done ;;
-  exec)
-    task=$(cat)
-    # R5.9: like codex-cli 0.171.0, it keeps a session (a rollout file of its messages) unless --ephemeral, names its
-    # thread in thread.started, and `exec resume <id> -` continues it
-    thread=th1
-    if [ "$2" = resume ]; then thread=${@: -2:1}; fi
-    rollout=$CODEX_HOME/sessions/2026/11/25/rollout-2026-11-25T00-00-00-$thread.jsonl
-    if [[ "$*" != *--ephemeral* ]]; then
-      if [ "$2" = resume ] && [ ! -s "$rollout" ]; then echo "Error: no rollout found for thread id $thread" >&2; exit 1; fi
-      echo "{\"type\":\"thread.started\",\"thread_id\":\"$thread\"}"
-      n=$(cat "$rollout" 2>/dev/null | wc -l | tr -d ' ')
-      echo "{\"type\":\"item.completed\",\"item\":{\"id\":\"r\",\"type\":\"agent_message\",\"text\":\"remembers $n\"}}"
-      mkdir -p "$(dirname "$rollout")" && printf '%s\n' "$task" | head -1 >> "$rollout"
-    fi
-    if [[ "$task" == *cred* ]]; then
-      t=$(sed -E 's/.*"access_token":"([^"]*)".*/\1/' "$CODEX_HOME/auth.json" 2>/dev/null)
-      [ -n "$t" ] && echo "{\"tokens\":{\"access_token\":\"${t}x\"}}" > "$CODEX_HOME/auth.json"
-      echo "{\"type\":\"item.completed\",\"item\":{\"id\":\"m\",\"type\":\"agent_message\",\"text\":\"cred: ${t:-none}\"}}"
-      echo '{"type":"turn.completed","usage":{}}'
-      exit 0
-    fi
-    if [[ "$task" == *together* ]]; then
-      # how many jobs run now: each one leaves a file in FAKE_CODEX_DIR while it runs
-      mkdir -p "$FAKE_CODEX_DIR"; touch "$FAKE_CODEX_DIR/$$"; sleep 1
-      n=$(ls "$FAKE_CODEX_DIR" | wc -l | tr -d ' '); rm -f "$FAKE_CODEX_DIR/$$"
-      echo "{\"type\":\"item.completed\",\"item\":{\"id\":\"m\",\"type\":\"agent_message\",\"text\":\"together: $n\"}}"
-      echo '{"type":"turn.completed","usage":{}}'
-      exit 0
-    fi
-    args=$(printf '%s' "$*" | sed 's/["\\]/\\&/g')
-    echo '{"type":"thread.started","thread_id":"th1"}'
-    echo '{"type":"turn.started"}'
-    echo '{"type":"item.started","item":{"id":"item_1","type":"mcp_tool_call","server":"notes","tool":"whoami","arguments":{},"status":"in_progress"}}'
-    echo '{"type":"item.completed","item":{"id":"item_1","type":"mcp_tool_call","server":"notes","tool":"whoami","arguments":{},"result":{"content":[{"type":"text","text":"you are alice"}]},"status":"completed"}}'
-    echo "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"args: $args; home: ${CODEX_HOME##*/}\"}}"
-    echo '{"type":"turn.completed","usage":{"input_tokens":10,"cached_input_tokens":5,"output_tokens":3}}'
-    ;;
+  # JSON-RPC on stdin, as codex-cli 0.171.0's app server
+  app-server) exec node "$(dirname "$0")/codex-app-server.mjs" "${@:2}" ;;
 esac

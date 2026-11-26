@@ -1,8 +1,8 @@
-// Codex: `codex exec --json`, and `codex exec resume --json` for the next job of a conversation. Flags checked against
-// `codex exec --help` and `codex exec resume --help` of codex-cli 0.171.0.
-// Events: thread.started (the thread id), turn.started, item.started / item.completed (agent_message, mcp_tool_call,
-// command_execution, ...), turn.completed (usage), turn.failed, error.
+// Codex: `codex app-server`, the JSON-RPC server that OpenAI's own clients use, under byoa's driver, so a running job
+// takes more messages (R5.10). Flags checked against `codex app-server --help` of codex-cli 0.171.0, and the protocol
+// against its `codex app-server generate-json-schema`.
 import { JOB_TOKEN_ENV, MCP_STARTUP_SEC, serverUrl, tomlString } from '../config.ts'
+import { driver, driverFailure } from './driver.ts'
 import { AUTH_FAILED, clip, type AgentEvent, type EventReader } from './events.ts'
 import { installPinned } from './install.ts'
 import { PACKAGES } from './pins.ts'
@@ -11,10 +11,10 @@ import { REFRESH_WINDOW_MS, type JobArgs, type LabHarness, type ModelChoice } fr
 const fromB64 = (s: string) => new TextDecoder().decode(Uint8Array.from(atob(s), (c) => c.charCodeAt(0)))
 const auth = (files: Record<string, string>) => { try { return JSON.parse(files['.codex/auth.json'] ?? '') } catch { return undefined } }
 
-/** `-m` and the config key `model_reasoning_effort` (low, medium, high, xhigh, max, ultra in codex-cli 0.171.0's model
- *  catalog; which ones a model takes is in its `efforts` from listModels). */
+/** The config keys `model` and `model_reasoning_effort` (low, medium, high, xhigh, max, ultra in codex-cli 0.171.0's
+ *  model catalog; which ones a model takes is in its `efforts` from listModels). `-c` works for every Codex command. */
 const modelArgs = (o: ModelChoice): string[] =>
-  [...(o.model ? ['-m', o.model] : []), ...(o.effort ? ['-c', `model_reasoning_effort=${JSON.stringify(o.effort)}`] : [])]
+  [...(o.model ? ['-c', `model=${JSON.stringify(o.model)}`] : []), ...(o.effort ? ['-c', `model_reasoning_effort=${JSON.stringify(o.effort)}`] : [])]
 
 /** When the CLI refreshes: 5 minutes before the `exp` of its access token (a JWT); a token with no `exp` is refreshed
  *  8 days after the last refresh. Its access token lasts 10 days (0.171.0, login/src/auth/manager.rs). */
@@ -33,55 +33,97 @@ const out = (r: unknown): string => {
   if (typeof r === 'string') return r
   const content = (r as any)?.content
   if (Array.isArray(content)) return content.map((x: any) => x?.text ?? '').join('')
-  return r === undefined ? '' : JSON.stringify(r)
+  return r === undefined || r === null ? '' : JSON.stringify(r)
 }
+const failure = (message: string): AgentEvent[] =>
+  [{ type: 'error', message: clip(message, 500), code: AUTH_FAILED.test(message) ? 'expired' : 'harness' }, { type: 'end', ok: false }]
 
-/** `plan`: Codex knows no model of a plan, and says so at the start of each job (codex-cli 0.171.0): not an error. */
-function codexReader(o: { plan?: boolean } = {}): EventReader {
-  let ended = false, last = '', failed = '', session: string | undefined
+/** The app server's notifications (codex-cli 0.171.0, `codex app-server generate-json-schema`): thread/started (the
+ *  thread id), item/started and item/completed (userMessage, agentMessage, mcpToolCall, commandExecution, ...),
+ *  thread/tokenUsage/updated (the tokens of each model call, `last`), error, and turn/completed, one for each turn. */
+function codexReader(): EventReader {
+  let ended = false, last = '', failed = '', session: string | undefined, taken = 0
+  let usage = { input: 0, output: 0, cached: 0 }
   return {
     get session() { return session },
+    get taken() { return taken },
     line(l): AgentEvent[] {
       let ev: any
       try { ev = JSON.parse(l) } catch { return [] }
-      const it = ev?.item
-      switch (ev?.type) {
-        case 'thread.started': if (typeof ev.thread_id === 'string' && ev.thread_id) session = ev.thread_id; return []
-        case 'item.started':
-          if (it?.type === 'mcp_tool_call') return [{ type: 'tool_call', id: String(it.id), name: String(it.tool), server: String(it.server), input: it.arguments ?? {} }]
-          if (it?.type === 'command_execution') return [{ type: 'tool_call', id: String(it.id), name: 'shell', input: { command: it.command } }]
-          return []
-        case 'item.completed':
+      const why = driverFailure(ev)
+      if (why !== undefined) { ended = true; return failure(why) }
+      const p = ev?.params ?? {}, it = p.item
+      switch (ev?.method) {
+        case 'thread/started': if (typeof p.thread?.id === 'string' && p.thread.id) session = p.thread.id; return []
+        // `ended`: the last turn has ended; a driver can start another one (R5.10)
+        case 'turn/started': ended = false; return []
+        case 'item/started':
           switch (it?.type) {
-            case 'agent_message': last = String(it.text ?? ''); return last ? [{ type: 'text', text: last }] : []
-            case 'mcp_tool_call': return [{ type: 'tool_result', id: String(it.id), ok: it.status !== 'failed' && !it.error, output: clip(it.error ? String(it.error.message ?? it.error) : out(it.result)) }]
-            case 'command_execution': return [{ type: 'tool_result', id: String(it.id), ok: it.exit_code === 0, output: clip(String(it.aggregated_output ?? '')) }]
-            case 'error':
-              if (o.plan && /^Model metadata for .* not found/.test(String(it.message))) return []
-              return [{ type: 'error', message: clip(String(it.message), 500), code: 'harness' }]
+            // each message of the job, when Codex takes it into a turn: the task, a steer, or a new turn (R5.10)
+            case 'userMessage': taken++; return []
+            case 'mcpToolCall': return [{ type: 'tool_call', id: String(it.id), name: String(it.tool), server: String(it.server), input: it.arguments ?? {} }]
+            case 'commandExecution': return [{ type: 'tool_call', id: String(it.id), name: 'shell', input: { command: it.command } }]
             default: return []
           }
-        case 'turn.completed': {
-          ended = true
-          const u = ev.usage ?? {}
-          return [{ type: 'end', ok: true, result: last, usage: { input: Number(u.input_tokens) || 0, output: Number(u.output_tokens) || 0, cached: Number(u.cached_input_tokens) || 0 } }]
+        case 'item/completed':
+          switch (it?.type) {
+            case 'agentMessage': last = String(it.text ?? ''); return last ? [{ type: 'text', text: last }] : []
+            case 'mcpToolCall': return [{ type: 'tool_result', id: String(it.id), ok: it.status !== 'failed' && !it.error, output: clip(it.error ? String(it.error.message ?? it.error) : out(it.result)) }]
+            case 'commandExecution': return [{ type: 'tool_result', id: String(it.id), ok: it.exitCode === 0, output: clip(String(it.aggregatedOutput ?? '')) }]
+            default: return []
+          }
+        case 'thread/tokenUsage/updated': {
+          const u = p.tokenUsage?.last ?? {}
+          usage = { input: usage.input + (Number(u.inputTokens) || 0), output: usage.output + (Number(u.outputTokens) || 0), cached: usage.cached + (Number(u.cachedInputTokens) || 0) }
+          return []
         }
-        case 'turn.failed': {
+        // an error that Codex retries is not the turn's end
+        case 'error': if (!p.willRetry) failed = String(p.error?.message ?? ''); return []
+        case 'turn/completed': {
+          const t = p.turn ?? {}, u = usage
+          usage = { input: 0, output: 0, cached: 0 }
           ended = true
-          const msg = String(ev.error?.message || failed || 'Codex failed')
-          return [{ type: 'error', message: clip(msg, 500), code: AUTH_FAILED.test(msg) ? 'expired' : 'harness' }, { type: 'end', ok: false }]
+          if (t.status === 'completed') return [{ type: 'end', ok: true, result: last, usage: u }]
+          return failure(String(t.error?.message || failed || `the turn ${t.status ?? 'failed'}`))
         }
-        case 'error': failed = String(ev.message ?? ''); return []
         default: return []
       }
     },
     exit(code, stderr) {
       if (ended) return []
-      const msg = failed || stderr.trim().split('\n').slice(-3).join(' ') || `codex exited with code ${code}`
-      return [{ type: 'error', message: clip(msg, 500), code: AUTH_FAILED.test(msg) ? 'expired' : 'harness' }, { type: 'end', ok: false }]
+      return failure(failed || stderr.trim().split('\n').slice(-3).join(' ') || `codex exited with code ${code}`)
     },
   }
 }
+
+/** Codex's app server (R5.10): one thread, new or resumed (R5.9), and a turn for the task. A message that comes while a
+ *  turn runs steers it (`turn/steer`, which needs the running turn's id); one that comes after starts the next turn.
+ *  The approval policy is `never`, so the server asks the driver nothing. Checked with 0.171.0: a steered message is a
+ *  userMessage item of the running turn, and the model answers both. */
+const CODEX_DRIVER = driver(String.raw`
+let thread, turn
+const r = rpc((m, l) => {
+  if (m.id !== undefined) return r.refuse(m.id, 'byoa answers no request')
+  if (m.method === 'turn/started') turn = m.params.turn.id
+  if (m.method === 'turn/completed') turn = undefined
+  print(l)
+})
+let chain = (async () => {
+  await r.call('initialize', { clientInfo: { name: 'byoa', version: '1' } })
+  r.notify('initialized')
+  const o = { cwd: setup.cwd, sandbox: setup.sandbox, approvalPolicy: 'never' }
+  thread = (setup.resume ? await r.call('thread/resume', { ...o, threadId: setup.resume }) : await r.call('thread/start', { ...o, ephemeral: setup.ephemeral })).thread.id
+})()
+const say = async (text) => {
+  const input = [{ type: 'text', text }]
+  if (turn) {
+    try { await r.call('turn/steer', { threadId: thread, expectedTurnId: turn, input }); return } catch {}
+    // the turn ended meanwhile: the message starts the next one
+  }
+  turn = (await r.call('turn/start', { threadId: thread, input })).turn.id
+}
+inbox((text) => { chain = chain.then(() => say(text)).catch(fail) }, () => { chain = chain.then(close) })
+`)
 
 export const codex: LabHarness = {
   name: 'codex',
@@ -90,30 +132,13 @@ export const codex: LabHarness = {
   env: {},
   install: (sbx, pins) => installPinned(sbx, { name: 'codex', pkg: PACKAGES.codex, pin: pins.codex }),
   command: (bin, args) => [bin, ...args],
-  args(o: JobArgs) {
-    const resume = o.conversation?.resume
-    return [
-      // R5.9: a conversation's first job keeps its session (no --ephemeral), and Codex names the thread in its
-      // thread.started event; the next jobs resume it (checked with 0.171.0: the resumed job sees the earlier messages,
-      // also from the session file alone in a new CODEX_HOME)
-      'exec', ...(resume ? ['resume'] : []), '--json', '--skip-git-repo-check', ...(o.conversation ? [] : ['--ephemeral']),
-      ...(o.access === 'read-only'
-        // R5.6: Codex's own sandbox. Its shell stays, because Codex reads a skill with `cat`, but a command cannot
-        // change a file or reach the network. `codex exec` never asks for approval; the job's MCP tools are approved
-        // in config.toml. Checked with 0.171.0 on E2B: the skill was read, the MCP call went through, and
-        // `echo x > file` and `curl` failed. `exec resume` has no --sandbox; the config key sets the same policy
-        // (0.171.0: its requests report `sandbox_mode: read-only`).
-        ? (resume ? ['-c', 'sandbox_mode="read-only"'] : ['--sandbox', 'read-only'])
-        // the sandbox is the job's alone, has no real tokens (R3.3), and is destroyed after the job (R5.4)
-        : ['--dangerously-bypass-approvals-and-sandbox']),
-      // Codex reads the job's `.codex/config.toml` only in a trusted project; this marks the job's folder trusted for
-      // this run only (0.171.0: a dotted `projects."<dir>".trust_level` is not applied, the inline table is)
-      '-c', `projects={${JSON.stringify(o.work)}={trust_level="trusted"}}`,
-      ...o.model,
-      ...(resume ? [o.conversation!.session!] : []),
-      '-',
-    ]
-  },
+  args: (o: JobArgs) => [
+    'app-server',
+    // Codex reads the job's `.codex/config.toml` only in a trusted project; this marks the job's folder trusted for
+    // this run only (0.171.0: a dotted `projects."<dir>".trust_level` is not applied, the inline table is)
+    '-c', `projects={${JSON.stringify(o.work)}={trust_level="trusted"}}`,
+    ...o.model,
+  ],
   modelArgs,
   reader: codexReader,
   files: {
@@ -121,8 +146,8 @@ export const codex: LabHarness = {
     skills: '.agents/skills',
     claudeMd: false,
     mcpPath: '.codex/config.toml',
-    // TOML. With its sandbox on, Codex asks before each MCP tool call, and `codex exec` has nobody to ask: it refuses
-    // the call. The job's servers are the ones the app chose for it (R2.5), so their tools need no approval.
+    // TOML. With its sandbox on, Codex asks before each MCP tool call, and with the approval policy `never` nobody is
+    // asked: it refuses the call. The job's servers are the ones the app chose for it (R2.5), so their tools need no approval.
     mcp(servers, o) {
       if (!servers.length) return undefined
       const approve = o.access === 'read-only' ? 'default_tools_approval_mode = "approve"\n' : ''
@@ -130,8 +155,21 @@ export const codex: LabHarness = {
         `[mcp_servers.${s}]\nurl = ${tomlString(serverUrl(o.proxyUrl, s))}\nbearer_token_env_var = "${JOB_TOKEN_ENV}"\nstartup_timeout_sec = ${MCP_STARTUP_SEC}\n${approve}`).join('\n')
     },
   },
-  // `codex exec` reads its prompt to the end of stdin, and takes no message while it runs
-  input: 'text',
+  driver: {
+    js: CODEX_DRIVER,
+    setup: (o) => ({
+      cwd: o.work,
+      // R5.6: Codex's own sandbox. Its shell stays, because Codex reads a skill with `cat`, but a command cannot change
+      // a file or reach the network; the job's MCP tools are approved in config.toml. Checked with 0.171.0 on E2B: the
+      // skill was read, the MCP call went through, and `echo x > file` and `curl` failed. With `full`, no sandbox: the
+      // sandbox is the job's alone, has no real tokens (R3.3), and is destroyed after the job (R5.4).
+      sandbox: o.access === 'read-only' ? 'read-only' : 'danger-full-access',
+      // R5.9: a conversation's first job keeps its thread (not ephemeral), which Codex names in thread/started; the
+      // next jobs resume it (checked with 0.171.0: also from the rollout file alone, in a new CODEX_HOME)
+      ephemeral: !o.conversation,
+      ...(o.conversation?.resume ? { resume: o.conversation.session } : {}),
+    }),
+  },
   conversation: { choose: false, byFolder: false, transcript: (s) => [`sessions/*/*/*/rollout-*-${s}.jsonl`] },
   login: {
     files: ['.codex/auth.json'],

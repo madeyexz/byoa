@@ -21,7 +21,7 @@ byoa follows the labs' published rules as read on 2026-11-22:
 
 So byoa MUST:
 
-- run only unmodified `claude`, `codex` and `grok` binaries, and never pretend to be another client;
+- run only unmodified `claude`, `codex` and `grok` binaries, and never pretend to be another client (Codex's app server names byoa as its client: `clientInfo.name` is `byoa`);
 - send the user to the lab's own sign-in page;
 - not share one AI login between apps;
 - for OpenCode Go, use only the user's own key, with OpenCode's documented API and the harness's own user agent, and never OpenCode's Console CLI sign-in, which has OpenCode's own client ID.

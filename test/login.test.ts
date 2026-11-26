@@ -68,7 +68,8 @@ test('R1.2: Codex device sign-in: the page and the code as data; then the same e
   assert.deepEqual(ev[1], { type: 'tool_call', id: 'item_1', name: 'whoami', server: 'notes', input: {} })
   assert.deepEqual(ev[2], { type: 'tool_result', id: 'item_1', ok: true, output: 'you are alice' })
   const text = (ev[3] as { text: string }).text
-  assert.match(text, /^args: exec --json --skip-git-repo-check --ephemeral --dangerously-bypass-approvals-and-sandbox -c projects=\{".+\/work"=\{trust_level="trusted"\}\} -; home: \.codex$/)
+  // the app server's flags, and the thread the driver started: no sandbox of Codex's own, no approvals, kept by no one
+  assert.match(text, /^args: -c projects=\{"(.+\/work)"=\{trust_level="trusted"\}\}; thread: \{"cwd":"\1","sandbox":"danger-full-access","approvalPolicy":"never","ephemeral":true\}; home: \.codex$/)
   assert.deepEqual(ev[4], { type: 'end', ok: true, result: text, usage: { input: 10, output: 3, cached: 5 } })
 })
 
@@ -182,8 +183,9 @@ test('R5.6: access read-only starts each CLI with its own limits, and the job\'s
   const { codex } = await import('../src/harness/codex.ts')
   const { claude } = await import('../src/harness/claude.ts')
   const { harnessFiles } = await import('../src/index.ts')
-  // Codex: its own sandbox (the shell stays, to read skills), and the job's MCP tools approved in its config
-  assert.deepEqual(codex.args({ work: '/w', access: 'read-only', servers: [], model: [] }), ['exec', '--json', '--skip-git-repo-check', '--ephemeral', '--sandbox', 'read-only', '-c', 'projects={"/w"={trust_level="trusted"}}', '-'])
+  const { grok } = await import('../src/harness/grok.ts')
+  // Codex: its own sandbox for the thread (the shell stays, to read skills), and the job's MCP tools approved in its config
+  assert.equal(codex.driver!.setup({ work: '/w', access: 'read-only', servers: [], model: [] }).sandbox, 'read-only')
   const o = { proxyUrl: 'https://app.example.com/byoa/mcp', servers: ['todos'] }
   const toml = harnessFiles('codex', {}, { ...o, access: 'read-only' })['.codex/config.toml']!
   assert.equal(toml, harnessFiles('codex', {}, o)['.codex/config.toml'] + 'default_tools_approval_mode = "approve"\n')
@@ -195,7 +197,15 @@ test('R5.6: access read-only starts each CLI with its own limits, and the job\'s
   await a.agents.connectLogin('gus', 'codex')
   assert.deepEqual(await a.agents.finishLogin('gus', 'codex', { waitMs: 10_000 }), { state: 'signed-in' })
   const text = (await collect(a.agents.run('gus', { harness: 'codex', task: 'who am I?', access: 'read-only' }))).find((e) => e.type === 'text') as { text: string }
-  assert.match(text.text, /^args: exec --json --skip-git-repo-check --ephemeral --sandbox read-only -c projects=/)
+  assert.match(text.text, /"sandbox":"read-only","approvalPolicy":"never"/)
+  // Grok Build: no --always-approve; its project config denies the shell, file changes and web_fetch, and allows MCP
+  assert.ok(!grok.args({ work: '/w', access: 'read-only', servers: [], model: [] }).includes('--always-approve'))
+  assert.equal(harnessFiles('grok', {}, { ...o, access: 'read-only' })['.grok/config.toml'], harnessFiles('grok', {}, o)['.grok/config.toml'] + '\n[permission]\ndeny = ["Bash", "Write", "Edit", "WebFetch"]\nallow = ["MCPTool(*)"]\n')
+  await a.agents.connectLogin('gus', 'grok')
+  assert.deepEqual(await a.agents.finishLogin('gus', 'grok', { waitMs: 10_000 }), { state: 'signed-in' })
+  const write = async (access: 'full' | 'read-only') => ((await collect(a.agents.run('gus', { harness: 'grok', task: 'write a file', access }))).at(-1) as { result?: string }).result
+  assert.equal(await write('read-only'), 'I may not write.', 'denied by the rule, and the turn goes on')
+  assert.equal(await write('full'), 'Wrote it.')
   const bad = await collect(a.agents.run('gus', { harness: 'codex', task: 'x', access: 'none' as never }))
   assert.deepEqual(bad, [{ type: 'error', code: 'sandbox', message: "byoa: access: 'full' or 'read-only'" }, { type: 'end', ok: false }])
 })
@@ -278,8 +288,8 @@ test('R5.7: a job runs the model and effort it names, else the app\'s default fo
   assert.match(await args({ harness: 'claude' }), / --model opus$/)
   assert.match(await args({ harness: 'claude', effort: 'max' }), / --model opus --effort max$/)
   assert.match(await args({ harness: 'claude', model: 'haiku' }), / --model haiku$/)
-  assert.match(await args({ harness: 'codex' }), / -m gpt-6\.2-sol -c model_reasoning_effort="high" -$/)
-  assert.match(await args({ harness: 'codex', model: 'gpt-5.5', effort: 'low' }), / -m gpt-5\.5 -c model_reasoning_effort="low" -$/)
+  assert.match(await args({ harness: 'codex' }), / -c model="gpt-6\.2-sol" -c model_reasoning_effort="high"$/)
+  assert.match(await args({ harness: 'codex', model: 'gpt-5.5', effort: 'low' }), / -c model="gpt-5\.5" -c model_reasoning_effort="low"$/)
 })
 
 test('R5.7: listModels lists what the user\'s plan has, as each CLI lists it with the user\'s login', async () => {
@@ -306,11 +316,17 @@ test('R1.2: Grok Build device sign-in: xAI\'s page and the code as data; a job\'
   assert.deepEqual(await agents.finishLogin('gil', 'grok'), { state: 'pending' })
   assert.deepEqual(await agents.finishLogin('gil', 'grok', { waitMs: 10_000 }), { state: 'signed-in' })
   const ev = await collect(agents.run('gil', { harness: 'grok', task: 'who am I?', model: 'grok-4.5', effort: 'low' }))
-  assert.deepEqual(ev.map((e) => e.type), ['start', 'text', 'tool_call', 'tool_result', 'end'])
-  assert.match((ev[1] as { text: string }).text, /^args: --trust -p --output-format streaming-messages-json --no-auto-update --no-memory --permission-mode bypassPermissions -m grok-4\.5 --reasoning-effort low; home: \.grok; autoupdater off: 1$/)
+  assert.deepEqual(ev.map((e) => e.type), ['start', 'text', 'tool_call', 'tool_result', 'text', 'end'])
+  assert.equal((ev[1] as { text: string }).text, 'args: --trust --no-auto-update agent --always-approve -m grok-4.5 --reasoning-effort low stdio; session: new; home: .grok; autoupdater off: 1; memory: 0')
   assert.deepEqual(ev[2], { type: 'tool_call', id: 't1', server: 'notes', name: 'whoami', input: {} })
   assert.deepEqual(ev[3], { type: 'tool_result', id: 't1', ok: true, output: 'you are alice' }, 'the tool\'s own text, not Grok\'s wrapper')
-  assert.deepEqual(ev[4], { type: 'end', ok: true, result: 'You are alice.', usage: { input: 15, output: 3, cached: 5, costUsd: 0.01 } })
+  assert.deepEqual(ev[5], { type: 'end', ok: true, result: 'You are alice.', usage: { input: 10, output: 3, cached: 5 } })
+  // R1.6: a login that xAI refuses during a turn is reported as expired
+  const ex = await collect(agents.run('gil', { harness: 'grok', task: 'expire now' }))
+  assert.deepEqual(ex.slice(-2).map((e) => e.type === 'error' ? e.code : e.type), ['expired', 'end'])
+  assert.equal(await agents.loginState('gil', 'grok'), 'expired')
+  await agents.connectLogin('gil', 'grok')
+  await agents.finishLogin('gil', 'grok', { waitMs: 10_000 })
   // the login was saved and refreshed as for the other harnesses
   assert.equal(((await collect(agents.run('gil', { harness: 'grok', task: 'cred' }))).at(-1) as { result: string }).result, 'cred: lab-secret-grok')
   assert.equal(((await collect(agents.run('gil', { harness: 'grok', task: 'cred' }))).at(-1) as { result: string }).result, 'cred: lab-secret-grokx')
@@ -323,9 +339,8 @@ test('R1.2: Grok Build device sign-in: xAI\'s page and the code as data; a job\'
   assert.equal(await agents.loginState('gil', 'grok'), 'signed-out')
 })
 
-test('R1.4 / R5.6: Grok\'s login: when it is due, whose it is; read-only flags', async () => {
+test('R1.4: Grok\'s login: when it is due, whose it is', async () => {
   const { refreshDue, accept } = await import('../src/login-stored.ts')
-  const { grok: grokHarness } = await import('../src/harness/grok.ts')
   // the shape of grok 1.0.92's auth.json (seen with a real login): one entry for each sign-in scope
   const grok = (user: string, expiresAt: string, t = 'a') => ({ '.grok/auth.json': JSON.stringify({ 'https://auth.x.ai::c': { key: t, user_id: user, refresh_token: `r-${t}`, expires_at: expiresAt } }) })
   assert.equal(refreshDue('grok', grok('u-1', '2026-11-25T15:02:54.845984658Z')), Date.parse('2026-11-25T15:02:54.845Z') - 5 * 60_000)
@@ -333,8 +348,6 @@ test('R1.4 / R5.6: Grok\'s login: when it is due, whose it is; read-only flags',
   assert.equal(accept('grok', grok('u-1', '2026-11-25T15:00:00Z'), grok('u-1', '2026-11-25T21:00:00Z', 'b')), true, 'refreshed')
   assert.equal(accept('grok', grok('u-1', '2026-11-25T15:00:00Z'), grok('u-2', '2026-11-25T21:00:00Z', 'b')), false, 'another account')
   assert.equal(accept('grok', grok('u-1', '2026-11-25T21:00:00Z'), grok('u-1', '2026-11-25T15:00:00Z', 'b')), false, 'older')
-  // read-only: only the tools that read, no web search, and an error (not the end of the job) for a tool it lacks
-  assert.deepEqual(grokHarness.args({ work: '/w', access: 'read-only', servers: [], model: [] }).slice(6), ['--permission-mode', 'dontAsk', '--disable-web-search', '--tools', 'read_file,grep,list_dir', '--allow', 'MCPTool(*)'])
 })
 
 test('R1.4 / R5.8: Grok jobs of one user share a login that is not due for a refresh', async () => {
@@ -376,38 +389,29 @@ test('R5.9: a conversation with each harness: the first job names or reads the s
   assert.ok(texts(c2).some((t) => t.includes(`--resume ${sid}`)))
   assert.equal(end(c2).session, sid)
 
-  // Codex: it names the thread in thread.started; the next job is `exec resume <thread>`
+  // Codex: it names the thread in thread/started, and keeps it (not ephemeral); the next job resumes it (thread/resume)
   const x1 = await say('codex', 'my name is Kim')
   assert.equal(end(x1).session, 'th1')
-  assert.ok(texts(x1).some((t) => t.startsWith('args: exec --json ') && !t.includes('--ephemeral')), texts(x1).join('\n'))
+  assert.ok(texts(x1).some((t) => t.includes('"ephemeral":false')), texts(x1).join('\n'))
   const x2 = await say('codex', 'what is my name?')
-  assert.ok(texts(x2).includes('remembers 1'))
-  assert.ok(texts(x2).some((t) => /^args: exec resume --json .* th1 -/.test(t)), texts(x2).join('\n'))
+  assert.ok(texts(x2).includes('remembers 1: what is my name?'), texts(x2).join('\n'))
+  assert.ok(texts(x2).some((t) => t.includes('"threadId":"th1"')), texts(x2).join('\n'))
   // Codex keeps its sessions by date, not by folder: a lost sandbox gets the transcript from the store
   const kept = [...sandbox.live]
   for (const id of kept) await sandbox.destroy(id)
   const x3 = await say('codex', 'and now?')
   assert.deepEqual(x3.filter((e) => e.type === 'error'), [])
-  assert.ok(texts(x3).includes('remembers 2'))
+  assert.ok(texts(x3).includes('remembers 2: and now?'), texts(x3).join('\n'))
 
-  // Grok Build: byoa names the session (-s), then resumes it (-r)
+  // Grok Build: session/new names the session, and the next job resumes it (session/resume)
   const g1 = await say('grok', 'my name is Kim')
   const gid = end(g1).session!
-  assert.ok(texts(g1).some((t) => t.includes(`-s ${gid}`)))
+  assert.ok(gid)
+  assert.ok(texts(g1).some((t) => t.startsWith('remembers 0: my name is Kim; session: new')), texts(g1).join('\n'))
   const g2 = await say('grok', 'what is my name?')
-  assert.ok(texts(g2).includes('remembers 1'))
-  assert.ok(texts(g2).some((t) => t.includes(`-r ${gid}`)))
+  assert.ok(texts(g2).some((t) => t.startsWith('remembers 1: what is my name?; session: resumed')), texts(g2).join('\n'))
   assert.equal(end(g2).session, gid)
   assert.equal(running(sandbox), 0)
-})
-
-test('R5.9 / R5.6: Codex resumes read-only with the config key, as `exec resume` has no --sandbox', async () => {
-  const { codex } = await import('../src/harness/codex.ts')
-  const a = codex.args({ work: '/w', access: 'read-only', servers: [], model: [], conversation: { session: 'th1', resume: true } })
-  assert.deepEqual(a.slice(0, 5), ['exec', 'resume', '--json', '--skip-git-repo-check', '-c'])
-  assert.equal(a[5], 'sandbox_mode="read-only"')
-  assert.deepEqual(a.slice(-2), ['th1', '-'])
-  assert.ok(!a.includes('--sandbox'))
 })
 
 test('R5.10: a running Claude Code job takes more messages: each one waits for the turn before it, and the job ends after the last', async () => {
@@ -435,3 +439,22 @@ test('R5.10: a running Claude Code job takes more messages: each one waits for t
   assert.deepEqual(crash.at(-1), { type: 'end', ok: false })
   assert.ok(crash.some((e) => e.type === 'error' && e.message.includes('boom')), JSON.stringify(crash))
 })
+
+for (const h of ['codex', 'grok'] as const) {
+  test(`R5.10: a running ${h} job takes a message into the turn that runs (steering), and ends after it`, async () => {
+    const { agents } = await app()
+    await agents.connectLogin('mo', h)
+    await agents.finishLogin('mo', h, { waitMs: 10_000 })
+    const job = agents.run('mo', { harness: h, task: 'slow first', conversation: 'c' })
+    const ev: Awaited<ReturnType<typeof collect>> = []
+    for await (const e of job) {
+      ev.push(e)
+      if (e.type === 'start') assert.equal(await job.send('and a second one'), true)
+    }
+    assert.equal(await job.send('too late'), false, 'the job ended')
+    const types = ev.map((e) => e.type)
+    assert.deepEqual(types.filter((t) => t === 'turn' || t === 'end'), ['end'], types.join(' '))
+    assert.ok(ev.some((e) => e.type === 'text' && e.text.startsWith('remembers 0: slow first | and a second one')), JSON.stringify(ev))
+    assert.equal((ev.at(-1) as { ok: boolean }).ok, true)
+  })
+}

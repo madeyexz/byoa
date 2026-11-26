@@ -60,7 +60,7 @@ In all three, the user's AI login and MCP grants stay in your database. No real 
 "Resume" can mean two things. byoa does both:
 
 - **Resume the sandbox.** byoa starts the user's paused sandbox again for the next job. The files outside `~/work` and the installed harness are still there. This happens in every kept sandbox.
-- **Resume the conversation.** Only for a job that names a `conversation`. The harness continues its own session, so the agent knows the earlier messages and what it did. Each CLI does this with its own flags: Claude Code `--session-id`, then `--resume`; Codex `exec`, then `exec resume <thread id>`; Grok Build `-s`, then `-r`.
+- **Resume the conversation.** Only for a job that names a `conversation`. The harness continues its own session, so the agent knows the earlier messages and what it did. Each CLI does this its own way: Claude Code `--session-id`, then `--resume`; Codex's app server keeps the thread, then resumes it (`thread/resume`); Grok Build's agent mode names a session, then resumes it (`session/resume`). While a job runs, it also takes more messages (`job.send`, see [Running agents](https://byoa.rippling.computer/docs/running-agents.md#more-messages-while-a-job-runs-steering)).
 
 | | A job with no `conversation` | A job of a `conversation` |
 |---|---|---|

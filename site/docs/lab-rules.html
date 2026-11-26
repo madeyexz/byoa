@@ -371,7 +371,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 </ul>
 <p>So byoa MUST:</p>
 <ul>
-<li>run only unmodified <code>claude</code>, <code>codex</code> and <code>grok</code> binaries, and never pretend to be another client;</li>
+<li>run only unmodified <code>claude</code>, <code>codex</code> and <code>grok</code> binaries, and never pretend to be another client (Codex&#39;s app server names byoa as its client: <code>clientInfo.name</code> is <code>byoa</code>);</li>
 <li>send the user to the lab&#39;s own sign-in page;</li>
 <li>not share one AI login between apps;</li>
 <li>for OpenCode Go, use only the user&#39;s own key, with OpenCode&#39;s documented API and the harness&#39;s own user agent, and never OpenCode&#39;s Console CLI sign-in, which has OpenCode&#39;s own client ID.</li>

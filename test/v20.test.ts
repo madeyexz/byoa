@@ -117,7 +117,7 @@ for (const harness of ['claude', 'codex'] as const) {
     console.log(harness, 'relay requests:', mine.map((s) => `${s.path} ${s.model} ${s.status} ua=${s.headers['user-agent']} session=${s.headers['x-claude-code-session-id'] ?? s.headers['session-id'] ?? '-'}`))
     assert.ok(mine.length > 0 && mine.every((s) => s.status === 200))
     assert.ok(mine.every((s) => s.model === MODEL))
-    assert.ok(mine.every((s) => s.headers['user-agent']?.startsWith(harness === 'claude' ? 'claude-cli/' : 'codex_exec/')))
+    assert.ok(mine.every((s) => s.headers['user-agent']?.startsWith(harness === 'claude' ? 'claude-cli/' : 'byoa/')))
     assert.equal(dumps.length, d + 1)
     assert.ok(dumps[d]!.includes('byoa_job_'), 'the dump has the job token: it reads the environment')
     assert.ok(!dumps[d]!.includes(KEY!), 'V5: the key is in no file, environment or command line of the sandbox')

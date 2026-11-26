@@ -1,5 +1,5 @@
-// One event schema for every harness (R5.5). Each harness's own output (Claude Code's stream-json, Codex's
-// `exec --json`, Grok's streaming-messages-json) is read into these events, so the app's code does not change with the harness.
+// One event schema for every harness (R5.5). Each harness's own output (Claude Code's stream-json, Codex's app server,
+// Grok's ACP) is read into these events, so the app's code does not change with the harness.
 
 export interface Usage { input: number; output: number; cached?: number; costUsd?: number }
 
@@ -30,7 +30,7 @@ export interface EventReader {
   exit(code: number, stderr: string): AgentEvent[]
   /** The harness's own session id, once its output named it. */
   readonly session?: string
-  /** With stream-json input: how many of the job's messages the harness has taken. */
+  /** With a driver (R5.10): how many of the job's messages the harness has taken into a turn. */
   readonly taken?: number
 }
 
@@ -38,66 +38,3 @@ export interface EventReader {
 export const AUTH_FAILED = /invalid api key|please run \/login|oauth token (?:has )?expired|token (?:has )?expired|refresh token (?:was )?revoked|not logged in|not signed in|sign in again|log ?in again|401 unauthorized|unauthorized: 401/i
 
 export const clip = (s: string, n = 4000) => (s.length > n ? s.slice(0, n) + '…' : s)
-
-const mcpName = (n: string): { name: string; server?: string } => {
-  const m = /^mcp__(.+?)__(.+)$/.exec(n)
-  return m ? { server: m[1]!, name: m[2]! } : { name: n }
-}
-const textOf = (c: unknown): string => Array.isArray(c) ? c.map((x: any) => x?.text ?? '').join('') : String(c ?? '')
-
-/** Claude Code's stream-json output (system/init, assistant, user, result), which Grok Build prints too. `name`: the
- *  CLI, in the message when it exits with no result. Each `result` is the end of one turn. */
-export function streamJsonReader(name: string): EventReader {
-  let ended = false, session: string | undefined, taken = 0
-  return {
-    get session() { return session },
-    get taken() { return taken },
-    line(l) {
-      let ev: any
-      try { ev = JSON.parse(l) } catch { return [] }
-      const out: AgentEvent[] = []
-      switch (ev?.type) {
-        case 'system':
-          if (ev.subtype === 'init' && typeof ev.session_id === 'string' && ev.session_id) session = ev.session_id
-          break
-        case 'assistant':
-          for (const c of ev.message?.content ?? []) {
-            if (c.type === 'text' && c.text) out.push({ type: 'text', text: c.text })
-            else if (c.type === 'tool_use') out.push({ type: 'tool_call', id: String(c.id), ...mcpName(String(c.name)), input: c.input ?? {} })
-          }
-          break
-        case 'user':
-          // messages of the job's input, echoed when the harness takes them (Claude Code's --replay-user-messages). Each
-          // message that byoa sends is one text block; messages that wait while a turn runs come back together, as one
-          // echo with a block for each (checked with 2.1.330), and get one turn.
-          if (ev.isReplay) { taken += Array.isArray(ev.message?.content) ? ev.message.content.filter((c: any) => c?.type === 'text').length || 1 : 1; break }
-          for (const c of ev.message?.content ?? []) {
-            if (c.type === 'tool_result') out.push({ type: 'tool_result', id: String(c.tool_use_id), ok: !c.is_error, output: clip(textOf(c.content)) })
-          }
-          break
-        case 'result': {
-          for (const d of ev.permission_denials ?? []) out.push({ type: 'permission', tool: String(d.tool_name), decision: 'denied', input: d.tool_input })
-          const ok = ev.subtype === 'success' && !ev.is_error
-          const u = ev.usage ?? {}
-          const cached = Number(u.cache_read_input_tokens) || 0
-          if (!ok) {
-            const msg = String(ev.result || ev.subtype || `${name} failed`)
-            out.push({ type: 'error', message: clip(msg, 500), code: AUTH_FAILED.test(msg) ? 'expired' : 'harness' })
-          }
-          out.push({
-            type: 'end', ok, ...(ok && typeof ev.result === 'string' ? { result: ev.result } : {}),
-            usage: { input: (Number(u.input_tokens) || 0) + cached + (Number(u.cache_creation_input_tokens) || 0), output: Number(u.output_tokens) || 0, cached, ...(typeof ev.total_cost_usd === 'number' ? { costUsd: ev.total_cost_usd } : {}) },
-          })
-          ended = true
-          break
-        }
-      }
-      return out
-    },
-    exit(code, stderr) {
-      if (ended) return []
-      const msg = stderr.trim().split('\n').slice(-3).join(' ') || `${name} exited with code ${code}`
-      return [{ type: 'error', message: clip(msg, 500), code: AUTH_FAILED.test(msg) ? 'expired' : 'harness' }, { type: 'end', ok: false }]
-    },
-  }
-}
