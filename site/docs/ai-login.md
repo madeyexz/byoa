@@ -45,11 +45,12 @@ Diagram: The sign-in sandbox, from connectLogin to the signed-in state
 9. Keep the login. storedLogin: byoa encrypts the files into `ailogin/<user>/<h>`. cliLogin: they stay in the volume.
 10. Destroy the sandbox. The state is 'signed-in'. This is the end. `login/<user>/<h>`. Login files: no login files.
 
-- **The user closes the sign-in.** Call `agents.cancelLogin(user, harness)`. byoa destroys the sign-in sandbox at once. Nothing happens when no sign-in runs. `signOut` and a new `connectLogin` for the same user and harness also end an unfinished sign-in.
+- **The user closes the sign-in.** Call `agents.cancelLogin(user, harness)`. byoa destroys the sign-in sandbox at once, also when `connectLogin` is still starting it: that `connectLogin` then destroys its sandbox and throws "the sign-in was cancelled". Nothing happens when no sign-in runs. `signOut` and a new `connectLogin` for the same user and harness also end an unfinished sign-in, so one user and harness has one sign-in at most.
+- **A `signOut` or `cancelLogin` while `finishLogin` saves the login wins.** `finishLogin` saves the login and the state only while its sign-in is still the one in progress; otherwise it answers the state with the error "the sign-in was cancelled". With `storedLogin()`, a login that `finishLogin` saved just before the cancel is put back as it was (a backend that dies in between may leave it); with `cliLogin`, the login that the CLI wrote stays in the volume. A sign-in sandbox that the provider could not destroy stays named in the sign-in's entry, so the next `cancelLogin` or `signOut` destroys it. `finishLogin` right after `connectLogin`, while its sandbox still starts, answers `pending`.
 - **Your app stops calling `finishLogin`** (the user left, or your backend died). On E2B and Daytona, the provider ends the sandbox 2 minutes after the last check-in, with any login files in it. Instabox cannot change a sandbox's time after it starts, so there an unfinished sign-in ends after 15 minutes, unless you call `cancelLogin`.
 - `finishLogin` after the sandbox is gone, or after 15 minutes, answers "the sign-in ran out; start it again".
 - The to-do example's `page.html` checks in, and sends `cancelLogin` when the user closes the sign-in or the page.
-- The state (`agents.loginState(user, h)`) is `signed-in`, `signed-out` or `expired`, with no token in it.
+- The state (`agents.loginState(user, h)`) is `signed-in`, `signed-out` or `expired`, with no token in it. With `storedLogin()`, it is `signed-out` whenever no login is stored.
 
 ## Where the login stays between jobs
 
