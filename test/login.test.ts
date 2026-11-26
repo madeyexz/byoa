@@ -335,6 +335,65 @@ test('R1.7: cancelLogin ends a sign-in and its sandbox at once; signOut does too
   assert.equal(running(sandbox), 0)
 })
 
+test('R1.7: a cancelLogin while connectLogin creates its sandbox ends that sandbox', async () => {
+  // spec/tla/SignIn.tla found it: cancelLogin found no sign-in yet, and connectLogin went on with its sandbox
+  const { agents, sandbox } = await app()
+  const create = sandbox.create
+  let cancelled = false
+  sandbox.create = async (o) => {
+    const s = await create(o)
+    if (o?.labels?.['byoa-login'] && !cancelled) { cancelled = true; await agents.cancelLogin('ida', 'claude') }
+    return s
+  }
+  const r = await agents.connectLogin('ida', 'claude').then((v) => v, (e: Error) => e)
+  assert.ok(cancelled)
+  assert.equal(running(sandbox), 0, 'the sign-in sandbox is gone once connectLogin returns')
+  assert.match((r as Error).message, /cancelled/)
+  assert.deepEqual(await agents.finishLogin('ida', 'claude'), { state: 'signed-out', error: 'no sign-in is in progress' })
+})
+
+test('R1.7: two connectLogin at once leave one sign-in, and cancelLogin ends it and both sandboxes', async () => {
+  // spec/tla/SignIn.tla found it: the second connectLogin's entry hid the first one's sandbox from cancelLogin
+  const { agents, sandbox } = await app()
+  const create = sandbox.create
+  let second: Promise<unknown> | undefined
+  sandbox.create = async (o) => {
+    const s = await create(o)
+    if (o?.labels?.['byoa-login'] && !second) { second = agents.connectLogin('uma', 'claude'); await second }
+    return s
+  }
+  const first = await agents.connectLogin('uma', 'claude').then((v) => v, (e: Error) => e)
+  assert.equal(typeof (await second as { url: string }).url, 'string', 'the second connectLogin shows its page')
+  await agents.cancelLogin('uma', 'claude')
+  assert.equal(running(sandbox), 0, `no sign-in sandbox after cancelLogin (the first connectLogin: ${first instanceof Error ? first.message : 'returned'})`)
+})
+
+for (const login of ['storedLogin', 'cliLogin'] as const) {
+  test(`R1.6: a signOut while finishLogin saves the login wins (${login})`, async () => {
+    // spec/tla/SignIn.tla found it: finishLogin read the login, signOut ran, and then finishLogin saved it
+    const a = await testApp({ env, ...(login === 'cliLogin' ? { login: cliLogin } : {}) }); closers.push(a.close)
+    await a.agents.connectLogin('ola', 'claude')
+    const resume = a.sandbox.resume
+    let out = false
+    a.sandbox.resume = async (id, o) => {
+      const s = await resume(id, o)
+      // finishLogin found the CLI's login in this sandbox (cliLogin), or read it to save it (storedLogin): signOut runs
+      // to its end before finishLogin goes on
+      const run = s.run.bind(s), readFile = s.readFile!.bind(s)
+      const signOut = async () => { if (!out) { out = true; await a.agents.signOut('ola', 'claude') } }
+      s.run = async (cmd, ro) => { const r = await run(cmd, ro); if (login === 'cliLogin' && cmd.startsWith('test -s ')) await signOut(); return r }
+      s.readFile = async (p) => { const r = await readFile(p); if (p.endsWith('/.claude/.claude.json')) await signOut(); return r }
+      return s
+    }
+    await a.agents.finishLogin('ola', 'claude', { code: 'good-code' })
+    assert.ok(out)
+    assert.equal(await a.agents.loginState('ola', 'claude'), 'signed-out', 'signed out after signOut returned')
+    assert.equal((await collect(a.agents.run('ola', { harness: 'claude', task: 'cred' })))[0]!.type, 'error', 'no job runs with the login')
+    assert.ok(!(await Promise.all(a.store.keys().filter((k) => k.startsWith('ailogin/')).map((k) => a.store.get(k)))).some((e) => e?.value), 'no login stored')
+    assert.equal(running(a.sandbox), 0)
+  })
+}
+
 test('R5.7: a job runs the model and effort it names, else the app\'s default for the harness', async () => {
   const a = await testApp({ env, models: { claude: { model: 'opus' }, codex: { model: 'gpt-6.2-sol', effort: 'high' } } }); closers.push(a.close)
   for (const h of ['claude', 'codex'] as const) {

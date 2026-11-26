@@ -73,11 +73,12 @@ nodes:
     text: "`login/<user>/<h>`"
 ```
 
-- **The user closes the sign-in.** Call `agents.cancelLogin(user, harness)`. byoa destroys the sign-in sandbox at once. Nothing happens when no sign-in runs. `signOut` and a new `connectLogin` for the same user and harness also end an unfinished sign-in.
+- **The user closes the sign-in.** Call `agents.cancelLogin(user, harness)`. byoa destroys the sign-in sandbox at once, also when `connectLogin` is still starting it: that `connectLogin` then destroys its sandbox and throws "the sign-in was cancelled". Nothing happens when no sign-in runs. `signOut` and a new `connectLogin` for the same user and harness also end an unfinished sign-in, so one user and harness has one sign-in at most.
+- **A `signOut` or `cancelLogin` while `finishLogin` saves the login wins.** `finishLogin` saves the login and the state only while its sign-in is still the one in progress; otherwise it answers the state with the error "the sign-in was cancelled", and no login stays. `finishLogin` right after `connectLogin`, while its sandbox still starts, answers `pending`.
 - **Your app stops calling `finishLogin`** (the user left, or your backend died). On E2B and Daytona, the provider ends the sandbox 2 minutes after the last check-in, with any login files in it. Instabox cannot change a sandbox's time after it starts, so there an unfinished sign-in ends after 15 minutes, unless you call `cancelLogin`.
 - `finishLogin` after the sandbox is gone, or after 15 minutes, answers "the sign-in ran out; start it again".
 - The to-do example's `page.html` checks in, and sends `cancelLogin` when the user closes the sign-in or the page.
-- The state (`agents.loginState(user, h)`) is `signed-in`, `signed-out` or `expired`, with no token in it.
+- The state (`agents.loginState(user, h)`) is `signed-in`, `signed-out` or `expired`, with no token in it. With `storedLogin()`, it is `signed-out` whenever no login is stored.
 
 ## Where the login stays between jobs
 
