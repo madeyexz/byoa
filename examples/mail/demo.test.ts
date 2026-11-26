@@ -81,7 +81,11 @@ test("sign-out and Delete my data wait for the visitor's job, then delete only t
   const rows = (table: string, visitor: string) => t.run(async (ctx: any) => (await ctx.db.query(table).collect()).filter((r: any) => r.visitor === visitor).length)
   const logins = (visitor: string) => t.action(api.agents.logins, { visitor })
   await t.run(async (ctx: any) => {
-    for (const k of [`login/${A}/claude`, `login/${A}/codex`, `login/${B}/claude`]) await ctx.db.insert('byoa', { key: k, value: 'signed-in', n: 1 })
+    // a signed-in login is a stored login (ailogin/) and its state (login/)
+    for (const k of [`${A}/claude`, `${A}/codex`, `${B}/claude`]) {
+      await ctx.db.insert('byoa', { key: `ailogin/${k}`, value: 'sealed login files', n: 1 })
+      await ctx.db.insert('byoa', { key: `login/${k}`, value: 'signed-in', n: 1 })
+    }
   })
   for (const v of [A, B]) {
     await t.mutation(api.demo.touch, { visitor: v })
