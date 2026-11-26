@@ -65,7 +65,7 @@ import { postgresStore } from '@madeyexz/byoa/store/postgres'
 
 const agents = createAgents({
   app: 'myapp',                                    // one app's AI logins are only this app's
-  sandbox: e2b({ apiKey }),
+  sandbox: e2b(),                                  // reads your E2B API key from E2B_API_KEY
   store: postgresStore({ query: (sql, args) => pool.query(sql, args) }),
   encryptionKey,                                   // openssl rand -base64 32; grants and AI logins are encrypted with it
   proxyUrl: 'https://myapp.example.com/byoa/mcp',  // serve agents.proxy here
