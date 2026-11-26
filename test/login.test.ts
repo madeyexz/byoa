@@ -966,3 +966,28 @@ test('R1.9: a used-up plan holds until its latest reset, also when a job keeps a
     assert.equal((await limits.get('sia', 'opencode-go'))!.until, week + 1 + 15 * 60_000)
   } finally { clock.now = real }
 })
+
+// A lost answer of the login lease's cas (spec/tla/Store.tla, as for the slot): the store wrote the lease, and the job
+// got an error. The job must still hold the login, or give the lease back: else a lease held alone blocks every job of
+// the user and harness for the job timeout + 5 minutes.
+test('R1.4 / R6: a lease of the login that the store wrote but whose answer was lost is the job\'s', async () => {
+  const { randomBytes } = await import('node:crypto')
+  const { storedLogin } = await import('../src/index.ts')
+  const own = memoryStore()
+  let armed = false
+  const store: typeof own = Object.assign(Object.create(own), {
+    async cas(key: string, version: string | null, value: string) {
+      const wrote = await own.cas(key, version, value)
+      if (armed && wrote && key.startsWith('ailoginlease/')) { armed = false; throw new Error('connection reset') }
+      return wrote
+    },
+  })
+  const a = await testApp({ env, login: storedLogin({ store, encryptionKey: randomBytes(32).toString('base64'), parallel: false }), waitMs: 3_000 }); closers.push(a.close)
+  await a.agents.connectLogin('lou', 'codex')
+  assert.deepEqual(await a.agents.finishLogin('lou', 'codex', { waitMs: 10_000 }), { state: 'signed-in' })
+  armed = true
+  const ev = await collect(a.agents.run('lou', { harness: 'codex', task: 'cred' }))
+  const lease = JSON.parse((await own.get('ailoginlease/lou/codex'))!.value)
+  assert.deepEqual([lease.alone, Object.keys(lease.shared ?? {})], [undefined, []], `the job gave the login back; its events: ${JSON.stringify(ev.filter((e) => e.type === 'error'))}`)
+  assert.deepEqual(ev.at(-1), { type: 'end', ok: true, result: 'cred: lab-secret-codex', usage: { input: 0, output: 0, cached: 0 } })
+})
