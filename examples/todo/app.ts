@@ -1,9 +1,11 @@
 // The to-do app's backend, as one fetch handler. Everything the app does with byoa is in this file: the sign-in to
-// the user's own Claude, ChatGPT or Grok plan (or the key of their OpenCode Go plan), the MCP connections, and the agent job.
+// the user's own Claude, ChatGPT or Grok plan (or the key of their OpenCode Go plan), the app's own tools, the chat
+// with the agent, and the messages the user sends while the agent works.
+import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { DatabaseSync } from 'node:sqlite'
-import { createAgents, type AgentEvent, type HarnessName, type RunHarness, type SandboxProvider } from '@madeyexz/byoa'
-import { sqliteStore, todoList, todoMcp } from './todos.ts'
+import { createAgents, type HarnessName, type Job, type RunHarness, type SandboxProvider } from '@madeyexz/byoa'
+import { sqliteStore, todoList, todoTools } from './todos.ts'
 
 const AGENTS_MD = `# To-do assistant
 
@@ -17,8 +19,6 @@ export interface TodoAppOptions {
   sandbox: SandboxProvider
   /** Where browsers and sandboxes reach this app, such as https://todo.example.com. */
   publicUrl: string
-  /** Where this backend reaches itself. Default: publicUrl. */
-  localUrl?: string
   encryptionKey: string
   /** Lets a job use byoa's fake harness, which runs no model (for tests and demos). */
   fake?: boolean
@@ -35,8 +35,13 @@ export function todoApp(o: TodoAppOptions): (req: Request) => Promise<Response> 
     encryptionKey: o.encryptionKey,
     proxyUrl: `${o.publicUrl}/byoa/mcp`,
     oauth: { redirectUrl: `${o.publicUrl}/byoa/callback`, clientName: 'byoa to-do example' },
+    // the app's own tools, as functions: the proxy serves them at <proxyUrl>/todos for the user of each job, so
+    // nobody connects them
+    tools: { todos: todoTools(todos) },
   })
   const harnesses: RunHarness[] = [...LABS, ...(o.fake ? ['fake' as const] : [])]
+  /** The jobs that run now, by the user and the job's id, so the page can send them more messages. */
+  const running = new Map<string, Job>()
 
   async function api(user: string, route: string, b: any): Promise<Response> {
     switch (route) {
@@ -59,17 +64,31 @@ export function todoApp(o: TodoAppOptions): (req: Request) => Promise<Response> 
       case 'POST /api/key': return json(await agents.connectKey(user, 'opencode-go', String(b.key ?? '')))
       case 'POST /api/key/remove': return json(await agents.signOut(user, 'opencode-go') ?? {})
       case 'GET /api/models': return json(await agents.listModels(user, 'opencode-go'))
-      // One time per user: the app's own to-do server with this user's token, or any MCP server with its own sign-in.
-      case 'POST /api/connect': return json(b.url
-        ? await agents.connectMcp(user, String(b.url), { name: String(b.name) })
-        : await agents.connectMcp(user, `${o.localUrl ?? o.publicUrl}/mcp`, { name: 'todos', bearer: todos.tokenFor(user) }))
+      // One time per user: another MCP server, such as Notion, with its own sign-in page. The to-dos need none.
+      case 'POST /api/connect': return json(await agents.connectMcp(user, String(b.url ?? ''), { name: String(b.name ?? '') }))
       case 'POST /api/ask': {
         if (!harnesses.includes(b.harness)) throw new Error(`harness: one of ${harnesses.join(', ')}`)
-        const mcp = (await agents.listMcp(user)).map((g) => g.name)
+        const mcp = ['todos', ...(await agents.listMcp(user)).map((g) => g.name)]
         // with plan 'opencode-go', the harness runs on the user's Go key, with a model of that plan
         const go = b.plan === 'opencode-go' ? { plan: 'opencode-go' as const, model: String(b.model ?? '') || undefined } : {}
-        return ndjson(agents.run(user, { harness: b.harness, task: String(b.task ?? ''), mcp, setup: { agentsMd: AGENTS_MD }, ...go }))
+        // `chat`: the page's id of the chat. Each job of it continues the agent's own session, so a follow-up such as
+        // "now the same for tomorrow" works. `read-only`: the agent only calls its tools and reads files.
+        const job = agents.run(user, {
+          harness: b.harness, task: String(b.task ?? ''), mcp, setup: { agentsMd: AGENTS_MD }, access: 'read-only',
+          ...(b.chat ? { conversation: String(b.chat) } : {}), ...go,
+        })
+        const id = randomUUID()
+        running.set(`${user}/${id}`, job)
+        return ndjson(job, () => running.delete(`${user}/${id}`), { 'x-job': id })
       }
+      // One more message to a job that runs now (steering): the agent takes it while it works. False when the job
+      // ended (then the page asks again, as the next job of the chat) or with the fake harness.
+      case 'POST /api/ask/send': {
+        const job = running.get(`${user}/${String(b.job ?? '')}`)
+        return json({ sent: job ? await job.send(String(b.text ?? '')) : false })
+      }
+      // A new chat: byoa deletes the old one's sessions, stored transcripts and kept sandboxes.
+      case 'POST /api/chat/delete': return json(await agents.deleteConversation(user, String(b.chat ?? '')) ?? {})
     }
     return json({ error: 'not found' }, 404)
   }
@@ -82,10 +101,6 @@ export function todoApp(o: TodoAppOptions): (req: Request) => Promise<Response> 
         const p = url.searchParams
         await agents.finishMcp({ state: p.get('state') ?? '', code: p.get('code') ?? undefined, error: p.get('error') ?? undefined })
         return Response.redirect(`${o.publicUrl}/`, 302)
-      }
-      if (url.pathname === '/mcp') {
-        const user = todos.userOf(/^Bearer (\S+)$/.exec(req.headers.get('authorization') ?? '')?.[1] ?? '')
-        return user ? await todoMcp(req, todos, user) : json({ error: 'unauthorized' }, 401)
       }
       if (url.pathname === '/') return new Response(PAGE, { headers: { 'content-type': 'text/html; charset=utf-8' } })
       // A stand-in for the app's own sign-in: the page sends the user's name. A real app reads its session here.
@@ -109,14 +124,14 @@ function plan(h: unknown): HarnessName {
 const json = (body: unknown, status = 200) => Response.json(body, { status })
 
 /** byoa's events, one JSON object per line, as they come. A browser that goes away ends the job. */
-function ndjson(events: AsyncGenerator<AgentEvent>): Response {
+function ndjson(job: Job, done: () => void, headers: Record<string, string>): Response {
   const enc = new TextEncoder()
   return new Response(new ReadableStream({
     async pull(c) {
-      const n = await events.next()
-      if (n.done) c.close()
+      const n = await job.next()
+      if (n.done) { done(); c.close() }
       else c.enqueue(enc.encode(JSON.stringify(n.value) + '\n'))
     },
-    async cancel() { await events.return(undefined) },
-  }), { headers: { 'content-type': 'application/x-ndjson' } })
+    async cancel() { done(); await job.return(undefined) },
+  }), { headers: { 'content-type': 'application/x-ndjson', ...headers } })
 }

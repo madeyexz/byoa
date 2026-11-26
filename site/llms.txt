@@ -46,7 +46,7 @@ bun add @madeyexz/byoa
 
 ## Example
 
-- [examples/todo](https://raw.githubusercontent.com/madeyexz/byoa/main/examples/todo/README.md): an AI-native to-do list on byoa; its backend uses byoa in 35 lines
+- [examples/todo](https://raw.githubusercontent.com/madeyexz/byoa/main/examples/todo/README.md): an AI-native to-do list on byoa, with a chat; its backend uses byoa in 49 lines
 - [examples/todo/app.ts](https://raw.githubusercontent.com/madeyexz/byoa/main/examples/todo/app.ts): all of the example's byoa code, as one fetch handler
 
 ## Agent skill

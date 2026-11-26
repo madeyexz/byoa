@@ -1,26 +1,16 @@
-// The app's own data and its own MCP server. Nothing here knows about byoa except the Store interface, which
-// sqliteStore implements in 20 lines, so byoa keeps its state in this app's own database (R6.1).
+// The app's own data and its own tools. Nothing here knows about byoa except two of its types: the Store interface,
+// which sqliteStore implements in 20 lines, so byoa keeps its state in this app's own database (R6.1), and AppTool,
+// so the agent calls the to-do functions below as the tools of an MCP server that byoa serves (R2.7).
 import { randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
-import type { Store } from '@madeyexz/byoa'
-import { z } from 'zod'
+import type { AppTool, Store } from '@madeyexz/byoa'
 
 export interface Todo { id: number; title: string; done: boolean }
 export type Todos = ReturnType<typeof todoList>
 
 export function todoList(db: DatabaseSync) {
   db.exec('create table if not exists todos (id integer primary key, user text not null, title text not null, done integer not null default 0)')
-  db.exec('create table if not exists tokens (token text primary key, user text not null unique)')
   return {
-    /** The user's token for the app's own MCP server. byoa keeps it as that user's grant and puts it on each call
-     *  at the proxy; the sandbox never sees it. */
-    tokenFor: (user: string): string => {
-      db.prepare('insert or ignore into tokens values (?, ?)').run(`todo_${randomUUID()}`, user)
-      return String((db.prepare('select token from tokens where user = ?').get(user) as { token: string }).token)
-    },
-    userOf: (token: string) => (db.prepare('select user from tokens where token = ?').get(token) as { user: string } | undefined)?.user,
     list: (user: string): Todo[] => db.prepare('select id, title, done from todos where user = ? order by id').all(user)
       .map((r: any) => ({ id: Number(r.id), title: String(r.title), done: r.done === 1 })),
     add: (user: string, title: string): Todo => {
@@ -54,18 +44,33 @@ export function sqliteStore(db: DatabaseSync): Store {
   }
 }
 
-/** The to-do tools the agent uses, as an MCP server for one user (a fetch handler, stateless). */
-export async function todoMcp(req: Request, todos: Todos, user: string): Promise<Response> {
-  const s = new McpServer({ name: 'todos', version: '1.0.0' })
-  const show = (x: unknown, isError = false) => ({ content: [{ type: 'text' as const, text: JSON.stringify(x) }], isError })
-  s.registerTool('list_todos', { description: "List the user's to-dos: id, title, done." }, async () => show(todos.list(user)))
-  s.registerTool('add_todo', { description: 'Add a to-do.', inputSchema: { title: z.string().min(1) } },
-    async ({ title }) => show(todos.add(user, title)))
-  s.registerTool('complete_todo', { description: 'Mark a to-do done (or, with done: false, not done).', inputSchema: { id: z.number().int(), done: z.boolean().default(true) } },
-    async ({ id, done }) => todos.setDone(user, id, done) ? show(todos.list(user).find((t) => t.id === id)) : show(`no to-do ${id}`, true))
-  s.registerTool('delete_todo', { description: 'Delete a to-do.', inputSchema: { id: z.number().int() } },
-    async ({ id }) => todos.remove(user, id) ? show(`deleted ${id}`) : show(`no to-do ${id}`, true))
-  const t = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true })
-  await s.connect(t)
-  return t.handleRequest(req)
+/** The to-do tools the agent uses. byoa gives `run` the user of the job, from the job token, so a tool never takes
+ *  the user from its arguments. byoa does not check the arguments against `input`: each tool checks its own. */
+export function todoTools(todos: Todos): Record<string, AppTool> {
+  const id = (v: unknown) => { if (!Number.isInteger(v)) throw new Error('id: a whole number'); return v as number }
+  const ID = { type: 'object', properties: { id: { type: 'integer' } }, required: ['id'] }
+  return {
+    list_todos: { description: "List the user's to-dos: id, title, done.", run: (_, { user }) => todos.list(user) },
+    add_todo: {
+      description: 'Add a to-do.',
+      input: { type: 'object', properties: { title: { type: 'string', minLength: 1 } }, required: ['title'] },
+      run: ({ title }, { user }) => {
+        if (typeof title !== 'string' || !title.trim()) throw new Error('title: a text that is not empty')
+        return todos.add(user, title)
+      },
+    },
+    complete_todo: {
+      description: 'Mark a to-do done (or, with done: false, not done).',
+      input: { type: 'object', properties: { ...ID.properties, done: { type: 'boolean', default: true } }, required: ['id'] },
+      run: (a, { user }) => {
+        if (!todos.setDone(user, id(a.id), a.done !== false)) throw new Error(`no to-do ${a.id}`)
+        return todos.list(user).find((t) => t.id === a.id)
+      },
+    },
+    delete_todo: {
+      description: 'Delete a to-do.',
+      input: ID,
+      run: (a, { user }) => { if (!todos.remove(user, id(a.id))) throw new Error(`no to-do ${a.id}`); return `deleted ${a.id}` },
+    },
+  }
 }

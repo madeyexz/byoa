@@ -427,7 +427,7 @@ ${groups.map((g) => `## ${g.name}\n\n${g.pages.map((p) => `- [${p.title}](${SITE
 
 ## Example
 
-- [examples/todo](${RAW}examples/todo/README.md): an AI-native to-do list on byoa; its backend uses byoa in 35 lines
+- [examples/todo](${RAW}examples/todo/README.md): an AI-native to-do list on byoa, with a chat; its backend uses byoa in 49 lines
 - [examples/todo/app.ts](${RAW}examples/todo/app.ts): all of the example's byoa code, as one fetch handler
 
 ## Agent skill

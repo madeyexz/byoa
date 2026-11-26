@@ -81,7 +81,7 @@ for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['n
 }
 ```
 
-[Getting started](https://byoa.rippling.computer/docs/getting-started) has each step, and the routes your app serves. The [to-do example](examples/todo) uses byoa in 39 lines.
+[Getting started](https://byoa.rippling.computer/docs/getting-started) has each step, and the routes your app serves. The [to-do example](examples/todo), a chat with the agent, uses byoa in 49 lines.
 
 ## Agent skill
 

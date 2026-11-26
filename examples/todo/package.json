@@ -12,9 +12,7 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.32.2",
-    "@madeyexz/byoa": "file:../..",
-    "zod": "^4.0.0"
+    "@madeyexz/byoa": "file:../.."
   },
   "optionalDependencies": {
     "@daytona/sdk": "^2.1.0",

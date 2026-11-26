@@ -4,48 +4,200 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI to-do list · byoa example</title>
 <style>
-  body { font: 15px/1.5 system-ui, sans-serif; max-width: 680px; margin: 2rem auto; padding: 0 1rem; color: #222; }
-  h1 { font-size: 1.4rem; margin-bottom: .2rem } h2 { font-size: 1rem; margin: 1.6rem 0 .4rem }
-  .muted { color: #777 } .ok { color: #187a3a } .bad { color: #b3261e } .plan { width: 9.5rem; white-space: nowrap }
-  .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin: .35rem 0 }
-  input, select, textarea, button { font: inherit }
-  input, select, textarea { padding: .35rem .5rem; border: 1px solid #ccc; border-radius: 6px; background: #fff }
-  textarea { width: 100%; box-sizing: border-box }
-  button { padding: .35rem .8rem; border: 1px solid #222; border-radius: 6px; background: #222; color: #fff; cursor: pointer }
-  button.quiet { background: #fff; color: #222 } button:disabled { opacity: .5; cursor: default }
-  ul#todos { list-style: none; padding: 0 } ul#todos li { padding: .35rem 0; border-bottom: 1px solid #eee }
-  li.done { color: #999; text-decoration: line-through }
-  pre#log { background: #f6f6f6; padding: .6rem .8rem; border-radius: 6px; white-space: pre-wrap; font-size: 13px; max-height: 320px; overflow: auto }
+  /* Type: SF Pro (the system font on Apple devices; Inter or the system's own elsewhere), 400 and 500, at 12, 13, 14
+     and 24 px, -0.15px letter spacing. Text: #292929, #5D5D5D, #9E9E9E. Radii: 8px navigation and inputs, 16px
+     cards, pill buttons. Icons: 14px in the top bar, buttons and rows, 20px in card headers. */
+  :root { --t1: #292929; --t2: #5D5D5D; --t3: #9E9E9E; --line: #EBEBEB; --bg: #FAFAFA; --soft: #F2F2F2; --ok: #16A34A; --warn: #D97706; --bad: #DC2626 }
+  * { box-sizing: border-box }
+  body { margin: 0; background: var(--bg); color: var(--t1); font: 400 14px/20px -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; letter-spacing: -0.15px; -webkit-font-smoothing: antialiased }
+  button, input, select, textarea { font: inherit; letter-spacing: inherit; color: inherit }
+  b, strong { font-weight: 500 }
+  p { margin: 0 }
+  svg.i { flex: none; display: block }
+  .muted { color: var(--t2); font-size: 13px } .faint { color: var(--t3); font-size: 12px }
+  .mono { font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; letter-spacing: 0 }
+  .link { color: var(--t1); text-decoration: underline; text-decoration-color: var(--t3); text-underline-offset: 3px }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap } .grow { flex: 1; min-width: 0 }
+
+  /* top bar */
+  nav { position: sticky; top: 0; z-index: 5; height: 56px; display: flex; align-items: center; gap: 4px; padding: 0 24px; background: rgba(255, 255, 255, .85); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line) }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 500; margin-right: auto; white-space: nowrap }
+  .logo { width: 28px; height: 28px; border-radius: 8px; background: var(--t1); color: #fff; display: grid; place-items: center }
+  .tag { font-size: 12px; font-weight: 400; color: var(--t2); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; line-height: 20px }
+  .navlink { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 8px; color: var(--t2); text-decoration: none; font-size: 13px }
+  .navlink:hover { background: var(--soft); color: var(--t1) }
+  .whoami { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 4px 0 10px; margin-right: 8px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--t3) }
+  .whoami:focus-within { border-color: var(--t3); box-shadow: 0 0 0 3px rgba(41, 41, 41, .08) }
+  .whoami input { border: 0; outline: 0; width: 132px; height: 30px; font-size: 13px; background: transparent; color: var(--t1) }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 32px 24px 64px }
+  h1 { font-size: 24px; line-height: 32px; font-weight: 500; margin: 0 }
+  header .muted { font-size: 14px; margin-top: 4px }
+  header .faint { margin-top: 8px }
+  .grid { display: grid; gap: 16px; margin-top: 24px; grid-template-columns: minmax(0, 1fr) 360px; grid-template-areas: "chat side"; align-items: start }
+  .side { grid-area: side; display: flex; flex-direction: column; gap: 16px }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "plans" "chat" "todos" "tools" } .side { display: contents } }
+
+  /* cards */
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 1px 2px rgba(0, 0, 0, .04) }
+  .head { display: flex; gap: 12px; align-items: flex-start; padding: 16px 20px }
+  .head > .i { margin-top: 0 }
+  .head .title { font-weight: 500 } .head .muted { margin-top: 2px }
+  .body { padding: 0 20px 20px }
+
+  /* controls */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--t1); font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; text-decoration: none; transition: background .15s, border-color .15s, opacity .15s }
+  .btn:hover { background: var(--soft) }
+  .btn.primary { background: var(--t1); border-color: var(--t1); color: #fff } .btn.primary:hover { background: #000 }
+  .btn.sm { height: 28px; padding: 0 12px }
+  .btn.ghost { border-color: transparent; background: transparent; color: var(--t2) } .btn.ghost:hover { background: var(--soft); color: var(--t1) }
+  .btn:disabled { opacity: .5; cursor: default } .btn:disabled:hover { background: #fff } .btn.primary:disabled:hover { background: var(--t1) }
+  .btn:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(41, 41, 41, .16) }
+  .input { height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 14px; min-width: 0 }
+  .input:focus { border-color: var(--t3); outline: 0; box-shadow: 0 0 0 3px rgba(41, 41, 41, .08) }
+  .input::placeholder, textarea::placeholder { color: var(--t3) }
+  select.input { appearance: none; height: 28px; font-size: 13px; padding: 0 28px 0 10px; cursor: pointer; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235D5D5D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center }
+  select.input:disabled { opacity: .5; cursor: default }
+  .badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--t2); white-space: nowrap; background: #fff }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--t3) }
+  .dot.ok { background: var(--ok) } .dot.warn { background: var(--warn) } .dot.bad { background: var(--bad) }
+  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--t2); border-radius: 50%; animation: spin .8s linear infinite; flex: none }
+  @keyframes spin { to { transform: rotate(360deg) } }
+
+  /* plans */
+  .plan { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 0; border-top: 1px solid var(--line) }
+  .plan:first-child { border-top: 0; padding-top: 0 }
+  .plan-name { flex: 1; min-width: 0; font-weight: 500 } .plan-name .faint { display: block; font-weight: 400 }
+  .keyform { flex-basis: 100%; display: flex; gap: 8px; align-items: center }
+  .keyform .input { flex: 1 1 0; width: 0; height: 28px; font-size: 13px }
+  .panel { display: grid; gap: 10px; margin-top: 12px; padding: 12px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); font-size: 13px; color: var(--t2) }
+  .panel.error { color: var(--bad) }
+  .code { font: 500 14px/20px ui-monospace, "SF Mono", Menlo, monospace; color: var(--t1); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px }
+
+  /* chat */
+  .chat { grid-area: chat; display: flex; flex-direction: column; min-height: 640px }
+  .chat .head { border-bottom: 1px solid var(--line) }
+  #log { flex: 1; min-height: 360px; max-height: 620px; overflow: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px }
+  .empty { margin: auto; display: grid; justify-items: center; gap: 8px; text-align: center; color: var(--t3); font-size: 13px; max-width: 300px }
+  .empty b { color: var(--t1) }
+  .msg { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 85% }
+  .msg.user { align-self: flex-end; background: var(--soft); padding: 8px 12px; border-radius: 16px }
+  .meta { align-self: stretch; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--t3) }
+  .meta.sep::before, .meta.sep::after { content: ''; flex: 1; height: 1px; background: var(--line) }
+  .tool { align-self: stretch; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--t2); background: #fff }
+  .tool .name { font-weight: 500; color: var(--t1) }
+  .tool .args { flex: 1; min-width: 0; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .tool .ok { color: var(--ok) } .tool .bad { color: var(--bad) }
+  .tool .out { flex-basis: 100%; padding-left: 22px; color: var(--t2); white-space: pre-wrap; overflow-wrap: anywhere }
+  .error { display: flex; gap: 8px; align-items: flex-start; color: var(--bad); font-size: 13px }
+  .error .i { margin-top: 3px }
+  form.composer { margin: 0 20px; border: 1px solid var(--line); border-radius: 16px; padding: 10px 10px 10px 14px; background: #fff; transition: border-color .15s, box-shadow .15s }
+  form.composer:focus-within { border-color: var(--t3); box-shadow: 0 0 0 3px rgba(41, 41, 41, .06) }
+  .composer textarea { display: block; width: 100%; border: 0; outline: 0; resize: none; font-size: 14px; line-height: 20px; padding: 2px 0; min-height: 44px; background: transparent }
+  .composer .row { margin-top: 6px; flex-wrap: nowrap }
+  #hint { padding: 8px 20px 16px 34px }
+
+  /* to-dos and tools */
+  .todos { grid-area: todos } .plans { grid-area: plans } .tools { grid-area: tools }
+  ul#todos { list-style: none; margin: 0; padding: 0 }
+  ul#todos li { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line) }
+  ul#todos li:first-child { border-top: 0; padding-top: 0 }
+  .check { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--t3); display: grid; place-items: center; flex: none }
+  li.done .check { background: var(--t1); border-color: var(--t1) }
+  li.done .check::after { content: ''; width: 3px; height: 7px; border: solid #fff; border-width: 0 1.5px 1.5px 0; transform: translateY(-1px) rotate(45deg) }
+  li.done .title { color: var(--t3); text-decoration: line-through }
+  #servers { margin-bottom: 12px }
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 10; max-width: min(560px, calc(100% - 32px)); background: var(--t1); color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, .16) }
+  /* narrow screens */
+  @media (max-width: 600px) {
+    nav { padding: 0 16px } .tag, .navlink span { display: none } .whoami input { width: 96px } .navlink { padding: 0 9px }
+    main { padding: 24px 16px 48px }
+  }
 </style>
 <body>
-<h1>AI to-do list</h1>
-<p class="muted">An example app on <a href="https://github.com/madeyexz/byoa">byoa</a>: your own Claude Code, Codex or Grok Build, on your own plan, manages your to-dos.</p>
-<div class="row">You are <input id="user" placeholder="your name" size="14"> <span class="muted">(a stand-in for the app's own sign-in)</span></div>
+<nav>
+  <div class="brand"><span class="logo" data-icon="checks"></span>AI to-do list <span class="tag">byoa example</span></div>
+  <label class="whoami" title="A stand-in for the app's own sign-in" data-icon="user"><input id="user" placeholder="Your name" autocomplete="off"></label>
+  <a class="navlink" href="https://byoa.rippling.computer/docs" target="_blank" rel="noopener" data-icon="book" aria-label="Docs"><span>Docs</span></a>
+  <a class="navlink" href="https://github.com/madeyexz/byoa/tree/main/examples/todo" target="_blank" rel="noopener" data-icon="code" aria-label="Source"><span>Source</span></a>
+</nav>
 
-<h2>1. Sign in to your own plan</h2>
-<div id="plans"></div>
-<div id="signin"></div>
+<main>
+<header>
+  <h1>Your to-dos, with your own agent</h1>
+  <p class="muted">Your own Claude Code, Codex or Grok Build, on your own plan, manages your to-dos.</p>
+  <p class="faint">The name in the top bar stands in for the app's own sign-in: anyone can type any name.</p>
+</header>
 
-<h2>2. Connect your tools, one time</h2>
-<div class="row"><button id="connect">Connect my to-dos</button><span id="mcp" class="muted"></span></div>
-<div class="row"><input id="mcpurl" placeholder="https://mcp.notion.com/mcp" size="26"><input id="mcpname" placeholder="notion" size="8"><button class="quiet" id="other">Connect another MCP server</button></div>
+<div class="grid">
+  <section class="card chat">
+    <div class="head">
+      <span data-icon="chat" data-size="20"></span>
+      <div class="grow"><div class="title">Chat</div><p class="muted">Each message continues this chat. While the agent works, you can send it one more message.</p></div>
+      <button class="btn sm" id="newchat" data-icon="plus">New chat</button>
+    </div>
+    <div id="log"><div class="empty"><span data-icon="chat" data-size="20"></span><b>Ask the agent to change your to-dos</b>Try: Add buy milk and call mom, then mark the oldest one done.</div></div>
+    <form class="composer" id="composer">
+      <textarea id="task" rows="2" placeholder="Ask the agent…"></textarea>
+      <div class="row"><select class="input" id="harness" aria-label="Harness"></select><select class="input" id="model" aria-label="Model" hidden></select>
+        <span class="grow"></span><button class="btn primary sm" id="ask" data-icon="send"><span id="asklabel">Ask</span></button></div>
+    </form>
+    <p class="faint" id="hint"></p>
+  </section>
 
-<h2>3. Ask the agent</h2>
-<textarea id="task" rows="4" placeholder="Add 'buy milk' and 'call mom', then mark the oldest to-do done"></textarea>
-<div class="row"><select id="harness"></select><select id="model" hidden></select><button id="ask">Ask</button></div>
-<pre id="log" hidden></pre>
+  <div class="side">
+  <section class="card plans">
+    <div class="head"><span data-icon="key" data-size="20"></span><div class="grow"><div class="title">Your plan</div><p class="muted">Sign in one time. Every later job uses it.</p></div></div>
+    <div class="body"><div id="plans"></div><div id="signin"></div></div>
+  </section>
 
-<h2>Your to-dos</h2>
-<ul id="todos"></ul>
+  <section class="card todos">
+    <div class="head"><span data-icon="checks" data-size="20"></span><div class="grow"><div class="title">Your to-dos</div><p class="muted">The agent changes them with the app's own tools.</p></div><span class="badge" id="count">0 open</span></div>
+    <div class="body"><ul id="todos"></ul></div>
+  </section>
+
+  <section class="card tools">
+    <div class="head"><span data-icon="plug" data-size="20"></span><div class="grow"><div class="title">More tools</div><p class="muted">The agent always has your to-dos. Connect another MCP server one time to give it more.</p></div></div>
+    <div class="body">
+      <div class="row" id="servers"></div>
+      <div class="row"><input class="input grow" id="mcpurl" placeholder="https://mcp.notion.com/mcp"><input class="input" id="mcpname" placeholder="notion" style="width: 88px"><button class="btn sm" id="other">Connect</button></div>
+    </div>
+  </section>
+  </div>
+</div>
+</main>
+<div id="toast" role="status" hidden></div>
 
 <script>
 const $ = (id) => document.getElementById(id)
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
-const PLANS = { claude: 'Claude', codex: 'ChatGPT', grok: 'Grok', 'opencode-go': 'OpenCode Go (beta)' }
+// Icons from Lucide (ISC license), the set shadcn/ui uses
+const ICONS = {
+  checks: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  book: '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  code: '<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>',
+  chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  key: '<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>',
+  plug: '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  send: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+  tool: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  ok: '<path d="M20 6 9 17l-5-5"/>',
+  bad: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  alert: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+}
+const icon = (name, size = 14) => `<svg class="i" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`
+for (const el of document.querySelectorAll('[data-icon]')) el.insertAdjacentHTML('afterbegin', icon(el.dataset.icon, Number(el.dataset.size ?? 14)))
+
+// each plan, and the harness that runs on it
+const PLANS = { claude: ['Claude', 'Claude Code'], codex: ['ChatGPT', 'Codex'], grok: ['Grok', 'Grok Build'], 'opencode-go': ['OpenCode Go', 'Claude Code or Codex · beta'] }
 const HARNESSES = { claude: 'Claude Code', codex: 'Codex', grok: 'Grok Build', fake: 'Fake harness (no model)' }
+const STATES = { 'signed-in': ['ok', 'Signed in'], 'signed-out': ['', 'Signed out'], expired: ['warn', 'Expired'], 'no-plan': ['bad', 'No Go plan'] }
+const badge = (st) => { const [c, t] = STATES[st] ?? ['', st]; return `<span class="badge"><span class="dot ${c}"></span>${esc(t)}</span>` }
 const user = $('user')
 user.value = localStorage.user ?? ''
-user.onchange = () => { localStorage.user = user.value.trim(); refresh() }
+user.onchange = () => { localStorage.user = user.value.trim(); clearLog(); refresh().catch(fail) }
 
 async function call(method, path, body) {
   const r = await fetch(path, { method, headers: { 'x-user': user.value.trim(), 'content-type': 'application/json' }, body: body && JSON.stringify(body) })
@@ -53,26 +205,37 @@ async function call(method, path, body) {
   return r
 }
 const api = async (method, path, body) => (await call(method, path, body)).json()
-const fail = (e) => { $('signin').innerHTML = `<p class="bad">${esc(e.message)}</p>` }
+let toastTimer
+const toast = (text) => { const t = $('toast'); t.textContent = text; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true }, 6000) }
+const fail = (e) => toast(e.message)
 
 async function refresh() {
-  if (!user.value.trim()) return
+  if (!user.value.trim()) {
+    $('plans').innerHTML = '<p class="muted">Type your name in the top bar to start.</p>'
+    $('todos').innerHTML = ''
+    $('count').textContent = '0 open'
+    return
+  }
   const s = await api('GET', '/api/state')
   const typed = $('gokey')?.value ?? ''
-  $('plans').innerHTML = Object.entries(s.login).map(([h, st]) => `<div class="row"><b class="plan">${PLANS[h]}</b>
-    <span class="${st === 'signed-in' ? 'ok' : 'bad'}">${st}</span>
+  $('plans').innerHTML = Object.entries(s.login).map(([h, st]) => `<div class="plan">
+    <div class="plan-name">${PLANS[h][0]}<span class="faint">${PLANS[h][1]}</span></div>${badge(st)}
     ${h === 'opencode-go'
       // OpenCode Go has no sign-in page for apps: the user makes an API key in OpenCode's Console and pastes it here
-      ? `<input id="gokey" type="password" autocomplete="off" placeholder="oc_sk_…" size="22"><button class="quiet" data-key="save">Save key</button><a class="muted" href="https://opencode.ai/console" target="_blank" rel="noopener">make a key</a>${st === 'signed-out' ? '' : '<button class="quiet" data-key="remove">Remove key</button>'}`
-      : `<button class="quiet" data-login="${h}">${st === 'signed-in' ? 'Sign in again' : 'Sign in'}</button>`}</div>`).join('')
+      ? `${st === 'signed-out' ? '' : '<button class="btn sm ghost" data-key="remove">Remove</button>'}<div class="keyform">
+          <input id="gokey" class="input" type="password" autocomplete="off" placeholder="oc_sk_…"><button class="btn sm" data-key="save">Save key</button>
+          <a class="link faint" href="https://opencode.ai/console" target="_blank" rel="noopener">Make a key</a></div>`
+      : `<button class="btn sm" data-login="${h}">${st === 'signed-in' ? 'Sign in again' : 'Sign in'}</button>`}</div>`).join('')
   $('gokey').value = typed
-  $('mcp').textContent = s.mcp.length ? `Connected: ${s.mcp.map((m) => m.name).join(', ')}` : 'Nothing connected yet'
+  $('servers').innerHTML = ['<span class="badge"><span class="dot ok"></span>todos · built in</span>',
+    ...s.mcp.map((m) => `<span class="badge"><span class="dot ok"></span>${esc(m.name)}</span>`)].join('')
   const pick = $('harness').value
   const go = s.login['opencode-go'] === 'signed-out' ? [] : ['claude', 'codex'].map((h) => `<option value="${h}+go">${HARNESSES[h]} on OpenCode Go</option>`)
   $('harness').innerHTML = [...s.harnesses.map((h) => `<option value="${h}">${HARNESSES[h]}</option>`), ...go].join('')
   if (pick && [...$('harness').options].some((x) => x.value === pick)) $('harness').value = pick
   pickModel()
-  $('todos').innerHTML = s.todos.map((t) => `<li class="${t.done ? 'done' : ''}">${esc(t.title)}</li>`).join('')
+  $('count').textContent = `${s.todos.filter((t) => !t.done).length} open`
+  $('todos').innerHTML = s.todos.map((t) => `<li class="${t.done ? 'done' : ''}"><span class="check"></span><span class="title">${esc(t.title)}</span></li>`).join('')
     || '<li class="muted">No to-dos yet. Ask the agent to add some.</li>'
 }
 
@@ -80,50 +243,54 @@ async function refresh() {
 // the page, ends it at once (cancelLogin).
 let signingIn
 const endSignIn = () => { clearInterval(signingIn?.beat); signingIn = undefined }
-const finished = (r) => { endSignIn(); $('signin').innerHTML = r.error ? `<p class="bad">${esc(r.error)}</p>` : ''; refresh() }
+const panel = (html, cls = '') => { $('signin').innerHTML = html ? `<div class="panel ${cls}">${html}</div>` : '' }
+const finished = (r) => { endSignIn(); panel(r.error && esc(r.error), 'error'); refresh().catch(fail) }
 const cancelSignIn = () => {
   if (!signingIn) return
   const h = signingIn.h
   endSignIn()
-  $('signin').innerHTML = ''
-  refresh()
+  panel('')
+  refresh().catch(fail)
   return api('POST', '/api/login/cancel', { harness: h })
 }
 addEventListener('pagehide', () => { if (signingIn) navigator.sendBeacon(`/api/login/cancel?user=${encodeURIComponent(user.value.trim())}`, JSON.stringify({ harness: signingIn.h })) })
 $('plans').onclick = async (e) => {
-  if (e.target.dataset.key === 'save') {
+  const b = e.target.closest('button')
+  if (!b) return
+  if (b.dataset.key === 'save') {
     return api('POST', '/api/key', { key: $('gokey').value }).then((r) => {
       $('gokey').value = ''
-      $('signin').innerHTML = r.error ? `<p class="bad">${esc(r.error)}</p>` : ''
+      panel(r.error && esc(r.error), 'error')
       models = undefined
-      refresh()
+      refresh().catch(fail)
     }, fail)
   }
-  if (e.target.dataset.key === 'remove') return api('POST', '/api/key/remove', {}).then(refresh, fail)
-  const h = e.target.dataset.login
+  if (b.dataset.key === 'remove') return api('POST', '/api/key/remove', {}).then(refresh, fail)
+  const h = b.dataset.login
   if (!h) return
-  e.target.disabled = true
-  $('signin').innerHTML = '<p class="muted">Starting the sign-in…</p>'
+  b.disabled = true
+  panel('<div class="row"><span class="spin"></span>Starting the sign-in…</div>')
   try {
     const s = await api('POST', '/api/login', { harness: h })
     signingIn = { h }
-    const cancel = '<button class="quiet" id="cancel">Cancel</button>'
+    const cancel = '<button class="btn sm ghost" id="cancel">Cancel</button>'
     if (h === 'claude') {
-      $('signin').innerHTML = `<p>Open <a href="${esc(s.url)}" target="_blank" rel="noopener">Anthropic's sign-in page</a>, sign in, and paste the code it shows:</p>
-        <div class="row"><input id="code" size="40"><button id="finish">Finish</button>${cancel}</div>`
+      panel(`<p>Open <a class="link" href="${esc(s.url)}" target="_blank" rel="noopener">Anthropic's sign-in page</a>, sign in, and paste the code it shows.</p>
+        <div class="row"><input id="code" class="input grow" placeholder="Code"><button class="btn sm primary" id="finish">Finish</button>${cancel}</div>`)
       $('cancel').onclick = cancelSignIn
       // while the user is on Anthropic's page: a check-in with no code keeps the sign-in alive
       signingIn.beat = setInterval(() => api('POST', '/api/login/finish', { harness: h }).then((r) => { if (r.state !== 'pending' && signingIn?.h === h) finished(r) }, () => {}), 30_000)
       $('finish').onclick = () => api('POST', '/api/login/finish', { harness: h, code: $('code').value }).then(finished, fail)
     } else {
-      $('signin').innerHTML = `<p>Open <a href="${esc(s.url)}" target="_blank" rel="noopener">${h === 'grok' ? "xAI's" : "OpenAI's"} sign-in page</a> and enter the code <b>${esc(s.code)}</b>. Waiting for you… ${cancel}</p>`
+      panel(`<p>Open <a class="link" href="${esc(s.url)}" target="_blank" rel="noopener">${h === 'grok' ? "xAI's" : "OpenAI's"} sign-in page</a> and enter this code.</p>
+        <div class="row"><span class="code">${esc(s.code)}</span><span class="spin"></span>Waiting for you…<span class="grow"></span>${cancel}</div>`)
       $('cancel').onclick = cancelSignIn
       // each call waits up to 20 s for the user, and keeps the sign-in alive
       let r
       do r = await api('POST', '/api/login/finish', { harness: h }); while (r.state === 'pending' && signingIn?.h === h)
       if (signingIn?.h === h) finished(r)
     }
-  } catch (err) { endSignIn(); fail(err) }
+  } catch (err) { endSignIn(); panel(''); fail(err) }
 }
 
 // a job on OpenCode Go needs a model of that plan: byoa lists them from OpenCode's API, with no sandbox
@@ -135,45 +302,107 @@ async function pickModel() {
   models = await api('GET', '/api/models').catch((e) => { models = undefined; fail(e); return [] })
   $('model').innerHTML = models.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('')
 }
-$('harness').onchange = pickModel
+// each harness has its own chat: a new pick starts with an empty log
+$('harness').onchange = () => { clearLog(); pickModel() }
 
-$('connect').onclick = () => api('POST', '/api/connect', {}).then(refresh, fail)
 $('other').onclick = () => api('POST', '/api/connect', { url: $('mcpurl').value, name: $('mcpname').value })
   .then((r) => r.connected ? refresh() : (location.href = r.signInUrl), fail)
 
-const say = (e) => ({
-  start: `▶ ${HARNESSES[e.harness]} (${e.version}), in a new ${e.sandbox} sandbox`,
-  text: e.text,
-  tool_call: `→ ${e.server ? e.server + '.' : ''}${e.name} ${JSON.stringify(e.input)}`,
-  tool_result: `${e.ok ? '✓' : '✗'} ${e.output}`,
-  permission: `denied: ${e.tool}`,
-  error: `error (${e.code}): ${e.message}`,
-  end: e.ok ? `■ done${e.result ? ': ' + e.result : ''}` : '■ the job failed',
-})[e.type]
+// The chat: byoa's events, drawn as they come
+const log = $('log')
+const EMPTY = log.innerHTML
+const working = Object.assign(document.createElement('div'), { className: 'meta', innerHTML: '<span class="spin"></span>Working…' })
+const calls = new Map()
+let texts = 0
+const clearLog = () => { log.innerHTML = EMPTY }
+function add(cls, html) {
+  log.querySelector('.empty')?.remove()
+  const d = Object.assign(document.createElement('div'), { className: cls, innerHTML: html })
+  log.append(d)
+  if (working.isConnected) log.append(working)
+  log.scrollTop = log.scrollHeight
+  return d
+}
+const tokens = (u) => u ? ` · ${(u.input + u.output).toLocaleString()} tokens` : ''
+const clip = (s, n = 300) => (s.length > n ? s.slice(0, n) + '…' : s)
+function show(e) {
+  switch (e.type) {
+    case 'start':
+      calls.clear(); texts = 0
+      return add('meta sep', `${esc(HARNESSES[e.harness] ?? e.harness)}${e.version === e.harness ? '' : ' ' + esc(e.version)} · ${esc(e.sandbox)} sandbox${e.resumed ? ' · remembers this chat' : ''}`)
+    case 'text': texts++; return add('msg', esc(e.text))
+    case 'tool_call':
+      return calls.set(e.id, add('tool mono', `${icon('tool')}<span class="name">${esc(e.server ? e.server + '.' : '')}${esc(e.name)}</span><span class="args">${esc(JSON.stringify(e.input))}</span><span class="state"><span class="spin"></span></span>`))
+    case 'tool_result': {
+      const row = calls.get(e.id) ?? add('tool mono', `${icon('tool')}<span class="name">result</span><span class="args"></span><span class="state"></span>`)
+      row.querySelector('.state').innerHTML = `<span class="${e.ok ? 'ok' : 'bad'}">${icon(e.ok ? 'ok' : 'bad')}</span>`
+      row.insertAdjacentHTML('beforeend', `<span class="out">${esc(clip(e.output))}</span>`)
+      return refresh().catch(fail)
+    }
+    case 'permission': return add('meta', `Not allowed: ${esc(e.tool)}`)
+    case 'error': return add('error', `${icon('alert')}<span>${esc(e.message)}${e.code ? ` <span class="faint">(${esc(e.code)})</span>` : ''}</span>`)
+    // one turn ended, and the agent goes on with the message you sent while it worked
+    case 'turn':
+      if (!texts && e.result) add('msg', esc(e.result))
+      texts = 0
+      return add('meta sep', `Turn done${tokens(e.usage)}`)
+    case 'end':
+      if (e.ok && !texts && e.result) add('msg', esc(e.result))
+      return add('meta sep', e.ok ? `Done${tokens(e.usage)}` : 'The job failed')
+  }
+}
 
-$('ask').onclick = async () => {
-  const log = $('log')
-  log.hidden = false
-  log.textContent = ''
-  $('ask').disabled = true
+// One chat for each user and harness (byoa keeps one session of a conversation for each harness). New chat deletes it.
+const chatKey = () => `chat:${user.value.trim()}:${$('harness').value}`
+const chatOf = () => (localStorage[chatKey()] ??= crypto.randomUUID())
+$('newchat').onclick = async () => {
+  const chat = localStorage[chatKey()]
+  delete localStorage[chatKey()]
+  clearLog()
+  if (chat) await api('POST', '/api/chat/delete', { chat }).catch(fail)
+}
+
+// While a job runs, the button sends one more message to it (steering)
+let job
+const HINT = 'Enter to send, Shift+Enter for a new line.'
+function busy(on) {
+  $('harness').disabled = $('model').disabled = $('newchat').disabled = on
+  $('asklabel').textContent = on ? 'Send' : 'Ask'
+  $('hint').textContent = on ? 'The agent is working. You can send it one more message.' : HINT
+  if (on) log.append(working)
+  else working.remove()
+}
+$('task').onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('composer').requestSubmit() } }
+$('composer').onsubmit = async (ev) => {
+  ev.preventDefault()
+  const task = $('task').value.trim()
+  if (!task) return
+  $('task').value = ''
+  if (job) {
+    const { sent } = await api('POST', '/api/ask/send', { job, text: task }).catch((e) => (fail(e), {}))
+    if (sent) add('msg user', esc(task))
+    else { $('task').value = task; toast('The agent cannot take a message now. Send it again when it is done.') }
+    return
+  }
+  add('msg user', esc(task))
+  busy(true)
   try {
     const [harness, go] = $('harness').value.split('+')
-    const r = await call('POST', '/api/ask', { harness, task: $('task').value, ...(go ? { plan: 'opencode-go', model: $('model').value } : {}) })
+    const r = await call('POST', '/api/ask', { harness, task, chat: chatOf(), ...(go ? { plan: 'opencode-go', model: $('model').value } : {}) })
+    job = r.headers.get('x-job')
     const reader = r.body.pipeThrough(new TextDecoderStream()).getReader()
     let buf = ''
     for (;;) {
       const { value, done } = await reader.read()
       if (done) break
       buf += value
-      for (let k; (k = buf.indexOf('\n')) >= 0; buf = buf.slice(k + 1)) {
-        const e = JSON.parse(buf.slice(0, k))
-        log.textContent += say(e) + '\n'
-        if (e.type === 'tool_result') refresh()
-      }
+      for (let k; (k = buf.indexOf('\n')) >= 0; buf = buf.slice(k + 1)) show(JSON.parse(buf.slice(0, k)))
     }
-  } catch (err) { log.textContent += err.message }
-  $('ask').disabled = false
-  refresh()
+  } catch (err) { show({ type: 'error', message: err.message }) }
+  job = undefined
+  busy(false)
+  refresh().catch(fail)
 }
+busy(false)
 refresh().catch(fail)
 </script>

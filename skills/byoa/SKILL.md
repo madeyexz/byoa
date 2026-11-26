@@ -7,7 +7,7 @@ description: Adds byoa to an app, so the app runs each user's own Claude Code, C
 
 byoa is a library. It runs inside the app's own backend (Node, Bun or Convex actions). It is not a hosted service. The app gives it a sandbox adapter and a store adapter. byoa then signs each user in to their own plan, keeps their MCP grants, and runs each job in that user's sandbox (or, as an option, a new sandbox for each job).
 
-The reference app is the to-do example: https://github.com/madeyexz/byoa/tree/main/examples/todo. Its `app.ts` holds all of its byoa code. Read it before you write the app's code, and copy its patterns. One pattern is older than byoa's `tools` option: the example runs its own MCP server for its to-dos and connects it for each user with a bearer token. In a new app, give the app's own tools to `createAgents` as `tools` (section 5).
+The reference app is the to-do example: https://github.com/madeyexz/byoa/tree/main/examples/todo. Its `app.ts` holds all of its byoa code: the sign-in, the app's own tools (`tools`), a chat (`conversation`), more messages while a job runs (`job.send`) and `access: 'read-only'`. Its `todos.ts` holds the tools and a SQLite store. Read both before you write the app's code, and copy their patterns.
 
 The full API, with every option and event, is in [reference/api.md](reference/api.md). The rules every app must follow are in "Lab rules" below. Do not skip them.
 
@@ -21,6 +21,8 @@ bun add @madeyexz/byoa
 ```
 
 Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona; Instabox needs none. byoa needs Node 22.18 or later, or Bun. The package is `@madeyexz/byoa`: do not write `npm install byoa` or `import ... from 'byoa'`, and do not install `byoa-sdk`, an unrelated package.
+
+This skill describes byoa's `main` branch. npm 1.0.0 has no Grok Build, no OpenCode Go, no `conversation` and no `job.send`. When one of these is a type error, the installed byoa is older than this skill: install from GitHub with `npm install github:madeyexz/byoa` (npm builds it on install), or use only what the installed version's types have. Do not write around the missing types.
 
 ## 2. One createAgents
 
@@ -154,7 +156,7 @@ for await (const ev of agents.run(userId, {
   model: 'opus', effort: 'high',       // optional; default createAgents({ models }), else the CLI's own
   // plan: 'opencode-go',              // optional: the user's OpenCode Go key in place of the lab login; then model is a Go model
 })) {
-  // ev.type: 'start' | 'text' | 'tool_call' | 'tool_result' | 'permission' | 'error' | 'end'
+  // ev.type: 'start' | 'text' | 'tool_call' | 'tool_result' | 'permission' | 'error' | 'turn' | 'end'
 }
 ```
 
@@ -165,7 +167,7 @@ for await (const ev of agents.run(userId, {
 - **What the agent may do (`access`).** With `'full'` (the default), the agent has every tool of its harness with no approval: a shell, file changes and the network. That is for coding agents in a sandbox that is the job's alone. With `'read-only'`, the agent calls the job's MCP tools and reads files (the harness reads its skills this way: do not forbid the shell in AGENTS.md, because Codex reads a skill with `cat`); it cannot change a file or reach the network by itself. Use `'read-only'` when the agent needs only its MCP tools (a to-do list, a mail client), and always with `localSandbox()` on a user's own computer. It does not hide files: the agent can read each file its user can read. Ask the developer which one each kind of job needs.
 - **The sandbox.** By default (`sandboxPer: 'user'`), each user has one sandbox of the app for each harness: the first job creates it, byoa pauses it after each job and resumes it for the next, with a new job folder. One job of a user and harness runs at a time; the others wait in line, in the order they came, with no limit unless `waitMs` sets one (set it on short-lived backends such as Convex actions). A sandbox the provider lost is replaced by a new one. When one user has many workspaces (projects, conversations), pass `sandboxKey` in `run` or `session`: each key gets its own kept sandbox and lease. `sandboxPer: 'job'` gives each job a new sandbox and destroys it after the job; use it when nothing may stay between jobs.
 - **Conversations.** For a chat, pass the chat's id as `conversation` in each `run` of it (one harness per conversation). The job continues the harness's own session of the earlier jobs, in the conversation's own kept sandbox, whose `~/work` stays; `start` says `resumed`, `end` names the `session`. byoa keeps the transcript encrypted in the store (up to `transcriptBytes`), so a lost sandbox does not lose the conversation; when it is too large, the next job gives an `error` with code `conversation` and starts again. Call `agents.deleteConversation(userId, chatId)` when the user deletes the chat. A job with no `conversation` remembers nothing of earlier jobs, and its `~/work` is new.
-- **More messages to a running job (steering).** `run` returns a `Job`; `job.send(text)` gives the running agent one more message, with every harness. Codex and Grok Build take it into the turn that runs; Claude Code after that turn. Each turn before the last gives a `turn` event, and `send` returns false once the job ended: then send it as the next job of the conversation.
+- **More messages to a running job (steering).** `run` returns a `Job`; `job.send(text)` gives the running agent one more message, with every harness. Codex and Grok Build take it into the turn that runs; Claude Code after that turn. Each turn before the last gives a `turn` event, and `send` returns false once the job ended: then send it as the next job of the conversation. The recipe below puts both together.
 - **Many agents of one user.** Three ways, which an app can mix; ask the developer which they want:
   1. A queue: jobs of one sandbox run one after the other. `onWait: ({ for, ahead })` tells the app how many are ahead.
   2. Several messages to one agent: `task: ['first', 'second']`. The agent reads them all and decides the order.
@@ -175,9 +177,46 @@ for await (const ev of agents.run(userId, {
 - If the client goes away, stop the loop (or call `return()` on the generator): byoa then closes the job token and pauses (or destroys) the sandbox. The example's `ndjson()` in `app.ts` streams the events as JSON lines and does this on `cancel`.
 - To run the app's own program around the unmodified harness, use `agents.session(userId, { harness, mcp })` and call `s.close()` in a `finally`. See reference/api.md.
 
+### A chat with the agent
+
+A chat is the most common feature: each message of the user is one job of one `conversation`, and a message that comes while a job runs goes to that job. The routes, as in the example's `app.ts`:
+
+```ts
+const running = new Map<string, Job>()          // the jobs that run now; import { type Job } from '@madeyexz/byoa'
+
+// POST /api/ask { chat, task }: one message of the user. The page makes the chat id one time (crypto.randomUUID())
+const job = agents.run(userId, { harness, task, conversation: chat, mcp: ['todos'], setup: { agentsMd }, access: 'read-only' })
+const id = crypto.randomUUID()
+running.set(`${userId}/${id}`, job)
+// stream the events to the page with the job's id (the example's ndjson(), with an `x-job` header), and remove the
+// job from `running` when the stream ends or the browser goes away
+
+// POST /api/ask/send { job, text }: a message while the agent works
+const j = running.get(`${userId}/${body.job}`)
+return Response.json({ sent: j ? await j.send(body.text) : false })   // false: the job ended; send it as a new /api/ask
+
+// POST /api/chat/delete { chat }: the user deletes the chat or starts a new one
+await agents.deleteConversation(userId, chat)
+```
+
+What the page does with each event:
+
+| Event | The page |
+| --- | --- |
+| `start` with `resumed: false` | A new session. When the chat had earlier messages, its history is gone (the provider lost the sandbox, and the transcript was larger than `transcriptBytes`): an `error` with code `conversation` comes first. Say so. |
+| `text`, `tool_call`, `tool_result` | Show them as they come. Refresh the app's data after a `tool_result` that changed it. |
+| `turn` | One answer ended, and the agent goes on with the message the user sent while it worked. Keep the input open. |
+| `end` | The job ended. `ok: false` follows an `error`. Close the input for `send`, so the next message is a new job. |
+| `error` `signed-out` or `expired` | Show the sign-in again (for `plan: 'opencode-go'`, ask for a new key). |
+| `error` `harness` | The CLI failed, which includes the user's plan limit. Show the message. |
+
+- Key `running` by the user too, and read the user from the session, so one user cannot send to another user's job.
+- `running` is in this process's memory. With more than one backend process, `send` must reach the process that runs the job (sticky sessions, or one process for jobs).
+- One conversation is one harness's session. When the user changes the harness, start a new chat id.
+
 ## 7. Test without a plan or a sandbox
 
-Use `harness: 'fake'`, `localSandbox()` from `@madeyexz/byoa/sandbox/local` and `memoryStore()` from `@madeyexz/byoa`. The fake harness runs no model. Each task line `call <server>.<tool> <json>` is one MCP call through the real proxy, so a test proves the app's routes, grants and proxy end to end. With the local sandbox, `proxyUrl` can be `http://127.0.0.1:<port>/byoa/mcp`. Copy `examples/todo/todo.test.ts`. Do not offer `fake` to end users in production.
+Use `harness: 'fake'`, `localSandbox()` from `@madeyexz/byoa/sandbox/local` and `memoryStore()` from `@madeyexz/byoa`. The fake harness runs no model. Each task line `call <server>.<tool> <json>` is one MCP call through the real proxy, so a test proves the app's routes, grants and proxy end to end. With the local sandbox, `proxyUrl` can be `http://127.0.0.1:<port>/byoa/mcp`. Copy `examples/todo/todo.test.ts`. A conversation works with the fake harness: in each job of one, it says `fake harness remembers N earlier messages`, so a test can check that a chat goes on and that a deleted chat starts again. Steering does not: the fake harness takes no message while it runs, so `job.send` returns false. Do not write a test that expects `send` to work with `fake`. Do not offer `fake` to end users in production.
 
 ## Lab rules
 
@@ -193,6 +232,6 @@ Every app on byoa must follow these rules. If a request breaks one, stop and tel
 
 ## Check your work
 
-- The app's byoa code is small: the example's backend uses byoa in 39 lines. If you write sign-in, OAuth, token refresh or sandbox code yourself, you are rebuilding byoa: use its API.
+- The app's byoa code is small: the example's backend, a chat with sign-in, tools and steering, uses byoa in 49 lines. If you write sign-in, OAuth, token refresh or sandbox code yourself, you are rebuilding byoa: use its API.
 - Run the app's tests with the fake harness and the local sandbox.
-- Every API name you use is in reference/api.md. If a name is not there, read the source (`src/agents.ts` and `src/job.ts` in https://github.com/madeyexz/byoa) before you use it. The API can change before version 1.
+- Every API name you use is in reference/api.md. If a name is not there, read the source (`src/agents.ts` and `src/job.ts` in https://github.com/madeyexz/byoa) before you use it.

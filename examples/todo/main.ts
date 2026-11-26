@@ -23,7 +23,6 @@ const handler = todoApp({
   db: new DatabaseSync(env.DB ?? '.data/todo.db'),
   sandbox: await sandbox(),
   publicUrl,
-  localUrl: `http://127.0.0.1:${port}`,
   encryptionKey: env.BYOA_KEY,
   fake: env.FAKE === '1',
 })

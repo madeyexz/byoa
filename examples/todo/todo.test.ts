@@ -1,5 +1,7 @@
-// The to-do app end to end with byoa's fake harness: no AI plan and no sandbox provider. A job's MCP calls go from
-// the (local) sandbox through byoa's proxy to the app's own to-do server.
+// The to-do app end to end with byoa's fake harness: no AI plan and no sandbox provider. A job's tool calls go from
+// the (local) sandbox through byoa's proxy to the app's own to-do functions.
+// Steering (POST /api/ask/send) has no test here: the fake harness takes no message while it runs, so job.send
+// returns false with it. byoa's own V21 checks steering with each real harness.
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { mkdtempSync } from 'node:fs'
@@ -31,21 +33,22 @@ async function start() {
   return {
     db, sandbox, url,
     state: async (user: string) => (await send(user, 'GET', '/api/state')).json(),
-    connect: async (user: string) => (await send(user, 'POST', '/api/connect', {})).json(),
     /** The job's events. */
-    ask: async (user: string, harness: string, task: string) => {
-      const r = await send(user, 'POST', '/api/ask', { harness, task })
+    ask: async (user: string, harness: string, task: string, chat?: string) => {
+      const r = await send(user, 'POST', '/api/ask', { harness, task, chat })
       assert.equal(r.status, 200, await r.clone().text())
+      assert.ok(r.headers.get('x-job'), 'the job has an id for /api/ask/send')
       return (await r.text()).trim().split('\n').map((l) => JSON.parse(l))
     },
     send,
   }
 }
 
-test('a user connects their to-dos once; then each job changes them through byoa in the user\'s sandbox', async () => {
+const remembers = (ev: any[]) => ev.find((e) => e.type === 'text' && e.text.includes('remembers'))?.text
+
+test('a user connects nothing for the to-dos: each job changes them through byoa\'s proxy, in the user\'s sandbox', async () => {
   const app = await start()
-  assert.deepEqual((await app.state('alice')).mcp, [])
-  assert.deepEqual(await app.connect('alice'), { name: 'todos', connected: true })
+  assert.deepEqual((await app.state('alice')).mcp, [], 'the app\'s own tools are no connection')
 
   const ev = await app.ask('alice', 'fake', [
     'add two to-dos and finish the first',
@@ -62,33 +65,36 @@ test('a user connects their to-dos once; then each job changes them through byoa
   assert.deepEqual([...app.sandbox.paused], [...app.sandbox.live], 'the user\'s one sandbox is paused after the job')
   assert.equal(app.sandbox.live.size, 1)
 
-  // the next job resumes it, with no new connection
-  const again = await app.ask('alice', 'fake', 'call todos.delete_todo {"id":2}')
-  assert.deepEqual(again.at(-1), { type: 'end', ok: true, result: '"deleted 2"' })
+  // the next job resumes it; a tool that fails gives the agent its message
+  const again = await app.ask('alice', 'fake', 'call todos.delete_todo {"id":2}\ncall todos.delete_todo {"id":2}')
+  assert.deepEqual(again.filter((e) => e.type === 'tool_result').map((e) => [e.ok, e.output]), [[true, 'deleted 2'], [false, 'no to-do 2']])
   assert.deepEqual((await app.state('alice')).todos, [list[0]])
 })
 
-test('each user reaches only their own to-dos, and only after they connect them', async () => {
+test('each user reaches only their own to-dos: the tools get the user from the job, not from the agent', async () => {
   const app = await start()
-  await app.connect('alice')
   await app.ask('alice', 'fake', 'call todos.add_todo {"title":"Alice\'s to-do"}')
-
-  const before = await app.ask('bob', 'fake', 'call todos.list_todos {}')
-  assert.deepEqual(before.find((e) => e.type === 'tool_result'), { type: 'tool_result', id: 'call_1', ok: false, output: 'this job has no MCP server todos' })
-
-  await app.connect('bob')
-  const ev = await app.ask('bob', 'fake', 'call todos.list_todos {}\ncall todos.complete_todo {"id":1}')
-  assert.deepEqual(ev.filter((e) => e.type === 'tool_result').map((e) => [e.ok, e.output]), [[true, '[]'], [false, '"no to-do 1"']])
+  const ev = await app.ask('bob', 'fake', 'call todos.list_todos {}\ncall todos.complete_todo {"id":1,"user":"alice"}')
+  assert.deepEqual(ev.filter((e) => e.type === 'tool_result').map((e) => [e.ok, e.output]), [[true, '[]'], [false, 'no to-do 1']])
   assert.deepEqual((await app.state('alice')).todos, [{ id: 1, title: "Alice's to-do", done: false }])
+})
 
-  // the to-do server itself takes only a user's own token, which stays in the app's database
-  const init = (token: string) => fetch(`${app.url}/mcp`, {
-    method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } } }),
-  }).then((r) => r.status)
-  const token = (app.db.prepare("select token from tokens where user = 'alice'").get() as { token: string }).token
-  assert.equal(await init(token), 200)
-  assert.equal(await init('todo_not-a-token'), 401)
+test('a chat: each job continues the one before it, and a new chat starts with nothing', async () => {
+  const app = await start()
+  const one = await app.ask('alice', 'fake', 'my name is Ann', 'chat-1')
+  assert.deepEqual(one[0], { type: 'start', harness: 'fake', version: 'fake', sandbox: 'local', conversation: 'chat-1', resumed: false })
+  const two = await app.ask('alice', 'fake', 'what is my name?', 'chat-1')
+  assert.equal(two[0].resumed, true)
+  assert.equal(remembers(two), 'fake harness remembers 1 earlier messages: my name is Ann')
+  assert.ok(two.at(-1).ok && two.at(-1).session, 'end names the session')
+
+  // another user's chat with the same id is not this one
+  assert.equal(remembers(await app.ask('bob', 'fake', 'hi', 'chat-1')), 'fake harness remembers 0 earlier messages')
+
+  assert.equal((await app.send('alice', 'POST', '/api/chat/delete', { chat: 'chat-1' })).status, 200)
+  const three = await app.ask('alice', 'fake', 'what is my name?', 'chat-1')
+  assert.equal(three[0].resumed, false)
+  assert.equal(remembers(three), 'fake harness remembers 0 earlier messages')
 })
 
 test('Claude Code with no sign-in: the job ends with signed-out, and the state says so', async () => {
@@ -100,6 +106,8 @@ test('Claude Code with no sign-in: the job ends with signed-out, and the state s
   assert.deepEqual([...app.sandbox.paused], [...app.sandbox.live], 'no sandbox runs')
   const bad = await app.send('alice', 'POST', '/api/ask', { harness: 'gpt', task: 'x' })
   assert.equal(bad.status, 400)
+  // a message to a job that is not running is not sent
+  assert.deepEqual(await (await app.send('alice', 'POST', '/api/ask/send', { job: 'none', text: 'x' })).json(), { sent: false })
 })
 
 test('sqliteStore: compare-and-set writes only over the version it read, also after a delete', async () => {
