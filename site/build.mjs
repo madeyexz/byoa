@@ -27,9 +27,11 @@ const write = (path, text) => { writeFileSync(new URL(`./${path}`, import.meta.u
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 // every page counts its visits: posthog.html goes before </head>
 const posthog = local('posthog.html')
+// and has the help agent's chat in its corner (madeyexz/byoa-help): help.html goes before </body>
+const help = local('help.html')
 const fill = (template, slots, name) => {
-  if (!template.includes('</head>')) throw new Error(`${name} has no </head>`)
-  let html = template.replace('</head>', () => `${posthog}</head>`)
+  if (!template.includes('</head>') || !template.includes('</body>')) throw new Error(`${name} has no </head> or </body>`)
+  let html = template.replace('</head>', () => `${posthog}</head>`).replace('</body>', () => `${help}</body>`)
   for (const [slot, value] of Object.entries(slots)) {
     const marker = `{{${slot}}}`
     if (!html.includes(marker)) throw new Error(`${name} has no ${marker}`)

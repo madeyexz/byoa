@@ -717,5 +717,182 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 }
 
 </script>
+<!-- The help agent: the robot in the corner of each page opens a chat with Codex, which runs in a sandbox on byoa,
+     reads byoa's docs and code, and logs the visitor's feedback. Its backend is the Convex deployment of
+     madeyexz/byoa-help; this page calls its functions through Convex's HTTP API. build.mjs puts this before </body>. -->
+<style>
+  #bh-open { position: fixed; right: 20px; bottom: 16px; z-index: 60; width: 64px; height: 84px; padding: 0; border: 0; background: none; cursor: pointer; }
+  #bh-open img { width: 54px; margin: 0 auto; image-rendering: pixelated; animation: bh-bob 1.6s steps(2) infinite; filter: drop-shadow(3px 3px 0 rgba(20,20,24,.18)); transform-origin: 50% 100%; }
+  #bh-open:hover img, #bh-open:focus-visible img { animation: bh-wave .5s steps(2) 3; }
+  #bh-open .tip { position: absolute; right: 64px; bottom: 50px; background: var(--ink, #141418); color: var(--paper, #f8f6f0); font: 13px/1.2 var(--sans, system-ui); padding: 7px 10px; white-space: nowrap; opacity: 0; transform: translateX(6px); transition: opacity .15s, transform .15s; pointer-events: none; }
+  #bh-open:hover .tip, #bh-open:focus-visible .tip { opacity: 1; transform: none; }
+  #bh-open.busy img { animation-duration: .5s; }
+  @keyframes bh-bob { 50% { transform: translateY(-4px); } }
+  @keyframes bh-wave { 50% { transform: rotate(-8deg) translateY(-3px); } }
+  #bh { position: fixed; right: 20px; bottom: 108px; z-index: 61; width: 390px; max-width: calc(100vw - 24px); height: min(600px, calc(100vh - 140px)); display: flex; flex-direction: column;
+    background: var(--card, #fffdf8); color: var(--ink, #141418); border: 1px solid var(--ink, #141418); box-shadow: 6px 6px 0 rgba(20,20,24,.14); font: 15px/1.5 var(--sans, system-ui); }
+  #bh[hidden] { display: none; }
+  #bh header { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; border-bottom: 1px solid var(--rule, #e3dfd4); background: var(--paper, #f8f6f0); }
+  #bh header img { width: 22px; image-rendering: pixelated; }
+  #bh header .t { flex: 1; min-width: 0; }
+  #bh header b { display: block; font-weight: 640; letter-spacing: -.01em; }
+  #bh header small { display: block; color: var(--muted, #6b6977); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #bh header button { width: 32px; height: 32px; border: 1px solid transparent; background: none; cursor: pointer; font-size: 17px; color: var(--ink2, #3d3d48); }
+  #bh header button:hover { background: var(--paper2, #f1eee5); border-color: var(--rule, #e3dfd4); }
+  #bh .log { flex: 1; overflow: auto; padding: 14px 14px 6px; display: flex; flex-direction: column; gap: 12px; }
+  #bh .m { max-width: 92%; overflow-wrap: anywhere; }
+  #bh .m.visitor { align-self: flex-end; background: var(--cobalt, #2f4cff); color: #fff; padding: 8px 12px; white-space: pre-wrap; }
+  #bh .m.agent { align-self: flex-start; }
+  #bh .m.agent.failed { color: var(--muted, #6b6977); }
+  #bh .m p { margin: 0 0 8px; } #bh .m p:last-child { margin-bottom: 0; }
+  #bh .m ul, #bh .m ol { margin: 0 0 8px; padding-left: 20px; }
+  #bh .m pre { margin: 0 0 8px; background: var(--navy, #121428); color: #e8e9f5; padding: 10px 12px; overflow: auto; font: 12.5px/1.5 var(--mono, monospace); }
+  #bh .m pre code { background: none; border: 0; padding: 0; color: inherit; font: inherit; }
+  #bh .m code { font: .86em/1.4 var(--mono, monospace); background: var(--paper2, #f1eee5); border: 1px solid var(--rule, #e3dfd4); padding: 1px 4px; }
+  #bh .m a { color: var(--cobalt2, #2238d8); }
+  #bh .hello { color: var(--ink2, #3d3d48); }
+  #bh .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  #bh .chips button { border: 1px solid var(--rule2, #d3cdbe); background: var(--paper, #f8f6f0); padding: 6px 10px; font: 13.5px/1.3 var(--sans, system-ui); cursor: pointer; text-align: left; color: var(--ink, #141418); }
+  #bh .chips button:hover { background: var(--peri2, #dfe6ff); border-color: var(--peri, #9db6ff); }
+  #bh .work { display: flex; gap: 8px; align-items: center; color: var(--muted, #6b6977); font-size: 13px; }
+  #bh .work img { width: 16px; image-rendering: pixelated; animation: bh-bob .5s steps(2) infinite; }
+  #bh .work span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono, monospace); font-size: 12px; }
+  #bh form { display: flex; gap: 0; border-top: 1px solid var(--rule, #e3dfd4); }
+  #bh textarea { flex: 1; resize: none; border: 0; padding: 12px; font: 15px/1.4 var(--sans, system-ui); background: transparent; color: inherit; height: 64px; outline: none; }
+  #bh form button { width: 64px; border: 0; border-left: 1px solid var(--rule, #e3dfd4); background: var(--ink, #141418); color: var(--paper, #f8f6f0); font: 600 14px var(--sans, system-ui); cursor: pointer; }
+  #bh form button:disabled { background: var(--dim, #9895a1); cursor: default; }
+  #bh .err { color: #b3261e; font-size: 13px; padding: 0 14px 8px; }
+  #bh .err:empty { display: none; }
+  #bh .foot { font-size: 11.5px; color: var(--dim, #9895a1); padding: 6px 12px 8px; border-top: 1px solid var(--rule, #e3dfd4); }
+  #bh .foot a { color: inherit; }
+  @media (max-width: 520px) {
+    #bh { right: 0; bottom: 0; width: 100vw; max-width: none; height: 86vh; box-shadow: 0 -6px 0 rgba(20,20,24,.1); }
+    #bh-open { right: 10px; bottom: 10px; }
+  }
+</style>
+<button id="bh-open" type="button" aria-label="Ask byoa's help agent" aria-controls="bh" aria-expanded="false"><span class="tip">Questions? Ask the agent</span><img src="/art/agent.png" alt=""></button>
+<section id="bh" role="dialog" aria-label="byoa help agent" hidden>
+  <header>
+    <img src="/art/agent.png" alt="">
+    <div class="t"><b>byoa help agent</b><small>Codex · GPT-6 Luna · in a sandbox, on byoa</small></div>
+    <button type="button" data-act="new" title="New chat" aria-label="New chat">↺</button>
+    <button type="button" data-act="close" title="Close" aria-label="Close">✕</button>
+  </header>
+  <div class="log" aria-live="polite"></div>
+  <div class="err" role="alert"></div>
+  <form><textarea rows="2" placeholder="Ask about byoa, or tell us what to fix" aria-label="Message" maxlength="2000"></textarea><button type="submit">Send</button></form>
+  <div class="foot">It reads byoa's docs and code, and logs your feedback for us. It runs on the maintainer's ChatGPT plan, with limits. <a href="https://github.com/madeyexz/byoa-help">Its code</a></div>
+</section>
+<script>
+(() => {
+  const API = 'https://merry-rabbit-850.convex.cloud/api/'
+  const $ = (s) => document.querySelector(s)
+  const box = $('#bh'), open = $('#bh-open'), log = $('#bh .log'), err = $('#bh .err'), form = $('#bh form'), input = $('#bh textarea'), send = $('#bh form button')
+  let visitor = localStorage.getItem('byoa-help')
+  if (!/^[0-9a-f]{32}$/.test(visitor || '')) {
+    visitor = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('')
+    localStorage.setItem('byoa-help', visitor)
+  }
+  const call = async (kind, path, args) => {
+    const r = await fetch(API + kind, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path, args: { visitor, ...args }, format: 'json' }) })
+    const b = await r.json().catch(() => ({}))
+    if (b.status !== 'success') throw new Error(b.errorData || b.errorMessage || 'The help agent is not reachable now.')
+    return b.value
+  }
+
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const inline = (s) => esc(s)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/(^|[\s(])(https?:\/\/[^\s)<]+[^\s)<.,;:])/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>')
+  /** The agent's Markdown, small: code blocks, lists, paragraphs, and inline code, bold and links. */
+  function md(text) {
+    const out = [], lines = text.replace(/\r/g, '').split('\n')
+    for (let i = 0; i < lines.length;) {
+      const l = lines[i]
+      if (/^```/.test(l)) {
+        const code = []
+        for (i++; i < lines.length && !/^```/.test(lines[i]); i++) code.push(lines[i])
+        i++; out.push(`<pre><code>${esc(code.join('\n'))}</code></pre>`)
+      } else if (/^\s*([-*]|\d+\.)\s/.test(l)) {
+        const ol = /^\s*\d+\./.test(l), items = []
+        for (; i < lines.length && /^\s*([-*]|\d+\.)\s/.test(lines[i]); i++) items.push(`<li>${inline(lines[i].replace(/^\s*([-*]|\d+\.)\s+/, ''))}</li>`)
+        out.push(ol ? `<ol>${items.join('')}</ol>` : `<ul>${items.join('')}</ul>`)
+      } else if (!l.trim()) i++
+      else {
+        const p = []
+        for (; i < lines.length && lines[i].trim() && !/^```|^\s*([-*]|\d+\.)\s/.test(lines[i]); i++) p.push(lines[i].replace(/^#+\s*(.*)$/, '**$1**'))
+        out.push(`<p>${p.map(inline).join('<br>')}</p>`)
+      }
+    }
+    return out.join('')
+  }
+
+  /** What the agent does now, from its last event. */
+  function doing(job) {
+    if (job.state === 'queued') return job.ahead ? `Waiting in line: ${job.ahead} ahead of you` : 'Starting a sandbox…'
+    const e = [...job.events].reverse().find((x) => x.type === 'tool_call')
+    if (!e) return job.events.length ? 'Thinking…' : 'Starting a sandbox…'
+    if (e.name === 'log_feedback') return 'Logging your feedback…'
+    let cmd = e.input
+    try { const i = JSON.parse(e.input); cmd = Array.isArray(i?.command) ? i.command.join(' ') : i?.command ?? e.input } catch {}
+    return String(cmd).replace(/^(bash|sh) -lc /, '').replace(/^['"]|['"]$/g, '').slice(0, 90)
+  }
+
+  const HELLO = `<div class="m agent hello"><p>Hi, I'm byoa's help agent. I read byoa's docs and code to answer you, and I can pass your feedback to the maintainer.</p></div>`
+  const CHIPS = ['What is byoa, in short?', 'How do I add byoa to a Convex app?', 'Which AI plans and sandboxes work?', 'I have feedback on the docs']
+  let view = null, timer = null, sent = ''
+  function render() {
+    const msgs = view?.messages ?? []
+    let html = HELLO + msgs.map((m) => m.role === 'visitor' ? `<div class="m visitor">${esc(m.text)}</div>` : `<div class="m agent${m.ok === false ? ' failed' : ''}">${md(m.text)}</div>`).join('')
+    if (sent && !msgs.some((m) => m.role === 'visitor' && m.text === sent)) html += `<div class="m visitor">${esc(sent)}</div>`
+    const job = view?.job
+    if (job || sent) html += `<div class="work"><img src="/art/agent.png" alt=""><span>${esc(job ? doing(job) : 'Sending…')}</span></div>`
+    else if (!msgs.length) html += `<div class="chips">${CHIPS.map((c) => `<button type="button">${esc(c)}</button>`).join('')}</div>`
+    const end = log.scrollHeight - log.scrollTop - log.clientHeight < 40
+    log.innerHTML = html
+    if (end) log.scrollTop = log.scrollHeight
+    send.disabled = !!(job || sent)
+    open.classList.toggle('busy', !!job)
+    if (view?.load?.offline && !job) err.textContent = 'The help agent is offline right now. The docs have the answers too.'
+  }
+  async function refresh() {
+    clearTimeout(timer)
+    try { view = await call('query', 'help:view', {}) } catch (e) { err.textContent = e.message }
+    render()
+    if (view?.job) timer = setTimeout(refresh, 1500)
+  }
+  async function ask(text) {
+    text = text.trim()
+    if (!text || send.disabled) return
+    err.textContent = ''; sent = text; input.value = ''; render()
+    try {
+      const r = await call('mutation', 'help:ask', { text, page: location.pathname + location.hash })
+      if (r.error) { err.textContent = r.error; input.value = text }
+    } catch (e) { err.textContent = e.message; input.value = text }
+    sent = ''
+    await refresh()
+  }
+  function show(on) {
+    box.hidden = !on; open.setAttribute('aria-expanded', String(on)); sessionStorage.setItem('byoa-help-open', on ? '1' : '')
+    if (on) { refresh(); input.focus() } else clearTimeout(timer)
+  }
+  open.addEventListener('click', () => show(box.hidden))
+  box.addEventListener('click', async (e) => {
+    const b = e.target.closest('button')
+    if (!b) return
+    if (b.dataset.act === 'close') show(false)
+    else if (b.dataset.act === 'new') {
+      try { const r = await call('mutation', 'help:clear', {}); err.textContent = r?.error ?? '' } catch (x) { err.textContent = x.message }
+      refresh()
+    } else if (b.parentElement.classList.contains('chips')) ask(b.textContent)
+  })
+  form.addEventListener('submit', (e) => { e.preventDefault(); ask(input.value) })
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(input.value) } })
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !box.hidden) show(false) })
+  if (sessionStorage.getItem('byoa-help-open')) show(true)
+})()
+</script>
 </body>
 </html>
