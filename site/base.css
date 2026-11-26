@@ -19,7 +19,7 @@
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
-img { display: block; }
+img { display: block; height: auto; } /* width from the CSS, shape from the width and height attributes */
 .px { image-rendering: pixelated; }
 code { font: .86em/1.4 var(--mono); background: var(--paper2); border: 1px solid var(--rule); padding: 1px 5px; }
 .pixel { font-family: var(--pixel); letter-spacing: .02em; }

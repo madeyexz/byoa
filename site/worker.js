@@ -1,7 +1,8 @@
 // Cloudflare Worker "byoa-site" on byoa.rippling.computer. It serves the files that build.mjs writes in site/
-// (index.html, demo.html, docs/, llms.txt, llms-full.txt, sitemap.xml) and site/art/ and site/fonts/, from the main branch, so a
-// push that updates them (node build.mjs) updates the site with no redeploy. robots.txt and the IndexNow key are in
-// this file, and so are the PostHog counts of the Markdown routes. preview.mjs runs this Worker on the local files.
+// (index.html, demo.html, docs/, llms.txt, llms-full.txt, sitemap.xml) and site/art/ and site/fonts/ (/favicon.ico is
+// art/favicon.png), from the main branch, so a push that updates them (node build.mjs) updates the site with no
+// redeploy. robots.txt and the IndexNow key are in this file, and so are the PostHog counts of the Markdown routes.
+// preview.mjs runs this Worker on the local files.
 const SITE = 'https://byoa.rippling.computer'
 const BASE = 'https://raw.githubusercontent.com/madeyexz/byoa/main/site/'
 const TYPES = {
@@ -22,12 +23,15 @@ function fileOf(path) {
   if (path === '/' || path === '/index.html') return 'index.html'
   if (path === '/demo' || path === '/demo/') return 'demo.html'
   if (path === '/docs' || path === '/docs/') return 'docs/index.html'
+  if (path === '/favicon.ico') return 'art/favicon.png'
   const page = path.match(/^\/docs\/([\w-]+)\/?$/)
   if (page) return `docs/${page[1]}.html`
   const file = path.match(/^\/((?:docs\/[\w-]+\.(?:md|json))|(?:(?:art|fonts)\/[\w.-]+)|llms\.txt|llms-full\.txt|sitemap\.xml)$/)
   return file ? file[1] : null
 }
 const typeOf = (file) => TYPES[file.split('.').pop()]
+// /docs/<page>.md is a copy of /docs/<page> for LLMs: search engines should index and rank the page, not the copy
+const canonicalOf = (file) => file.match(/^docs\/([\w-]+)\.md$/) && `${SITE}/docs${file === 'docs/index.md' ? '' : `/${file.slice(5, -3)}`}`
 
 // PostHog project "rippling.computer": the HTML pages count their visits in the browser (posthog.html); the Markdown
 // copies and llms.txt are read by agents and tools that run no script, so this Worker counts them as "markdown_view"
@@ -68,7 +72,14 @@ export default {
     if (!r.ok) return r.status === 404 ? notFound() : new Response('byoa: the page is not available now', { status: 502 })
     // not the docs page's own "Copy page" fetch (sec-fetch-dest: empty); the page counts that click itself
     if (counted(file) && url.host === new URL(SITE).host && request.headers.get('sec-fetch-dest') !== 'empty') ctx.waitUntil(count(request, url))
-    return new Response(r.body, { headers: { 'content-type': type, 'cache-control': 'public, max-age=300' } })
+    const headers = { 'content-type': type, 'cache-control': 'public, max-age=300' }
+    // GitHub's ETag, so crawlers can ask whether a page changed (Bing reads it as a freshness signal)
+    const etag = r.headers.get('etag')
+    if (etag) headers.etag = etag
+    const canonical = canonicalOf(file)
+    if (canonical) headers.link = `<${canonical}>; rel="canonical"`
+    if (etag && request.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers })
+    return new Response(r.body, { headers })
   },
 }
 

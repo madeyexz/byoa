@@ -7,8 +7,9 @@
 // - docs/<page>.md, the same pages as Markdown for LLMs, with each diagram as text, and llms.txt and llms-full.txt
 //   (https://llmstxt.org) from them, SPEC.md, the to-do example and the agent skill;
 // - demo.html, the live demo of the mail example (../examples/mail/demo.html, whose backend is on Convex);
-// - sitemap.xml.
-// Each HTML page gets posthog.html (PostHog page views) before </head>.
+// - sitemap.xml, with the time that each page's content last changed (<lastmod>).
+// Each HTML page gets posthog.html (PostHog page views) before </head>. The home page and each docs page get JSON-LD
+// (schema.org) of what they show: the software and its source code, each docs page as an article, the FAQ's questions.
 // Run from site/: npm install && node build.mjs. worker.js (the Cloudflare Worker "byoa-site") serves these files,
 // art/ and fonts/ from the main branch. To see the site as the Worker serves it: node preview.mjs.
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -42,6 +43,24 @@ const fill = (template, slots, name) => {
   return html
 }
 
+// When each page's content last changed, for the sitemap's <lastmod> and the docs' "Updated" date (Bing and Google
+// recrawl by it, so it must not be the time of the build): a build compares each page with the file that the last
+// build wrote, and keeps that build's time when they are the same.
+const before = (path) => { try { return readFileSync(new URL(`./${path}`, import.meta.url), 'utf8') } catch { return null } }
+const lastBuild = Object.fromEntries([...(before('sitemap.xml') ?? '').matchAll(/<loc>([^<]+)<\/loc><lastmod>([^<]+)<\/lastmod>/g)].map((m) => [m[1], m[2]]))
+const NOW = new Date().toISOString().replace(/\.\d+Z$/, 'Z')
+const lastmod = {}
+const changed = (url, old, text) => (lastmod[url] = old === text && lastBuild[url] ? lastBuild[url] : NOW)
+
+// JSON-LD: the facts that the pages show, for search engines and AI answer engines
+const NPM = 'https://www.npmjs.com/package/@madeyexz/byoa'
+const OG = `${SITE}/art/og.png`
+const LICENSE = 'https://www.apache.org/licenses/LICENSE-2.0'
+const author = { '@type': 'Person', '@id': `${SITE}/#ian`, name: 'Ian Hsiao', url: 'https://www.ianhsiao.me' }
+const website = { '@type': 'WebSite', '@id': `${SITE}/#website`, url: `${SITE}/`, name: 'byoa' }
+const sourceCode = { '@type': 'SoftwareSourceCode', '@id': `${SITE}/#source`, name: 'byoa', codeRepository: REPO }
+const jsonLd = (graph) => `<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c')}</script>`
+
 const readme = read('README.md')
 const baseCss = local('base.css')
 const who = local('diagrams/who.html')
@@ -61,8 +80,22 @@ const installCode = install.match(/^```[\s\S]*?^```$/m)?.[0]
 if (!installCode) throw new Error('README.md\'s "## Install" section has no code block')
 const pitch = readme.match(/^\*\*(.+)\*\*$/m)?.[1]
 if (!pitch) throw new Error('README.md has no **pitch** line')
+const needs = install.match(/byoa needs (.+?)\.(?:\s|$)/)?.[1]
+if (!needs) throw new Error('README.md\'s "## Install" section does not say "byoa needs …."')
 
-write('index.html', fill(local('template.html'), {
+const home = fill(local('template.html'), {
+  pitch: esc(pitch),
+  schema: jsonLd([
+    { ...website, alternateName: 'bring your own agent', description: pitch, inLanguage: 'en', publisher: { '@id': author['@id'] } },
+    {
+      '@type': 'SoftwareApplication', '@id': `${SITE}/#byoa`, name: 'byoa', alternateName: 'bring your own agent', description: pitch,
+      url: `${SITE}/`, image: OG, applicationCategory: 'DeveloperApplication', softwareRequirements: needs,
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }, isAccessibleForFree: true, license: LICENSE,
+      author: { '@id': author['@id'] }, sameAs: [REPO, NPM], softwareHelp: `${SITE}/docs`,
+    },
+    { ...sourceCode, description: pitch, programmingLanguage: 'TypeScript', runtimePlatform: ['Node.js', 'Bun'], license: LICENSE, author: { '@id': author['@id'] }, targetProduct: { '@id': `${SITE}/#byoa` } },
+    author,
+  ]),
   base_css: baseCss,
   who,
   prices: priceBars(),
@@ -70,7 +103,10 @@ write('index.html', fill(local('template.html'), {
   // only the commands; the README has the notes around them
   install: code(installCode.replace(/^```\w*\n|\n```$/g, ''), 'sh'),
   repo: REPO,
-}, 'template.html'))
+  npm: NPM,
+}, 'template.html')
+changed(`${SITE}/`, before('index.html'), home)
+write('index.html', home)
 
 // ---- the docs
 // GitHub's heading anchors, so a link such as ai-login.md#sign-out works on GitHub and on the site
@@ -356,6 +392,17 @@ function pageMarkdown(text) {
 
 const docsTemplate = local('docs.html')
 const docsJs = local('docs.js')
+// what the last build wrote: the Markdown of each page, which says when its content changed
+const lastMd = Object.fromEntries(PAGES.map((p) => [p.file, before(`docs/${p.file === 'README' ? 'index' : p.file}.md`)]))
+const dateText = (iso) => new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
+/** The FAQ's questions, for FAQPage: each "## " question, and its text up to its first "### " (the short answer). */
+function faqQuestions(text) {
+  return text.split(/^## /m).slice(1).map((s) => {
+    const name = plainText(md.parseInline(s.slice(0, s.indexOf('\n')).trim()))
+    const answer = s.slice(s.indexOf('\n')).split(/^### /m)[0].replace(/^```[\s\S]*?^```$/gm, '').replace(/^Diagram: .*$/gm, '')
+    return { '@type': 'Question', name, acceptedAnswer: { '@type': 'Answer', text: plainText(md.parse(answer)).replace(/\s+/g, ' ').trim() } }
+  })
+}
 rmSync(new URL('./docs/', import.meta.url), { recursive: true, force: true })
 mkdirSync(new URL('./docs/', import.meta.url))
 const markdown = {}
@@ -377,11 +424,22 @@ for (const [i, p] of PAGES.entries()) {
   const prev = PAGES[i - 1], next = PAGES[i + 1]
   const pn = [prev && `<a class="prev" href="${pageUrl(prev.file)}"><span>Previous</span>${esc(prev.title)}</a>`, next && `<a class="next" href="${pageUrl(next.file)}"><span>Next</span>${esc(next.title)}</a>`].filter(Boolean).join('')
   const plainTitle = plainText(md.parseInline(title))
+  const url = SITE + pageUrl(p.file)
+  const description = plainText(md.parseInline(sentence(p.about)))
+  const modified = changed(url, lastMd[p.file], `${markdown[p.file]}\n`)
+  const pageLd = {
+    '@type': p.file === 'faq' ? 'FAQPage' : 'TechArticle', '@id': `${url}#page`, url, name: plainTitle, description,
+    ...(p.file === 'faq' ? { mainEntity: faqQuestions(markdown[p.file]) } : { headline: plainTitle, image: OG, author: { '@id': author['@id'] } }),
+    dateModified: modified, inLanguage: 'en', isPartOf: website, about: sourceCode,
+  }
+  const crumbs = [['byoa', `${SITE}/`], ['Docs', `${SITE}/docs`], ...(p.file === 'README' ? [] : [[plainTitle, url]])]
   const html = fill(docsTemplate, {
     base_css: baseCss,
-    title: esc(p.file === 'README' ? 'byoa docs' : `${plainTitle} · byoa docs`),
-    description: esc(plainText(md.parseInline(p.about))),
-    url: SITE + pageUrl(p.file),
+    title: esc(p.file === 'README' ? 'byoa docs: bring your own agent' : `${plainTitle} · byoa docs`),
+    description: esc(description),
+    schema: jsonLd([pageLd, { '@type': 'BreadcrumbList', itemListElement: crumbs.map(([name, item], i) => ({ '@type': 'ListItem', position: i + 1, name, item })) }, author]),
+    updated: `<time datetime="${modified}">${dateText(modified)}</time>`,
+    url,
     md: mdUrl(p.file),
     nav: navAll,
     kick: esc(p.group || 'Docs'),
@@ -466,16 +524,20 @@ ${FULL.map(([p, url, text, lang]) => {
   return `---\n\nSource: ${url || BLOB + p}\n\n${text || body}`
 }).join('\n\n')}
 `
+changed(`${SITE}/llms.txt`, before('llms.txt'), llms)
+changed(`${SITE}/llms-full.txt`, before('llms-full.txt'), full)
 write('llms.txt', llms)
 write('llms-full.txt', full)
 
 // ---- demo.html: the mail example's live demo, a static page that talks to its Convex deployment
 const demo = read('examples/mail/demo.html')
-write('demo.html', demo.replace('</head>', () => `${posthog}</head>`).replace('</body>', () => `${help}</body>`))
+const demoHtml = demo.replace('</head>', () => `${posthog}</head>`).replace('</body>', () => `${help}</body>`)
+changed(`${SITE}/demo`, before('demo.html'), demoHtml)
+write('demo.html', demoHtml)
 
 // ---- sitemap.xml: the pages for search engines
 write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${['/', '/demo', ...PAGES.map((p) => pageUrl(p.file)), '/llms.txt', '/llms-full.txt'].map((p) => `  <url><loc>${SITE}${p}</loc></url>`).join('\n')}
+${['/', '/demo', ...PAGES.map((p) => pageUrl(p.file)), '/llms.txt', '/llms-full.txt'].map((p) => `  <url><loc>${SITE}${p}</loc><lastmod>${lastmod[SITE + p]}</lastmod></url>`).join('\n')}
 </urlset>
 `)

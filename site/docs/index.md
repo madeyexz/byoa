@@ -94,7 +94,7 @@ These pages are the Markdown files in [docs/](https://github.com/madeyexz/byoa/t
 
 - [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions.md): which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned
 - [Lab rules](https://byoa.rippling.computer/docs/lab-rules.md): what Anthropic's, OpenAI's, xAI's and OpenCode's terms allow, and what byoa and each app must do
-- [FAQ](https://byoa.rippling.computer/docs/faq.md): whether a user's AI account can get banned, many agents of one user, whether the agent remembers earlier jobs, models, and what an AI job costs with byoa and with an API key
+- [FAQ](https://byoa.rippling.computer/docs/faq.md): what byoa is, whether a user's AI account can get banned, many agents of one user, whether the agent remembers earlier jobs, models, and what an AI job costs with byoa and with an API key
 
 ## Reference
 

@@ -4,9 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI login · byoa docs</title>
-<meta name="description" content="the sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out">
+<meta name="description" content="The sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="byoa">
 <meta property="og:title" content="AI login · byoa docs">
-<meta property="og:description" content="the sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out">
+<meta property="og:description" content="The sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out.">
 <meta property="og:url" content="https://byoa.rippling.computer/docs/ai-login">
 <meta property="og:image" content="https://byoa.rippling.computer/art/og.png">
 <meta property="og:image:width" content="2400">
@@ -17,7 +19,8 @@
 <meta name="theme-color" content="#0f1124" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://byoa.rippling.computer/docs/ai-login">
 <link rel="alternate" type="text/markdown" href="/docs/ai-login.md" title="This page as Markdown">
-<link rel="icon" href="/art/agent.png">
+<link rel="icon" href="/art/favicon.png" type="image/png" sizes="192x192">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs/ai-login#page","url":"https://byoa.rippling.computer/docs/ai-login","name":"AI login","description":"The sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out.","headline":"AI login","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-26T17:26:09Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"},{"@type":"ListItem","position":3,"name":"AI login","item":"https://byoa.rippling.computer/docs/ai-login"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
 <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   /* The styles that the home page (template.html) and the docs pages (docs.html) share. build.mjs puts them in each page. */
@@ -41,7 +44,7 @@
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
-img { display: block; }
+img { display: block; height: auto; } /* width from the CSS, shape from the width and height attributes */
 .px { image-rendering: pixelated; }
 code { font: .86em/1.4 var(--mono); background: var(--paper2); border: 1px solid var(--rule); padding: 1px 5px; }
 .pixel { font-family: var(--pixel); letter-spacing: .02em; }
@@ -417,7 +420,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 
 <nav class="top">
   <div class="row">
-    <a class="brand" href="/"><img class="px" src="/art/agent.png" alt="">byoa</a>
+    <a class="brand" href="/"><img class="px" src="/art/agent.png" width="272" height="420" alt="">byoa</a>
     <button class="menu" type="button" aria-expanded="false" aria-controls="side">Menu</button>
     <div class="opts">
       <a href="/docs">Docs</a>
@@ -614,7 +617,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 
     </article>
     <nav class="pn" aria-label="Pages"><a class="prev" href="/docs/security"><span>Previous</span>Security</a><a class="next" href="/docs/agent-tools"><span>Next</span>Give the agent tools</a></nav>
-    <p class="edit"><a href="https://github.com/madeyexz/byoa/blob/main/docs/ai-login.md">Edit this page on GitHub</a> · <a href="/docs/ai-login.md">This page as Markdown</a></p>
+    <p class="edit">Updated <time datetime="2026-11-26T17:26:09Z">November 26, 2026</time> · <a href="https://github.com/madeyexz/byoa/blob/main/docs/ai-login.md">Edit this page on GitHub</a> · <a href="/docs/ai-login.md">This page as Markdown</a></p>
   </main>
   <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#sign-in">Sign-in</a></li><li><a href="#where-the-login-stays-between-jobs">Where the login stays between jobs</a></li><li><a href="#one-job-step-by-step">One job, step by step</a></li><li><a href="#jobs-at-the-same-time-the-shared-login">Jobs at the same time: the shared login</a></li><li><a href="#opencode-go-a-key-not-a-sign-in-beta">OpenCode Go: a key, not a sign-in (beta)</a></li><li><a href="#sign-out">Sign-out</a></li></ul>
     <button class="copy-page" type="button" data-md="/docs/ai-login.md">Copy page</button>
@@ -867,7 +870,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     --muted: #6b6977; --dim: #9895a1; --cobalt: #2f4cff; --cobalt2: #2238d8; --peri: #9db6ff; --peri2: #dfe6ff; --navy: #121428;
     --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
   #bh-open { position: fixed; right: 20px; bottom: 16px; z-index: 60; width: 64px; height: 84px; padding: 0; border: 0; background: none; cursor: pointer; }
-  #bh-open img { width: 54px; margin: 0 auto; image-rendering: pixelated; animation: bh-bob 1.6s steps(2) infinite; filter: drop-shadow(3px 3px 0 rgba(20,20,24,.18)); transform-origin: 50% 100%; }
+  #bh-open img { width: 54px; height: auto; margin: 0 auto; image-rendering: pixelated; animation: bh-bob 1.6s steps(2) infinite; filter: drop-shadow(3px 3px 0 rgba(20,20,24,.18)); transform-origin: 50% 100%; }
   #bh-open:hover img, #bh-open:focus-visible img { animation: bh-wave .5s steps(2) 3; }
   #bh-open.busy img { animation-duration: .5s; }
   /* it jumps in from below the page, then hops each time it says something */
@@ -894,7 +897,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     background: var(--card, #fffdf8); color: var(--ink, #141418); border: 1px solid var(--ink, #141418); box-shadow: 6px 6px 0 rgba(20,20,24,.14); font: 15px/1.5 var(--sans, system-ui); }
   #bh[hidden] { display: none; }
   #bh header { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; border-bottom: 1px solid var(--rule, #e3dfd4); background: var(--paper, #f8f6f0); }
-  #bh header img { width: 22px; image-rendering: pixelated; }
+  #bh header img { width: 22px; height: auto; image-rendering: pixelated; }
   #bh header .t { flex: 1; min-width: 0; }
   #bh header b { display: block; font-weight: 640; letter-spacing: -.01em; }
   #bh header small { display: block; color: var(--muted, #6b6977); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -916,7 +919,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   #bh .chips button { border: 1px solid var(--rule2, #d3cdbe); background: var(--paper, #f8f6f0); padding: 6px 10px; font: 13.5px/1.3 var(--sans, system-ui); cursor: pointer; text-align: left; color: var(--ink, #141418); }
   #bh .chips button:hover { background: var(--peri2, #dfe6ff); border-color: var(--peri, #9db6ff); }
   #bh .work { display: flex; gap: 8px; align-items: flex-start; color: var(--muted, #6b6977); font-size: 13px; }
-  #bh .work img { width: 16px; margin-top: 2px; image-rendering: pixelated; animation: bh-bob .5s steps(2) infinite; }
+  #bh .work img { width: 16px; height: auto; margin-top: 2px; image-rendering: pixelated; animation: bh-bob .5s steps(2) infinite; }
   #bh .work ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; min-width: 0; }
   #bh .work li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #bh .work li.done { color: var(--dim, #9895a1); }
@@ -939,10 +942,10 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   }
 </style>
 <div id="bh-say" role="status" hidden><button class="text" type="button"></button><button class="x" type="button" aria-label="Hide this message">✕</button></div>
-<button id="bh-open" type="button" aria-label="Ask byoa's help agent" aria-controls="bh" aria-expanded="false"><img src="/art/agent.png" alt=""></button>
+<button id="bh-open" type="button" aria-label="Ask byoa's help agent" aria-controls="bh" aria-expanded="false"><img src="/art/agent.png" width="272" height="420" alt=""></button>
 <section id="bh" role="dialog" aria-label="byoa help agent" hidden>
   <header>
-    <img src="/art/agent.png" alt="">
+    <img src="/art/agent.png" width="272" height="420" alt="">
     <div class="t"><b>byoa help agent</b><small>Codex · GPT-6 Luna · in a sandbox, on byoa</small></div>
     <button type="button" data-act="new" title="New chat" aria-label="New chat">↺</button>
     <button type="button" data-act="close" title="Close" aria-label="Close">✕</button>
@@ -1033,7 +1036,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     let html = HELLO + msgs.map((m) => m.role === 'visitor' ? `<div class="m visitor">${esc(m.text)}</div>` : `<div class="m agent${m.ok === false ? ' failed' : ''}">${md(withTime(m.text, m.until))}${took(m)}</div>`).join('')
     if (sent && !msgs.some((m) => m.role === 'visitor' && m.text === sent)) html += `<div class="m visitor">${esc(sent)}</div>`
     const job = view?.job
-    if (job || sent) html += `<div class="work"><img src="/art/agent.png" alt=""><ol>${(job ? doing(job) : ['Sending…']).map(step).join('')}</ol></div>`
+    if (job || sent) html += `<div class="work"><img src="/art/agent.png" width="272" height="420" alt=""><ol>${(job ? doing(job) : ['Sending…']).map(step).join('')}</ol></div>`
     // why the agent cannot answer now, in place of the suggestions
     else if (view?.status) html += `<div class="m agent status">${md(withTime(view.status.text, view.status.until))}</div>`
     else if (!msgs.length) html += `<div class="chips">${CHIPS.map((c) => `<button type="button">${esc(c)}</button>`).join('')}</div>`

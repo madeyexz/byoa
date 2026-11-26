@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{title}}</title>
 <meta name="description" content="{{description}}">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="byoa">
 <meta property="og:title" content="{{title}}">
 <meta property="og:description" content="{{description}}">
 <meta property="og:url" content="{{url}}">
@@ -17,7 +19,8 @@
 <meta name="theme-color" content="#0f1124" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="{{url}}">
 <link rel="alternate" type="text/markdown" href="{{md}}" title="This page as Markdown">
-<link rel="icon" href="/art/agent.png">
+<link rel="icon" href="/art/favicon.png" type="image/png" sizes="192x192">
+{{schema}}
 <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   {{base_css}}
@@ -266,7 +269,7 @@
 
 <nav class="top">
   <div class="row">
-    <a class="brand" href="/"><img class="px" src="/art/agent.png" alt="">byoa</a>
+    <a class="brand" href="/"><img class="px" src="/art/agent.png" width="272" height="420" alt="">byoa</a>
     <button class="menu" type="button" aria-expanded="false" aria-controls="side">Menu</button>
     <div class="opts">
       <a href="/docs">Docs</a>
@@ -291,7 +294,7 @@
 {{content}}
     </article>
     <nav class="pn" aria-label="Pages">{{pn}}</nav>
-    <p class="edit"><a href="{{source}}">Edit this page on GitHub</a> · <a href="{{md}}">This page as Markdown</a></p>
+    <p class="edit">Updated {{updated}} · <a href="{{source}}">Edit this page on GitHub</a> · <a href="{{md}}">This page as Markdown</a></p>
   </main>
   <aside class="toc" aria-label="On this page">{{toc}}
     <button class="copy-page" type="button" data-md="{{md}}">Copy page</button>

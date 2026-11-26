@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>byoa: bring your own agent</title>
+<title>byoa: bring your own agent, on your users' own AI subscription</title>
 <meta name="description" content="byoa, short for &quot;bring your own agent&quot;, is the simplest way to let your users bring their own AI subscription to power the agents in your app.">
-<meta property="og:title" content="byoa: bring your own agent">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="byoa">
+<meta property="og:title" content="byoa: bring your own agent, on your users' own AI subscription">
 <meta property="og:description" content="byoa, short for &quot;bring your own agent&quot;, is the simplest way to let your users bring their own AI subscription to power the agents in your app.">
 <meta property="og:url" content="https://byoa.rippling.computer/">
 <meta property="og:image" content="https://byoa.rippling.computer/art/og.png">
@@ -15,7 +17,8 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#f8f6f0">
 <link rel="canonical" href="https://byoa.rippling.computer/">
-<link rel="icon" href="art/agent.png">
+<link rel="icon" href="/art/favicon.png" type="image/png" sizes="192x192">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa","alternateName":"bring your own agent","description":"byoa, short for \"bring your own agent\", is the simplest way to let your users bring their own AI subscription to power the agents in your app.","inLanguage":"en","publisher":{"@id":"https://byoa.rippling.computer/#ian"}},{"@type":"SoftwareApplication","@id":"https://byoa.rippling.computer/#byoa","name":"byoa","alternateName":"bring your own agent","description":"byoa, short for \"bring your own agent\", is the simplest way to let your users bring their own AI subscription to power the agents in your app.","url":"https://byoa.rippling.computer/","image":"https://byoa.rippling.computer/art/og.png","applicationCategory":"DeveloperApplication","softwareRequirements":"Node 22.18 or later, or Bun","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"isAccessibleForFree":true,"license":"https://www.apache.org/licenses/LICENSE-2.0","author":{"@id":"https://byoa.rippling.computer/#ian"},"sameAs":["https://github.com/madeyexz/byoa","https://www.npmjs.com/package/@madeyexz/byoa"],"softwareHelp":"https://byoa.rippling.computer/docs"},{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa","description":"byoa, short for \"bring your own agent\", is the simplest way to let your users bring their own AI subscription to power the agents in your app.","programmingLanguage":"TypeScript","runtimePlatform":["Node.js","Bun"],"license":"https://www.apache.org/licenses/LICENSE-2.0","author":{"@id":"https://byoa.rippling.computer/#ian"},"targetProduct":{"@id":"https://byoa.rippling.computer/#byoa"}},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
 <link rel="preload" href="fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/GeistPixel-Square.woff2" as="font" type="font/woff2" crossorigin>
 <style>
@@ -40,7 +43,7 @@
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
-img { display: block; }
+img { display: block; height: auto; } /* width from the CSS, shape from the width and height attributes */
 .px { image-rendering: pixelated; }
 code { font: .86em/1.4 var(--mono); background: var(--paper2); border: 1px solid var(--rule); padding: 1px 5px; }
 .pixel { font-family: var(--pixel); letter-spacing: .02em; }
@@ -321,7 +324,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 
 <nav class="top">
   <div class="row">
-    <a class="brand" href="#"><img class="px" src="art/agent.png" alt="">byoa</a>
+    <a class="brand" href="#"><img class="px" src="art/agent.png" width="272" height="420" alt="">byoa</a>
     <a class="opt" href="#who">Who brings what</a>
     <a class="opt" href="#why">Why</a>
     <a class="opt" href="#start">Get started</a>
@@ -332,24 +335,25 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   </div>
 </nav>
 
+<main>
 <header class="band hero">
   <div class="arc" aria-hidden="true"></div>
   <span class="blk b-l2" aria-hidden="true"></span><span class="blk b-l1" aria-hidden="true"></span><span class="blk b-l3" aria-hidden="true"></span>
   <span class="blk b-r2" aria-hidden="true"></span><span class="blk b-r1" aria-hidden="true"></span>
   <span class="dia d1" aria-hidden="true"></span><span class="dia d2" aria-hidden="true"></span>
-  <img class="sprite px s-agent" src="art/agent.png" alt="">
-  <img class="sprite px s-key" src="art/key.png" alt="">
-  <img class="sprite px s-crate" src="art/crate.png" alt="">
-  <img class="sprite px s-store" src="art/store.png" alt="">
-  <img class="sprite px s-plug" src="art/plug.png" alt="">
+  <img class="sprite px s-agent" src="art/agent.png" width="272" height="420" alt="">
+  <img class="sprite px s-key" src="art/key.png" width="403" height="420" alt="">
+  <img class="sprite px s-crate" src="art/crate.png" width="420" height="414" alt="">
+  <img class="sprite px s-store" src="art/store.png" width="348" height="420" alt="">
+  <img class="sprite px s-plug" src="art/plug.png" width="420" height="175" alt="">
   <div class="frame">
     <span class="node" style="left:-3px;bottom:237px"></span><span class="node" style="right:-3px;bottom:237px"></span>
     <div>
       <span class="eyebrow"><i></i>OPEN SOURCE</span>
-      <h1>Let your users bring<br>their own <img class="spr px" src="art/agent.png" alt="">agent.</h1>
+      <h1>Let your users bring<br>their own <img class="spr px" src="art/agent.png" width="272" height="420" alt="">agent.</h1>
       <p class="lead">The simplest way to let your users bring their own <b>AI subscription</b> to power the agents in your app.</p>
       <div class="cta">
-        <a class="btn dark" href="#who"><span class="ico"><img class="px" src="art/crate.png" alt=""></span>See how it works <span class="chev"></span></a>
+        <a class="btn dark" href="#who"><span class="ico"><img class="px" src="art/crate.png" width="420" height="414" alt=""></span>See how it works <span class="chev"></span></a>
         <a class="btn" href="/docs">Read the docs <span class="chev"></span></a>
       </div>
     </div>
@@ -360,17 +364,17 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   <div class="frame">
     <div class="grp">
       <div class="hd">Harnesses · on the user's plan <span class="badge v1">SUPPORTED</span></div>
-      <div class="its"><span class="nm"><img src="art/logo-claude.png" alt="">Claude Code</span><span class="nm"><img src="art/logo-openai.png" alt="">Codex</span><span class="nm"><img src="art/logo-grok.png" alt="">Grok Build</span><span class="nm"><img src="art/logo-opencode.png" alt="">OpenCode Go <span class="badge plan">SOON</span></span></div>
+      <div class="its"><span class="nm"><img src="art/logo-claude.png" width="96" height="96" alt="">Claude Code</span><span class="nm"><img src="art/logo-openai.png" width="96" height="96" alt="">Codex</span><span class="nm"><img src="art/logo-grok.png" width="96" height="96" alt="">Grok Build</span><span class="nm"><img src="art/logo-opencode.png" width="96" height="96" alt="">OpenCode Go <span class="badge plan">SOON</span></span></div>
       <p class="note">Do you sell the electricity, an AI plan? <a href="https://github.com/madeyexz/byoa/issues">Reach out to us</a>.</p>
     </div>
     <div class="grp">
       <div class="hd">Sandboxes · on your account <span class="badge v1">SUPPORTED</span></div>
-      <div class="its"><span class="nm"><img src="art/logo-e2b.png" alt="">E2B</span><span class="nm"><img src="art/logo-daytona.png" alt="">Daytona</span><span class="nm"><img src="art/logo-instabox.png" alt="">Instabox</span></div>
+      <div class="its"><span class="nm"><img src="art/logo-e2b.png" width="96" height="96" alt="">E2B</span><span class="nm"><img src="art/logo-daytona.png" width="96" height="96" alt="">Daytona</span><span class="nm"><img src="art/logo-instabox.png" width="96" height="96" alt="">Instabox</span></div>
       <p class="note">More sandbox providers are coming soon.</p>
     </div>
     <div class="grp">
       <div class="hd">Backends <span class="badge v1">SUPPORTED</span></div>
-      <div class="its"><span class="nm"><img src="art/logo-node.png" alt="">Node</span><span class="nm"><img src="art/logo-bun.png" alt="">Bun</span><span class="nm"><img src="art/logo-convex.png" alt="">Convex</span></div>
+      <div class="its"><span class="nm"><img src="art/logo-node.png" width="96" height="96" alt="">Node</span><span class="nm"><img src="art/logo-bun.png" width="96" height="96" alt="">Bun</span><span class="nm"><img src="art/logo-convex.png" width="96" height="96" alt="">Convex</span></div>
       <p class="note">Any Node or Bun framework. Any database, through a store adapter.</p>
     </div>
   </div>
@@ -483,7 +487,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
       </div>
       <div class="pack" aria-hidden="true">
         <span class="cap">Each user owns a small battery</span>
-        <img class="bat px" src="art/battery.png" alt="">
+        <img class="bat px" src="art/battery.png" width="304" height="420" alt="">
         <div class="apps">
           <div class="app"><i>APP</i>Your app</div>
           <div class="app"><i>APP</i>Notes</div>
@@ -521,7 +525,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     </div>
     <div class="codepanel">
       <div class="win">
-        <div class="bar"><img class="px" src="art/agent.png" alt="">terminal</div>
+        <div class="bar"><img class="px" src="art/agent.png" width="272" height="420" alt="">terminal</div>
         <div class="body"><pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#80A665">npm</span><span style="color:#C98A7D"> install</span><span style="color:#C98A7D"> @madeyexz/byoa</span></span>
 <span class="line"><span style="color:#80A665">bun</span><span style="color:#C98A7D"> add</span><span style="color:#C98A7D"> @madeyexz/byoa</span></span></code></pre></div>
       </div>
@@ -535,19 +539,19 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     <h2>What byoa works with today.</h2>
     <p class="sub">Everything without a tag works today. Each row links to its page in the docs. To see which plans work and what they cost, read <a href="/docs/subscriptions">Supported AI subscriptions</a>.</p>
     <div class="scope">
-      <div class="row"><a class="k" href="/docs/subscriptions"><img class="px" src="art/agent.png" alt="">Agents <span class="chev"></span></a><div class="v">
+      <div class="row"><a class="k" href="/docs/subscriptions"><img class="px" src="art/agent.png" width="272" height="420" alt="">Agents <span class="chev"></span></a><div class="v">
         <span class="it">Claude Code</span><span class="it">Codex</span><span class="it">Grok Build</span><span class="it dash">Gemini / Antigravity <span class="badge maybe">MAYBE LATER</span></span>
       </div></div>
-      <div class="row"><a class="k" href="/docs/subscriptions"><img class="px" src="art/key.png" alt="">User plans <span class="chev"></span></a><div class="v">
+      <div class="row"><a class="k" href="/docs/subscriptions"><img class="px" src="art/key.png" width="403" height="420" alt="">User plans <span class="chev"></span></a><div class="v">
         <span class="it">Claude plan</span><span class="it">ChatGPT plan</span><span class="it">Grok plan</span><span class="it">OpenCode Go key <span class="badge plan">PLANNED</span></span>
       </div></div>
-      <div class="row"><a class="k" href="/docs/providers"><img class="px" src="art/crate.png" alt="">Sandboxes <span class="chev"></span></a><div class="v">
+      <div class="row"><a class="k" href="/docs/providers"><img class="px" src="art/crate.png" width="420" height="414" alt="">Sandboxes <span class="chev"></span></a><div class="v">
         <span class="it">E2B</span><span class="it">Daytona</span><span class="it">Instabox</span><span class="it">Other providers <span class="badge plan">PLANNED</span></span>
       </div></div>
-      <div class="row"><a class="k" href="/docs/getting-started"><img class="px" src="art/plug.png" alt="">Backends <span class="chev"></span></a><div class="v">
+      <div class="row"><a class="k" href="/docs/getting-started"><img class="px" src="art/plug.png" width="420" height="175" alt="">Backends <span class="chev"></span></a><div class="v">
         <span class="it">Node</span><span class="it">Convex actions</span><span class="it">Cloudflare Workers <span class="badge plan">PLANNED</span></span>
       </div></div>
-      <div class="row"><a class="k" href="/docs/stores"><img class="px" src="art/store.png" alt="">Token stores <span class="chev"></span></a><div class="v">
+      <div class="row"><a class="k" href="/docs/stores"><img class="px" src="art/store.png" width="348" height="420" alt="">Token stores <span class="chev"></span></a><div class="v">
         <span class="it">Convex</span><span class="it">Postgres</span><span class="it">Your own: get · put · delete · compare-and-set</span>
       </div></div>
     </div>
@@ -557,17 +561,18 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <section class="band end">
   <div class="frame">
     <h2>Bring your own agent.</h2>
-    <p>The simplest way to let your users bring their own AI subscription to power the agents in your app.</p>
+    <p>byoa, short for &quot;bring your own agent&quot;, is the simplest way to let your users bring their own AI subscription to power the agents in your app.</p>
     <div class="cta">
       <a class="btn dark" href="https://github.com/madeyexz/byoa">GitHub <span class="chev"></span></a>
       <a class="btn" href="/docs">Read the docs <span class="chev"></span></a>
     </div>
   </div>
 </section>
+</main>
 <footer>
   <div class="frame">
     <span>byoa · Apache 2.0 · made by <a href="https://www.ianhsiao.me">Ian Hsiao</a></span>
-    <span><a href="/docs">Docs</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
+    <span><a href="/docs">Docs</a> · <a href="/docs/faq">FAQ</a> · <a href="/demo">Demo</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://www.npmjs.com/package/@madeyexz/byoa">npm</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
   </div>
 </footer>
 
@@ -582,7 +587,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     --muted: #6b6977; --dim: #9895a1; --cobalt: #2f4cff; --cobalt2: #2238d8; --peri: #9db6ff; --peri2: #dfe6ff; --navy: #121428;
     --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
   #bh-open { position: fixed; right: 20px; bottom: 16px; z-index: 60; width: 64px; height: 84px; padding: 0; border: 0; background: none; cursor: pointer; }
-  #bh-open img { width: 54px; margin: 0 auto; image-rendering: pixelated; animation: bh-bob 1.6s steps(2) infinite; filter: drop-shadow(3px 3px 0 rgba(20,20,24,.18)); transform-origin: 50% 100%; }
+  #bh-open img { width: 54px; height: auto; margin: 0 auto; image-rendering: pixelated; animation: bh-bob 1.6s steps(2) infinite; filter: drop-shadow(3px 3px 0 rgba(20,20,24,.18)); transform-origin: 50% 100%; }
   #bh-open:hover img, #bh-open:focus-visible img { animation: bh-wave .5s steps(2) 3; }
   #bh-open.busy img { animation-duration: .5s; }
   /* it jumps in from below the page, then hops each time it says something */
@@ -609,7 +614,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     background: var(--card, #fffdf8); color: var(--ink, #141418); border: 1px solid var(--ink, #141418); box-shadow: 6px 6px 0 rgba(20,20,24,.14); font: 15px/1.5 var(--sans, system-ui); }
   #bh[hidden] { display: none; }
   #bh header { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; border-bottom: 1px solid var(--rule, #e3dfd4); background: var(--paper, #f8f6f0); }
-  #bh header img { width: 22px; image-rendering: pixelated; }
+  #bh header img { width: 22px; height: auto; image-rendering: pixelated; }
   #bh header .t { flex: 1; min-width: 0; }
   #bh header b { display: block; font-weight: 640; letter-spacing: -.01em; }
   #bh header small { display: block; color: var(--muted, #6b6977); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -631,7 +636,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   #bh .chips button { border: 1px solid var(--rule2, #d3cdbe); background: var(--paper, #f8f6f0); padding: 6px 10px; font: 13.5px/1.3 var(--sans, system-ui); cursor: pointer; text-align: left; color: var(--ink, #141418); }
   #bh .chips button:hover { background: var(--peri2, #dfe6ff); border-color: var(--peri, #9db6ff); }
   #bh .work { display: flex; gap: 8px; align-items: flex-start; color: var(--muted, #6b6977); font-size: 13px; }
-  #bh .work img { width: 16px; margin-top: 2px; image-rendering: pixelated; animation: bh-bob .5s steps(2) infinite; }
+  #bh .work img { width: 16px; height: auto; margin-top: 2px; image-rendering: pixelated; animation: bh-bob .5s steps(2) infinite; }
   #bh .work ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; min-width: 0; }
   #bh .work li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #bh .work li.done { color: var(--dim, #9895a1); }
@@ -654,10 +659,10 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   }
 </style>
 <div id="bh-say" role="status" hidden><button class="text" type="button"></button><button class="x" type="button" aria-label="Hide this message">✕</button></div>
-<button id="bh-open" type="button" aria-label="Ask byoa's help agent" aria-controls="bh" aria-expanded="false"><img src="/art/agent.png" alt=""></button>
+<button id="bh-open" type="button" aria-label="Ask byoa's help agent" aria-controls="bh" aria-expanded="false"><img src="/art/agent.png" width="272" height="420" alt=""></button>
 <section id="bh" role="dialog" aria-label="byoa help agent" hidden>
   <header>
-    <img src="/art/agent.png" alt="">
+    <img src="/art/agent.png" width="272" height="420" alt="">
     <div class="t"><b>byoa help agent</b><small>Codex · GPT-6 Luna · in a sandbox, on byoa</small></div>
     <button type="button" data-act="new" title="New chat" aria-label="New chat">↺</button>
     <button type="button" data-act="close" title="Close" aria-label="Close">✕</button>
@@ -748,7 +753,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     let html = HELLO + msgs.map((m) => m.role === 'visitor' ? `<div class="m visitor">${esc(m.text)}</div>` : `<div class="m agent${m.ok === false ? ' failed' : ''}">${md(withTime(m.text, m.until))}${took(m)}</div>`).join('')
     if (sent && !msgs.some((m) => m.role === 'visitor' && m.text === sent)) html += `<div class="m visitor">${esc(sent)}</div>`
     const job = view?.job
-    if (job || sent) html += `<div class="work"><img src="/art/agent.png" alt=""><ol>${(job ? doing(job) : ['Sending…']).map(step).join('')}</ol></div>`
+    if (job || sent) html += `<div class="work"><img src="/art/agent.png" width="272" height="420" alt=""><ol>${(job ? doing(job) : ['Sending…']).map(step).join('')}</ol></div>`
     // why the agent cannot answer now, in place of the suggestions
     else if (view?.status) html += `<div class="m agent status">${md(withTime(view.status.text, view.status.until))}</div>`
     else if (!msgs.length) html += `<div class="chips">${CHIPS.map((c) => `<button type="button">${esc(c)}</button>`).join('')}</div>`

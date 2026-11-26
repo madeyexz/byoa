@@ -1,5 +1,11 @@
 # FAQ
 
+## What is byoa?
+
+byoa, short for "bring your own agent", is the simplest way to let your users bring their own AI subscription to power the agents in your app. Each user signs in to their own AI plan one time: Claude (in Claude Code), ChatGPT (in Codex), Grok (in Grok Build) or OpenCode Go (beta). When your app has work for the AI, byoa runs that user's own Claude Code, Codex or Grok Build in a sandbox on your E2B, Daytona or Instabox account, with the user's tools, and streams the result back. The user's plan pays for the AI. Your app pays only for the sandbox.
+
+byoa is an open-source library (Apache 2.0), the npm package `@madeyexz/byoa`. It runs inside your app's own backend, on Node or Bun. It is not a hosted service. See [Why and when you need byoa](https://byoa.rippling.computer/docs/index.md#why-and-when-you-need-byoa) and [Getting started](https://byoa.rippling.computer/docs/getting-started.md).
+
 ## Can my user's AI account get banned?
 
 It can. byoa cannot promise that it will not, because the labs decide, and their terms allow parts of what byoa does but not all of it. byoa is built to stay inside the parts that the labs allow:
