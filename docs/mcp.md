@@ -20,7 +20,7 @@ await agents.removeMcp(userId, 'notion')
 - The URL must be `https://` (or `http://` on localhost). With `bearer`, byoa checks the token with one MCP `initialize`, and throws if the server refuses it.
 - byoa uses Client ID Metadata Documents when the server supports them (serve `agents.clientMetadata()` at `oauth.clientMetadataUrl`), and Dynamic Client Registration only when it does not.
 - The server's sign-in page sends the browser to your `oauth.redirectUrl` route, which calls `agents.finishMcp({ state, code, error })`. It finds the user from the stored `state`, so that route needs no session. A sign-in that does not finish in 15 minutes runs out; call `connectMcp` again.
-- byoa refreshes each grant itself, with one refresh owner: your backend. Two jobs that need a refresh at the same time cause one refresh request. Do not refresh or read the tokens in your app's code.
+- byoa refreshes each grant itself, with one refresh owner: your backend. Two jobs that need a refresh at the same time cause one refresh request: the refresh holds a lease in the store, and renews it while the authorization server answers. byoa asks the user to connect again only when the authorization server refuses the refresh token (a 4xx answer); a 5xx, a 429 or no answer fails that request only. Do not refresh or read the tokens in your app's code.
 
 ## The proxy and job tokens
 

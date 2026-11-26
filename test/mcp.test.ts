@@ -273,7 +273,7 @@ test('R2: removeMcp while the user connects the same server again keeps the gran
   assert.deepEqual(await agents.listMcp('alice'), [{ name: 'notes', url: mcp.url }])
 })
 
-test('R2.3: a refresh that outlasts its lease (30 s) does not make the user connect again', async () => {
+test('R2.3: when a second refresh still comes (a backend clock more than 20 s ahead), the grant keeps the first one\'s tokens', async () => {
   const { mcp, store } = await connected({ expiresIn: 1 })
   const a = agentsOn(store), b = agentsOn(store) // two processes, one database
   const jobs = new JobTokens(store)
@@ -291,7 +291,7 @@ test('R2.3: a refresh that outlasts its lease (30 s) does not make the user conn
   try {
     const ra = call(a.proxy, j1.token)
     while (!held) await pause(5)
-    clock.now = () => Date.now() + 31_000 // a's refresh has run for 31 s: its lease ran out
+    clock.now = () => Date.now() + 31_000 // b's clock is 31 s ahead, and a's lease was not renewed since: b sees it run out
     const rb = await call(b.proxy, j2.token)
     answer()
     statuses = [(await ra).status, rb.status]
@@ -361,4 +361,94 @@ test('R2.3: removeMcp while the user connects again and a refresh runs does not 
     statuses = [(await ra).status, (await rb).status]
   } finally { globalThis.fetch = real }
   assert.equal(mcp.refused, 0, `two refresh requests with one refresh token (the requests got ${statuses})`)
+})
+
+test('R2.3: a refresh slower than its lease (30 s) renews it: one refresh request, and no request is told to connect again', async (t) => {
+  const { mcp, store } = await connected()
+  const a = agentsOn(store), b = agentsOn(store) // two processes, one database
+  const jobs = new JobTokens(store)
+  const [j1, j2] = await Promise.all([jobs.issue('alice', ['notes'], 60_000), jobs.issue('alice', ['notes'], 60_000)])
+  mcp.expireAccess() // the server refuses the access token: both requests refresh
+  t.mock.timers.enable({ apis: ['setInterval'] }) // the lease's renewal timer; time moves only with clock.now and tick
+  const real = globalThis.fetch
+  let held = false, answer!: () => void, statuses: number[] = []
+  const late = new Promise<void>((r) => { answer = r })
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const res = await real(input, init)
+    if ((input instanceof Request ? input.url : String(input)).endsWith('/token') && !held) { held = true; await late }
+    return res
+  }) as typeof fetch
+  const before = mcp.refreshes
+  try {
+    const ra = call(a.proxy, j1.token)
+    while (!held) await pause(5)
+    // a's token endpoint call takes 40 s; every 10 s its backend renews the lease
+    for (const s of [10, 20, 30, 40]) {
+      clock.now = () => Date.now() + s * 1000
+      t.mock.timers.tick(10_000)
+      await pause(20)
+    }
+    const rb = call(b.proxy, j2.token)
+    await pause(400) // b finds the lease held, and waits for a's refresh
+    answer()
+    statuses = [(await ra).status, (await rb).status]
+  } finally { globalThis.fetch = real; clock.now = () => Date.now() }
+  assert.deepEqual(statuses, [200, 200])
+  assert.equal(mcp.refreshes - before, 1, 'one refresh request')
+  assert.equal(mcp.refused, 0)
+})
+
+test('R2: a token endpoint that refuses the refresh token in any way asks the user to connect again; a busy one does not', async () => {
+  const cases: [number, string, boolean][] = [
+    [400, JSON.stringify({ error: 'invalid_grant' }), true],
+    [400, JSON.stringify({ error: 'invalid_request', error_description: 'refresh token revoked' }), true],
+    [400, JSON.stringify({ error: 'invalid_scope' }), true],
+    [403, JSON.stringify({ error: 'access_denied' }), true],
+    [401, 'Unauthorized', true],
+    [400, JSON.stringify({ error: 'temporarily_unavailable' }), false],
+    [429, JSON.stringify({ error: 'too_many_requests' }), false],
+    [503, JSON.stringify({ error: 'invalid_grant' }), false], // a 5xx is the server's trouble, whatever it says
+    [502, '<html>Bad gateway</html>', false],
+  ]
+  for (const [status, body, refused] of cases) {
+    const { mcp, store, agents } = await connected()
+    const { token } = await new JobTokens(store).issue('alice', ['notes'], 60_000)
+    const real = globalThis.fetch
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if ((input instanceof Request ? input.url : String(input)).endsWith('/token')) return new Response(body, { status })
+      return real(input, init)
+    }) as typeof fetch
+    let r: Response
+    try {
+      mcp.expireAccess() // the MCP server refuses the access token: the proxy refreshes
+      r = await call(agents.proxy, token)
+    } finally { globalThis.fetch = real }
+    const what = `${status} ${body}`
+    assert.equal((await (await grantsOn(store)).read('alice', 'notes'))!.grant.needsSignIn === true, refused, what)
+    assert.equal(r.status, refused ? 403 : 502, what)
+    if (refused) assert.match(JSON.stringify(await r.json()), /connect it again/, what)
+    else await r.body?.cancel()
+  }
+})
+
+test('R2.3: a refresh that gives back the token the MCP server refused is tried once more, not again and again', async () => {
+  const { mcp, store, agents } = await connected()
+  const { token } = await new JobTokens(store).issue('alice', ['notes'], 60_000)
+  const same = (await (await grantsOn(store)).read('alice', 'notes'))!.grant.oauth!.tokens!.access_token
+  mcp.expireAccess() // the MCP server refuses the access token
+  // and the token endpoint answers every refresh with that same access token (and a new refresh token)
+  const real = globalThis.fetch
+  let refreshes = 0
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    if ((input instanceof Request ? input.url : String(input)).endsWith('/token')) {
+      if (++refreshes > 5) throw new TypeError('fetch failed') // a bound for this test: the code must stop long before
+      return Response.json({ access_token: same, refresh_token: `rt-${refreshes}`, token_type: 'Bearer', expires_in: 3600 })
+    }
+    return real(input, init)
+  }) as typeof fetch
+  let r: Response
+  try { r = await call(agents.proxy, token) } finally { globalThis.fetch = real }
+  assert.equal(refreshes, 2, `the token endpoint got ${refreshes} refresh requests for one MCP request`)
+  assert.equal(r.status, 403)
+  await r.body?.cancel()
 })

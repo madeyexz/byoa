@@ -42,9 +42,6 @@ const metadata = (c: OAuthConfig): OAuthClientMetadata => ({
 export class Provider implements OAuthClientProvider {
   /** Where `redirectToAuthorization` sent the user. A refresh that needs a new sign-in ends here too. */
   url?: URL
-  /** The authorization server refused the refresh token, or the client (auth() then invalidates the tokens or all):
-   *  only then must the user connect again. */
-  refused = false
   readonly id = randomToken(18)
   readonly config: OAuthConfig
   s: OAuthState
@@ -63,7 +60,6 @@ export class Provider implements OAuthClientProvider {
   saveDiscoveryState(d: OAuthDiscoveryState) { this.s.discovery = d }
   discoveryState() { return this.s.discovery }
   invalidateCredentials(scope: 'all' | 'client' | 'tokens' | 'verifier' | 'discovery') {
-    if (scope === 'all' || scope === 'tokens') this.refused = true
     if (scope === 'all' || scope === 'client') this.s.client = undefined
     if (scope === 'all' || scope === 'tokens') { this.s.tokens = undefined; this.s.at = undefined }
     if (scope === 'all' || scope === 'verifier') this.s.verifier = undefined
