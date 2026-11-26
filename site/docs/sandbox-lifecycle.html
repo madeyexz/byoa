@@ -505,6 +505,8 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <li>A refresh that the CLI made more than about a minute before your backend died is already saved. Only a refresh in the last minute before the watcher ran can be lost; then the user may have to sign in again.</li>
 <li>byoa saves files from a sandbox only when they are the same account&#39;s login and not older than the stored one, because the agent of a job can change any file.</li>
 <li>A job&#39;s waiting place in line also runs out about 30 s after its backend dies, so the jobs after it go on.</li>
+<li>The slot&#39;s lease: until its harness starts, a job renews it every minute, so a job that waits long for the login keeps its sandbox; from the harness&#39;s start it lasts the job timeout + 5 minutes. So the lease of a dead job runs out at most the job timeout + 5 minutes after its backend died.</li>
+<li>Known issue: the watcher&#39;s time and, on E2B, the sandbox&#39;s time start before the job waits in line for the login. A job that waited for the login longer than a few seconds can have its login files removed while its harness runs, and on E2B its sandbox can pause before the job&#39;s time ends. <a href="https://github.com/madeyexz/byoa/blob/main/spec/tla/README.md" rel="noopener">spec/tla</a> has the details and a proposed fix.</li>
 </ul>
 <h2 id="how-each-provider-pauses-and-times-out"><a class="anchor" href="#how-each-provider-pauses-and-times-out" aria-hidden="true" tabindex="-1">#</a>How each provider pauses and times out</h2>
 <div class="tbl"><table>

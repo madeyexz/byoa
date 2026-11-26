@@ -456,14 +456,22 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 </ul>
 <h2 id="test-byoa-itself"><a class="anchor" href="#test-byoa-itself" aria-hidden="true" tabindex="-1">#</a>Test byoa itself</h2>
 <ul>
-<li><code>npm test</code> runs V10, V12, the fake-harness tests and the unit tests. <code>npm run test:v11</code> runs V11; it downloads about 600 MB. CI runs both on every commit.</li>
-<li><code>npm test</code> never starts a paid sandbox, also when the providers&#39; keys are set: each paid check needs its own flag. <code>npm run test:daytona</code> checks the Daytona adapter against Daytona and runs V8 there. It needs <code>DAYTONA_API_KEY</code>, and with <code>BYOA_DAYTONA_VOLUMES=1</code> also checks its volumes; that needs a key with the volume permissions. <code>npm run test:v4</code> runs V4 (<a href="https://github.com/madeyexz/byoa/blob/main/test/v4.test.ts" rel="noopener">test/v4.test.ts</a>) with <code>E2B_API_KEY</code> and <code>DAYTONA_API_KEY</code>; it needs <code>cloudflared</code> to give the proxy a public URL. On a Daytona org on Tier 1 or 2, also set <code>BYOA_V4_RELAY</code> to a relay on an allowed domain, such as <a href="https://github.com/madeyexz/byoa/blob/main/test/relay/convex/http.ts" rel="noopener">test/relay</a> deployed to a temporary Convex project.</li>
-<li><code>npm run test:e2b</code> checks the E2B adapter against E2B and runs V8 there (a user&#39;s jobs in one paused and resumed sandbox, and <code>sandboxPer: &#39;job&#39;</code>). It needs <code>E2B_API_KEY</code>, and with <code>BYOA_E2B_VOLUMES=1</code> also checks volumes, for an E2B team with volumes turned on.</li>
-<li><code>npm run test:instabox</code> does the same on Instabox. It needs <code>INSTABOX_API_KEY</code>. <code>BYOA_V4_PROVIDERS=e2b,instabox</code> runs V4 on E2B and Instabox.</li>
-<li>Each of these adapter tests first runs the conformance check, <a href="https://github.com/madeyexz/byoa/blob/main/test/helpers/conformance.ts" rel="noopener">test/helpers/conformance.ts</a>; <code>npm test</code> runs it on the local sandbox.</li>
-<li><code>node scripts/v21.ts</code> runs V21 (conversations and steering with real logins on E2B) in steps, because a person signs in: <code>login claude|codex|grok</code>, then <code>check</code>, then <code>cleanup</code>, which signs out and deletes the sandboxes. It needs <code>E2B_API_KEY</code>.</li>
+<li><p><code>npm test</code> runs V10, V12, the fake-harness tests and the unit tests. <code>npm run test:v11</code> runs V11; it downloads about 600 MB. CI runs both on every commit.</p>
+</li>
+<li><p><code>npm test</code> never starts a paid sandbox, also when the providers&#39; keys are set: each paid check needs its own flag. <code>npm run test:daytona</code> checks the Daytona adapter against Daytona and runs V8 there. It needs <code>DAYTONA_API_KEY</code>, and with <code>BYOA_DAYTONA_VOLUMES=1</code> also checks its volumes; that needs a key with the volume permissions. <code>npm run test:v4</code> runs V4 (<a href="https://github.com/madeyexz/byoa/blob/main/test/v4.test.ts" rel="noopener">test/v4.test.ts</a>) with <code>E2B_API_KEY</code> and <code>DAYTONA_API_KEY</code>; it needs <code>cloudflared</code> to give the proxy a public URL. On a Daytona org on Tier 1 or 2, also set <code>BYOA_V4_RELAY</code> to a relay on an allowed domain, such as <a href="https://github.com/madeyexz/byoa/blob/main/test/relay/convex/http.ts" rel="noopener">test/relay</a> deployed to a temporary Convex project.</p>
+</li>
+<li><p><code>npm run test:e2b</code> checks the E2B adapter against E2B and runs V8 there (a user&#39;s jobs in one paused and resumed sandbox, and <code>sandboxPer: &#39;job&#39;</code>). It needs <code>E2B_API_KEY</code>, and with <code>BYOA_E2B_VOLUMES=1</code> also checks volumes, for an E2B team with volumes turned on.</p>
+</li>
+<li><p><code>npm run test:instabox</code> does the same on Instabox. It needs <code>INSTABOX_API_KEY</code>. <code>BYOA_V4_PROVIDERS=e2b,instabox</code> runs V4 on E2B and Instabox.</p>
+</li>
+<li><p>Each of these adapter tests first runs the conformance check, <a href="https://github.com/madeyexz/byoa/blob/main/test/helpers/conformance.ts" rel="noopener">test/helpers/conformance.ts</a>; <code>npm test</code> runs it on the local sandbox.</p>
+</li>
+<li><p><code>node scripts/v21.ts</code> runs V21 (conversations and steering with real logins on E2B) in steps, because a person signs in: <code>login claude|codex|grok</code>, then <code>check</code>, then <code>cleanup</code>, which signs out and deletes the sandboxes. It needs <code>E2B_API_KEY</code>.</p>
+</li>
+<li><p><code>spec/tla/check.sh</code> runs V22: TLC checks the TLA+ models of the job lifecycle, the login lease, the sign-in and the store indexes (<a href="https://github.com/madeyexz/byoa/blob/main/spec/tla/README.md" rel="noopener">spec/tla</a>). It needs Java 11 or later, and downloads TLC the first time. CI runs it when the models or the code they model change.</p>
+</li>
 </ul>
-<p>The checks V1 to V21 are in <a href="https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification" rel="noopener">SPEC.md</a>.</p>
+<p>The checks V1 to V22 are in <a href="https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification" rel="noopener">SPEC.md</a>.</p>
 
     </article>
     <nav class="pn" aria-label="Pages"><a class="prev" href="/docs/stores"><span>Previous</span>Store logins and grants</a><a class="next" href="/docs/subscriptions"><span>Next</span>Supported AI subscriptions</a></nav>

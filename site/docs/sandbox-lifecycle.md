@@ -90,6 +90,8 @@ Diagram: A job whose backend dies, with the default storedLogin
 - A refresh that the CLI made more than about a minute before your backend died is already saved. Only a refresh in the last minute before the watcher ran can be lost; then the user may have to sign in again.
 - byoa saves files from a sandbox only when they are the same account's login and not older than the stored one, because the agent of a job can change any file.
 - A job's waiting place in line also runs out about 30 s after its backend dies, so the jobs after it go on.
+- The slot's lease: until its harness starts, a job renews it every minute, so a job that waits long for the login keeps its sandbox; from the harness's start it lasts the job timeout + 5 minutes. So the lease of a dead job runs out at most the job timeout + 5 minutes after its backend died.
+- Known issue: the watcher's time and, on E2B, the sandbox's time start before the job waits in line for the login. A job that waited for the login longer than a few seconds can have its login files removed while its harness runs, and on E2B its sandbox can pause before the job's time ends. [spec/tla](https://github.com/madeyexz/byoa/blob/main/spec/tla/README.md) has the details and a proposed fix.
 
 ## How each provider pauses and times out
 

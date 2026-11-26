@@ -33,4 +33,6 @@ for await (const ev of agents.run('u1', { harness: 'fake', task: 'call todos.add
 - Each of these adapter tests first runs the conformance check, [test/helpers/conformance.ts](https://github.com/madeyexz/byoa/blob/main/test/helpers/conformance.ts); `npm test` runs it on the local sandbox.
 - `node scripts/v21.ts` runs V21 (conversations and steering with real logins on E2B) in steps, because a person signs in: `login claude|codex|grok`, then `check`, then `cleanup`, which signs out and deletes the sandboxes. It needs `E2B_API_KEY`.
 
-The checks V1 to V21 are in [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification).
+- `spec/tla/check.sh` runs V22: TLC checks the TLA+ models of the job lifecycle, the login lease, the sign-in and the store indexes ([spec/tla](https://github.com/madeyexz/byoa/blob/main/spec/tla/README.md)). It needs Java 11 or later, and downloads TLC the first time. CI runs it when the models or the code they model change.
+
+The checks V1 to V22 are in [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification).

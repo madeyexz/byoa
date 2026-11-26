@@ -41,7 +41,7 @@ bun add @madeyexz/byoa
 
 ## Spec
 
-- [SPEC.md](https://raw.githubusercontent.com/madeyexz/byoa/main/SPEC.md): the version 1 requirements (R1 to R7) and the checks (V1 to V21)
+- [SPEC.md](https://raw.githubusercontent.com/madeyexz/byoa/main/SPEC.md): the version 1 requirements (R1 to R7) and the checks (V1 to V22)
 - [Full docs](https://byoa.rippling.computer/llms-full.txt): the docs, SPEC.md, the example and the skill in one file
 
 ## Example

@@ -1,0 +1,42 @@
+# V22 (SPEC.md, Verification): TLC checks the TLA+ models in spec/tla, when the models or the code they model change.
+# Each model says what TLC must find (spec/tla/README.md): no error, or the counterexample of a known issue.
+name: tla
+on:
+  push:
+    paths:
+      - spec/tla/**
+      - src/job.ts
+      - src/slots.ts
+      - src/queue.ts
+      - src/store.ts
+      - src/time.ts
+      - src/login.ts
+      - src/login-stored.ts
+      - src/conversation.ts
+      - .github/workflows/tla.yml
+  pull_request:
+    paths:
+      - spec/tla/**
+      - src/job.ts
+      - src/slots.ts
+      - src/queue.ts
+      - src/store.ts
+      - src/time.ts
+      - src/login.ts
+      - src/login-stored.ts
+      - src/conversation.ts
+      - .github/workflows/tla.yml
+  workflow_dispatch:
+
+jobs:
+  tlc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - uses: actions/cache@v4
+        with: { path: spec/tla/.tools, key: tla2tools-1.7.4 }
+      - run: spec/tla/check.sh
+        env: { TLC_HEAP: 6g }
