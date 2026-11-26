@@ -9,6 +9,9 @@ import { POSTGRES_SCHEMA, postgresStore } from '../src/store/postgres.ts'
 import { anyApi, defineSchema } from 'convex/server'
 import { convexTest } from 'convex-test'
 import { convexFunctions, convexStore, convexTable } from '../src/store/convex.ts'
+import { keys } from '../src/keys.ts'
+import type { SandboxProvider } from '../src/sandbox/types.ts'
+import { slots } from '../src/slots.ts'
 
 async function pg(): Promise<Store> {
   const db = new PGlite()
@@ -63,5 +66,29 @@ for (const [name, make] of [['memory', async () => memoryStore()], ['postgres', 
     const won = await Promise.all(Array.from({ length: 10 }, (_, i) => s.cas('race', v, String(i + 1))))
     assert.equal(won.filter(Boolean).length, 1)
     assert.equal((await s.get('race'))!.value, String(won.indexOf(true) + 1))
+  })
+}
+
+// A lost answer (spec/tla/Store.tla, Store_lease_*): the store wrote, but the caller got an error (the network failed
+// after the commit), or the app's query function sent the write again and answered what the second one did (false).
+// The job's take must still hold the slot, else its lease blocks the slot until it runs out (the job timeout + 5 min).
+for (const lost of ['an error', 'false from a second send'] as const) {
+  test(`slots.take: a cas that wrote but answered ${lost} still takes the slot`, async () => {
+    const k = keys.slot('u', 'p', 'codex', '')
+    const mem = memoryStore()
+    let armed = true
+    const store: Store = {
+      get: (key) => mem.get(key), put: (key, v) => mem.put(key, v), delete: (key) => mem.delete(key),
+      async cas(key, version, value) {
+        const wrote = await mem.cas(key, version, value)
+        if (!armed || key !== k || !wrote) return wrote
+        armed = false
+        if (lost === 'an error') throw new Error('connection reset')
+        return mem.cas(key, version, value)
+      },
+    }
+    const sl = slots(store, { name: 'p' } as SandboxProvider, { leaseMs: 60_000, waitMs: 1_500 })
+    const held = await sl.take('u', 'codex', '')
+    assert.equal(JSON.parse((await mem.get(k))!.value).holder, held.holder)
   })
 }

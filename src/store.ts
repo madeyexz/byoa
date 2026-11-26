@@ -9,6 +9,11 @@ export interface Entry {
   version: string
 }
 
+/** What byoa needs of an adapter (spec/tla/Store.tla): each call takes effect at one instant, and a `get` answers the
+ *  latest write: no read replica and no cache, or a line can serve a later job first and update() can lose an index
+ *  entry. A version never repeats for a key, also after a delete (no per-row counter). A write that throws should not
+ *  have written; never send a write again after an error (a lease taken by a write whose answer was lost stays until
+ *  it runs out). */
 export interface Store {
   get(key: string): Promise<Entry | null>
   /** Writes the value whatever is there now. */
