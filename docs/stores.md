@@ -16,7 +16,7 @@ interface Store {
 }
 ```
 
-The version must change on every write, and a key that is deleted and written again must never get an earlier version back. The one refresh owner of each grant, the login lease and the sandbox slots depend on `cas`. The to-do example's `sqliteStore` in [examples/todo/todos.ts](../examples/todo/todos.ts) is one in 19 lines.
+The version must change on every write, and a key that is deleted and written again must never get an earlier version back. Each call must take effect at one instant, and `get` must answer the latest write: do not send it to a read replica or a cache, or a job that came later can take a sandbox or a login first, and an index can lose an entry. Do not send a write again after an error (a retry wrapper): the first one may have written. The one refresh owner of each grant, the login lease and the sandbox slots depend on `cas`. The to-do example's `sqliteStore` in [examples/todo/todos.ts](../examples/todo/todos.ts) is one in 19 lines.
 
 ## The keys byoa writes
 

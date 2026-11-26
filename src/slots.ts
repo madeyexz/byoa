@@ -30,7 +30,13 @@ export function slots(store: Store, provider: SandboxProvider, o: { leaseMs: num
         // and again after, in case a remove took it out of the index meanwhile (spec/tla/Index.tla)
         if (!e) await index()
         const cur: Slot = e ? JSON.parse(e.value) : { until: 0 }
-        if (cur.until < now() && (await store.cas(k, e?.version ?? null, JSON.stringify({ sandbox: cur.sandbox, holder, until: now() + o.leaseMs })))) {
+        if (cur.until >= now()) return undefined
+        // a cas can write and still answer an error (the network failed after the commit), or false (the app's query
+        // function sent it again): then the slot names this holder, and the job holds it (spec/tla/Store.tla)
+        const mine = async () => { const a = await store.get(k); return !!a && (JSON.parse(a.value) as Slot).holder === holder }
+        const won = await store.cas(k, e?.version ?? null, JSON.stringify({ sandbox: cur.sandbox, holder, until: now() + o.leaseMs }))
+          .catch(async (err) => { if (await mine().catch(() => false)) return true; throw err })
+        if (won || (await mine())) {
           if (!e) await index()
           return { k, holder, sandbox: cur.sandbox }
         }
