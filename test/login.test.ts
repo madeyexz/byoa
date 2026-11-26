@@ -379,6 +379,39 @@ test('R1.4: the login\'s watcher runs before the provider would pause the sandbo
   assert.deepEqual(r.late, [])
 })
 
+test('R1.4: the login\'s watcher runs before the provider would pause the sandbox, also when load runs before the first beat', async (t) => {
+  // spec/tla/JobTiming.tla found it (JobTiming_main_firstbeat): the beat first sets the sandbox's time 60 s after the job
+  // began, but create and resume gave it only jobTimeoutMs + 60 s. A setup of 20 s (checkServers, install) put the
+  // watcher at load + jobTimeoutMs + 45 s, after the sandbox's time; a backend that died before setTimeout left the
+  // login in the sandbox that E2B then paused
+  const { clock } = await import('../src/time.ts')
+  const a = await app()
+  await a.agents.connectLogin('max', 'claude')
+  assert.deepEqual(await a.agents.finishLogin('max', 'claude', { code: 'good-code' }), { state: 'signed-in' })
+  t.mock.timers.enable({ apis: ['setInterval'] })
+  const real = clock.now, late: string[] = []
+  const create = a.sandbox.create
+  a.sandbox.create = async (o) => {
+    const s = await create(o)
+    const end = clock.now() + o!.timeoutMs!
+    const run = s.run
+    s.run = (cmd, ro) => {
+      // the setup takes 20 s, less than the beat's first minute
+      if (cmd.startsWith('rm -rf ')) { const at = clock.now() + 20_000; clock.now = () => at }
+      const m = /^sleep (\d+); \[/.exec(cmd)
+      if (m && clock.now() + Number(m[1]) * 1000 >= end) late.push(`the watcher runs ${(clock.now() + Number(m[1]) * 1000 - end) / 1000} s after the sandbox's time`)
+      return run(cmd, ro)
+    }
+    return s
+  }
+  try {
+    const s = await a.agents.session('max', { harness: 'claude' })
+    await s.close()
+  } finally { clock.now = real }
+  assert.deepEqual(late, [])
+  await a.agents.deleteSandbox('max')
+})
+
 test('R1.4: a backend that dies while load writes the login into the sandbox leaves no login there once the watcher ran', async () => {
   // spec/tla/JobTiming.tla found it (JobTiming_main_load): load wrote the login files, and only then started the
   // watcher; a backend that died in between left them in the sandbox that the provider later paused

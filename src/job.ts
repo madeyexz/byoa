@@ -246,14 +246,16 @@ export function jobs(d: JobDeps) {
       const setup: Setup = { agentsMd: r.setup?.agentsMd, skills: [...(r.setup?.skills ?? []), ...plugins.flatMap((p) => p.setup.skills ?? [])] }
       const files = harnessFiles(h, setup, { proxyUrl: d.proxyUrl, servers: t.mcp.map((m) => m.name), access: r.access })
       // until the harness starts, the setup and the wait for the AI login may take longer than the lease of the kept
-      // sandbox and than the sandbox's own time: both are set again every minute (the sandbox's time to one minute more
-      // than the job timeout + 60 s, so the login's watcher still runs first if this backend dies before setTimeout)
-      beat = setInterval(() => { void renew(); void sbx?.setTimeout?.(d.timeout + 60_000 + SLOT_RENEW_MS).catch(() => {}) }, SLOT_RENEW_MS)
+      // sandbox and than the sandbox's own time: both are set again every minute. The sandbox's time is one minute more
+      // than the job timeout + 60 s, from its resume or create and from each beat, so the login's watcher (the job
+      // timeout + 45 s from load) still runs first if this backend dies before setTimeout, also before the first beat
+      const waitTime = d.timeout + 60_000 + SLOT_RENEW_MS
+      beat = setInterval(() => { void renew(); void sbx?.setTimeout?.(waitTime).catch(() => {}) }, SLOT_RENEW_MS)
       beat.unref?.()
       if (d.keep) {
         slot = await d.slots.take(user, h, key, (ahead) => r.onWait?.({ for: 'sandbox', ahead }))
         if (slot.sandbox) {
-          try { sbx = await d.sandbox.resume(slot.sandbox, { timeoutMs: d.timeout + 60_000 }) } catch (e) {
+          try { sbx = await d.sandbox.resume(slot.sandbox, { timeoutMs: waitTime }) } catch (e) {
             // deleted or expired at the provider: the user gets a new one
             if (!(e instanceof SandboxGoneError)) throw e
           }
@@ -263,7 +265,7 @@ export function jobs(d: JobDeps) {
         const labels: Record<string, string> = slot
           ? { 'byoa-app': d.app, 'byoa-harness': h, 'byoa-user': (await sha256hex(user)).slice(0, 24), ...(key ? { 'byoa-key': (await sha256hex(key)).slice(0, 24) } : {}) }
           : { 'byoa-app': d.app, 'byoa-job': t.job }
-        sbx = await d.sandbox.create({ volumes: await cred.volumes(), labels, timeoutMs: d.timeout + 60_000, keep: !!slot })
+        sbx = await d.sandbox.create({ volumes: await cred.volumes(), labels, timeoutMs: waitTime, keep: !!slot })
         if (slot) {
           slot.sandbox = sbx.id
           if (!(await d.slots.set(slot, sbx.id, now() + d.timeout + 5 * 60_000))) {
@@ -281,7 +283,7 @@ export function jobs(d: JobDeps) {
       // before the harness and the login: a job whose sandbox cannot reach the proxy must not start (R3.5)
       const failing = await checkServers(sbx, t)
       const { bin, version } = await x.install(sbx, d.pins)
-      // the login leaves the sandbox before the provider pauses or ends it (it does at timeout + 1 min)
+      // the login leaves the sandbox before the provider pauses or ends it (it does at timeout + 2 min from the last beat)
       const loaded = await cred.load(sbx, { token: t.token, job: { deadline: now() + d.timeout + 45_000, onWait: (ahead) => r.onWait?.({ for: 'login', ahead }) } })
       // the harness starts now, after the wait for the login: the sandbox's time, the lease of the kept sandbox and the
       // job token's time start again, so the harness gets its whole time and the login's watcher runs before the
