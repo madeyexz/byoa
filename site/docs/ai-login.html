@@ -1049,9 +1049,12 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     render()
     if (view?.job) timer = setTimeout(refresh, 1500)
   }
+  // PostHog, with the visitor's page-view id (posthog.html), so a funnel joins page view, opening the chat and asking
+  const track = (event) => window.posthog?.capture?.(event, { page: location.pathname + location.hash })
   async function ask(text) {
     text = text.trim()
     if (!text || send.disabled) return
+    track('help_asked')
     err.textContent = ''; sent = text; input.value = ''; render()
     try {
       const r = await call('mutation', 'help:ask', { text, page: location.pathname + location.hash })
@@ -1078,7 +1081,9 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
       setTimeout(() => { line = (line + 1) % LINES.length; sayText.innerHTML = LINES[line]; sayText.classList.remove('fade'); hop('hop') }, 180)
     }, 5000)
   }
-  sayText.addEventListener('click', () => show(true))
+  // a visitor opens the chat (the robot or its speech bubble); a chat that a page restores open does not count
+  const openChat = () => { track('help_opened'); show(true) }
+  sayText.addEventListener('click', openChat)
   $('#bh-say .x').addEventListener('click', () => { sessionStorage.setItem('byoa-help-quiet', '1'); speak(false) })
 
   function show(on) {
@@ -1086,7 +1091,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     speak(!on)
     if (on) { refresh(); input.focus() } else clearTimeout(timer)
   }
-  open.addEventListener('click', () => show(box.hidden))
+  open.addEventListener('click', () => box.hidden ? openChat() : show(false))
   box.addEventListener('click', async (e) => {
     const b = e.target.closest('button')
     if (!b) return

@@ -195,6 +195,10 @@ const CAT = { 'needs-reply': 'Needs reply', 'sign-in': 'Sign-in', spam: 'Spam', 
 const visitor = localStorage.byoaDemo ??= [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('')
 
 let view = null, logins = {}, events = [], eventsOf = null, stopEvents = null, filter = 'inbox', selected = null, pending = null, out = null, seen = new Map()
+// PostHog, with the visitor's page-view id from the site's snippet (none when the page runs alone), so a funnel joins
+// the home page, /demo, a sign-in and a finished job; the backend's events (convex/track.ts) have a hashed demo id
+const track = (event, props) => window.posthog?.capture?.(event, props)
+let running = null // the job that this page saw wait or run, so that its end counts once
 
 const badge = (c) => `<span class="badge tint cat-${c}">${CAT[c] ?? esc(c)}</span>`
 const name = (from) => (/^"?([^"<]+?)"?\s*</.exec(from)?.[1] ?? from).trim()
@@ -310,6 +314,8 @@ function renderActivity() {
   const st = j.state === 'queued' ? [true, j.ahead ? `Waiting for a sandbox: ${j.ahead} ${j.ahead === 1 ? 'person is' : 'people are'} ahead of you` : 'Waiting for a sandbox…']
     : j.state === 'running' ? [true, start ? `${AGENT[j.harness]} ${start.version ?? ''} is triaging…` : 'Starting a sandbox…']
     : j.state === 'done' ? [false, `Done: ${labeled} labeled, ${drafts} ${drafts === 1 ? 'draft' : 'drafts'}`] : [false, 'The job failed']
+  if (j.state === 'queued' || j.state === 'running') running = j.id
+  else if (running === j.id) { running = null; track('demo_job_finished', { harness: j.harness, ok: j.state === 'done' }) }
   const text = j.state === 'done' || j.state === 'failed' ? (end?.result ?? j.result ?? '') : ''
   $('activity').hidden = false
   $('activity').innerHTML = `<div class="st">${st[0] ? SPIN : j.state === 'done' ? OKI : BADI}<span>${esc(st[1])}</span></div>
@@ -348,6 +354,7 @@ $('connect').addEventListener('close', cancelPending)
 
 const box = (title, body, bad) => `<div class="alert" ${bad ? 'data-variant="destructive"' : ''}><h2>${title}</h2><section>${body}</section></div>`
 async function signIn(h) {
+  track('demo_signin_clicked', { harness: h })
   pending = h; renderLabs()
   $('signin').innerHTML = box(`Sign in to ${LABS[h][0]}`, `<div style="display:flex;gap:8px;align-items:center">${SPIN}<span>Starting the sign-in in a sandbox…</span></div>`)
   let r

@@ -71,7 +71,7 @@ Each visitor is a random id that the page keeps (128 bits): it is the only key t
 | `SIGNIN_PLACES` | `2` | Of those, the places only sign-ins may use, because the lab's sign-in code expires. Jobs wait in line, and the page shows how many are ahead. |
 | `BUDGET_HOURS` | `5` | Sandbox hours each day (UTC). Then no new sign-in or job until the next day. |
 | `PER_HOUR` | `6` | Jobs, and sign-ins, for each visitor each hour. A visitor has one job at a time. A job has at most 5 minutes. |
-| `POSTHOG_KEY` | | A PostHog project's public key: `demo_signin_started`, `demo_signin_finished`, `demo_job` (harness, ok, labels, seconds waited and run) and `demo_refused`. The page itself counts its views with the site's PostHog snippet. |
+| `POSTHOG_KEY` | | A PostHog project's public key: `demo_signin_started`, `demo_signin_finished`, `demo_job` (harness, ok, labels, seconds waited and run) and `demo_refused`. The page itself counts its views with the site's PostHog snippet, and sends `demo_signin_clicked` (harness) and `demo_job_finished` (harness, ok) from the browser with the same visitor id as its page views, so that a funnel joins them. |
 | `FAKE` | off | `1` also offers byoa's fake harness (no model), to check the deployment end to end with no AI plan. Not for the public demo. |
 
 The demo keeps a visitor's AI logins (byoa's default `storedLogin()`), encrypted, until one of these, and the labs' terms restrict this; see the [Lab rules](../../SPEC.md#lab-rules):
