@@ -7,6 +7,7 @@
 // - docs/<page>.md, the same pages as Markdown for LLMs, with each diagram as text, and llms.txt and llms-full.txt
 //   (https://llmstxt.org) from them, SPEC.md, the to-do example and the agent skill;
 // - sitemap.xml.
+// Each HTML page gets posthog.html (PostHog page views) before </head>.
 // Run from site/: npm install && node build.mjs. worker.js (the Cloudflare Worker "byoa-site") serves these files,
 // art/ and fonts/ from the main branch. To see the site as the Worker serves it: node preview.mjs.
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -23,8 +24,11 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 const local = (path) => readFileSync(new URL(`./${path}`, import.meta.url), 'utf8')
 const write = (path, text) => { writeFileSync(new URL(`./${path}`, import.meta.url), text); console.log(`${path}: ${text.length} bytes`) }
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+// every page counts its visits: posthog.html goes before </head>
+const posthog = local('posthog.html')
 const fill = (template, slots, name) => {
-  let html = template
+  if (!template.includes('</head>')) throw new Error(`${name} has no </head>`)
+  let html = template.replace('</head>', () => `${posthog}</head>`)
   for (const [slot, value] of Object.entries(slots)) {
     const marker = `{{${slot}}}`
     if (!html.includes(marker)) throw new Error(`${name} has no ${marker}`)
