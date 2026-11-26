@@ -1069,7 +1069,7 @@ const agents = createAgents({ ...options, sandbox: e2b({ apiKey }) })   // or da
 Use `e2b({ apiKey?, template?, timeoutMs? })`. It needs the `e2b` package.
 
 - The default template is named `byoa`, and a new E2B account does not have it: the first job then fails with `404: template 'byoa' not found`. Build it one time for each pin change with `buildE2BTemplate()`, or pass `e2b({ template: 'base' })`. Any template with Node 20 or later works: byoa then installs the pinned harness in each new sandbox (about 10 seconds).
-- `pause` takes a snapshot of the files only where the team can (`mode: 'filesystem'`), else a full one after it ends the sandbox's processes. E2B keeps a paused sandbox with no time limit.
+- `pause` ends the sandbox's processes, then takes a full snapshot, with the memory: the next job's resume takes about 0.3 seconds, and node and the harness start warm. When E2B refuses it, because it still saves the sandbox's previous snapshot, byoa takes a snapshot of the files only; the next resume then boots the sandbox again and reads its disk cold, which can add 10 to 20 seconds. E2B keeps a paused sandbox with no time limit, and charges no compute for it.
 - A kept sandbox that times out (a crash, a lost network) is paused, not killed. When byoa resumes a sandbox that paused itself, it ends any old process first.
 
 ## Daytona
@@ -1690,7 +1690,7 @@ interface Sandbox {
 - `readFile`: byoa reads the user's login files and a conversation's transcript with it. Without it, byoa reads a file as base64 on a command's stdout, which a provider may keep in its command history. E2B, Daytona, Instabox and the local provider have it.
 - `setTimeout`: byoa calls it when a job has the user's AI login, so the time the job waited in line for the login does not count. E2B has it, and Daytona for a sandbox of one job. Without it, a job that waited long for the login can reach the sandbox's time before its own ends.
 - An adapter of the app's own can check itself with the conformance check in byoa's tests (`test/helpers/conformance.ts`).
-- E2B: `pause` takes a snapshot of the files only where the team can (`mode: 'filesystem'`), else a full one after it ends the sandbox's processes. E2B keeps a paused sandbox with no time limit.
+- E2B: `pause` ends the sandbox's processes, then takes a full snapshot, with the memory: the next job's resume takes about 0.3 seconds, and node and the harness start warm. When E2B refuses it, because it still saves the sandbox's previous snapshot, byoa takes a snapshot of the files only; the next resume then boots the sandbox again and reads its disk cold, which can add 10 to 20 seconds. E2B keeps a paused sandbox with no time limit, and charges no compute for it.
 - E2B: the default template is `byoa`; build it once per pin change with `buildE2BTemplate()`. Any template with Node 20 or later works (byoa installs the pinned harness when it is missing, more slowly).
 - Daytona: `pause` stops the sandbox; `resume` starts it (also from archived, more slowly). A kept sandbox is not ephemeral and has no time to live; Daytona archives it after 7 days stopped.
 - Daytona: with `cliLogin`, every user's login is a subpath of one shared volume (`byoa` by default). On Tier 1 and 2 a sandbox reaches only allowed domains, so serve the proxy on one (for example `*.convex.site`, `*.workers.dev`).

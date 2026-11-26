@@ -23,7 +23,7 @@ const agents = createAgents({ ...options, sandbox: e2b({ apiKey }) })   // or da
 Use `e2b({ apiKey?, template?, timeoutMs? })`. It needs the `e2b` package.
 
 - The default template is named `byoa`, and a new E2B account does not have it: the first job then fails with `404: template 'byoa' not found`. Build it one time for each pin change with `buildE2BTemplate()`, or pass `e2b({ template: 'base' })`. Any template with Node 20 or later works: byoa then installs the pinned harness in each new sandbox (about 10 seconds).
-- `pause` takes a snapshot of the files only where the team can (`mode: 'filesystem'`), else a full one after it ends the sandbox's processes. E2B keeps a paused sandbox with no time limit.
+- `pause` ends the sandbox's processes, then takes a full snapshot, with the memory: the next job's resume takes about 0.3 seconds, and node and the harness start warm. When E2B refuses it, because it still saves the sandbox's previous snapshot, byoa takes a snapshot of the files only; the next resume then boots the sandbox again and reads its disk cold, which can add 10 to 20 seconds. E2B keeps a paused sandbox with no time limit, and charges no compute for it.
 - A kept sandbox that times out (a crash, a lost network) is paused, not killed. When byoa resumes a sandbox that paused itself, it ends any old process first.
 
 ## Daytona

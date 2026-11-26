@@ -57,12 +57,14 @@ export function e2b(opts: E2BOptions = {}): SandboxProvider {
       }
     },
     async pause() {
-      // only the files: the next job reboots the sandbox, as on Daytona. A team that cannot take a snapshot with no
-      // memory gets a full one.
-      try { await s.pause({ mode: 'filesystem' }) } catch {
-        // a full snapshot keeps the processes: end them first, so no harness of this job runs in the next one
-        await s.commands.run(STOP_ALL)
-        await s.pause()
+      // a full snapshot, with the memory: the next job's resume is in place, with node and the harness still in the
+      // page cache. A snapshot of the files only reboots the sandbox, which then reads them cold from E2B's storage
+      // (measured: 8.5 s for the resume and 8 s for the first two commands, against 0.2 s and 0.2 s). It keeps the
+      // processes, so they end first: no harness of this job runs in the next one.
+      await s.commands.run(STOP_ALL)
+      try { await s.pause() } catch {
+        // E2B refuses it while it still saves the sandbox's previous snapshot (503): the files only, then
+        await s.pause({ mode: 'filesystem' })
       }
     },
     /** A kept sandbox pauses then (its lifecycle), another one ends. */

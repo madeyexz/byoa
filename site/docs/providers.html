@@ -501,7 +501,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <p>Use <code>e2b({ apiKey?, template?, timeoutMs? })</code>. It needs the <code>e2b</code> package.</p>
 <ul>
 <li>The default template is named <code>byoa</code>, and a new E2B account does not have it: the first job then fails with <code>404: template &#39;byoa&#39; not found</code>. Build it one time for each pin change with <code>buildE2BTemplate()</code>, or pass <code>e2b({ template: &#39;base&#39; })</code>. Any template with Node 20 or later works: byoa then installs the pinned harness in each new sandbox (about 10 seconds).</li>
-<li><code>pause</code> takes a snapshot of the files only where the team can (<code>mode: &#39;filesystem&#39;</code>), else a full one after it ends the sandbox&#39;s processes. E2B keeps a paused sandbox with no time limit.</li>
+<li><code>pause</code> ends the sandbox&#39;s processes, then takes a full snapshot, with the memory: the next job&#39;s resume takes about 0.3 seconds, and node and the harness start warm. When E2B refuses it, because it still saves the sandbox&#39;s previous snapshot, byoa takes a snapshot of the files only; the next resume then boots the sandbox again and reads its disk cold, which can add 10 to 20 seconds. E2B keeps a paused sandbox with no time limit, and charges no compute for it.</li>
 <li>A kept sandbox that times out (a crash, a lost network) is paused, not killed. When byoa resumes a sandbox that paused itself, it ends any old process first.</li>
 </ul>
 <h2 id="daytona"><a class="anchor" href="#daytona" aria-hidden="true" tabindex="-1">#</a>Daytona</h2>
