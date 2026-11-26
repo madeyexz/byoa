@@ -3,7 +3,8 @@
 // deployment.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { internalActionGeneric } from 'convex/server'
+import { internalActionGeneric, internalMutationGeneric } from 'convex/server'
+import { v } from 'convex/values'
 import { anyApi } from 'convex/server'
 import { convexTest } from 'convex-test'
 import schema from './convex/schema.ts'
@@ -236,4 +237,40 @@ test('Delete my data deletes a stored login whose state is not saved yet (Demo_m
   await t.action(api.agents.deleteData, { visitor: A })
   const left = await t.run(async (ctx: any) => (await ctx.db.query('byoa').collect()).filter((r: any) => r.key.startsWith('ailogin/')).map((r: any) => r.key))
   assert.deepEqual(left, [], 'a login stays after Delete my data returned')
+})
+
+test("Delete my data works while the page keeps the visitor alive, and leaves no byoa row of the visitor (Demo_main_touch)", async () => {
+  process.env.BYOA_KEY = Buffer.alloc(32, 7).toString('base64')
+  process.env.CONVEX_SITE_URL = 'https://example.convex.site'
+  // byoa's put, as convexFunctions has it, and the page's touch (every 5 minutes, demo.html) at each of the forget's
+  // puts: the touch commits while Delete my data runs, between two of its byoa calls
+  const put = internalMutationGeneric({
+    args: { key: v.string(), value: v.string() },
+    handler: async (ctx: any, { key, value }: { key: string; value: string }) => {
+      const r = await ctx.db.query('byoa').withIndex('by_key', (q: any) => q.eq('key', key)).unique()
+      if (r) await ctx.db.patch(r._id, { value, n: r.n + 1 })
+      else await ctx.db.insert('byoa', { key, value, n: 1 })
+      const me = await ctx.db.query('visitors').withIndex('by_visitor', (q: any) => q.eq('visitor', A)).unique()
+      if (me) await ctx.db.patch(me._id, { seen: me.seen + 1 })
+      return null
+    },
+  })
+  const t = convexTest(schema, {
+    ...modules,
+    '/convex/agents.ts': () => import('./convex/agents.ts'),
+    '/convex/byoa.ts': async () => ({ ...(await import('./convex/byoa.ts')), put }),
+  })
+  await t.mutation(api.demo.touch, { visitor: A })
+  // what byoa keeps of A after a sign-in and a job: the login's state, the sign-in's ended entry, and the login's
+  // lease and line (keys.ts); none holds the login itself
+  await t.run(async (ctx: any) => {
+    for (const [k, value] of [[`login/${A}/claude`, 'signed-in'], [`loginjob/${A}/claude`, '{}'], [`ailoginlease/${A}/claude`, '{}'], [`ailoginline/${A}/claude`, '[]'], [`login/${B}/claude`, 'signed-in']]) {
+      await ctx.db.insert('byoa', { key: k, value, n: 1 })
+    }
+  })
+  await t.action(api.agents.deleteData, { visitor: A })
+  assert.equal(await visitorRow(t, A), null)
+  const left = await t.run(async (ctx: any) => (await ctx.db.query('byoa').collect()).map((r: any) => r.key).filter((k: string) => k.includes(A)))
+  assert.deepEqual(left, [], `byoa rows of the visitor stay after Delete my data: ${left.join(', ')}`)
+  assert.equal((await t.run(async (ctx: any) => ctx.db.query('byoa').withIndex('by_key', (q: any) => q.eq('key', `login/${B}/claude`)).unique()))?.value, 'signed-in')
 })

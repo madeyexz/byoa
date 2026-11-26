@@ -7,8 +7,9 @@ import { convexTable } from '@madeyexz/byoa/store/convex'
 
 export default defineSchema({
   byoa: convexTable(),
-  // a visitor is a random id that the page keeps; `seen`: the last request, for the cleanup an hour later
-  visitors: defineTable({ visitor: v.string(), at: v.number(), seen: v.number() }).index('by_visitor', ['visitor']).index('by_seen', ['seen']),
+  // a visitor is a random id that the page keeps; `seen`: the last request, for the cleanup an hour later; `acts`: how
+  // many requests that may start a sandbox or save a login (a job, a sign-in) the visitor made, for demo.drop
+  visitors: defineTable({ visitor: v.string(), at: v.number(), seen: v.number(), acts: v.optional(v.number()) }).index('by_visitor', ['visitor']).index('by_seen', ['seen']),
   // a sign-in's sandbox runs from `at` until it ends; `seen`: the page's last check-in
   signins: defineTable({ visitor: v.string(), harness: v.string(), pending: v.boolean(), at: v.number(), seen: v.number() })
     .index('by_visitor', ['visitor', 'harness']).index('by_pending', ['pending', 'seen']),
