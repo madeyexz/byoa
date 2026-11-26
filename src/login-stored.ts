@@ -102,7 +102,7 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
     /** The stored login now, with its version. */
     const current = async (user: string, h: HarnessName) => {
       const e = await store.get(loginKey(user, h))
-      return e ? { version: e.version, text: await open(await key, e.value, loginKey(user, h)) } : undefined
+      return e?.value ? { version: e.version, text: await open(await key, e.value, loginKey(user, h)) } : undefined
     }
     /** Saves `files` over the stored login if it is still `version`; returns the stored login after. */
     async function save(user: string, h: HarnessName, version: string, files: Record<string, string>) {
@@ -120,7 +120,7 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
       const id = randomToken(12), k = leaseKey(user, h)
       return inLine(store, lineKey(user, h), async () => {
         const login = await store.get(loginKey(user, h))
-        if (!login) throw new Error(`byoa: ${h} is not signed in for this user`)
+        if (!login?.value) throw new Error(`byoa: ${h} is not signed in for this user`)
         const text = await open(await key, login.value, loginKey(user, h))
         const share = parallel && !alone && refreshDue(h, JSON.parse(text)) - now() > leaseMs
         const e = await store.get(k), l = readLease(e?.value)
@@ -153,10 +153,10 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
 
     const cli = cliLogin(d, {
       volumes: async () => [],
-      async signedIn(sbx, user, h) {
+      async signedIn(sbx, user, h, save) {
         const files = await readFiles(sbx, h)
         if (!files[LOGIN_FILES[h][0]!]) throw new Error(`byoa: the ${h} sign-in ended, but its login file is not there`)
-        await store.put(loginKey(user, h), await sealFiles(user, h, files))
+        return save(store, loginKey(user, h), await sealFiles(user, h, files))
       },
     })
 
@@ -197,7 +197,9 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
     return {
       ...cli,
       volumes: async () => [],
-      present: async (_sbx, user, h) => !!(await store.get(loginKey(user, h))),
+      present: async (_sbx, user, h) => !!(await store.get(loginKey(user, h)))?.value,
+      // signed-out with no stored login, whatever a sign-in or a job that overlapped a signOut wrote last (R1.6)
+      state: async (user, h) => (await store.get(loginKey(user, h)))?.value ? cli.state(user, h) : 'signed-out',
       async env(sbx, user, h, job) {
         await load(sbx, user, h, job)
         return loginEnv(sbx, h)
@@ -234,7 +236,7 @@ export function storedLogin(o: StoredLoginOptions = {}): (d: LoginDeps) => Login
       async signOut(user, h) {
         await cli.cancel(user, h)
         // sign out with the CLI first, in a sandbox with the login written in, so the lab can revoke it
-        if (await store.get(loginKey(user, h))) {
+        if ((await store.get(loginKey(user, h)))?.value) {
           try {
             const sbx = await d.sandbox.create({ labels: { 'byoa-app': d.app, 'byoa-logout': h }, timeoutMs: 5 * 60_000 })
             try {

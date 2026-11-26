@@ -14,7 +14,7 @@ import { keys } from './keys.ts'
 import type { Sandbox, SandboxProvider, Volume } from './sandbox/types.ts'
 import { q } from './sh.ts'
 import { sleep } from './time.ts'
-import type { Store } from './store.ts'
+import { update, type Store } from './store.ts'
 
 export type LoginState = 'signed-in' | 'signed-out' | 'expired'
 
@@ -114,8 +114,9 @@ export const loginEnv = (sbx: Sandbox, h: HarnessName): Record<string, string> =
 /** For storedLogin only: how the CLI sign-in differs when the login is not in a volume. */
 export interface CliHooks {
   volumes?: (user: string, h: HarnessName) => Promise<Volume[]>
-  /** The CLI signed in: called with its sandbox, before byoa destroys it. */
-  signedIn?: (sbx: Sandbox, user: string, h: HarnessName) => Promise<void>
+  /** The CLI signed in: called with its sandbox, before byoa destroys it. It saves the login with `save`, which writes
+   *  only while this sign-in is still the one in progress, and returns what `save` returned. */
+  signedIn?: (sbx: Sandbox, user: string, h: HarnessName, save: (store: Store, key: string, value: string) => Promise<boolean>) => Promise<boolean>
 }
 
 export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
@@ -133,14 +134,32 @@ export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
   }
   const lastLine = (out: string) => (/Couldn't log in[^\r\n]*|Error[^\r\n]*/.exec(out)?.[0] || out.trim().split(/\r?\n/).pop() || 'the sign-in did not finish').slice(0, 300)
   const setState = async (user: string, h: HarnessName, s: LoginState) => { await d.store.put(stateKey(user, h), s) }
-  const state = async (user: string, h: HarnessName): Promise<LoginState> => ((await d.store.get(stateKey(user, h)))?.value as LoginState) ?? 'signed-out'
-  /** Ends an earlier sign-in of this user and harness that never finished. */
+  const state = async (user: string, h: HarnessName): Promise<LoginState> => ((await d.store.get(stateKey(user, h)))?.value as LoginState) || 'signed-out'
+  /** An entry with no `at` is a sign-in that ended: none is in progress. */
+  const ended = (v: string | undefined) => !v || JSON.parse(v).at === undefined
+  /** Ends the sign-in of this user and harness that is in progress, and its sandbox. */
   const dropPending = async (user: string, h: HarnessName) => {
-    const p = await d.store.get(pendingKey(user, h))
-    if (!p) return
-    await d.store.delete(pendingKey(user, h))
-    try { await d.sandbox.destroy(JSON.parse(p.value).sandbox) } catch {}
+    // the entry ends with compare-and-set, and is never deleted: so the sandbox is the one of the entry it ended, also
+    // when a connectLogin registers its sandbox or starts again meanwhile. An ended entry keeps its sandbox, which this
+    // destroys again (signOut, also after a cancelLogin that has not destroyed it yet, or whose backend died).
+    const p = await update(d.store, pendingKey(user, h), (v) => ended(v) ? undefined : JSON.stringify({ sandbox: JSON.parse(v!).sandbox }))
+    // a connectLogin that still creates its sandbox finds its entry ended, and destroys the sandbox itself
+    const { sandbox } = p ? JSON.parse(p) as { sandbox?: string } : {}
+    if (sandbox) try { await d.sandbox.destroy(sandbox) } catch {}
   }
+  /** Writes `value` at `key` with compare-and-set, only while `mine` is still the entry of the sign-in in progress:
+   *  cancelLogin and signOut end that entry before they write, so a sign-in they ended writes nothing after they
+   *  return. A key that is not there gets an empty value first, so that a delete meanwhile changes its version. */
+  const whileSigningIn = async (user: string, h: HarnessName, mine: string, store: Store, key: string, value: string) => {
+    for (;;) {
+      const e = await store.get(key)
+      if ((await d.store.get(pendingKey(user, h)))?.value !== mine) return false
+      if (!e) await store.cas(key, null, '')
+      else if (await store.cas(key, e.version, value)) return true
+    }
+  }
+  /** Ends the entry of the sign-in in progress if it is still `mine`. */
+  const endPending = (user: string, h: HarnessName, mine: string) => update(d.store, pendingKey(user, h), (v) => v === mine ? '{}' : undefined)
   /** The sign-in sandbox ends `ms` from now, at the latest LOGIN_MAX_MS after the sign-in started. */
   const keepAlive = async (id: string, at: number, ms: number) => {
     await d.sandbox.keepAlive?.(id, Math.max(1_000, Math.min(ms, at + LOGIN_MAX_MS - Date.now()))).catch(() => {})
@@ -154,10 +173,19 @@ export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
     setState,
 
     async start(user, h) {
-      await dropPending(user, h)
-      const at = Date.now()
-      const sbx = await d.sandbox.create({ volumes: await volumes(user, h), labels: { 'byoa-app': d.app, 'byoa-login': h }, timeoutMs: LOGIN_MAX_MS })
+      const at = Date.now(), mine = JSON.stringify({ at })
+      // the sign-in's entry comes first, so a cancelLogin or signOut while the sandbox starts ends this sign-in too. It
+      // replaces an earlier sign-in's entry with compare-and-set, after it destroyed that sign-in's sandbox: so no
+      // sandbox of an earlier sign-in runs once this one is in progress (with cliLogin, it could still write the volume)
+      for (;;) {
+        const e = await d.store.get(pendingKey(user, h))
+        const { sandbox: earlier } = e ? JSON.parse(e.value) as { sandbox?: string } : {}
+        if (earlier) await d.sandbox.destroy(earlier).catch(() => {})
+        if (await d.store.cas(pendingKey(user, h), e?.version ?? null, mine)) break
+      }
+      let sbx: Sandbox | undefined
       try {
+        sbx = await d.sandbox.create({ volumes: await volumes(user, h), labels: { 'byoa-app': d.app, 'byoa-login': h }, timeoutMs: LOGIN_MAX_MS })
         const { bin } = await ensureHarness(sbx, h, d.pins)
         const cmd = `${q(bin)} ${HARNESSES[h].login.signIn}`
         await sbx.writeFile(`${dirOf(sbx)}/run.sh`, loginScript(cmd))
@@ -168,7 +196,7 @@ export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
           const url = spec.url.exec(out)?.[0]
           const code = spec.device ? CODE_RE.exec(out)?.[1] : undefined
           if (url && (!spec.device || code)) {
-            await d.store.put(pendingKey(user, h), JSON.stringify({ sandbox: sbx.id, at }))
+            if (!(await whileSigningIn(user, h, mine, d.store, pendingKey(user, h), JSON.stringify({ sandbox: sbx.id, at })))) throw new Error(`byoa: the ${h} sign-in was cancelled`)
             // from now on the sandbox lives only while the app checks in
             await keepAlive(sbx.id, at, LOGIN_IDLE_MS)
             return { harness: h, url, ...(code ? { code } : {}) }
@@ -177,7 +205,8 @@ export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
         }
         throw new Error(`byoa: the ${h} sign-in did not show its page: ${lastLine((await read(sbx)).out)}`)
       } catch (e) {
-        await sbx.destroy().catch(() => {})
+        await sbx?.destroy().catch(() => {})
+        await endPending(user, h, mine).catch(() => {})
         throw e
       }
     },
@@ -187,10 +216,12 @@ export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
       const device = HARNESSES[h].login.device
       if (!device && code !== undefined && (!code || /[\s]/.test(code))) throw new Error(`byoa: the ${h} sign-in needs the code that the lab's page shows`)
       const p = await d.store.get(pendingKey(user, h))
-      if (!p) return { state: await state(user, h), error: 'no sign-in is in progress' }
-      const { sandbox: id, at } = JSON.parse(p.value) as { sandbox: string; at: number }
+      if (!p || ended(p.value)) return { state: await state(user, h), error: 'no sign-in is in progress' }
+      const { sandbox: id, at } = JSON.parse(p.value) as { sandbox?: string; at: number }
       const ranOut = async () => { await dropPending(user, h); return { state: await state(user, h), error: 'the sign-in ran out; start it again' } }
       if (Date.now() - at > LOGIN_MAX_MS) return ranOut()
+      // connectLogin still starts it
+      if (!id) return { state: 'pending' }
       const wait = input.waitMs ?? (!device && code ? 60_000 : 0)
       let sbx: Sandbox
       try { sbx = await d.sandbox.resume(id, { timeoutMs: LOGIN_IDLE_MS + wait }) } catch { return ranOut() }
@@ -204,10 +235,17 @@ export function cliLogin(d: LoginDeps, hooks: CliHooks = {}): LoginDriver {
         r = await read(sbx)
       }
       const ok = await present(sbx, user, h)
-      await d.store.delete(pendingKey(user, h))
-      try { if (ok) await hooks.signedIn?.(sbx, user, h) } finally { await sbx.destroy().catch(() => {}) }
-      if (ok) { await setState(user, h, 'signed-in'); return { state: 'signed-in' } }
-      return { state: await state(user, h), error: lastLine(r.out) }
+      // a cancelLogin or signOut meanwhile wins: the login and the state are saved only while this sign-in is in progress
+      const save = (store: Store, key: string, value: string) => whileSigningIn(user, h, p.value, store, key, value)
+      let saved = false
+      try {
+        saved = ok && (!hooks.signedIn || (await hooks.signedIn(sbx, user, h, save))) && (await save(d.store, stateKey(user, h), 'signed-in'))
+      } finally {
+        await sbx.destroy().catch(() => {})
+        await endPending(user, h, p.value)
+      }
+      if (saved) return { state: 'signed-in' }
+      return { state: await state(user, h), error: ok ? 'the sign-in was cancelled' : lastLine(r.out) }
     },
 
     cancel: dropPending,
