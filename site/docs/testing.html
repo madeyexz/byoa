@@ -474,7 +474,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 </li>
 <li><p><code>node scripts/v21.ts</code> runs V21 (conversations and steering with real logins on E2B) in steps, because a person signs in: <code>login claude|codex|grok</code>, then <code>check</code>, then <code>cleanup</code>, which signs out and deletes the sandboxes. It needs <code>E2B_API_KEY</code>.</p>
 </li>
-<li><p><code>spec/tla/check.sh</code> runs V22: TLC checks the TLA+ models of the job lifecycle, the login lease, the sign-in, the store and its adapters, steering, the MCP grant&#39;s refresh, job tokens, plan keys, the usage-limit hold and the hosted demo (<a href="https://github.com/madeyexz/byoa/blob/main/spec/tla/README.md" rel="noopener">spec/tla</a>). It needs Java 11 or later, and downloads TLC the first time. <code>TLA_SET=ci spec/tla/check.sh</code> runs the fast set, which CI runs when the models or the code they model change; the whole set takes hours.</p>
+<li><p><code>spec/tla/check.sh</code> runs V22: TLC checks the TLA+ models of the job lifecycle, the login lease, the sign-in, the store and its adapters, steering, the MCP grant&#39;s refresh, job tokens, plan keys, the usage-limit hold and the hosted demo (<a href="https://github.com/madeyexz/byoa/blob/main/spec/tla/README.md" rel="noopener">spec/tla</a>). It needs Java 11 or later, and downloads TLC the first time. <code>TLA_SET=fast spec/tla/check.sh</code> runs the fast set (about 15 minutes); the whole set takes hours. No CI runs them: run them by hand when a protocol or its model changes.</p>
 </li>
 </ul>
 <p>The checks V1 to V22 are in <a href="https://github.com/madeyexz/byoa/blob/main/SPEC.md#verification" rel="noopener">SPEC.md</a>.</p>
