@@ -20,60 +20,15 @@ The [Overview](https://byoa.rippling.computer/docs/concepts) page explains the d
 
 Diagram: What byoa works with today. Agents: Claude Code, Codex and Grok Build (supported), Gemini or Antigravity maybe later. User plans: Claude, ChatGPT and Grok (supported), an OpenCode Go key (planned). Sandboxes: E2B, Daytona and Instabox (supported), other providers planned. Backends: Node and Convex actions (supported), Cloudflare Workers planned. Token stores: Convex and Postgres (supported), or your own with get, put, delete and compare-and-set.
 
-## Install
-
-Install byoa from npm. Its package is `@madeyexz/byoa`, because npm does not allow the name `byoa`:
-
-```sh
-npm install @madeyexz/byoa
-bun add @madeyexz/byoa
-```
-
-Also install the sandbox SDK that your app uses: `e2b` for E2B, `@daytona/sdk` for Daytona. Instabox and the local sandbox need none. byoa needs Node 22.18 or later, or Bun. To use the newest commit on `main` before it is released, install from GitHub: `npm install github:madeyexz/byoa`.
-
-## A first job
-
-```ts
-import { createAgents } from '@madeyexz/byoa'
-import { e2b } from '@madeyexz/byoa/sandbox/e2b'
-import { postgresStore } from '@madeyexz/byoa/store/postgres'
-
-const agents = createAgents({
-  app: 'myapp',                                    // one app's AI logins are only this app's
-  sandbox: e2b(),                                  // reads your E2B API key from E2B_API_KEY
-  store: postgresStore({ query: (sql, args) => pool.query(sql, args) }),
-  encryptionKey,                                   // openssl rand -base64 32; grants and AI logins are encrypted with it
-  proxyUrl: 'https://myapp.example.com/byoa/mcp',  // serve agents.proxy here
-  oauth: { redirectUrl: 'https://myapp.example.com/byoa/callback' },
-})
-
-const { url } = await agents.connectLogin(userId, 'claude')  // Anthropic's own sign-in page
-await agents.finishLogin(userId, 'claude', { code })         // the code that page shows
-const mcp = await agents.connectMcp(userId, 'https://mcp.notion.com/mcp', { name: 'notion' })  // once for each user
-
-for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['notion'], setup: { agentsMd, skills } })) {
-  // start, text, tool_call, tool_result, permission, error, end: the same events for every harness
-}
-```
-
-[Getting started](https://byoa.rippling.computer/docs/getting-started) has each step, and the routes your app serves. The [to-do example](https://github.com/madeyexz/byoa/blob/main/examples/todo), a chat with the agent, uses byoa in 49 lines.
-
 ## Agent skill
 
-[skills/byoa](https://github.com/madeyexz/byoa/blob/main/skills/byoa) is a skill in the [Agent Skills](https://agentskills.io) format. It teaches a coding agent (Claude Code, Codex, Amp and others) to add byoa to an app: the install, `createAgents` with a store and a sandbox adapter, the sign-in, the MCP connections and their routes, `agents.run` and its events, and the lab rules. Its `metadata.version` is the `version` in byoa's package.json next to it.
-
-The npm package has the skill in it (from 1.1.0). After you install byoa, link the skill of the installed version into your app's repository for Claude Code, Codex, Amp, Cursor and others, so it always matches the package:
+[skills/byoa](https://github.com/madeyexz/byoa/blob/main/skills/byoa) teaches a coding agent (Claude Code, Codex, Amp and others) to add byoa to an app. After you install byoa, link the skill of your version into your app's repository:
 
 ```sh
 npx skills experimental_sync -y
 ```
 
-`experimental_sync` is a preview command of the [skills](https://github.com/vercel-labs/skills) CLI. Without it, or with byoa 1.0.0, install the skill of one release from its tag (here 1.1.0; use the tag of your version), or the skill of `main`:
-
-- one release: `npx skills add madeyexz/byoa@v1.1.0 --skill byoa`
-- `main`: `npx skills add madeyexz/byoa`, or for Amp `amp skill add madeyexz/byoa/skills/byoa`
-
-For LLMs, the site also serves the docs as [llms.txt](https://byoa.rippling.computer/llms.txt) (an index) and [llms-full.txt](https://byoa.rippling.computer/llms-full.txt) (the docs, SPEC.md, the example and the skill in one file), and each docs page as Markdown (add `.md` to its address).
+With byoa 1.0.0, or if that command does not work: `npx skills add madeyexz/byoa@v1.1.0 --skill byoa`. [Let a coding agent do it](https://byoa.rippling.computer/docs/getting-started#let-a-coding-agent-do-it) has the other ways to install it.
 
 ## Docs
 

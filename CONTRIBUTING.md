@@ -56,7 +56,7 @@ We will add other sandbox providers (for example Modal or Vercel) after version 
 ## Docs and the website
 
 - The docs are the Markdown files in `docs/`. https://byoa.rippling.computer/docs shows them; `docs/README.md` is the docs home, and its list of pages is the site's menu. A new page goes in that list.
-- README.md has only the pitch, the install, a short example and links into the docs. Put details in a docs page, not in the README.
+- README.md has only the pitch, the agent skill's install and links into the docs. Put details in a docs page, not in the README: the install and a first job are in `docs/getting-started.md`.
 - A fact has one source. A docs page puts in the text of another file with `<!-- include: ../FILE.md -->` or `<!-- include: ../FILE.md#section -->`: the API reference is `skills/byoa/reference/api.md`, and the lab rules are in SPEC.md.
 - After a change to `docs/`, README.md, SPEC.md, `skills/byoa` or `site/`, run `cd site && npm install && node build.mjs`, and commit what it writes. `node preview.mjs` then serves the site as the Cloudflare Worker will.
 - Write docs in short, simple sentences, as README.md and SPEC.md do.

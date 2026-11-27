@@ -1,6 +1,6 @@
 // Builds byoa.rippling.computer from the repository's own files:
-// - index.html, the home page: the design in template.html, with the install commands from the README's "Install"
-//   section and the "Who brings what" diagram in diagrams/who.html;
+// - index.html, the home page: the design in template.html, with the install commands from the "Install" section of
+//   ../docs/getting-started.md and the "Who brings what" diagram in diagrams/who.html;
 // - docs/<page>.html, the docs: each Markdown file in ../docs, in docs.html. ../docs/README.md is the docs home and its
 //   list of pages is the menu. A ```flow block of YAML is a flow diagram (see "Flow diagrams" in CONTRIBUTING.md), and
 //   `<!-- include: ../FILE.md#section -->` puts in another file's text, so each fact has one source;
@@ -69,20 +69,14 @@ const highlighter = await createHighlighter({ themes: ['vitesse-dark'], langs: [
 const code = (text, lang) => highlighter.codeToHtml(text, { lang: highlighter.getLoadedLanguages().includes(lang) ? lang : 'text', theme: 'vitesse-dark' })
 
 // ---- the home page
-const sections = Object.fromEntries(
-  readme.split(/^## /m).slice(1).map((s) => {
-    const i = s.indexOf('\n')
-    return [s.slice(0, i).trim(), s.slice(i + 1).trim()]
-  }),
-)
-if (!('Install' in sections)) throw new Error('README.md has no "## Install" section')
-const install = sections['Install']
+const install = read('docs/getting-started.md').match(/^## Install\n([\s\S]*?)(?=^## )/m)?.[1].trim()
+if (!install) throw new Error('docs/getting-started.md has no "## Install" section')
 const installCode = install.match(/^```[\s\S]*?^```$/m)?.[0]
-if (!installCode) throw new Error('README.md\'s "## Install" section has no code block')
+if (!installCode) throw new Error('docs/getting-started.md\'s "## Install" section has no code block')
 const pitch = readme.match(/^\*\*(.+)\*\*$/m)?.[1]
 if (!pitch) throw new Error('README.md has no **pitch** line')
 const needs = install.match(/byoa needs (.+?)\.(?:\s|$)/)?.[1]
-if (!needs) throw new Error('README.md\'s "## Install" section does not say "byoa needs …."')
+if (!needs) throw new Error('docs/getting-started.md\'s "## Install" section does not say "byoa needs …."')
 
 const home = fill(local('template.html'), {
   pitch: esc(pitch),
@@ -101,7 +95,7 @@ const home = fill(local('template.html'), {
   who,
   prices: priceBars(),
   tasks: scrub(),
-  // only the commands; the README has the notes around them
+  // only the commands; Getting started has the notes around them
   install: code(installCode.replace(/^```\w*\n|\n```$/g, ''), 'sh'),
   repo: REPO,
   npm: NPM,

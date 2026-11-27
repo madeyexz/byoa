@@ -52,10 +52,12 @@ test('every name the README, the docs and the skill import from byoa is exported
 })
 
 // `npx skills experimental_sync` links the skill from node_modules, so it must ship in the package, and an agent reads its
-// version from metadata.version. A release that bumps package.json must bump the skill and the README's pinned install too.
-test('the skill ships in the package, with the package version in its metadata and in the README pinned install', () => {
+// version from metadata.version. A release that bumps package.json must bump the skill and the pinned install in the
+// README and in Getting started too.
+test('the skill ships in the package, with the package version in its metadata and in each pinned install', () => {
   assert.ok(pkg.files.includes('skills'), 'package.json files')
   const front = /^---\n([\s\S]*?)\n---\n/.exec(text('skills/byoa/SKILL.md'))?.[1] ?? ''
   assert.equal(/^metadata:\n(?: {2}.*\n)*? {2}version: "([^"]+)"$/m.exec(front)?.[1], pkg.version)
-  assert.deepEqual([...text('README.md').matchAll(/npx skills add madeyexz\/byoa@(\S+)/g)].map((m) => m[1]), [`v${pkg.version}`])
+  for (const p of ['README.md', 'docs/getting-started.md'])
+    assert.deepEqual([...text(p).matchAll(/npx skills add madeyexz\/byoa@(\S+)/g)].map((m) => m[1]), [`v${pkg.version}`], p)
 })
