@@ -38,6 +38,18 @@ Version 1 supports three sandbox providers: E2B, Daytona and Instabox. More prov
 
 The [Overview](https://byoa.rippling.computer/docs/concepts) page explains the diagram, how a job runs, and why real tokens never go into the sandbox.
 
+## What each user pays
+
+Your app passes its AI costs on to its users, in its price. What each user pays a month for 100 small agent tasks:
+
+| How your app gets the AI | Each user pays a month |
+|---|---|
+| Frontier models at API rates (GPT-6.2 Sol to Claude Opus 5.5) | $24.50–$49.00 |
+| Cheaper models at API rates (DeepSeek V4.1 Flash) | $2.97 |
+| **byoa, on the user's own plan** (the sandbox on E2B) | **$1.38** + their plan |
+
+One task is about 500,000 input tokens (90% cached) and 10,000 output tokens, and 5 minutes of a sandbox with 2 vCPU and 4 GiB. [How we count](https://byoa.rippling.computer/docs/faq#what-does-an-ai-job-cost-with-byoa-and-with-an-api-key) has each price and its source.
+
 ## What works today
 
 <picture>
