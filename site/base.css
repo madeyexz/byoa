@@ -3,9 +3,9 @@
 @font-face { font-family: "Geist"; src: url(/fonts/Geist-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: "Geist Mono"; src: url(/fonts/GeistMono-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: "Geist Pixel"; src: url(/fonts/GeistPixel-Square.woff2) format("woff2"); font-display: swap; }
-/* Until Geist loads: Arial (or Arimo, its metric twin on ChromeOS and Linux) scaled to Geist's width and line height, so
+/* Until Geist loads: Arial (or Liberation Sans or Arimo, its metric twins on Linux and ChromeOS) scaled to Geist's width and line height, so
    the text does not move when Geist arrives (CLS). The numbers are Geist's metrics over Arial's, from @capsizecss. */
-@font-face { font-family: "Geist Fallback"; src: local("Arial"), local("ArialMT"), local("Arimo Regular"), local("Arimo-Regular"); size-adjust: 104.76%; ascent-override: 95.94%; descent-override: 28.16%; line-gap-override: 0%; }
+@font-face { font-family: "Geist Fallback"; src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans"), local("Arimo Regular"), local("Arimo-Regular"); size-adjust: 104.76%; ascent-override: 95.94%; descent-override: 28.16%; line-gap-override: 0%; }
 
 :root {
   --paper: #f8f6f0; --paper2: #f1eee5; --card: #fffdf8;
