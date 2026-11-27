@@ -1082,8 +1082,9 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   // the speech bubble: what the agent is and what it does, in turns, while the chat is closed; ✕ hides it for the visit
   const say = $('#bh-say'), sayText = $('#bh-say .text')
   const LINES = [
-    `<b>Hi! I'm byoa's help agent.</b> I'm powered by byoa, on the developer's ChatGPT plan. Try chatting with me!`,
-    `I can pass your feedback, and questions I can't answer, on to the developer.`,
+    `<b>Hi! I'm byoa's help agent.</b> Ask me anything.`,
+    `I pass your feedback on to the developer.`,
+    `I run on the developer's ChatGPT plan.`,
   ]
   let line = 0, sayTimer = null
   const hop = (cls) => { open.classList.remove('enter', 'hop'); void open.offsetWidth; open.classList.add(cls) }
