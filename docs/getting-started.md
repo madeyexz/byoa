@@ -112,6 +112,7 @@ for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['n
 ## Next
 
 - Read the [Overview](concepts.md) to learn who holds what, and where.
+- Try the [live demo](https://byoa.rippling.computer/demo): sign in with your own Claude, ChatGPT or Grok plan, and your own agent triages a sample inbox.
 - Run the [to-do example](../examples/todo): an AI-native to-do list, with tests that use the fake harness.
 - Test your app with no plan and no sandbox: [Testing](testing.md).
 - Follow the [Lab rules](lab-rules.md). Every app on byoa must.

@@ -7,6 +7,7 @@
 // - docs/<page>.md, the same pages as Markdown for LLMs, with each diagram as text, and llms.txt and llms-full.txt
 //   (https://llmstxt.org) from them, SPEC.md, the to-do example and the agent skill;
 // - demo.html, the live demo of the mail example (../examples/mail/demo.html, whose backend is on Convex);
+// - index.md, the home page as Markdown for LLMs (README.md, with each image as its alt text);
 // - sitemap.xml, with the time that each page's content last changed (<lastmod>).
 // Each HTML page gets posthog.html (PostHog page views) before </head>. The home page and each docs page get JSON-LD
 // (schema.org) of what they show: the software and its source code, each docs page as an article, the FAQ's questions.
@@ -435,7 +436,8 @@ for (const [i, p] of PAGES.entries()) {
   const crumbs = [['byoa', `${SITE}/`], ['Docs', `${SITE}/docs`], ...(p.file === 'README' ? [] : [[plainTitle, url]])]
   const html = fill(docsTemplate, {
     base_css: baseCss,
-    title: esc(p.file === 'README' ? 'byoa docs: bring your own agent' : `${plainTitle} · byoa docs`),
+    // 30 to 60 characters, which search results show in full: the page's title and what byoa is
+    title: esc(p.file === 'README' ? 'byoa docs: bring your own agent' : [`${plainTitle} · byoa: bring your own agent`, `${plainTitle} · byoa docs`].find((t) => t.length <= 60) ?? plainTitle),
     description: esc(description),
     schema: jsonLd([pageLd, { '@type': 'BreadcrumbList', itemListElement: crumbs.map(([name, item], i) => ({ '@type': 'ListItem', position: i + 1, name, item })) }, author]),
     updated: `<time datetime="${modified}">${dateText(modified)}</time>`,
@@ -527,6 +529,11 @@ ${FULL.map(([p, url, text, lang]) => {
 changed(`${SITE}/llms.txt`, before('llms.txt'), llms)
 changed(`${SITE}/llms-full.txt`, before('llms-full.txt'), full)
 write('llms.txt', llms)
+// index.md: the home page's <link rel="alternate" type="text/markdown">. The README from its title on, without the
+// banner and badges above it, each <picture> as its alt text, and links that work outside the repository
+write('index.md', `${plain(readme.slice(readme.indexOf('\n# ') + 1)
+  .replace(/<picture>[\s\S]*?<img alt="([^"]*)"[^>]*>\s*<\/picture>/g, (_, alt) => `Diagram: ${alt}`)
+  .replace(/^<a [^>]*><img [^>]*><\/a>\n?/gm, ''), 'README.md')}\n`)
 write('llms-full.txt', full)
 
 // ---- demo.html: the mail example's live demo, a static page that talks to its Convex deployment

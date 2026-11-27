@@ -1,4 +1,4 @@
-# Overview
+# How byoa works
 
 **Your app brings the product. Each user brings the agent.** You build the app and pick the sandbox. Each user brings their plan and their tools. byoa runs inside your backend and runs each job in that user's own sandbox.
 

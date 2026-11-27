@@ -1,0 +1,106 @@
+# byoa: bring your own agent
+
+**byoa, short for "bring your own agent", is the simplest way to let your users bring their own AI subscription to power the agents in your app.**
+
+AI is like electricity, and an AI subscription is like a portable battery pack: one pack powers every app its user uses. We bet that everyone will have one, and that every app will run on it. [The future of AI-native apps](https://byoa.rippling.computer/docs#the-future-of-ai-native-apps) explains why.
+
+byoa is an open-source library that helps you build these apps fast. Your app runs the user's own Claude Code, Codex or Grok Build in a sandbox. The user signs in with their own ChatGPT, Claude or Grok plan, or gives the key of their OpenCode Go plan, so they pay for the AI work with a plan they already have. Your app passes on only the sandbox cost, so it can offer a frontier agent at a low price. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
+
+Version 1 supports three sandbox providers: E2B, Daytona and Instabox. More providers come later. To change the provider, you change one adapter.
+
+## Who brings what
+
+**Your app brings the product. Each user brings the agent.** You build the app and pick the sandbox. Each user brings their plan and their tools. byoa runs inside your backend and runs each job in that user's own sandbox.
+
+Diagram: Who brings what: you, the developer, build the app, pick the sandbox provider and own the database, and import byoa into your app's backend. The end user uses the app, signs in on the lab's own page and connects each MCP tool once. Your app code calls agents.run on byoa, which keeps AI logins and MCP grants in your database. byoa's box reaches past your backend's edge: outside it, byoa creates, runs and destroys a sandbox for each job at E2B or Daytona on your account, where the user's own Claude Code, Codex or Grok Build runs; the AI labs get the model calls, paid by the user's own plan; and the user's MCP servers get the real token from byoa's proxy.
+
+The [Overview](https://byoa.rippling.computer/docs/concepts) page explains the diagram, how a job runs, and why real tokens never go into the sandbox.
+
+## What works today
+
+Diagram: What byoa works with today. Agents: Claude Code, Codex and Grok Build (supported), Gemini or Antigravity maybe later. User plans: Claude, ChatGPT and Grok (supported), an OpenCode Go key (planned). Sandboxes: E2B, Daytona and Instabox (supported), other providers planned. Backends: Node and Convex actions (supported), Cloudflare Workers planned. Token stores: Convex and Postgres (supported), or your own with get, put, delete and compare-and-set.
+
+## Install
+
+Install byoa from npm. Its package is `@madeyexz/byoa`, because npm does not allow the name `byoa`:
+
+```sh
+npm install @madeyexz/byoa
+bun add @madeyexz/byoa
+```
+
+Also install the sandbox SDK that your app uses: `e2b` for E2B, `@daytona/sdk` for Daytona. Instabox and the local sandbox need none. byoa needs Node 22.18 or later, or Bun. To use the newest commit on `main` before it is released, install from GitHub: `npm install github:madeyexz/byoa`.
+
+## A first job
+
+```ts
+import { createAgents } from '@madeyexz/byoa'
+import { e2b } from '@madeyexz/byoa/sandbox/e2b'
+import { postgresStore } from '@madeyexz/byoa/store/postgres'
+
+const agents = createAgents({
+  app: 'myapp',                                    // one app's AI logins are only this app's
+  sandbox: e2b(),                                  // reads your E2B API key from E2B_API_KEY
+  store: postgresStore({ query: (sql, args) => pool.query(sql, args) }),
+  encryptionKey,                                   // openssl rand -base64 32; grants and AI logins are encrypted with it
+  proxyUrl: 'https://myapp.example.com/byoa/mcp',  // serve agents.proxy here
+  oauth: { redirectUrl: 'https://myapp.example.com/byoa/callback' },
+})
+
+const { url } = await agents.connectLogin(userId, 'claude')  // Anthropic's own sign-in page
+await agents.finishLogin(userId, 'claude', { code })         // the code that page shows
+const mcp = await agents.connectMcp(userId, 'https://mcp.notion.com/mcp', { name: 'notion' })  // once for each user
+
+for await (const event of agents.run(userId, { harness: 'claude', task, mcp: ['notion'], setup: { agentsMd, skills } })) {
+  // start, text, tool_call, tool_result, permission, error, end: the same events for every harness
+}
+```
+
+[Getting started](https://byoa.rippling.computer/docs/getting-started) has each step, and the routes your app serves. The [to-do example](https://github.com/madeyexz/byoa/blob/main/examples/todo), a chat with the agent, uses byoa in 49 lines.
+
+## Agent skill
+
+[skills/byoa](https://github.com/madeyexz/byoa/blob/main/skills/byoa) is a skill in the [Agent Skills](https://agentskills.io) format. It teaches a coding agent (Claude Code, Codex, Amp and others) to add byoa to an app: the install, `createAgents` with a store and a sandbox adapter, the sign-in, the MCP connections and their routes, `agents.run` and its events, and the lab rules. Its `metadata.version` is the `version` in byoa's package.json next to it.
+
+The npm package has the skill in it (from 1.1.0). After you install byoa, link the skill of the installed version into your app's repository for Claude Code, Codex, Amp, Cursor and others, so it always matches the package:
+
+```sh
+npx skills experimental_sync -y
+```
+
+`experimental_sync` is a preview command of the [skills](https://github.com/vercel-labs/skills) CLI. Without it, or with byoa 1.0.0, install the skill of one release from its tag (here 1.1.0; use the tag of your version), or the skill of `main`:
+
+- one release: `npx skills add madeyexz/byoa@v1.1.0 --skill byoa`
+- `main`: `npx skills add madeyexz/byoa`, or for Amp `amp skill add madeyexz/byoa/skills/byoa`
+
+For LLMs, the site also serves the docs as [llms.txt](https://byoa.rippling.computer/llms.txt) (an index) and [llms-full.txt](https://byoa.rippling.computer/llms-full.txt) (the docs, SPEC.md, the example and the skill in one file), and each docs page as Markdown (add `.md` to its address).
+
+## Docs
+
+The docs are at [byoa.rippling.computer/docs](https://byoa.rippling.computer/docs), from the Markdown files in [docs/](https://github.com/madeyexz/byoa/blob/main/docs):
+
+- [Getting started](https://byoa.rippling.computer/docs/getting-started): install, one `agents` object, two routes, a sign-in and a first job
+- [Overview](https://byoa.rippling.computer/docs/concepts): who brings what, how a job runs, and why real tokens never go into the sandbox
+- [Supported AI subscriptions](https://byoa.rippling.computer/docs/subscriptions) and the [FAQ](https://byoa.rippling.computer/docs/faq): which Claude, ChatGPT, Grok and OpenCode Go (beta) plans work, whether a user's account can get banned, and what a job costs
+- [Give your agent tools](https://byoa.rippling.computer/docs/agent-tools): your app's own tools, MCP servers, skills and plugins, and which one to choose
+- [AI login](https://byoa.rippling.computer/docs/ai-login): the sign-in, where the login stays between jobs, one job step by step, jobs at the same time with one login, and sign-out
+- [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle): every sandbox byoa creates, what each provider does, and what happens when your backend dies
+- [MCP tools and the proxy](https://byoa.rippling.computer/docs/mcp): MCP connections, job tokens, your app's own tools, and calls with a user's grant
+- [Running agents](https://byoa.rippling.computer/docs/running-agents): `agents.run` and its events, `access`, sandbox modes, conversations, jobs at the same time, models and effort, `session` and `jobToken`
+- [Sandbox providers](https://byoa.rippling.computer/docs/providers) and [Stores and Convex](https://byoa.rippling.computer/docs/stores): E2B, Daytona, Instabox, Postgres, Convex, and your own
+- [Testing](https://byoa.rippling.computer/docs/testing): the fake harness, the local sandbox and the memory store, and byoa's own tests
+- [API reference](https://byoa.rippling.computer/docs/api), [Lab rules](https://byoa.rippling.computer/docs/lab-rules) and [Security](https://byoa.rippling.computer/docs/security)
+
+What version 1 must do, and the checks that prove it, are in [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md).
+
+## Rules we follow
+
+- We run the real, unmodified `claude`, `codex` and `grok` binaries. We never pretend to be another client.
+- The user signs in through Anthropic's, OpenAI's or xAI's own sign-in page.
+- One app's AI login is used only by that app.
+- For OpenCode Go, byoa uses only the user's own key, with OpenCode's documented API and the harness's own user agent, never OpenCode's Console CLI sign-in. OpenCode's terms do not clearly allow an app to run it for its users; each app asks OpenCode first.
+- The labs' terms restrict where an AI login may be stored. byoa keeps it in your database by default, so each app checks those terms and signs its own agreements with the labs. See [Lab rules](https://byoa.rippling.computer/docs/lab-rules) and [SPEC.md](https://github.com/madeyexz/byoa/blob/main/SPEC.md#lab-rules).
+
+## License
+
+Apache License 2.0. See [LICENSE](https://github.com/madeyexz/byoa/blob/main/LICENSE).

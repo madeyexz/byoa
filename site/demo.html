@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>byoa mail · live demo</title>
+<title>byoa mail, a live demo: your own AI agent triages an inbox</title>
 <meta name="description" content="A live demo of byoa: sign in with your own Claude, ChatGPT or Grok plan, and your own coding agent triages a sample inbox in a sandbox.">
-<meta property="og:title" content="byoa mail · live demo">
+<meta property="og:title" content="byoa mail, a live demo: your own AI agent triages an inbox">
+<link rel="canonical" href="https://byoa.rippling.computer/demo">
 <meta property="og:description" content="Sign in with your own Claude, ChatGPT or Grok plan, and your own coding agent triages a sample inbox in a sandbox.">
 <meta property="og:url" content="https://byoa.rippling.computer/demo">
 <meta property="og:image" content="https://byoa.rippling.computer/art/og.png">
@@ -174,7 +175,9 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     <ul class="msgs" id="msgs"></ul>
   </section>
 
-  <main class="pane" id="pane"></main>
+  <!-- the welcome's heading and lead (renderPane writes the whole welcome), so search engines and AI agents that run no
+       script read what the page is -->
+  <main class="pane" id="pane"><div class="welcome"><span class="badge" data-variant="outline" style="justify-self:start">A live demo of byoa</span><h1>Your own AI agent triages this inbox.</h1><p class="lead">These are 12 made-up emails: a phishing email, a sign-in code, an unexpected login alert, people who wait for an answer, receipts, newsletters, and one email that tells the AI what to do.</p></div></main>
 </div>
 
 <dialog class="connect" id="connect">

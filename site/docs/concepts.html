@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Overview · byoa docs</title>
+<title>How byoa works · byoa: bring your own agent</title>
 <meta name="description" content="Who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox.">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="byoa">
-<meta property="og:title" content="Overview · byoa docs">
+<meta property="og:title" content="How byoa works · byoa: bring your own agent">
 <meta property="og:description" content="Who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox.">
 <meta property="og:url" content="https://byoa.rippling.computer/docs/concepts">
 <meta property="og:image" content="https://byoa.rippling.computer/art/og.png">
@@ -20,7 +20,7 @@
 <link rel="canonical" href="https://byoa.rippling.computer/docs/concepts">
 <link rel="alternate" type="text/markdown" href="/docs/concepts.md" title="This page as Markdown">
 <link rel="icon" href="/art/favicon.png" type="image/png" sizes="192x192">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs/concepts#page","url":"https://byoa.rippling.computer/docs/concepts","name":"Overview","description":"Who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox.","headline":"Overview","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-26T08:21:26Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"},{"@type":"ListItem","position":3,"name":"Overview","item":"https://byoa.rippling.computer/docs/concepts"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs/concepts#page","url":"https://byoa.rippling.computer/docs/concepts","name":"How byoa works","description":"Who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox.","headline":"How byoa works","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-27T06:46:00Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"},{"@type":"ListItem","position":3,"name":"How byoa works","item":"https://byoa.rippling.computer/docs/concepts"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
 <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   /* The styles that the home page (template.html) and the docs pages (docs.html) share. build.mjs puts them in each page. */
@@ -445,7 +445,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   <main>
     <div class="pagehead"><div class="kick">Learn</div><button class="copy-page narrow" type="button" data-md="/docs/concepts.md">Copy page</button></div>
     <article>
-<h1>Overview</h1>
+<h1>How byoa works</h1>
 <p class="lead">Who brings what, what byoa is and is not, how a job runs, and why real tokens never go into the sandbox.</p>
 <p><strong>Your app brings the product. Each user brings the agent.</strong> You build the app and pick the sandbox. Each user brings their plan and their tools. byoa runs inside your backend and runs each job in that user&#39;s own sandbox.</p>
 <p>Think of the user&#39;s AI subscription as a battery pack, and of your app as an appliance. The user brings the battery. byoa is the plug: it connects the user&#39;s plan, and the user&#39;s tools, to the agent features of your app. Your app supplies only the place where the agent runs, the sandbox.</p>
@@ -610,7 +610,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 
     </article>
     <nav class="pn" aria-label="Pages"><a class="prev" href="/docs"><span>Previous</span>Introduction</a><a class="next" href="/docs/getting-started"><span>Next</span>Getting started</a></nav>
-    <p class="edit">Updated <time datetime="2026-11-26T08:21:26Z">November 26, 2026</time> · <a href="https://github.com/madeyexz/byoa/blob/main/docs/concepts.md">Edit this page on GitHub</a> · <a href="/docs/concepts.md">This page as Markdown</a></p>
+    <p class="edit">Updated <time datetime="2026-11-27T06:46:00Z">November 27, 2026</time> · <a href="https://github.com/madeyexz/byoa/blob/main/docs/concepts.md">Edit this page on GitHub</a> · <a href="/docs/concepts.md">This page as Markdown</a></p>
   </main>
   <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#who-brings-what">Who brings what</a></li><li><a href="#the-problem">The problem</a></li><li><a href="#what-byoa-is-and-what-it-is-not">What byoa is, and what it is not</a></li><li><a href="#how-a-job-runs">How a job runs</a></li><li><a href="#real-tokens-never-go-into-the-sandbox">Real tokens never go into the sandbox</a></li></ul>
     <button class="copy-page" type="button" data-md="/docs/concepts.md">Copy page</button>
@@ -621,7 +621,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <footer>
   <div class="frame">
     <span>byoa · bring your own agent · Apache 2.0</span>
-    <span><a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
+    <span><a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/docs/faq">FAQ</a> · <a href="/demo">Demo</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
   </div>
 </footer>
 

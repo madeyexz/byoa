@@ -132,6 +132,7 @@ For LLMs, the site also serves the docs as [llms.txt](https://byoa.rippling.comp
 ## Next
 
 - Read the [Overview](https://byoa.rippling.computer/docs/concepts.md) to learn who holds what, and where.
+- Try the [live demo](https://byoa.rippling.computer/demo): sign in with your own Claude, ChatGPT or Grok plan, and your own agent triages a sample inbox.
 - Run the [to-do example](https://github.com/madeyexz/byoa/tree/main/examples/todo): an AI-native to-do list, with tests that use the fake harness.
 - Test your app with no plan and no sandbox: [Testing](https://byoa.rippling.computer/docs/testing.md).
 - Follow the [Lab rules](https://byoa.rippling.computer/docs/lab-rules.md). Every app on byoa must.

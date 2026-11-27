@@ -20,7 +20,7 @@
 <link rel="canonical" href="https://byoa.rippling.computer/docs">
 <link rel="alternate" type="text/markdown" href="/docs/index.md" title="This page as Markdown">
 <link rel="icon" href="/art/favicon.png" type="image/png" sizes="192x192">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs#page","url":"https://byoa.rippling.computer/docs","name":"byoa docs","description":"byoa, short for \"bring your own agent\", is the simplest way to let your users bring their own AI subscription to power the agents in your app..","headline":"byoa docs","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-26T19:37:04Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs#page","url":"https://byoa.rippling.computer/docs","name":"byoa docs","description":"byoa, short for \"bring your own agent\", is the simplest way to let your users bring their own AI subscription to power the agents in your app..","headline":"byoa docs","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-27T06:46:13Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
 <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   /* The styles that the home page (template.html) and the docs pages (docs.html) share. build.mjs puts them in each page. */
@@ -528,13 +528,13 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <ul>
 <li><a href="/docs/sandbox-lifecycle">Sandbox lifecycle</a>: every sandbox byoa creates, from creation to removal, what carries over between jobs, what each provider does, and what byoa does when your backend dies</li>
 <li><a href="/docs/mcp">MCP tools and the proxy</a>: connect a user&#39;s MCP servers once, the proxy and job tokens, your app&#39;s own tools, and calls with a user&#39;s grant</li>
-<li><a href="/docs/security">Security</a>: where each secret is kept, and how to report a problem</li>
+<li><a href="/docs/security">Security</a>: where byoa keeps your users&#39; AI logins and MCP tokens, what counts as a security problem, and how to report one privately</li>
 </ul>
 <h2 id="how-to"><a class="anchor" href="#how-to" aria-hidden="true" tabindex="-1">#</a>How to</h2>
 <ul>
-<li><a href="/docs/ai-login">Sign users in</a>: the sign-in on the lab&#39;s own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out</li>
+<li><a href="/docs/ai-login">Sign users in</a>: the sign-in on the lab&#39;s own page, where the login stays, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out</li>
 <li><a href="/docs/agent-tools">Give the agent tools</a>: your app&#39;s own tools, the user&#39;s MCP servers, skills, AGENTS.md and plugins, which one to choose, and what the agent can do in its sandbox</li>
-<li><a href="/docs/running-agents">Run agents</a>: <code>agents.run</code> and its events, what the agent may do, sandbox modes, conversations and more messages to a running job, jobs at the same time, models and effort, <code>session</code> and <code>jobToken</code></li>
+<li><a href="/docs/running-agents">Run agents</a>: <code>agents.run</code> and its events, what the agent may do, sandbox modes, conversations, messages to a running job, jobs at the same time, and models and effort</li>
 <li><a href="/docs/providers">Pick a sandbox provider</a>: E2B, Daytona, Instabox and the local sandbox, and how to write an adapter</li>
 <li><a href="/docs/stores">Store logins and grants</a>: the store adapter, Postgres, Convex, your own database, and a table of its own for the AI logins</li>
 <li><a href="/docs/testing">Test your app</a>: test your app with the fake harness, the local sandbox and the memory store, and run byoa&#39;s own tests</li>
@@ -543,16 +543,16 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <ul>
 <li><a href="/docs/subscriptions">Supported AI subscriptions</a>: which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned</li>
 <li><a href="/docs/lab-rules">Lab rules</a>: what Anthropic&#39;s, OpenAI&#39;s, xAI&#39;s and OpenCode&#39;s terms allow, and what byoa and each app must do</li>
-<li><a href="/docs/faq">FAQ</a>: what byoa is, whether a user&#39;s AI account can get banned, many agents of one user, whether the agent remembers earlier jobs, models, and what an AI job costs with byoa and with an API key</li>
+<li><a href="/docs/faq">FAQ</a>: what byoa is, whether a user&#39;s AI account can get banned, many agents at once, memory between jobs, models, and what a job costs with byoa and with an API key</li>
 </ul>
 <h2 id="reference"><a class="anchor" href="#reference" aria-hidden="true" tabindex="-1">#</a>Reference</h2>
 <ul>
-<li><a href="/docs/api">API reference</a>: every import, method, option and event</li>
+<li><a href="/docs/api">API reference</a>: every import, method, option and event of byoa: <code>createAgents</code>, <code>agents.run</code>, the sandbox and store adapters, and the events that a job streams</li>
 </ul>
 
     </article>
     <nav class="pn" aria-label="Pages"><a class="next" href="/docs/concepts"><span>Next</span>Overview</a></nav>
-    <p class="edit">Updated <time datetime="2026-11-26T19:37:04Z">November 26, 2026</time> · <a href="https://github.com/madeyexz/byoa/blob/main/docs/README.md">Edit this page on GitHub</a> · <a href="/docs/index.md">This page as Markdown</a></p>
+    <p class="edit">Updated <time datetime="2026-11-27T06:46:13Z">November 27, 2026</time> · <a href="https://github.com/madeyexz/byoa/blob/main/docs/README.md">Edit this page on GitHub</a> · <a href="/docs/index.md">This page as Markdown</a></p>
   </main>
   <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#the-future-of-ai-native-apps">The future of AI-native apps</a></li><li><a href="#what-byoa-does">What byoa does</a></li><li><a href="#what-your-users-pay">What your users pay</a></li><li><a href="#why-and-when-you-need-byoa">Why and when you need byoa</a></li><li><a href="#learn">Learn</a></li><li><a href="#how-it-works">How it works</a></li><li><a href="#how-to">How to</a></li><li><a href="#plans-and-rules">Plans and rules</a></li><li><a href="#reference">Reference</a></li></ul>
     <button class="copy-page" type="button" data-md="/docs/index.md">Copy page</button>
@@ -563,7 +563,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <footer>
   <div class="frame">
     <span>byoa · bring your own agent · Apache 2.0</span>
-    <span><a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
+    <span><a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/docs/faq">FAQ</a> · <a href="/demo">Demo</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
   </div>
 </footer>
 

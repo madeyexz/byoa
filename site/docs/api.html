@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>API reference · byoa docs</title>
-<meta name="description" content="Every import, method, option and event.">
+<title>API reference · byoa: bring your own agent</title>
+<meta name="description" content="Every import, method, option and event of byoa: createAgents, agents.run, the sandbox and store adapters, and the events that a job streams.">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="byoa">
-<meta property="og:title" content="API reference · byoa docs">
-<meta property="og:description" content="Every import, method, option and event.">
+<meta property="og:title" content="API reference · byoa: bring your own agent">
+<meta property="og:description" content="Every import, method, option and event of byoa: createAgents, agents.run, the sandbox and store adapters, and the events that a job streams.">
 <meta property="og:url" content="https://byoa.rippling.computer/docs/api">
 <meta property="og:image" content="https://byoa.rippling.computer/art/og.png">
 <meta property="og:image:width" content="2400">
@@ -20,7 +20,7 @@
 <link rel="canonical" href="https://byoa.rippling.computer/docs/api">
 <link rel="alternate" type="text/markdown" href="/docs/api.md" title="This page as Markdown">
 <link rel="icon" href="/art/favicon.png" type="image/png" sizes="192x192">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs/api#page","url":"https://byoa.rippling.computer/docs/api","name":"API reference","description":"Every import, method, option and event.","headline":"API reference","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-26T19:24:24Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"},{"@type":"ListItem","position":3,"name":"API reference","item":"https://byoa.rippling.computer/docs/api"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs/api#page","url":"https://byoa.rippling.computer/docs/api","name":"API reference","description":"Every import, method, option and event of byoa: createAgents, agents.run, the sandbox and store adapters, and the events that a job streams.","headline":"API reference","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-26T19:24:24Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"},{"@type":"ListItem","position":3,"name":"API reference","item":"https://byoa.rippling.computer/docs/api"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
 <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   /* The styles that the home page (template.html) and the docs pages (docs.html) share. build.mjs puts them in each page. */
@@ -446,7 +446,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     <div class="pagehead"><div class="kick">Reference</div><button class="copy-page narrow" type="button" data-md="/docs/api.md">Copy page</button></div>
     <article>
 <h1>API reference</h1>
-<p class="lead">Every import, method, option and event.</p>
+<p class="lead">Every import, method, option and event of byoa: <code>createAgents</code>, <code>agents.run</code>, the sandbox and store adapters, and the events that a job streams.</p>
 <p>This page is the agent skill&#39;s API reference, <a href="/docs/api">skills/byoa/reference/api.md</a>, so a coding agent and you read the same text.</p>
 <p>This is the API of byoa 1.1.0 (<code>@madeyexz/byoa</code> on npm). The source of truth is <code>src/agents.ts</code>, <code>src/index.ts</code> and the files they import.</p>
 <h2 id="imports"><a class="anchor" href="#imports" aria-hidden="true" tabindex="-1">#</a>Imports</h2>
@@ -736,7 +736,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <footer>
   <div class="frame">
     <span>byoa · bring your own agent · Apache 2.0</span>
-    <span><a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
+    <span><a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/docs/faq">FAQ</a> · <a href="/demo">Demo</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
   </div>
 </footer>
 

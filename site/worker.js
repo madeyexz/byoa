@@ -1,5 +1,5 @@
 // Cloudflare Worker "byoa-site" on byoa.rippling.computer. It serves the files that build.mjs writes in site/
-// (index.html, demo.html, docs/, llms.txt, llms-full.txt, sitemap.xml) and site/art/ and site/fonts/ (/favicon.ico is
+// (index.html, index.md, demo.html, docs/, llms.txt, llms-full.txt, sitemap.xml) and site/art/ and site/fonts/ (/favicon.ico is
 // art/favicon.png), from the main branch, so a push that updates them (node build.mjs) updates the site with no
 // redeploy. robots.txt and the IndexNow key are in this file, and so are the PostHog counts of the Markdown routes.
 // preview.mjs runs this Worker on the local files.
@@ -26,12 +26,15 @@ function fileOf(path) {
   if (path === '/favicon.ico') return 'art/favicon.png'
   const page = path.match(/^\/docs\/([\w-]+)\/?$/)
   if (page) return `docs/${page[1]}.html`
-  const file = path.match(/^\/((?:docs\/[\w-]+\.(?:md|json))|(?:(?:art|fonts)\/[\w.-]+)|llms\.txt|llms-full\.txt|sitemap\.xml)$/)
+  const file = path.match(/^\/((?:docs\/[\w-]+\.(?:md|json))|(?:(?:art|fonts)\/[\w.-]+)|index\.md|llms\.txt|llms-full\.txt|sitemap\.xml)$/)
   return file ? file[1] : null
 }
 const typeOf = (file) => TYPES[file.split('.').pop()]
-// /docs/<page>.md is a copy of /docs/<page> for LLMs: search engines should index and rank the page, not the copy
-const canonicalOf = (file) => file.match(/^docs\/([\w-]+)\.md$/) && `${SITE}/docs${file === 'docs/index.md' ? '' : `/${file.slice(5, -3)}`}`
+// /docs/<page>.md is a copy of /docs/<page> for LLMs, and /index.md of the home page: search engines should index and
+// rank the page, not the copy
+const canonicalOf = (file) => (file === 'index.md' ? `${SITE}/` : file.match(/^docs\/([\w-]+)\.md$/) && `${SITE}/docs${file === 'docs/index.md' ? '' : `/${file.slice(5, -3)}`}`)
+// the site is HTTPS only: browsers go straight to HTTPS for a year (this host only, not the rest of rippling.computer)
+const HSTS = 'max-age=31536000'
 
 // PostHog project "rippling.computer": the HTML pages count their visits in the browser (posthog.html); the Markdown
 // copies and llms.txt are read by agents and tools that run no script, so this Worker counts them as "markdown_view"
@@ -62,7 +65,7 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url)
     const path = url.pathname
-    if (FIXED[path]) return new Response(FIXED[path][1], { headers: { 'content-type': FIXED[path][0], 'cache-control': 'public, max-age=300' } })
+    if (FIXED[path]) return new Response(FIXED[path][1], { headers: { 'content-type': FIXED[path][0], 'cache-control': 'public, max-age=300', 'strict-transport-security': HSTS } })
     // /docs/ and /docs/<page>/ have one address each
     if (path.length > 1 && path.endsWith('/') && fileOf(path)) return Response.redirect(SITE + path.slice(0, -1), 301)
     const file = fileOf(path)
@@ -72,7 +75,7 @@ export default {
     if (!r.ok) return r.status === 404 ? notFound() : new Response('byoa: the page is not available now', { status: 502 })
     // not the docs page's own "Copy page" fetch (sec-fetch-dest: empty); the page counts that click itself
     if (counted(file) && url.host === new URL(SITE).host && request.headers.get('sec-fetch-dest') !== 'empty') ctx.waitUntil(count(request, url))
-    const headers = { 'content-type': type, 'cache-control': 'public, max-age=300' }
+    const headers = { 'content-type': type, 'cache-control': 'public, max-age=300', 'strict-transport-security': HSTS }
     // GitHub's ETag, so crawlers can ask whether a page changed (Bing reads it as a freshness signal)
     const etag = r.headers.get('etag')
     if (etag) headers.etag = etag
@@ -85,5 +88,5 @@ export default {
 
 function notFound() {
   return new Response(`<!doctype html><meta charset="utf-8"><title>Not found · byoa</title><p style="font:17px system-ui;margin:80px auto;max-width:560px">This page is not on byoa's site. See <a href="/">the home page</a> or <a href="/docs">the docs</a>.</p>`,
-    { status: 404, headers: { 'content-type': TYPES.html } })
+    { status: 404, headers: { 'content-type': TYPES.html, 'strict-transport-security': HSTS } })
 }

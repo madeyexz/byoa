@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Security · byoa docs</title>
-<meta name="description" content="Where each secret is kept, and how to report a problem.">
+<title>Security · byoa: bring your own agent</title>
+<meta name="description" content="Where byoa keeps your users' AI logins and MCP tokens, what counts as a security problem, and how to report one privately.">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="byoa">
-<meta property="og:title" content="Security · byoa docs">
-<meta property="og:description" content="Where each secret is kept, and how to report a problem.">
+<meta property="og:title" content="Security · byoa: bring your own agent">
+<meta property="og:description" content="Where byoa keeps your users' AI logins and MCP tokens, what counts as a security problem, and how to report one privately.">
 <meta property="og:url" content="https://byoa.rippling.computer/docs/security">
 <meta property="og:image" content="https://byoa.rippling.computer/art/og.png">
 <meta property="og:image:width" content="2400">
@@ -20,7 +20,7 @@
 <link rel="canonical" href="https://byoa.rippling.computer/docs/security">
 <link rel="alternate" type="text/markdown" href="/docs/security.md" title="This page as Markdown">
 <link rel="icon" href="/art/favicon.png" type="image/png" sizes="192x192">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs/security#page","url":"https://byoa.rippling.computer/docs/security","name":"Security","description":"Where each secret is kept, and how to report a problem.","headline":"Security","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-26T08:21:26Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"},{"@type":"ListItem","position":3,"name":"Security","item":"https://byoa.rippling.computer/docs/security"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs/security#page","url":"https://byoa.rippling.computer/docs/security","name":"Security","description":"Where byoa keeps your users' AI logins and MCP tokens, what counts as a security problem, and how to report one privately.","headline":"Security","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-26T08:21:26Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"},{"@type":"ListItem","position":3,"name":"Security","item":"https://byoa.rippling.computer/docs/security"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
 <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   /* The styles that the home page (template.html) and the docs pages (docs.html) share. build.mjs puts them in each page. */
@@ -446,7 +446,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     <div class="pagehead"><div class="kick">How it works</div><button class="copy-page narrow" type="button" data-md="/docs/security.md">Copy page</button></div>
     <article>
 <h1>Security</h1>
-<p class="lead">Where each secret is kept, and how to report a problem.</p>
+<p class="lead">Where byoa keeps your users&#39; AI logins and MCP tokens, what counts as a security problem, and how to report one privately.</p>
 <p>This page is <a href="/docs/security">SECURITY.md</a> of the repository.</p>
 <p>byoa handles your users&#39; AI logins and their MCP tokens. A bug in byoa can give an attacker access to a user&#39;s Notion, Gmail or AI plan. Please tell us about each security problem that you find.</p>
 <h2 id="report-a-problem"><a class="anchor" href="#report-a-problem" aria-hidden="true" tabindex="-1">#</a>Report a problem</h2>
@@ -521,7 +521,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <footer>
   <div class="frame">
     <span>byoa · bring your own agent · Apache 2.0</span>
-    <span><a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
+    <span><a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/docs/faq">FAQ</a> · <a href="/demo">Demo</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
   </div>
 </footer>
 

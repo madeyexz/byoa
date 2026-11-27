@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI login · byoa docs</title>
-<meta name="description" content="The sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out.">
+<title>AI login · byoa: bring your own agent</title>
+<meta name="description" content="The sign-in on the lab's own page, where the login stays, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out.">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="byoa">
-<meta property="og:title" content="AI login · byoa docs">
-<meta property="og:description" content="The sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out.">
+<meta property="og:title" content="AI login · byoa: bring your own agent">
+<meta property="og:description" content="The sign-in on the lab's own page, where the login stays, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out.">
 <meta property="og:url" content="https://byoa.rippling.computer/docs/ai-login">
 <meta property="og:image" content="https://byoa.rippling.computer/art/og.png">
 <meta property="og:image:width" content="2400">
@@ -20,7 +20,7 @@
 <link rel="canonical" href="https://byoa.rippling.computer/docs/ai-login">
 <link rel="alternate" type="text/markdown" href="/docs/ai-login.md" title="This page as Markdown">
 <link rel="icon" href="/art/favicon.png" type="image/png" sizes="192x192">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs/ai-login#page","url":"https://byoa.rippling.computer/docs/ai-login","name":"AI login","description":"The sign-in on the lab's own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out.","headline":"AI login","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-26T17:26:09Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"},{"@type":"ListItem","position":3,"name":"AI login","item":"https://byoa.rippling.computer/docs/ai-login"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs/ai-login#page","url":"https://byoa.rippling.computer/docs/ai-login","name":"AI login","description":"The sign-in on the lab's own page, where the login stays, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out.","headline":"AI login","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-26T17:26:09Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"},{"@type":"ListItem","position":3,"name":"AI login","item":"https://byoa.rippling.computer/docs/ai-login"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
 <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   /* The styles that the home page (template.html) and the docs pages (docs.html) share. build.mjs puts them in each page. */
@@ -446,7 +446,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     <div class="pagehead"><div class="kick">How to</div><button class="copy-page narrow" type="button" data-md="/docs/ai-login.md">Copy page</button></div>
     <article>
 <h1>AI login</h1>
-<p class="lead">The sign-in on the lab&#39;s own page, where the login stays between jobs, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out.</p>
+<p class="lead">The sign-in on the lab&#39;s own page, where the login stays, one job step by step, jobs at the same time with one login, the OpenCode Go key, and sign-out.</p>
 <p>A user&#39;s AI login stays encrypted in your app&#39;s database, and is in a sandbox only while a sign-in, a job or a sign-out runs. This page shows how byoa signs a user in to Claude Code, Codex and Grok Build, keeps the CLI&#39;s own login files, and uses them for each job. An OpenCode Go plan (beta) has no sign-in: the user gives a key, which never goes into the sandbox (<a href="#opencode-go-a-key-not-a-sign-in-beta">below</a>).</p>
 <div class="tbl"><table>
 <thead>
@@ -631,7 +631,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <footer>
   <div class="frame">
     <span>byoa · bring your own agent · Apache 2.0</span>
-    <span><a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
+    <span><a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/docs/faq">FAQ</a> · <a href="/demo">Demo</a> · <a href="/llms.txt">llms.txt</a> · <a href="https://github.com/madeyexz/byoa">GitHub</a></span>
   </div>
 </footer>
 
