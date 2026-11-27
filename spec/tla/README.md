@@ -3,7 +3,7 @@
 These models check the parts of byoa where several backends, sandboxes, clocks and the app's own calls act on one user's state at the same time. TLC, the TLA+ model checker, tries every order of their steps in small worlds (two or three jobs or backends), with backends that die, leases that run out, clocks that differ, and stores that answer late or twice. This is check V22 in [SPEC.md](../../SPEC.md#verification).
 
 ```sh
-TLA_SET=ci spec/tla/check.sh   # the fast set, which CI runs: about 15 minutes on 1 core, less with more
+TLA_SET=fast spec/tla/check.sh # the fast set: about 15 minutes on 1 core, less with more
 spec/tla/check.sh              # every model: several hours; some of the 3-job models need 4 GB or more (TLC_HEAP=4g)
 spec/tla/check.sh SignIn       # the models whose file names contain "SignIn"
 ```
@@ -12,7 +12,9 @@ spec/tla/check.sh SignIn       # the models whose file names contain "SignIn"
 
 1. what TLC must find: `\* expect: ok` (no error), or `\* expect: violated <Property>` (a counterexample that TLC must still find: an open issue, a known limit, or the code before a fix, kept so the fix stays needed);
 2. why, in one sentence;
-3. its set: `\* set: ci` (small; `.github/workflows/tla.yml` runs these on each push and pull request that changes a model or the code it models) or `\* set: full` (bigger bounds: three jobs or backends, longer times; the workflow runs every model when it is started by hand).
+3. its set: `\* set: fast` (small bounds) or `\* set: full` (bigger bounds: three jobs or backends, longer times).
+
+No CI runs the models: they check the models, not the code, so a change to the code leaves every result the same. A regression in the code is caught by the test that each finding has in `npm test`. Run the models by hand when a protocol changes, after its model is updated to match.
 
 Names: `main_*` is the code before a fix found here, `fixed_*` the code with it (or with a fix that is only proposed, when its line 2 says so), `heartbeat_*` the code before the first pass's second fix, `live*` a liveness check. A spec's header says what it models, with the file, function and line numbers of each step at d7c34b7, its fairness, and every place where it differs from the code.
 

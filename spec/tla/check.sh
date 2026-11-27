@@ -2,10 +2,10 @@
 # Model-checks the TLA+ specs in this folder with TLC (spec/tla/README.md). Each model in models/ is
 # <Spec>_<name>.cfg. Its first line says what TLC must find: `\* expect: ok`, or `\* expect: violated <Property>`
 # (an open issue, or a model of the code as it was before a fix, kept so the fix stays needed). Its third line says
-# which set it is in: `\* set: ci` (fast; CI runs these on every commit that changes a model or the code it models)
-# or `\* set: full` (bigger bounds; only in a full run).
+# which set it is in: `\* set: fast` (small bounds) or `\* set: full` (bigger bounds). No CI runs these: run them by
+# hand when a protocol or its model changes.
 # Run: spec/tla/check.sh [pattern]          every model whose file name contains the pattern
-#      TLA_SET=ci spec/tla/check.sh         only the ci set (what .github/workflows/tla.yml runs)
+#      TLA_SET=fast spec/tla/check.sh       only the fast set
 # Needs Java 11 or later; downloads tla2tools.jar (pinned, checked by its SHA-256) into spec/tla/.tools the first time.
 set -euo pipefail
 cd "$(dirname "$0")"
