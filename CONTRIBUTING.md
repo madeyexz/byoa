@@ -31,7 +31,7 @@ These rules come from the labs' terms and from SPEC.md. A pull request that brea
 Version 1 supports only these:
 
 - Harnesses: Claude Code, Codex and Grok Build.
-- Sandbox providers: E2B, Daytona and Instabox.
+- Sandbox providers: E2B, Daytona, Instabox and Sprites (Fly.io).
 - Backends: Node and Convex. Cloudflare Workers support is planned.
 - Store adapters: Convex and Postgres.
 

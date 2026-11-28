@@ -1,6 +1,6 @@
 ---
 name: byoa
-description: Adds byoa to an app, so the app runs each user's own Claude Code, Codex or Grok Build in a sandbox (E2B, Daytona, Instabox or local), on the user's own Claude, ChatGPT, Grok or OpenCode Go plan, with the user's MCP connections. Use when you add AI agent jobs to an app's backend with byoa, write its sign-in, MCP connect, proxy or callback routes, stream agents.run events to a UI, write a byoa store adapter, or test with byoa's fake harness.
+description: Adds byoa to an app, so the app runs each user's own Claude Code, Codex or Grok Build in a sandbox (E2B, Daytona, Instabox, Sprites or local), on the user's own Claude, ChatGPT, Grok or OpenCode Go plan, with the user's MCP connections. Use when you add AI agent jobs to an app's backend with byoa, write its sign-in, MCP connect, proxy or callback routes, stream agents.run events to a UI, write a byoa store adapter, or test with byoa's fake harness.
 metadata:
   version: "1.1.0"
 ---
@@ -22,7 +22,7 @@ npm install @madeyexz/byoa
 bun add @madeyexz/byoa
 ```
 
-Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona; Instabox needs none. byoa needs Node 22.18 or later, or Bun. The package is `@madeyexz/byoa`: do not write `npm install byoa` or `import ... from 'byoa'`, and do not install `byoa-sdk`, an unrelated package.
+Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona; Instabox and Sprites need none. byoa needs Node 22.18 or later, or Bun. The package is `@madeyexz/byoa`: do not write `npm install byoa` or `import ... from 'byoa'`, and do not install `byoa-sdk`, an unrelated package.
 
 `metadata.version` above is the `version` in the package.json next to this skill. The npm package has this skill in it (from 1.1.0), so `npx skills experimental_sync -y` after the install links `node_modules/@madeyexz/byoa/skills/byoa` into the app's skills, and the skill always matches the installed byoa. When the installed version is not `metadata.version`, believe the installed version's types.
 
@@ -34,7 +34,7 @@ Make one `agents` object in the backend. Do it once per process (or once per Con
 
 ```ts
 import { createAgents } from '@madeyexz/byoa'
-import { e2b } from '@madeyexz/byoa/sandbox/e2b'           // or: daytona from '@madeyexz/byoa/sandbox/daytona', instabox from '@madeyexz/byoa/sandbox/instabox'
+import { e2b } from '@madeyexz/byoa/sandbox/e2b'           // or: daytona from '@madeyexz/byoa/sandbox/daytona', instabox from '@madeyexz/byoa/sandbox/instabox', sprites from '@madeyexz/byoa/sandbox/sprites'
 import { postgresStore } from '@madeyexz/byoa/store/postgres' // or: convexStore, or the app's own Store
 
 const agents = createAgents({
@@ -49,8 +49,8 @@ const agents = createAgents({
 ```
 
 - **Store.** `postgresStore` needs its table once: run `POSTGRES_SCHEMA` (from `@madeyexz/byoa/store/postgres`). For Convex, see reference/api.md. For another database, write a `Store` with four methods: `get`, `put`, `delete`, `cas` (compare-and-set). The example's `sqliteStore` in `examples/todo/todos.ts` is one in 19 lines. A new version on every write is required, and a deleted and rewritten key must never get an old version back.
-- **Sandbox.** `e2b()`, `daytona()` and `instabox()` read their API key from `E2B_API_KEY` / `DAYTONA_API_KEY` / `INSTABOX_API_KEY` when you give none. Instabox has no volumes, so use the default `storedLogin()` there, not `cliLogin`. The default E2B template is named `byoa`, and a new E2B account does not have it: the first job then fails with `404: template 'byoa' not found`. Build it one time with `buildE2BTemplate()` from `@madeyexz/byoa/sandbox/e2b`, or pass `e2b({ template: 'base' })`: byoa then installs the pinned harness in each new sandbox (about 10 seconds). `localSandbox()` from `@madeyexz/byoa/sandbox/local` is a folder on this computer. It isolates nothing: use it only for development and tests.
-- **The sandbox must reach `proxyUrl`.** With E2B, Daytona or Instabox it must be a public HTTPS URL (in development, a tunnel such as `cloudflared tunnel --url http://localhost:3000`). On Daytona Tier 1 and 2, only allowed domains work, such as `*.convex.site` or `*.workers.dev`.
+- **Sandbox.** `e2b()`, `daytona()` and `instabox()` read their API key from `E2B_API_KEY` / `DAYTONA_API_KEY` / `INSTABOX_API_KEY` when you give none, and `sprites()` its token from `SPRITES_TOKEN`. Instabox and Sprites have no volumes, so use the default `storedLogin()` there, not `cliLogin`. The default E2B template is named `byoa`, and a new E2B account does not have it: the first job then fails with `404: template 'byoa' not found`. Build it one time with `buildE2BTemplate()` from `@madeyexz/byoa/sandbox/e2b`, or pass `e2b({ template: 'base' })`: byoa then installs the pinned harness in each new sandbox (about 10 seconds). `localSandbox()` from `@madeyexz/byoa/sandbox/local` is a folder on this computer. It isolates nothing: use it only for development and tests.
+- **The sandbox must reach `proxyUrl`.** With E2B, Daytona, Instabox or Sprites it must be a public HTTPS URL (in development, a tunnel such as `cloudflared tunnel --url http://localhost:3000`). On Daytona Tier 1 and 2, only allowed domains work, such as `*.convex.site` or `*.workers.dev`.
 
 ## 3. Routes the app must serve
 

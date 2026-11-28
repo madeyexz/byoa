@@ -77,10 +77,11 @@ These are estimates. To get your own numbers, read the `usage` of each job's `en
 | E2B ($0.0504 a vCPU, $0.0162 a GiB) | $0.1008 | $0.0648 | $0.1656 | **$0.0138** |
 | Daytona (the same rates) | $0.1008 | $0.0648 | $0.1656 | **$0.0138** |
 | Instabox ($0.004 a vCPU, $0.00225 a GiB) | $0.008 | $0.009 | $0.017 | **$0.0014** |
+| Sprites ($0.0385 a CPU, $0.021875 a GB, for what the job uses) | $0.077 | $0.0875 | $0.1645 | **$0.0137** |
 
 Claude Opus 5.5 has a cache write price too ($5.00), which this leaves out. DeepSeek's prices are its weekday peak prices; at other times they are half.
 
-Sources: [Claude pricing](https://platform.claude.com/docs/en/about-claude/pricing), [OpenAI API pricing](https://developers.openai.com/api/docs/pricing), [Kimi API pricing](https://platform.kimi.ai/docs/pricing/chat), [DeepSeek API pricing](https://api-docs.deepseek.com/quick_start/pricing/), [E2B pricing](https://e2b.dev/pricing), [Daytona pricing](https://www.daytona.io/pricing), [Instabox pricing](https://instabox.sh/pricing).
+Sources: [Claude pricing](https://platform.claude.com/docs/en/about-claude/pricing), [OpenAI API pricing](https://developers.openai.com/api/docs/pricing), [Kimi API pricing](https://platform.kimi.ai/docs/pricing/chat), [DeepSeek API pricing](https://api-docs.deepseek.com/quick_start/pricing/), [E2B pricing](https://e2b.dev/pricing), [Daytona pricing](https://www.daytona.io/pricing), [Instabox pricing](https://instabox.sh/pricing), [Sprites pricing](https://fly.io/sprites).
 
 ### For a month
 
@@ -94,6 +95,7 @@ What each user pays a month for 100 such tasks, when your app passes its costs o
 | DeepSeek V4.1 Flash | $2.97 | |
 | E2B or Daytona | | $1.38 |
 | Instabox | | $0.14 |
+| Sprites | | $1.37 at most |
 
 The user already pays for their own plan, such as $20 a month for Claude Pro or ChatGPT Plus, and the task uses its allowance.
 
@@ -112,10 +114,11 @@ For 100 tasks for each user, a month:
 | byoa on E2B: the user's own plan, with a frontier model | $1.38 and their plan |
 | byoa on Daytona: the user's own plan, with a frontier model | $1.38 and their plan |
 | byoa on Instabox: the user's own plan, with a frontier model | $0.14 and their plan |
+| byoa on Sprites: the user's own plan, with a frontier model | $1.37 and their plan |
 
 ### What the numbers leave out
 
-- **Plan fees at the provider.** E2B's Pro plan is $150 a month, and Instabox's Pro plan is $20 a month with $20 of usage in it. Daytona has no plan fee.
+- **Plan fees at the provider.** E2B's Pro plan is $150 a month, and Instabox's Pro plan is $20 a month with $20 of usage in it. Daytona has no plan fee, and Sprites' Free plan has none (it gives $5 of usage a month). Sprites bills the CPU and memory that a job uses, not what it could use, so a job that mostly waits for the model costs less than the table says.
 - **A kept sandbox between jobs.** A paused or stopped sandbox costs no compute. It can cost a little for its disk: Daytona bills disk past the first 5 GiB.
 - **The sign-in sandbox,** once for each user and harness, for a few minutes.
 - **An agent with no sandbox.** An agent that only calls your app's own API, with no shell and no files, can run as an agent loop of your own, such as on AWS Lambda, with no sandbox. Then an API key costs only the tokens. byoa needs a sandbox, because Claude Code, Codex and Grok Build need a shell.

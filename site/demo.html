@@ -443,7 +443,7 @@ setInterval(() => client.mutation(api.demo.touch, { visitor }).catch(() => {}), 
 client.onUpdate(api.demo.view, { visitor }, (v) => { view = v; render() })
 refreshLogins()
 </script>
-<!-- The help agent: the robot in the corner of each page jumps in, says what it is in a speech bubble, and opens a chat with Codex, which runs in a sandbox on byoa,
+<!-- The help agent: the robot in the corner of each page jumps in, says what it is in a speech bubble, and opens a chat with Codex, which runs in a Sprite (Fly.io) on byoa,
      reads byoa's docs and code, and logs the visitor's feedback. Its backend is the Convex deployment of
      madeyexz/byoa-help; this page calls its functions through Convex's HTTP API. build.mjs puts this before </body>. -->
 <style>
@@ -484,6 +484,7 @@ refreshLogins()
   #bh header img { width: 22px; height: auto; image-rendering: pixelated; }
   #bh header .t { flex: 1; min-width: 0; }
   #bh header b { display: block; font-weight: 640; letter-spacing: -.01em; }
+  #bh header small a { color: inherit; }
   #bh header small { display: block; color: var(--muted, #6b6977); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #bh header button { width: 32px; height: 32px; border: 1px solid transparent; background: none; cursor: pointer; font-size: 17px; color: var(--ink2, #3d3d48); }
   #bh header button:hover { background: var(--paper2, #f1eee5); border-color: var(--rule, #e3dfd4); }
@@ -530,14 +531,14 @@ refreshLogins()
 <section id="bh" role="dialog" aria-label="byoa help agent" hidden>
   <header>
     <img src="/art/agent.png" width="272" height="420" alt="">
-    <div class="t"><b>byoa help agent</b><small>Codex · GPT-6 Luna · in a sandbox, on byoa</small></div>
+    <div class="t"><b>byoa help agent</b><small>Codex · GPT-6 Luna · on <a href="https://fly.io/sprites">Sprites by Fly.io</a></small></div>
     <button type="button" data-act="new" title="New chat" aria-label="New chat">↺</button>
     <button type="button" data-act="close" title="Close" aria-label="Close">✕</button>
   </header>
   <div class="log" aria-live="polite"></div>
   <div class="err" role="alert"></div>
   <form><textarea rows="2" placeholder="Ask about byoa, or tell us what to fix" aria-label="Message" maxlength="2000"></textarea><button type="submit">Send</button></form>
-  <div class="foot">It reads byoa's docs and code, and logs your feedback for us. It runs on the maintainer's ChatGPT plan, with limits. <a href="https://github.com/madeyexz/byoa-help">Its code</a></div>
+  <div class="foot">It reads byoa's docs and code, and logs your feedback for us. It runs in a Sprite by Fly.io, on the maintainer's ChatGPT plan, with limits. <a href="https://github.com/madeyexz/byoa-help">Its code</a></div>
 </section>
 <script>
 (() => {
@@ -612,7 +613,7 @@ refreshLogins()
   const step = (x) => typeof x === 'string' ? `<li>${esc(x)}</li>` : x.done ? `<li class="done">${esc(x.text)}</li>` : `<li>Reading: <code>${esc(x.code)}</code></li>`
   const took = (m) => m.timing && m.ok !== false ? `<div class="took">Answered in ${secs(m.timing.total)}${m.timing.sandbox !== undefined ? ` · sandbox ready in ${secs(m.timing.sandbox)} · Codex ${secs(m.timing.codex)}` : ''}</div>` : ''
 
-  const HELLO = `<div class="m agent hello"><p>Hi! I'm byoa's help agent. I'm powered by byoa itself, on the developer's own ChatGPT subscription. I read byoa's docs and code to answer you, and I can pass your feedback, and questions I can't answer, on to the developer. Try chatting with me!</p></div>`
+  const HELLO = `<div class="m agent hello"><p>Hi! I'm byoa's help agent. I'm powered by byoa itself, in a Sprite by Fly.io, on the developer's own ChatGPT subscription. I read byoa's docs and code to answer you, and I can pass your feedback, and questions I can't answer, on to the developer. Try chatting with me!</p></div>`
   const CHIPS = ['What is byoa, in short?', 'How do I add byoa to a Convex app?', 'Which AI plans and sandboxes work?', 'I have feedback on the docs']
   let view = null, timer = null, sent = ''
   function render() {
@@ -656,6 +657,7 @@ refreshLogins()
     `<b>Hi! I'm byoa's help agent.</b> Ask me anything.`,
     `I pass your feedback on to the developer.`,
     `I run on the developer's ChatGPT plan.`,
+    `I'm powered by <b>Sprites by Fly.io</b>.`,
   ]
   let line = 0, sayTimer = null
   const hop = (cls) => { open.classList.remove('enter', 'hop'); void open.offsetWidth; open.classList.add(cls) }

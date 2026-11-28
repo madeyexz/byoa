@@ -13,14 +13,14 @@
 <meta property="og:image" content="https://byoa.rippling.computer/art/og.png">
 <meta property="og:image:width" content="2400">
 <meta property="og:image:height" content="1260">
-<meta property="og:image:alt" content="byoa: let your users bring their own agent. Agents: Claude Code, Codex, Grok Build. Sandboxes: E2B, Daytona, Instabox.">
+<meta property="og:image:alt" content="byoa: let your users bring their own agent. Agents: Claude Code, Codex, Grok Build. Sandboxes: E2B, Daytona, Instabox, Sprites.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#f8f6f0" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1124" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://byoa.rippling.computer/docs/providers">
 <link rel="alternate" type="text/markdown" href="/docs/providers.md" title="This page as Markdown">
 <link rel="icon" href="/art/favicon.png" type="image/png" sizes="192x192">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs/providers#page","url":"https://byoa.rippling.computer/docs/providers","name":"Sandbox providers","description":"E2B, Daytona, Instabox and the local sandbox, and how to write an adapter.","headline":"Sandbox providers","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-26T17:22:35Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"},{"@type":"ListItem","position":3,"name":"Sandbox providers","item":"https://byoa.rippling.computer/docs/providers"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs/providers#page","url":"https://byoa.rippling.computer/docs/providers","name":"Sandbox providers","description":"E2B, Daytona, Instabox and the local sandbox, and how to write an adapter.","headline":"Sandbox providers","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-27T17:43:44Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"},{"@type":"ListItem","position":3,"name":"Sandbox providers","item":"https://byoa.rippling.computer/docs/providers"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
 <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   /* The styles that the home page (template.html) and the docs pages (docs.html) share. build.mjs puts them in each page. */
@@ -118,6 +118,7 @@ nav.top .gh:hover { background: #000; color: #fff; }
 .ascii .lg-e2b { background-image: url(/art/logo-e2b.png); }
 .ascii .lg-daytona { background-image: url(/art/logo-daytona.png); }
 .ascii .lg-instabox { background-image: url(/art/logo-instabox.png); }
+.ascii .lg-sprites { background-image: url(/art/logo-sprites.png); }
 
 /* what each user pays (build.mjs, priceBars): the home page's "Why" and the docs' "What your users pay". The bars
    adapt to the width of their box, so they fit the home page, the docs column and a phone. */
@@ -447,9 +448,9 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     <article>
 <h1>Sandbox providers</h1>
 <p class="lead">E2B, Daytona, Instabox and the local sandbox, and how to write an adapter.</p>
-<p>Each sandbox provider is one adapter with one interface. Version 1 has E2B, Daytona and Instabox, and a local sandbox for development and tests. To change the provider, change the adapter that you give <code>createAgents</code>:</p>
+<p>Each sandbox provider is one adapter with one interface. Version 1 has E2B, Daytona, Instabox and Sprites (Fly.io), and a local sandbox for development and tests. To change the provider, change the adapter that you give <code>createAgents</code>:</p>
 <div class="code"><pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#4D9375">import</span><span style="color:#666666"> {</span><span style="color:#BD976A"> e2b</span><span style="color:#666666"> }</span><span style="color:#4D9375"> from</span><span style="color:#C98A7D77"> '</span><span style="color:#C98A7D">@madeyexz/byoa/sandbox/e2b</span><span style="color:#C98A7D77">'</span></span>
-<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">agents</span><span style="color:#666666"> =</span><span style="color:#80A665"> createAgents</span><span style="color:#666666">({ ...</span><span style="color:#BD976A">options</span><span style="color:#666666">, </span><span style="color:#B8A965">sandbox</span><span style="color:#666666">: </span><span style="color:#80A665">e2b</span><span style="color:#666666">({ </span><span style="color:#BD976A">apiKey</span><span style="color:#666666"> }) })</span><span style="color:#758575DD">   // or daytona({ apiKey }), instabox({ apiKey })</span></span></code></pre></div><p><code>e2b()</code>, <code>daytona()</code> and <code>instabox()</code> read their API key from <code>E2B_API_KEY</code>, <code>DAYTONA_API_KEY</code> or <code>INSTABOX_API_KEY</code> when you give none. The sandbox must reach your <code>proxyUrl</code>. <a href="/docs/sandbox-lifecycle#how-each-provider-pauses-and-times-out">Sandbox lifecycle</a> compares how each provider pauses and times out.</p>
+<span class="line"><span style="color:#CB7676">const </span><span style="color:#BD976A">agents</span><span style="color:#666666"> =</span><span style="color:#80A665"> createAgents</span><span style="color:#666666">({ ...</span><span style="color:#BD976A">options</span><span style="color:#666666">, </span><span style="color:#B8A965">sandbox</span><span style="color:#666666">: </span><span style="color:#80A665">e2b</span><span style="color:#666666">({ </span><span style="color:#BD976A">apiKey</span><span style="color:#666666"> }) })</span><span style="color:#758575DD">   // or daytona({ apiKey }), instabox({ apiKey }), sprites({ token })</span></span></code></pre></div><p><code>e2b()</code>, <code>daytona()</code> and <code>instabox()</code> read their API key from <code>E2B_API_KEY</code>, <code>DAYTONA_API_KEY</code> or <code>INSTABOX_API_KEY</code> when you give none, and <code>sprites()</code> reads its token from <code>SPRITES_TOKEN</code>. The sandbox must reach your <code>proxyUrl</code>. <a href="/docs/sandbox-lifecycle#how-each-provider-pauses-and-times-out">Sandbox lifecycle</a> compares how each provider pauses and times out.</p>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -457,6 +458,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <th>E2B</th>
 <th>Daytona</th>
 <th>Instabox</th>
+<th>Sprites</th>
 <th>Local</th>
 </tr>
 </thead>
@@ -465,6 +467,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <td><code>@madeyexz/byoa/sandbox/e2b</code></td>
 <td><code>@madeyexz/byoa/sandbox/daytona</code></td>
 <td><code>@madeyexz/byoa/sandbox/instabox</code></td>
+<td><code>@madeyexz/byoa/sandbox/sprites</code></td>
 <td><code>@madeyexz/byoa/sandbox/local</code></td>
 </tr>
 <tr>
@@ -473,18 +476,21 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <td><code>@daytona/sdk</code></td>
 <td>none</td>
 <td>none</td>
+<td>none</td>
 </tr>
 <tr>
 <td>Between jobs, a kept sandbox is</td>
 <td>paused</td>
 <td>stopped</td>
 <td>stopped</td>
+<td>asleep (Sprites&#39; own pause)</td>
 <td>a folder</td>
 </tr>
 <tr>
 <td>Volumes for <code>cliLogin</code></td>
 <td>yes, when volumes are on for your team</td>
 <td>one shared volume, a subpath for each login</td>
+<td>none: use <code>storedLogin()</code></td>
 <td>none: use <code>storedLogin()</code></td>
 <td>folders</td>
 </tr>
@@ -494,11 +500,13 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <td>2 min after the last <code>finishLogin</code></td>
 <td>after 15 min (no keepAlive)</td>
 <td>2 min after the last <code>finishLogin</code></td>
+<td>2 min after the last <code>finishLogin</code></td>
 </tr>
 <tr>
 <td>Network</td>
 <td>every public domain</td>
 <td>Tier 1 and 2: allowed domains only</td>
+<td>every public domain</td>
 <td>every public domain</td>
 <td>this computer</td>
 </tr>
@@ -526,6 +534,17 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <li>Instabox has no volumes, so <code>cliLogin</code> does not work there; the default stored login does. Instabox sandboxes reach every public domain, so a tunnel works for <code>proxyUrl</code>.</li>
 <li>On the free plan, a workspace has one sandbox in all, also when it is stopped (so one user with one kept sandbox, or one job), and three starts a minute (byoa waits when Instabox answers 429). A run starts with 2 hours before Instabox pauses the sandbox, and grows to 8 hours at most while the sandbox is in use (<a href="https://instabox.sh/docs/account/limits" rel="noopener">limits</a>).</li>
 </ul>
+<h2 id="sprites"><a class="anchor" href="#sprites" aria-hidden="true" tabindex="-1">#</a>Sprites</h2>
+<p>Use <code>sprites({ token?, apiUrl?, init?, timeoutMs? })</code>. A <a href="https://fly.io/sprites" rel="noopener">Sprite</a> is a Linux VM of Fly.io with a disk that stays. The adapter calls the Sprites API itself, so it needs no package. Make a Sprites token of your Fly.io organization (<a href="https://docs.fly.io/sprites/cli/authentication" rel="noopener">how</a>), and set it as <code>SPRITES_TOKEN</code>.</p>
+<ul>
+<li>Each Sprite has Ubuntu, Node, git and the labs&#39; CLIs; user <code>sprite</code>, home <code>/home/sprite</code>. byoa still installs its pinned harness (about 5 seconds). Sprites has no templates: to add what your jobs need, such as a clone of a repository, pass a shell command as <code>init</code>, which runs once in each new Sprite, with the network and sudo.</li>
+<li>A Sprite sleeps by itself about 30 seconds after nothing runs in it, also when a process of byoa still has work, such as the watcher that takes the AI login out (R1.4). So the adapter holds each Sprite awake until its time, with the Tasks API in the Sprite: a sandbox&#39;s <code>timeoutMs</code>, <code>setTimeout</code> and <code>keepAlive</code> work as on E2B. At its time, a kept Sprite sleeps with its files; one that is not kept stops its processes and deletes its home folder, and the next <code>create</code> deletes it at Sprites.</li>
+<li><code>pause</code> ends the job&#39;s processes and lets the Sprite sleep, so the next job wakes it in about a second, with its files. When byoa resumes a Sprite whose time ran out (your backend died during a job), it ends any old process first.</li>
+<li>A Sprite&#39;s user has some Linux capabilities, such as <code>CAP_SYS_ADMIN</code>. byoa runs each command with none, so the agent has no more power than an ordinary user, and Codex&#39;s own sandbox, which <code>access: &#39;read-only&#39;</code> uses, works.</li>
+<li>Sprites has no volumes, so <code>cliLogin</code> does not work there; the default stored login does. Sprites reach every public domain by default, so a tunnel works for <code>proxyUrl</code>.</li>
+<li>byoa names its Sprites <code>byoa-</code> and 20 hex characters, and gives each the job&#39;s labels as <code>key=value</code>. A Sprites <a href="https://docs.fly.io/sprites/concepts/connectors" rel="noopener">connector</a> can give your app&#39;s Sprites an API without its key in them: limit the connector to the label <code>byoa-app=&lt;your app&gt;</code>. Do not use a connector for the user&#39;s AI login: byoa&#39;s stored login keeps it in your database, for each user (see <a href="/docs/ai-login">AI login</a>).</li>
+<li>On the Free plan, an organization has 3 Sprites; Pay As You Go removes that limit. Plans set how many run at once (10 or more) and how many start a minute (<a href="https://fly.io/sprites" rel="noopener">pricing</a>).</li>
+</ul>
 <h2 id="the-local-sandbox"><a class="anchor" href="#the-local-sandbox" aria-hidden="true" tabindex="-1">#</a>The local sandbox</h2>
 <p><code>localSandbox({ root?, volumes?, env? })</code> is folders on this computer. It isolates nothing: use it only for development and tests, and with <code>access: &#39;read-only&#39;</code> for a harness on a user&#39;s own computer. On macOS, the Codex sign-in works in it; the Claude Code sign-in needs Linux.</p>
 <h2 id="write-an-adapter"><a class="anchor" href="#write-an-adapter" aria-hidden="true" tabindex="-1">#</a>Write an adapter</h2>
@@ -550,9 +569,9 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 
     </article>
     <nav class="pn" aria-label="Pages"><a class="prev" href="/docs/running-agents"><span>Previous</span>Run agents</a><a class="next" href="/docs/stores"><span>Next</span>Store logins and grants</a></nav>
-    <p class="edit">Updated <time datetime="2026-11-26T17:22:35Z">November 26, 2026</time> · <a href="https://github.com/madeyexz/byoa/blob/main/docs/providers.md">Edit this page on GitHub</a> · <a href="/docs/providers.md">This page as Markdown</a></p>
+    <p class="edit">Updated <time datetime="2026-11-27T17:43:44Z">November 27, 2026</time> · <a href="https://github.com/madeyexz/byoa/blob/main/docs/providers.md">Edit this page on GitHub</a> · <a href="/docs/providers.md">This page as Markdown</a></p>
   </main>
-  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#e2b">E2B</a></li><li><a href="#daytona">Daytona</a></li><li><a href="#instabox">Instabox</a></li><li><a href="#the-local-sandbox">The local sandbox</a></li><li><a href="#write-an-adapter">Write an adapter</a></li></ul>
+  <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#e2b">E2B</a></li><li><a href="#daytona">Daytona</a></li><li><a href="#instabox">Instabox</a></li><li><a href="#sprites">Sprites</a></li><li><a href="#the-local-sandbox">The local sandbox</a></li><li><a href="#write-an-adapter">Write an adapter</a></li></ul>
     <button class="copy-page" type="button" data-md="/docs/providers.md">Copy page</button>
     <div class="tools"><a href="/docs/providers.md">This page as Markdown</a><a href="/llms.txt">llms.txt</a><a href="/llms-full.txt">llms-full.txt</a></div>
   </aside>
@@ -792,7 +811,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 }
 
 </script>
-<!-- The help agent: the robot in the corner of each page jumps in, says what it is in a speech bubble, and opens a chat with Codex, which runs in a sandbox on byoa,
+<!-- The help agent: the robot in the corner of each page jumps in, says what it is in a speech bubble, and opens a chat with Codex, which runs in a Sprite (Fly.io) on byoa,
      reads byoa's docs and code, and logs the visitor's feedback. Its backend is the Convex deployment of
      madeyexz/byoa-help; this page calls its functions through Convex's HTTP API. build.mjs puts this before </body>. -->
 <style>
@@ -833,6 +852,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   #bh header img { width: 22px; height: auto; image-rendering: pixelated; }
   #bh header .t { flex: 1; min-width: 0; }
   #bh header b { display: block; font-weight: 640; letter-spacing: -.01em; }
+  #bh header small a { color: inherit; }
   #bh header small { display: block; color: var(--muted, #6b6977); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #bh header button { width: 32px; height: 32px; border: 1px solid transparent; background: none; cursor: pointer; font-size: 17px; color: var(--ink2, #3d3d48); }
   #bh header button:hover { background: var(--paper2, #f1eee5); border-color: var(--rule, #e3dfd4); }
@@ -879,14 +899,14 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <section id="bh" role="dialog" aria-label="byoa help agent" hidden>
   <header>
     <img src="/art/agent.png" width="272" height="420" alt="">
-    <div class="t"><b>byoa help agent</b><small>Codex · GPT-6 Luna · in a sandbox, on byoa</small></div>
+    <div class="t"><b>byoa help agent</b><small>Codex · GPT-6 Luna · on <a href="https://fly.io/sprites">Sprites by Fly.io</a></small></div>
     <button type="button" data-act="new" title="New chat" aria-label="New chat">↺</button>
     <button type="button" data-act="close" title="Close" aria-label="Close">✕</button>
   </header>
   <div class="log" aria-live="polite"></div>
   <div class="err" role="alert"></div>
   <form><textarea rows="2" placeholder="Ask about byoa, or tell us what to fix" aria-label="Message" maxlength="2000"></textarea><button type="submit">Send</button></form>
-  <div class="foot">It reads byoa's docs and code, and logs your feedback for us. It runs on the maintainer's ChatGPT plan, with limits. <a href="https://github.com/madeyexz/byoa-help">Its code</a></div>
+  <div class="foot">It reads byoa's docs and code, and logs your feedback for us. It runs in a Sprite by Fly.io, on the maintainer's ChatGPT plan, with limits. <a href="https://github.com/madeyexz/byoa-help">Its code</a></div>
 </section>
 <script>
 (() => {
@@ -961,7 +981,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   const step = (x) => typeof x === 'string' ? `<li>${esc(x)}</li>` : x.done ? `<li class="done">${esc(x.text)}</li>` : `<li>Reading: <code>${esc(x.code)}</code></li>`
   const took = (m) => m.timing && m.ok !== false ? `<div class="took">Answered in ${secs(m.timing.total)}${m.timing.sandbox !== undefined ? ` · sandbox ready in ${secs(m.timing.sandbox)} · Codex ${secs(m.timing.codex)}` : ''}</div>` : ''
 
-  const HELLO = `<div class="m agent hello"><p>Hi! I'm byoa's help agent. I'm powered by byoa itself, on the developer's own ChatGPT subscription. I read byoa's docs and code to answer you, and I can pass your feedback, and questions I can't answer, on to the developer. Try chatting with me!</p></div>`
+  const HELLO = `<div class="m agent hello"><p>Hi! I'm byoa's help agent. I'm powered by byoa itself, in a Sprite by Fly.io, on the developer's own ChatGPT subscription. I read byoa's docs and code to answer you, and I can pass your feedback, and questions I can't answer, on to the developer. Try chatting with me!</p></div>`
   const CHIPS = ['What is byoa, in short?', 'How do I add byoa to a Convex app?', 'Which AI plans and sandboxes work?', 'I have feedback on the docs']
   let view = null, timer = null, sent = ''
   function render() {
@@ -1005,6 +1025,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     `<b>Hi! I'm byoa's help agent.</b> Ask me anything.`,
     `I pass your feedback on to the developer.`,
     `I run on the developer's ChatGPT plan.`,
+    `I'm powered by <b>Sprites by Fly.io</b>.`,
   ]
   let line = 0, sayTimer = null
   const hop = (cls) => { open.classList.remove('enter', 'hop'); void open.offsetWidth; open.classList.add(cls) }

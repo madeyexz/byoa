@@ -1,7 +1,7 @@
 <a href="https://byoa.rippling.computer">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/banner-dark.png">
-  <img alt="byoa: let your users bring their own agent. The simplest way to let your users bring their own AI subscription to power the agents in your app. Supported harnesses, on the user's plan: Claude Code, Codex and Grok Build. Supported sandboxes, on your account: E2B, Daytona and Instabox, with more coming soon. Supported backends: Node, Bun and Convex, with any database through a store adapter." src=".github/readme/banner-light.png">
+  <img alt="byoa: let your users bring their own agent. The simplest way to let your users bring their own AI subscription to power the agents in your app. Supported harnesses, on the user's plan: Claude Code, Codex and Grok Build. Supported sandboxes, on your account: E2B, Daytona, Instabox and Sprites, with more coming soon. Supported backends: Node, Bun and Convex, with any database through a store adapter." src=".github/readme/banner-light.png">
 </picture>
 </a>
 
@@ -12,7 +12,7 @@
 [![CI](https://github.com/madeyexz/byoa/actions/workflows/ci.yml/badge.svg)](https://github.com/madeyexz/byoa/actions/workflows/ci.yml)
 ![License: Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-2f4cff?style=flat-square)
 ![Agents: Claude Code · Codex · Grok Build](https://img.shields.io/badge/agents-Claude_Code_%C2%B7_Codex_%C2%B7_Grok_Build-9db6ff?style=flat-square)
-![Sandboxes: E2B · Daytona · Instabox](https://img.shields.io/badge/sandboxes-E2B_%C2%B7_Daytona_%C2%B7_Instabox-ffc93c?style=flat-square)
+![Sandboxes: E2B · Daytona · Instabox · Sprites](https://img.shields.io/badge/sandboxes-E2B_%C2%B7_Daytona_%C2%B7_Instabox_%C2%B7_Sprites-ffc93c?style=flat-square)
 ![Not a hosted service](https://img.shields.io/badge/a_library-not_a_hosted_service-ff5a36?style=flat-square)
 
 </div>
@@ -25,7 +25,7 @@ AI is like electricity, and an AI subscription is like a portable battery pack: 
 
 byoa is an open-source library that helps you build these apps fast. Your app runs the user's own Claude Code, Codex or Grok Build in a sandbox. The user signs in with their own ChatGPT, Claude or Grok plan, or gives the key of their OpenCode Go plan, so they pay for the AI work with a plan they already have. Your app passes on only the sandbox cost, so it can offer a frontier agent at a low price. The user connects each MCP tool (Notion, Gmail, and others) one time, and every agent run has it.
 
-Version 1 supports three sandbox providers: E2B, Daytona and Instabox. More providers come later. To change the provider, you change one adapter.
+Version 1 supports four sandbox providers: E2B, Daytona, Instabox and Sprites by Fly.io. More providers come later. To change the provider, you change one adapter.
 
 ## Who brings what
 
@@ -54,7 +54,7 @@ One task is about 500,000 input tokens (90% cached) and 10,000 output tokens, an
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/scope-dark.png">
-  <img alt="What byoa works with today. Agents: Claude Code, Codex and Grok Build (supported), Gemini or Antigravity maybe later. User plans: Claude, ChatGPT and Grok (supported), an OpenCode Go key (planned). Sandboxes: E2B, Daytona and Instabox (supported), other providers planned. Backends: Node and Convex actions (supported), Cloudflare Workers planned. Token stores: Convex and Postgres (supported), or your own with get, put, delete and compare-and-set." src=".github/readme/scope-light.png">
+  <img alt="What byoa works with today. Agents: Claude Code, Codex and Grok Build (supported), Gemini or Antigravity maybe later. User plans: Claude, ChatGPT and Grok (supported), an OpenCode Go key (planned). Sandboxes: E2B, Daytona, Instabox and Sprites (supported), other providers planned. Backends: Node and Convex actions (supported), Cloudflare Workers planned. Token stores: Convex and Postgres (supported), or your own with get, put, delete and compare-and-set." src=".github/readme/scope-light.png">
 </picture>
 
 ## Agent skill
@@ -79,7 +79,7 @@ The docs are at [byoa.rippling.computer/docs](https://byoa.rippling.computer/doc
 - [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle): every sandbox byoa creates, what each provider does, and what happens when your backend dies
 - [MCP tools and the proxy](https://byoa.rippling.computer/docs/mcp): MCP connections, job tokens, your app's own tools, and calls with a user's grant
 - [Running agents](https://byoa.rippling.computer/docs/running-agents): `agents.run` and its events, `access`, sandbox modes, conversations, jobs at the same time, models and effort, `session` and `jobToken`
-- [Sandbox providers](https://byoa.rippling.computer/docs/providers) and [Stores and Convex](https://byoa.rippling.computer/docs/stores): E2B, Daytona, Instabox, Postgres, Convex, and your own
+- [Sandbox providers](https://byoa.rippling.computer/docs/providers) and [Stores and Convex](https://byoa.rippling.computer/docs/stores): E2B, Daytona, Instabox, Sprites, Postgres, Convex, and your own
 - [Testing](https://byoa.rippling.computer/docs/testing): the fake harness, the local sandbox and the memory store, and byoa's own tests
 - [API reference](https://byoa.rippling.computer/docs/api), [Lab rules](https://byoa.rippling.computer/docs/lab-rules) and [Security](https://byoa.rippling.computer/docs/security)
 

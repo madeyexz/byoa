@@ -13,7 +13,7 @@ npm install @madeyexz/byoa
 bun add @madeyexz/byoa
 ```
 
-Also install the sandbox SDK that your app uses: `e2b` for E2B, `@daytona/sdk` for Daytona. Instabox and the local sandbox need none. byoa needs Node 22.18 or later, or Bun. To use the newest commit on `main` before it is released, install from GitHub: `npm install github:madeyexz/byoa`.
+Also install the sandbox SDK that your app uses: `e2b` for E2B, `@daytona/sdk` for Daytona. Instabox, Sprites and the local sandbox need none. byoa needs Node 22.18 or later, or Bun. To use the newest commit on `main` before it is released, install from GitHub: `npm install github:madeyexz/byoa`.
 
 ## Get a sandbox API key
 
@@ -22,12 +22,13 @@ Your app pays for the sandboxes, so your app needs its own account and API key a
 - **E2B**: [sign up](https://console.e2b.dev/sign-up), then copy a key from [API keys](https://console.e2b.dev/?tab=keys). byoa reads `E2B_API_KEY`. The free plan gives $100 of credit one time and runs 10 sandboxes at a time; a paused sandbox does not count. A sandbox runs for 1 hour at most before it must pause, so one job can take at most 1 hour ([billing and limits](https://e2b.dev/docs/billing)).
 - **Daytona**: [sign up](https://app.daytona.io), then make a key in [API keys](https://app.daytona.io/dashboard/keys). byoa reads `DAYTONA_API_KEY`. A new account gets $200 of compute ([pricing](https://www.daytona.io/pricing)). On Tier 1 and 2, a sandbox can reach only [allowed domains](https://www.daytona.io/docs/en/network-limits).
 - **Instabox**: [sign up](https://dashboard.instabox.sh), then make a key in [API keys](https://dashboard.instabox.sh/dashboard/api-keys). byoa reads `INSTABOX_API_KEY`. The free plan has 1 sandbox in all, also when it is stopped, so it is enough for 1 user's kept sandbox or 1 job ([limits](https://instabox.sh/docs/account/limits)).
+- **Sprites** (Fly.io): [sign up](https://fly.io/app/sign-up?s=sprites), then make a Sprites token of your organization ([how](https://docs.fly.io/sprites/cli/authentication)). byoa reads `SPRITES_TOKEN`. A new account gets $1 of credit with no card; the Free plan gives $5 of usage a month and has 3 Sprites ([pricing](https://fly.io/sprites)).
 
 ```sh
 export E2B_API_KEY=e2b_...
 ```
 
-- With the variable set, `e2b()`, `daytona()` and `instabox()` read the key themselves. To give the key from somewhere else, such as your secret store, pass it: `e2b({ apiKey })`.
+- With the variable set, `e2b()`, `daytona()`, `instabox()` and `sprites()` read the key themselves. To give the key from somewhere else, such as your secret store, pass it: `e2b({ apiKey })`.
 - A Daytona key needs `write:sandboxes` and `delete:sandboxes`, and for `cliLogin` also `read:volumes`, `write:volumes` and `delete:volumes`. An Instabox key needs `machines:write` and `machines:delete`.
 - For development and tests, `localSandbox()` needs no key. It isolates nothing. See [Testing](testing.md).
 

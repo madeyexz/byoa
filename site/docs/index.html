@@ -13,14 +13,14 @@
 <meta property="og:image" content="https://byoa.rippling.computer/art/og.png">
 <meta property="og:image:width" content="2400">
 <meta property="og:image:height" content="1260">
-<meta property="og:image:alt" content="byoa: let your users bring their own agent. Agents: Claude Code, Codex, Grok Build. Sandboxes: E2B, Daytona, Instabox.">
+<meta property="og:image:alt" content="byoa: let your users bring their own agent. Agents: Claude Code, Codex, Grok Build. Sandboxes: E2B, Daytona, Instabox, Sprites.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#f8f6f0" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1124" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://byoa.rippling.computer/docs">
 <link rel="alternate" type="text/markdown" href="/docs/index.md" title="This page as Markdown">
 <link rel="icon" href="/art/favicon.png" type="image/png" sizes="192x192">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs#page","url":"https://byoa.rippling.computer/docs","name":"byoa docs","description":"byoa, short for \"bring your own agent\", is the simplest way to let your users bring their own AI subscription to power the agents in your app..","headline":"byoa docs","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-27T06:46:13Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://byoa.rippling.computer/docs#page","url":"https://byoa.rippling.computer/docs","name":"byoa docs","description":"byoa, short for \"bring your own agent\", is the simplest way to let your users bring their own AI subscription to power the agents in your app..","headline":"byoa docs","image":"https://byoa.rippling.computer/art/og.png","author":{"@id":"https://byoa.rippling.computer/#ian"},"dateModified":"2026-11-27T17:43:44Z","inLanguage":"en","isPartOf":{"@type":"WebSite","@id":"https://byoa.rippling.computer/#website","url":"https://byoa.rippling.computer/","name":"byoa"},"about":{"@type":"SoftwareSourceCode","@id":"https://byoa.rippling.computer/#source","name":"byoa","codeRepository":"https://github.com/madeyexz/byoa"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"byoa","item":"https://byoa.rippling.computer/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://byoa.rippling.computer/docs"}]},{"@type":"Person","@id":"https://byoa.rippling.computer/#ian","name":"Ian Hsiao","url":"https://www.ianhsiao.me"}]}</script>
 <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   /* The styles that the home page (template.html) and the docs pages (docs.html) share. build.mjs puts them in each page. */
@@ -118,6 +118,7 @@ nav.top .gh:hover { background: #000; color: #fff; }
 .ascii .lg-e2b { background-image: url(/art/logo-e2b.png); }
 .ascii .lg-daytona { background-image: url(/art/logo-daytona.png); }
 .ascii .lg-instabox { background-image: url(/art/logo-instabox.png); }
+.ascii .lg-sprites { background-image: url(/art/logo-sprites.png); }
 
 /* what each user pays (build.mjs, priceBars): the home page's "Why" and the docs' "What your users pay". The bars
    adapt to the width of their box, so they fit the home page, the docs column and a phone. */
@@ -552,7 +553,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 
     </article>
     <nav class="pn" aria-label="Pages"><a class="next" href="/docs/concepts"><span>Next</span>Overview</a></nav>
-    <p class="edit">Updated <time datetime="2026-11-27T06:46:13Z">November 27, 2026</time> · <a href="https://github.com/madeyexz/byoa/blob/main/docs/README.md">Edit this page on GitHub</a> · <a href="/docs/index.md">This page as Markdown</a></p>
+    <p class="edit">Updated <time datetime="2026-11-27T17:43:44Z">November 27, 2026</time> · <a href="https://github.com/madeyexz/byoa/blob/main/docs/README.md">Edit this page on GitHub</a> · <a href="/docs/index.md">This page as Markdown</a></p>
   </main>
   <aside class="toc" aria-label="On this page"><div class="toc-h">On this page</div><ul><li><a href="#the-future-of-ai-native-apps">The future of AI-native apps</a></li><li><a href="#what-byoa-does">What byoa does</a></li><li><a href="#what-your-users-pay">What your users pay</a></li><li><a href="#why-and-when-you-need-byoa">Why and when you need byoa</a></li><li><a href="#learn">Learn</a></li><li><a href="#how-it-works">How it works</a></li><li><a href="#how-to">How to</a></li><li><a href="#plans-and-rules">Plans and rules</a></li><li><a href="#reference">Reference</a></li></ul>
     <button class="copy-page" type="button" data-md="/docs/index.md">Copy page</button>
@@ -794,7 +795,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 }
 
 </script>
-<!-- The help agent: the robot in the corner of each page jumps in, says what it is in a speech bubble, and opens a chat with Codex, which runs in a sandbox on byoa,
+<!-- The help agent: the robot in the corner of each page jumps in, says what it is in a speech bubble, and opens a chat with Codex, which runs in a Sprite (Fly.io) on byoa,
      reads byoa's docs and code, and logs the visitor's feedback. Its backend is the Convex deployment of
      madeyexz/byoa-help; this page calls its functions through Convex's HTTP API. build.mjs puts this before </body>. -->
 <style>
@@ -835,6 +836,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   #bh header img { width: 22px; height: auto; image-rendering: pixelated; }
   #bh header .t { flex: 1; min-width: 0; }
   #bh header b { display: block; font-weight: 640; letter-spacing: -.01em; }
+  #bh header small a { color: inherit; }
   #bh header small { display: block; color: var(--muted, #6b6977); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #bh header button { width: 32px; height: 32px; border: 1px solid transparent; background: none; cursor: pointer; font-size: 17px; color: var(--ink2, #3d3d48); }
   #bh header button:hover { background: var(--paper2, #f1eee5); border-color: var(--rule, #e3dfd4); }
@@ -881,14 +883,14 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
 <section id="bh" role="dialog" aria-label="byoa help agent" hidden>
   <header>
     <img src="/art/agent.png" width="272" height="420" alt="">
-    <div class="t"><b>byoa help agent</b><small>Codex · GPT-6 Luna · in a sandbox, on byoa</small></div>
+    <div class="t"><b>byoa help agent</b><small>Codex · GPT-6 Luna · on <a href="https://fly.io/sprites">Sprites by Fly.io</a></small></div>
     <button type="button" data-act="new" title="New chat" aria-label="New chat">↺</button>
     <button type="button" data-act="close" title="Close" aria-label="Close">✕</button>
   </header>
   <div class="log" aria-live="polite"></div>
   <div class="err" role="alert"></div>
   <form><textarea rows="2" placeholder="Ask about byoa, or tell us what to fix" aria-label="Message" maxlength="2000"></textarea><button type="submit">Send</button></form>
-  <div class="foot">It reads byoa's docs and code, and logs your feedback for us. It runs on the maintainer's ChatGPT plan, with limits. <a href="https://github.com/madeyexz/byoa-help">Its code</a></div>
+  <div class="foot">It reads byoa's docs and code, and logs your feedback for us. It runs in a Sprite by Fly.io, on the maintainer's ChatGPT plan, with limits. <a href="https://github.com/madeyexz/byoa-help">Its code</a></div>
 </section>
 <script>
 (() => {
@@ -963,7 +965,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
   const step = (x) => typeof x === 'string' ? `<li>${esc(x)}</li>` : x.done ? `<li class="done">${esc(x.text)}</li>` : `<li>Reading: <code>${esc(x.code)}</code></li>`
   const took = (m) => m.timing && m.ok !== false ? `<div class="took">Answered in ${secs(m.timing.total)}${m.timing.sandbox !== undefined ? ` · sandbox ready in ${secs(m.timing.sandbox)} · Codex ${secs(m.timing.codex)}` : ''}</div>` : ''
 
-  const HELLO = `<div class="m agent hello"><p>Hi! I'm byoa's help agent. I'm powered by byoa itself, on the developer's own ChatGPT subscription. I read byoa's docs and code to answer you, and I can pass your feedback, and questions I can't answer, on to the developer. Try chatting with me!</p></div>`
+  const HELLO = `<div class="m agent hello"><p>Hi! I'm byoa's help agent. I'm powered by byoa itself, in a Sprite by Fly.io, on the developer's own ChatGPT subscription. I read byoa's docs and code to answer you, and I can pass your feedback, and questions I can't answer, on to the developer. Try chatting with me!</p></div>`
   const CHIPS = ['What is byoa, in short?', 'How do I add byoa to a Convex app?', 'Which AI plans and sandboxes work?', 'I have feedback on the docs']
   let view = null, timer = null, sent = ''
   function render() {
@@ -1007,6 +1009,7 @@ if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) posthog.init(
     `<b>Hi! I'm byoa's help agent.</b> Ask me anything.`,
     `I pass your feedback on to the developer.`,
     `I run on the developer's ChatGPT plan.`,
+    `I'm powered by <b>Sprites by Fly.io</b>.`,
   ]
   let line = 0, sayTimer = null
   const hop = (cls) => { open.classList.remove('enter', 'hop'); void open.offsetWidth; open.classList.add(cls) }

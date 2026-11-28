@@ -70,7 +70,7 @@ tabs:
           label: "no"
           text: The next job of this slot creates a new one.
       - end: Pause it for the next job
-        text: "E2B: pause. Daytona, Instabox: stop."
+        text: "E2B: pause. Daytona, Instabox: stop. Sprites: sleep."
   - tab: New for each job
     text: "`sandboxPer: 'job'`: byoa creates a sandbox for one job and destroys it after."
     nodes:
@@ -164,19 +164,19 @@ nodes:
 - byoa saves files from a sandbox only when they are the same account's login and not older than the stored one, because the agent of a job can change any file.
 - A job's waiting place in line also runs out about 30 s after its backend dies, so the jobs after it go on.
 - The slot's lease: until its harness starts, a job renews it every minute, so a job that waits long for the login keeps its sandbox; from the harness's start it lasts the job timeout + 5 minutes. So the lease of a dead job runs out at most the job timeout + 5 minutes after its backend died.
-- The job's time starts when it has the login, not when it resumed the sandbox: then byoa sets the sandbox's time again (E2B, and Daytona for a sandbox of one job) and starts the watcher. So a job that waited in line for the login still gets its whole time, and the watcher still runs before the provider pauses the sandbox.
+- The job's time starts when it has the login, not when it resumed the sandbox: then byoa sets the sandbox's time again (E2B, Sprites, and Daytona for a sandbox of one job) and starts the watcher. So a job that waited in line for the login still gets its whole time, and the watcher still runs before the provider pauses the sandbox.
 
 ## How each provider pauses and times out
 
-| | E2B | Daytona | Instabox |
-|---|---|---|---|
-| After a job, a kept sandbox is | paused, with no process of the job kept | stopped | stopped (not Instabox's pause) |
-| A kept sandbox whose time ends (your backend died) | pauses at job + 1 min | stops after job + 1 min with no activity | has no time limit; pauses itself after 30 min with no activity (default) |
-| A sandbox that is not kept (sign-in, sign-out, models, new for each job) | killed at its time | deleted when it stops, at the latest after its time | deleted after its time, whatever its state |
-| A sign-in with no check-in | ends 2 min after the last `finishLogin` | ends 2 min after the last `finishLogin` (whole minutes) | ends after 15 min: Instabox cannot change a sandbox's time after it starts |
-| Resume after it paused itself | byoa ends any old process first | started again; no old process runs | byoa resumes, stops and starts it, so no old process runs |
-| A paused kept sandbox stays | with no time limit | until archived, after 7 days stopped | with no time limit |
-| Volumes for `cliLogin` | yes, when volumes are on for your team | one shared volume, a subpath for each login | none: use `storedLogin()` |
+| | E2B | Daytona | Instabox | Sprites |
+|---|---|---|---|---|
+| After a job, a kept sandbox is | paused, with no process of the job kept | stopped | stopped (not Instabox's pause) | asleep, with no process of the job kept |
+| A kept sandbox whose time ends (your backend died) | pauses at job + 1 min | stops after job + 1 min with no activity | has no time limit; pauses itself after 30 min with no activity (default) | held awake until job + 1 min, then sleeps |
+| A sandbox that is not kept (sign-in, sign-out, models, new for each job) | killed at its time | deleted when it stops, at the latest after its time | deleted after its time, whatever its state | at its time, ends its processes and deletes its files; the next `create` deletes it |
+| A sign-in with no check-in | ends 2 min after the last `finishLogin` | ends 2 min after the last `finishLogin` (whole minutes) | ends after 15 min: Instabox cannot change a sandbox's time after it starts | ends 2 min after the last `finishLogin` |
+| Resume after it paused itself | byoa ends any old process first | started again; no old process runs | byoa resumes, stops and starts it, so no old process runs | byoa ends any old process first |
+| A paused kept sandbox stays | with no time limit | until archived, after 7 days stopped | with no time limit | with no time limit |
+| Volumes for `cliLogin` | yes, when volumes are on for your team | one shared volume, a subpath for each login | none: use `storedLogin()` | none: use `storedLogin()` |
 
 ## Removal
 

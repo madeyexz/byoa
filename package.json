@@ -60,6 +60,14 @@
       "bun": "./src/sandbox/instabox.ts",
       "default": "./dist/sandbox/instabox.js"
     },
+    "./sandbox/sprites": {
+      "types": [
+        "./dist/sandbox/sprites.d.ts",
+        "./src/sandbox/sprites.ts"
+      ],
+      "bun": "./src/sandbox/sprites.ts",
+      "default": "./dist/sandbox/sprites.js"
+    },
     "./sandbox/local": {
       "types": [
         "./dist/sandbox/local.d.ts",
@@ -118,6 +126,7 @@
     "test:daytona": "BYOA_DAYTONA=1 node --test test/daytona.test.ts",
     "test:v4": "BYOA_V4=1 node --test test/v4.test.ts",
     "test:instabox": "BYOA_INSTABOX=1 node --test test/instabox.test.ts",
+    "test:sprites": "BYOA_SPRITES=1 node --test test/sprites.test.ts",
     "test:v20": "BYOA_V20=1 node --test test/v20.test.ts",
     "bench": "node scripts/bench.ts"
   },

@@ -38,6 +38,7 @@ For 100 tasks for each user, a month:
 | byoa on E2B: the user's own plan, with a frontier model | $1.38 and their plan |
 | byoa on Daytona: the user's own plan, with a frontier model | $1.38 and their plan |
 | byoa on Instabox: the user's own plan, with a frontier model | $0.14 and their plan |
+| byoa on Sprites: the user's own plan, with a frontier model | $1.37 and their plan |
 
 These are estimates for a small agent task, from the [FAQ](https://byoa.rippling.computer/docs/faq.md#what-does-an-ai-job-cost-with-byoa-and-with-an-api-key). byoa does not make tokens cheaper: it moves them to the user's plan. The plan has limits, and a user who runs many long tasks reaches them.
 

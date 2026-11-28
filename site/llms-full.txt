@@ -48,6 +48,7 @@ For 100 tasks for each user, a month:
 | byoa on E2B: the user's own plan, with a frontier model | $1.38 and their plan |
 | byoa on Daytona: the user's own plan, with a frontier model | $1.38 and their plan |
 | byoa on Instabox: the user's own plan, with a frontier model | $0.14 and their plan |
+| byoa on Sprites: the user's own plan, with a frontier model | $1.37 and their plan |
 
 These are estimates for a small agent task, from the [FAQ](https://byoa.rippling.computer/docs/faq.md#what-does-an-ai-job-cost-with-byoa-and-with-an-api-key). byoa does not make tokens cheaper: it moves them to the user's plan. The plan has limits, and a user who runs many long tasks reaches them.
 
@@ -122,7 +123,7 @@ Think of the user's AI subscription as a battery pack, and of your app as an app
 
 ## Who brings what
 
-Diagram: You build the app and import byoa. You pay only for the sandbox. Each user signs in with their own Claude, ChatGPT or Grok plan, which pays for the AI, and connects their tools once. Your app code calls agents.run. byoa is a library inside your app's backend, and keeps AI logins and MCP grants in your database. Below your backend's edge, byoa drives three things that run outside it: a new sandbox for each job at E2B, Daytona or Instabox on your account, where the user's own Claude Code, Codex or Grok Build runs; the AI labs, whose model calls the user's own plan pays; and the user's MCP servers, which get the real token from byoa's proxy.
+Diagram: You build the app and import byoa. You pay only for the sandbox. Each user signs in with their own Claude, ChatGPT or Grok plan, which pays for the AI, and connects their tools once. Your app code calls agents.run. byoa is a library inside your app's backend, and keeps AI logins and MCP grants in your database. Below your backend's edge, byoa drives three things that run outside it: a new sandbox for each job at E2B, Daytona, Instabox or Sprites on your account, where the user's own Claude Code, Codex or Grok Build runs; the AI labs, whose model calls the user's own plan pays; and the user's MCP servers, which get the real token from byoa's proxy.
 
 ```text
 DEVELOPER · YOU                                           END USER
@@ -147,8 +148,8 @@ DEVELOPER · YOU                                           END USER
   ┃              │ create · run · destroy                         real token │               ┃
   ┃              ▼                                                           ▼               ┃
   ┃ ┌─ SANDBOX ────────────────┐  ┌─ AI LABS ────────────────┐  ┌─ MCP SERVERS ────────────┐ ┃
-  ┃ │    E2B,    Daytona or    │  │ Anthropic · OpenAI · xAI │  │ Notion · Gmail · …       │ ┃
-  ┃ │    Instabox,             │  │                          │  │                          │ ┃
+  ┃ │    E2B,    Daytona,      │  │ Anthropic · OpenAI · xAI │  │ Notion · Gmail · …       │ ┃
+  ┃ │    Instabox,    Sprites, │  │                          │  │                          │ ┃
   ┃ │ on your account          ├─▶│ model calls, paid by     │  │ the user's own accounts  │ ┃
   ┃ │ runs the user's own      │  │ the user's own plan      │  │                          │ ┃
   ┃ │ Claude Code, Codex or    │  │                          │  │                          │ ┃
@@ -158,7 +159,7 @@ DEVELOPER · YOU                                           END USER
   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
-- **You, the developer**, build the app, pick the sandbox provider (E2B, Daytona or Instabox, on your own account) and own the database. You import byoa into your app's backend.
+- **You, the developer**, build the app, pick the sandbox provider (E2B, Daytona, Instabox or Sprites, on your own account) and own the database. You import byoa into your app's backend.
 - **The end user** uses your app. They have a Claude, ChatGPT or Grok plan, and accounts in tools such as Notion or Gmail. They sign in on the lab's own page one time, and connect each MCP tool one time.
 - **byoa** is a library in your backend. It keeps the user's AI login and MCP grants in your database, encrypted with your key. For each job, it gets a sandbox at your provider and runs the user's own, unmodified Claude Code, Codex or Grok Build there.
 - **The AI labs** (Anthropic, OpenAI) get the model calls. The user's own plan pays for them, not your API bill.
@@ -186,7 +187,7 @@ byoa is that layer, as a library, so you do not build it again for each app.
 |---|---|---|
 | Agents | Claude Code, Codex, Grok Build | Gemini or Antigravity, maybe |
 | User plans | Claude, ChatGPT, Grok, OpenCode Go key (beta) | |
-| Sandboxes | E2B, Daytona, Instabox | other providers |
+| Sandboxes | E2B, Daytona, Instabox, Sprites (Fly.io) | other providers |
 | Backends | Node, Convex actions | Cloudflare Workers |
 | Token stores | Convex, Postgres, or your own with get, put, delete and compare-and-set | |
 
@@ -238,7 +239,7 @@ npm install @madeyexz/byoa
 bun add @madeyexz/byoa
 ```
 
-Also install the sandbox SDK that your app uses: `e2b` for E2B, `@daytona/sdk` for Daytona. Instabox and the local sandbox need none. byoa needs Node 22.18 or later, or Bun. To use the newest commit on `main` before it is released, install from GitHub: `npm install github:madeyexz/byoa`.
+Also install the sandbox SDK that your app uses: `e2b` for E2B, `@daytona/sdk` for Daytona. Instabox, Sprites and the local sandbox need none. byoa needs Node 22.18 or later, or Bun. To use the newest commit on `main` before it is released, install from GitHub: `npm install github:madeyexz/byoa`.
 
 ## Get a sandbox API key
 
@@ -247,12 +248,13 @@ Your app pays for the sandboxes, so your app needs its own account and API key a
 - **E2B**: [sign up](https://console.e2b.dev/sign-up), then copy a key from [API keys](https://console.e2b.dev/?tab=keys). byoa reads `E2B_API_KEY`. The free plan gives $100 of credit one time and runs 10 sandboxes at a time; a paused sandbox does not count. A sandbox runs for 1 hour at most before it must pause, so one job can take at most 1 hour ([billing and limits](https://e2b.dev/docs/billing)).
 - **Daytona**: [sign up](https://app.daytona.io), then make a key in [API keys](https://app.daytona.io/dashboard/keys). byoa reads `DAYTONA_API_KEY`. A new account gets $200 of compute ([pricing](https://www.daytona.io/pricing)). On Tier 1 and 2, a sandbox can reach only [allowed domains](https://www.daytona.io/docs/en/network-limits).
 - **Instabox**: [sign up](https://dashboard.instabox.sh), then make a key in [API keys](https://dashboard.instabox.sh/dashboard/api-keys). byoa reads `INSTABOX_API_KEY`. The free plan has 1 sandbox in all, also when it is stopped, so it is enough for 1 user's kept sandbox or 1 job ([limits](https://instabox.sh/docs/account/limits)).
+- **Sprites** (Fly.io): [sign up](https://fly.io/app/sign-up?s=sprites), then make a Sprites token of your organization ([how](https://docs.fly.io/sprites/cli/authentication)). byoa reads `SPRITES_TOKEN`. A new account gets $1 of credit with no card; the Free plan gives $5 of usage a month and has 3 Sprites ([pricing](https://fly.io/sprites)).
 
 ```sh
 export E2B_API_KEY=e2b_...
 ```
 
-- With the variable set, `e2b()`, `daytona()` and `instabox()` read the key themselves. To give the key from somewhere else, such as your secret store, pass it: `e2b({ apiKey })`.
+- With the variable set, `e2b()`, `daytona()`, `instabox()` and `sprites()` read the key themselves. To give the key from somewhere else, such as your secret store, pass it: `e2b({ apiKey })`.
 - A Daytona key needs `write:sandboxes` and `delete:sandboxes`, and for `cliLogin` also `read:volumes`, `write:volumes` and `delete:volumes`. An Instabox key needs `machines:write` and `machines:delete`.
 - For development and tests, `localSandbox()` needs no key. It isolates nothing. See [Testing](https://byoa.rippling.computer/docs/testing.md).
 
@@ -400,7 +402,7 @@ Kept for the user (default): `sandboxPer: 'user'`: byoa keeps one sandbox for ea
 11. close(): save back, remove the files, give the lease back. Ends the job token. Saves the files only if they changed, with compare-and-set. Removes the loan record. In a conversation, keeps the session id and a copy of its transcript, encrypted. Login files: files removed.
 12. Question: Did byoa remove the files? any error here counts as no. If yes: go on to step 13.
    - If no: Destroy it, forget its id. This is the end. The next job of this slot creates a new one.
-13. Pause it for the next job. This is the end. E2B: pause. Daytona, Instabox: stop.
+13. Pause it for the next job. This is the end. E2B: pause. Daytona, Instabox: stop. Sprites: sleep.
 
 New for each job: `sandboxPer: 'job'`: byoa creates a sandbox for one job and destroys it after.
 
@@ -459,19 +461,19 @@ Diagram: A job whose backend dies, with the default storedLogin
 - byoa saves files from a sandbox only when they are the same account's login and not older than the stored one, because the agent of a job can change any file.
 - A job's waiting place in line also runs out about 30 s after its backend dies, so the jobs after it go on.
 - The slot's lease: until its harness starts, a job renews it every minute, so a job that waits long for the login keeps its sandbox; from the harness's start it lasts the job timeout + 5 minutes. So the lease of a dead job runs out at most the job timeout + 5 minutes after its backend died.
-- The job's time starts when it has the login, not when it resumed the sandbox: then byoa sets the sandbox's time again (E2B, and Daytona for a sandbox of one job) and starts the watcher. So a job that waited in line for the login still gets its whole time, and the watcher still runs before the provider pauses the sandbox.
+- The job's time starts when it has the login, not when it resumed the sandbox: then byoa sets the sandbox's time again (E2B, Sprites, and Daytona for a sandbox of one job) and starts the watcher. So a job that waited in line for the login still gets its whole time, and the watcher still runs before the provider pauses the sandbox.
 
 ## How each provider pauses and times out
 
-| | E2B | Daytona | Instabox |
-|---|---|---|---|
-| After a job, a kept sandbox is | paused, with no process of the job kept | stopped | stopped (not Instabox's pause) |
-| A kept sandbox whose time ends (your backend died) | pauses at job + 1 min | stops after job + 1 min with no activity | has no time limit; pauses itself after 30 min with no activity (default) |
-| A sandbox that is not kept (sign-in, sign-out, models, new for each job) | killed at its time | deleted when it stops, at the latest after its time | deleted after its time, whatever its state |
-| A sign-in with no check-in | ends 2 min after the last `finishLogin` | ends 2 min after the last `finishLogin` (whole minutes) | ends after 15 min: Instabox cannot change a sandbox's time after it starts |
-| Resume after it paused itself | byoa ends any old process first | started again; no old process runs | byoa resumes, stops and starts it, so no old process runs |
-| A paused kept sandbox stays | with no time limit | until archived, after 7 days stopped | with no time limit |
-| Volumes for `cliLogin` | yes, when volumes are on for your team | one shared volume, a subpath for each login | none: use `storedLogin()` |
+| | E2B | Daytona | Instabox | Sprites |
+|---|---|---|---|---|
+| After a job, a kept sandbox is | paused, with no process of the job kept | stopped | stopped (not Instabox's pause) | asleep, with no process of the job kept |
+| A kept sandbox whose time ends (your backend died) | pauses at job + 1 min | stops after job + 1 min with no activity | has no time limit; pauses itself after 30 min with no activity (default) | held awake until job + 1 min, then sleeps |
+| A sandbox that is not kept (sign-in, sign-out, models, new for each job) | killed at its time | deleted when it stops, at the latest after its time | deleted after its time, whatever its state | at its time, ends its processes and deletes its files; the next `create` deletes it |
+| A sign-in with no check-in | ends 2 min after the last `finishLogin` | ends 2 min after the last `finishLogin` (whole minutes) | ends after 15 min: Instabox cannot change a sandbox's time after it starts | ends 2 min after the last `finishLogin` |
+| Resume after it paused itself | byoa ends any old process first | started again; no old process runs | byoa resumes, stops and starts it, so no old process runs | byoa ends any old process first |
+| A paused kept sandbox stays | with no time limit | until archived, after 7 days stopped | with no time limit | with no time limit |
+| Volumes for `cliLogin` | yes, when volumes are on for your team | one shared volume, a subpath for each login | none: use `storedLogin()` | none: use `storedLogin()` |
 
 ## Removal
 
@@ -618,7 +620,7 @@ For example:
 
 Report these to their owners:
 
-- Bugs in a sandbox provider (E2B, Daytona, Instabox), in Claude Code or Codex, or in an MCP server.
+- Bugs in a sandbox provider (E2B, Daytona, Instabox, Sprites), in Claude Code or Codex, or in an MCP server.
 - Bugs in an app that uses byoa, for example a leaked encryption key or a database that is open to the internet. The app must keep its encryption key secret and keep the proxy in its own backend.
 
 ---
@@ -674,7 +676,7 @@ Diagram: The sign-in sandbox, from connectLogin to the signed-in state
 
 - **The user closes the sign-in.** Call `agents.cancelLogin(user, harness)`. byoa destroys the sign-in sandbox at once, also when `connectLogin` is still starting it: that `connectLogin` then destroys its sandbox and throws "the sign-in was cancelled". Nothing happens when no sign-in runs. `signOut` and a new `connectLogin` for the same user and harness also end an unfinished sign-in, so one user and harness has one sign-in at most.
 - **A `signOut` or `cancelLogin` while `finishLogin` saves the login wins.** `finishLogin` saves the login and the state only while its sign-in is still the one in progress; otherwise it answers the state with the error "the sign-in was cancelled". With `storedLogin()`, a login that `finishLogin` saved just before the cancel is put back as it was (a backend that dies in between may leave it); with `cliLogin`, the login that the CLI wrote stays in the volume. A sign-in sandbox that the provider could not destroy stays named in the sign-in's entry, so the next `cancelLogin` or `signOut` destroys it. `finishLogin` right after `connectLogin`, while its sandbox still starts, answers `pending`.
-- **Your app stops calling `finishLogin`** (the user left, or your backend died). On E2B and Daytona, the provider ends the sandbox 2 minutes after the last check-in, with any login files in it. Instabox cannot change a sandbox's time after it starts, so there an unfinished sign-in ends after 15 minutes, unless you call `cancelLogin`.
+- **Your app stops calling `finishLogin`** (the user left, or your backend died). On E2B, Daytona and Sprites, the sandbox ends 2 minutes after the last check-in, with any login files in it. Instabox cannot change a sandbox's time after it starts, so there an unfinished sign-in ends after 15 minutes, unless you call `cancelLogin`.
 - `finishLogin` after the sandbox is gone, or after 15 minutes, answers "the sign-in ran out; start it again".
 - The to-do example's `page.html` checks in, and sends `cancelLogin` when the user closes the sign-in or the page.
 - The state (`agents.loginState(user, h)`) is `signed-in`, `signed-out` or `expired`, with no token in it. With `storedLogin()`, it is `signed-out` whenever no login is stored.
@@ -686,7 +688,7 @@ Diagram: The sign-in sandbox, from connectLogin to the signed-in state
 | How it gets there | byoa reads the CLI's files from the sign-in sandbox and encrypts them together with AES-256-GCM, with your `encryptionKey` or the key you give `storedLogin`. The entry's name is part of the encryption, so the entry cannot be moved to another user. | The sign-in sandbox mounts the user's volume at `~/.claude` or `~/.codex`, and the CLI writes its files there. |
 | Where it is | one entry for each user and harness, `ailogin/<user>/<harness>`, as `v1.<iv>.<ciphertext>`. It is the only copy between jobs. | the volume `byoa-<app>-<harness>-<first 24 hex of sha256(user)>`, with the files as the CLI wrote them |
 | In a job | byoa copies the files in and takes them out again (below). | Every job sandbox of that user and harness mounts the same volume. byoa never reads or copies the files. The store keeps only the state. |
-| Providers | all | providers with volumes: E2B (when volumes are on for your team) and Daytona, not Instabox |
+| Providers | all | providers with volumes: E2B (when volumes are on for your team) and Daytona, not Instabox or Sprites |
 
 To keep the logins in a table of their own, with a key of their own, so that you can give them their own access rules and backups, see [Stores and Convex](https://byoa.rippling.computer/docs/stores.md#a-table-of-its-own-for-the-ai-logins). To use the volume, pass `login: cliLogin` (from `@madeyexz/byoa`).
 
@@ -1077,23 +1079,23 @@ Source: https://byoa.rippling.computer/docs/providers
 
 # Sandbox providers
 
-Each sandbox provider is one adapter with one interface. Version 1 has E2B, Daytona and Instabox, and a local sandbox for development and tests. To change the provider, change the adapter that you give `createAgents`:
+Each sandbox provider is one adapter with one interface. Version 1 has E2B, Daytona, Instabox and Sprites (Fly.io), and a local sandbox for development and tests. To change the provider, change the adapter that you give `createAgents`:
 
 ```ts
 import { e2b } from '@madeyexz/byoa/sandbox/e2b'
-const agents = createAgents({ ...options, sandbox: e2b({ apiKey }) })   // or daytona({ apiKey }), instabox({ apiKey })
+const agents = createAgents({ ...options, sandbox: e2b({ apiKey }) })   // or daytona({ apiKey }), instabox({ apiKey }), sprites({ token })
 ```
 
-`e2b()`, `daytona()` and `instabox()` read their API key from `E2B_API_KEY`, `DAYTONA_API_KEY` or `INSTABOX_API_KEY` when you give none. The sandbox must reach your `proxyUrl`. [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle.md#how-each-provider-pauses-and-times-out) compares how each provider pauses and times out.
+`e2b()`, `daytona()` and `instabox()` read their API key from `E2B_API_KEY`, `DAYTONA_API_KEY` or `INSTABOX_API_KEY` when you give none, and `sprites()` reads its token from `SPRITES_TOKEN`. The sandbox must reach your `proxyUrl`. [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle.md#how-each-provider-pauses-and-times-out) compares how each provider pauses and times out.
 
-| | E2B | Daytona | Instabox | Local |
-|---|---|---|---|---|
-| Import | `@madeyexz/byoa/sandbox/e2b` | `@madeyexz/byoa/sandbox/daytona` | `@madeyexz/byoa/sandbox/instabox` | `@madeyexz/byoa/sandbox/local` |
-| Package to install | `e2b` | `@daytona/sdk` | none | none |
-| Between jobs, a kept sandbox is | paused | stopped | stopped | a folder |
-| Volumes for `cliLogin` | yes, when volumes are on for your team | one shared volume, a subpath for each login | none: use `storedLogin()` | folders |
-| A sign-in with no check-in ends | 2 min after the last `finishLogin` | 2 min after the last `finishLogin` | after 15 min (no keepAlive) | 2 min after the last `finishLogin` |
-| Network | every public domain | Tier 1 and 2: allowed domains only | every public domain | this computer |
+| | E2B | Daytona | Instabox | Sprites | Local |
+|---|---|---|---|---|---|
+| Import | `@madeyexz/byoa/sandbox/e2b` | `@madeyexz/byoa/sandbox/daytona` | `@madeyexz/byoa/sandbox/instabox` | `@madeyexz/byoa/sandbox/sprites` | `@madeyexz/byoa/sandbox/local` |
+| Package to install | `e2b` | `@daytona/sdk` | none | none | none |
+| Between jobs, a kept sandbox is | paused | stopped | stopped | asleep (Sprites' own pause) | a folder |
+| Volumes for `cliLogin` | yes, when volumes are on for your team | one shared volume, a subpath for each login | none: use `storedLogin()` | none: use `storedLogin()` | folders |
+| A sign-in with no check-in ends | 2 min after the last `finishLogin` | 2 min after the last `finishLogin` | after 15 min (no keepAlive) | 2 min after the last `finishLogin` | 2 min after the last `finishLogin` |
+| Network | every public domain | Tier 1 and 2: allowed domains only | every public domain | every public domain | this computer |
 
 ## E2B
 
@@ -1120,6 +1122,18 @@ Use `instabox({ apiKey?, apiUrl?, template?, snapshot?, timeoutMs? })`. It calls
 - byoa gives a sandbox none of your account's Vault items or org Secrets, and leaves its commands out of Instabox's command history, which would otherwise keep their output (and so the AI login that byoa reads back).
 - Instabox has no volumes, so `cliLogin` does not work there; the default stored login does. Instabox sandboxes reach every public domain, so a tunnel works for `proxyUrl`.
 - On the free plan, a workspace has one sandbox in all, also when it is stopped (so one user with one kept sandbox, or one job), and three starts a minute (byoa waits when Instabox answers 429). A run starts with 2 hours before Instabox pauses the sandbox, and grows to 8 hours at most while the sandbox is in use ([limits](https://instabox.sh/docs/account/limits)).
+
+## Sprites
+
+Use `sprites({ token?, apiUrl?, init?, timeoutMs? })`. A [Sprite](https://fly.io/sprites) is a Linux VM of Fly.io with a disk that stays. The adapter calls the Sprites API itself, so it needs no package. Make a Sprites token of your Fly.io organization ([how](https://docs.fly.io/sprites/cli/authentication)), and set it as `SPRITES_TOKEN`.
+
+- Each Sprite has Ubuntu, Node, git and the labs' CLIs; user `sprite`, home `/home/sprite`. byoa still installs its pinned harness (about 5 seconds). Sprites has no templates: to add what your jobs need, such as a clone of a repository, pass a shell command as `init`, which runs once in each new Sprite, with the network and sudo.
+- A Sprite sleeps by itself about 30 seconds after nothing runs in it, also when a process of byoa still has work, such as the watcher that takes the AI login out (R1.4). So the adapter holds each Sprite awake until its time, with the Tasks API in the Sprite: a sandbox's `timeoutMs`, `setTimeout` and `keepAlive` work as on E2B. At its time, a kept Sprite sleeps with its files; one that is not kept stops its processes and deletes its home folder, and the next `create` deletes it at Sprites.
+- `pause` ends the job's processes and lets the Sprite sleep, so the next job wakes it in about a second, with its files. When byoa resumes a Sprite whose time ran out (your backend died during a job), it ends any old process first.
+- A Sprite's user has some Linux capabilities, such as `CAP_SYS_ADMIN`. byoa runs each command with none, so the agent has no more power than an ordinary user, and Codex's own sandbox, which `access: 'read-only'` uses, works.
+- Sprites has no volumes, so `cliLogin` does not work there; the default stored login does. Sprites reach every public domain by default, so a tunnel works for `proxyUrl`.
+- byoa names its Sprites `byoa-` and 20 hex characters, and gives each the job's labels as `key=value`. A Sprites [connector](https://docs.fly.io/sprites/concepts/connectors) can give your app's Sprites an API without its key in them: limit the connector to the label `byoa-app=<your app>`. Do not use a connector for the user's AI login: byoa's stored login keeps it in your database, for each user (see [AI login](https://byoa.rippling.computer/docs/ai-login.md)).
+- On the Free plan, an organization has 3 Sprites; Pay As You Go removes that limit. Plans set how many run at once (10 or more) and how many start a minute ([pricing](https://fly.io/sprites)).
 
 ## The local sandbox
 
@@ -1281,7 +1295,7 @@ for await (const ev of agents.run('u1', { harness: 'fake', task: 'call todos.add
 - `npm test` runs V10, V12, the fake-harness tests and the unit tests. `npm run test:v11` runs V11; it downloads about 600 MB. CI runs both on every commit.
 - `npm test` never starts a paid sandbox, also when the providers' keys are set: each paid check needs its own flag. `npm run test:daytona` checks the Daytona adapter against Daytona and runs V8 there. It needs `DAYTONA_API_KEY`, and with `BYOA_DAYTONA_VOLUMES=1` also checks its volumes; that needs a key with the volume permissions. `npm run test:v4` runs V4 ([test/v4.test.ts](https://github.com/madeyexz/byoa/blob/main/test/v4.test.ts)) with `E2B_API_KEY` and `DAYTONA_API_KEY`; it needs `cloudflared` to give the proxy a public URL. On a Daytona org on Tier 1 or 2, also set `BYOA_V4_RELAY` to a relay on an allowed domain, such as [test/relay](https://github.com/madeyexz/byoa/blob/main/test/relay/convex/http.ts) deployed to a temporary Convex project.
 - `npm run test:e2b` checks the E2B adapter against E2B and runs V8 there (a user's jobs in one paused and resumed sandbox, and `sandboxPer: 'job'`). It needs `E2B_API_KEY`, and with `BYOA_E2B_VOLUMES=1` also checks volumes, for an E2B team with volumes turned on.
-- `npm run test:instabox` does the same on Instabox. It needs `INSTABOX_API_KEY`. `BYOA_V4_PROVIDERS=e2b,instabox` runs V4 on E2B and Instabox.
+- `npm run test:instabox` does the same on Instabox. It needs `INSTABOX_API_KEY`. `npm run test:sprites` does the same on Sprites, and also checks that a Sprite stays awake until its time, so the login's watcher runs, and sleeps after it. It needs `SPRITES_TOKEN`. `BYOA_V4_PROVIDERS=e2b,instabox` runs V4 on E2B and Instabox.
 - Each of these adapter tests first runs the conformance check, [test/helpers/conformance.ts](https://github.com/madeyexz/byoa/blob/main/test/helpers/conformance.ts); `npm test` runs it on the local sandbox.
 - `node scripts/v21.ts` runs V21 (conversations and steering with real logins on E2B) in steps, because a person signs in: `login claude|codex|grok`, then `check`, then `cleanup`, which signs out and deletes the sandboxes. It needs `E2B_API_KEY`.
 
@@ -1458,10 +1472,11 @@ These are estimates. To get your own numbers, read the `usage` of each job's `en
 | E2B ($0.0504 a vCPU, $0.0162 a GiB) | $0.1008 | $0.0648 | $0.1656 | **$0.0138** |
 | Daytona (the same rates) | $0.1008 | $0.0648 | $0.1656 | **$0.0138** |
 | Instabox ($0.004 a vCPU, $0.00225 a GiB) | $0.008 | $0.009 | $0.017 | **$0.0014** |
+| Sprites ($0.0385 a CPU, $0.021875 a GB, for what the job uses) | $0.077 | $0.0875 | $0.1645 | **$0.0137** |
 
 Claude Opus 5.5 has a cache write price too ($5.00), which this leaves out. DeepSeek's prices are its weekday peak prices; at other times they are half.
 
-Sources: [Claude pricing](https://platform.claude.com/docs/en/about-claude/pricing), [OpenAI API pricing](https://developers.openai.com/api/docs/pricing), [Kimi API pricing](https://platform.kimi.ai/docs/pricing/chat), [DeepSeek API pricing](https://api-docs.deepseek.com/quick_start/pricing/), [E2B pricing](https://e2b.dev/pricing), [Daytona pricing](https://www.daytona.io/pricing), [Instabox pricing](https://instabox.sh/pricing).
+Sources: [Claude pricing](https://platform.claude.com/docs/en/about-claude/pricing), [OpenAI API pricing](https://developers.openai.com/api/docs/pricing), [Kimi API pricing](https://platform.kimi.ai/docs/pricing/chat), [DeepSeek API pricing](https://api-docs.deepseek.com/quick_start/pricing/), [E2B pricing](https://e2b.dev/pricing), [Daytona pricing](https://www.daytona.io/pricing), [Instabox pricing](https://instabox.sh/pricing), [Sprites pricing](https://fly.io/sprites).
 
 ### For a month
 
@@ -1475,6 +1490,7 @@ What each user pays a month for 100 such tasks, when your app passes its costs o
 | DeepSeek V4.1 Flash | $2.97 | |
 | E2B or Daytona | | $1.38 |
 | Instabox | | $0.14 |
+| Sprites | | $1.37 at most |
 
 The user already pays for their own plan, such as $20 a month for Claude Pro or ChatGPT Plus, and the task uses its allowance.
 
@@ -1493,10 +1509,11 @@ For 100 tasks for each user, a month:
 | byoa on E2B: the user's own plan, with a frontier model | $1.38 and their plan |
 | byoa on Daytona: the user's own plan, with a frontier model | $1.38 and their plan |
 | byoa on Instabox: the user's own plan, with a frontier model | $0.14 and their plan |
+| byoa on Sprites: the user's own plan, with a frontier model | $1.37 and their plan |
 
 ### What the numbers leave out
 
-- **Plan fees at the provider.** E2B's Pro plan is $150 a month, and Instabox's Pro plan is $20 a month with $20 of usage in it. Daytona has no plan fee.
+- **Plan fees at the provider.** E2B's Pro plan is $150 a month, and Instabox's Pro plan is $20 a month with $20 of usage in it. Daytona has no plan fee, and Sprites' Free plan has none (it gives $5 of usage a month). Sprites bills the CPU and memory that a job uses, not what it could use, so a job that mostly waits for the model costs less than the table says.
 - **A kept sandbox between jobs.** A paused or stopped sandbox costs no compute. It can cost a little for its disk: Daytona bills disk past the first 5 GiB.
 - **The sign-in sandbox,** once for each user and harness, for a few minutes.
 - **An agent with no sandbox.** An agent that only calls your app's own API, with no shell and no files, can run as an agent loop of your own, such as on AWS Lambda, with no sandbox. Then an API key costs only the tokens. byoa needs a sandbox, because Claude Code, Codex and Grok Build need a shell.
@@ -1530,6 +1547,7 @@ This is the API of byoa 1.1.0 (`@madeyexz/byoa` on npm). The source of truth is 
 | `@madeyexz/byoa/sandbox/e2b` | `e2b({ apiKey?, template?, timeoutMs? })`, `buildE2BTemplate(name?, { apiKey?, pins? })`, `e2bTemplate(pins?)`. Needs the `e2b` package. |
 | `@madeyexz/byoa/sandbox/daytona` | `daytona({ apiKey?, client?, snapshot?, volume?, timeoutMs? })`. Needs `@daytona/sdk`. |
 | `@madeyexz/byoa/sandbox/instabox` | `instabox({ apiKey?, apiUrl?, template?, snapshot?, timeoutMs? })`. Needs no package. No volumes: use `storedLogin()`, not `cliLogin`. |
+| `@madeyexz/byoa/sandbox/sprites` | `sprites({ token?, apiUrl?, init?, timeoutMs? })`: Sprites of Fly.io. Needs no package. `init`: a shell command that runs once in each new Sprite. No volumes: use `storedLogin()`, not `cliLogin`. |
 | `@madeyexz/byoa/sandbox/local` | `localSandbox({ root?, volumes?, env? })`: folders on this computer, for tests and development only. On macOS, the Codex sign-in works in it; the Claude Code sign-in needs Linux. |
 | `@madeyexz/byoa/store/postgres` | `postgresStore({ query, table? })`, `postgresSchema(table?)`, `POSTGRES_SCHEMA` |
 | `@madeyexz/byoa/store/convex` | `convexTable()`, `convexFunctions(table?)`, `convexStore(ctx, fns)`. Needs `convex`. |
@@ -1563,7 +1581,7 @@ interface AgentsOptions {
 - `oauth.redirectUrl`: the app's route that calls `finishMcp`.
 - `oauth.clientMetadataUrl`: an HTTPS URL where the app serves `agents.clientMetadata()` (a Client ID Metadata Document). Without it, byoa uses only Dynamic Client Registration.
 - `oauth.clientName`: the name the MCP server shows on its consent page. Default: `app`.
-- `sandboxPer`: `'user'` (the default): the first job of a user and harness creates the user's sandbox; byoa pauses it after each job (E2B pause, Daytona and Instabox stop) and resumes it for the next, with a new job folder. One job of a user and harness at a time; the others wait in line, in the order they came. A job's `sandboxKey` (in `run` and `session`) gives the user one kept sandbox, with its own lease, for each key. A sandbox the provider no longer has is replaced by a new one. `'job'`: a new sandbox for each job, destroyed after it. With the default `storedLogin()`, a user's jobs in different sandboxes run at the same time with one login, for every harness.
+- `sandboxPer`: `'user'` (the default): the first job of a user and harness creates the user's sandbox; byoa pauses it after each job (E2B pause, Daytona and Instabox stop, Sprites sleep) and resumes it for the next, with a new job folder. One job of a user and harness at a time; the others wait in line, in the order they came. A job's `sandboxKey` (in `run` and `session`) gives the user one kept sandbox, with its own lease, for each key. A sandbox the provider no longer has is replaced by a new one. `'job'`: a new sandbox for each job, destroyed after it. With the default `storedLogin()`, a user's jobs in different sandboxes run at the same time with one login, for every harness.
 - `models`: the model and effort a job of each harness gets when it names none. Default: the CLI's own. See `listModels`.
 - `transcriptBytes`: after each job of a conversation, byoa keeps a copy of the harness's session files (its transcript), encrypted in the store, when they are at most this large, so the conversation goes on when the provider loses its sandbox. Default 700 000 bytes, below a Convex document's 1 MiB. A larger transcript lives only in the conversation's sandbox.
 
@@ -1729,14 +1747,15 @@ interface Sandbox {
 
 - `keep: true`: a sandbox byoa keeps for the user. When it times out, the provider pauses it instead of deleting it.
 - `run`: a command that exits with a non-zero code resolves; one that runs out of its `timeoutMs` resolves with exit code 137.
-- `readFile`: byoa reads the user's login files and a conversation's transcript with it. Without it, byoa reads a file as base64 on a command's stdout, which a provider may keep in its command history. E2B, Daytona, Instabox and the local provider have it.
-- `setTimeout`: byoa calls it when a job has the user's AI login, so the time the job waited in line for the login does not count. E2B has it, and Daytona for a sandbox of one job. Without it, a job that waited long for the login can reach the sandbox's time before its own ends.
+- `readFile`: byoa reads the user's login files and a conversation's transcript with it. Without it, byoa reads a file as base64 on a command's stdout, which a provider may keep in its command history. E2B, Daytona, Instabox, Sprites and the local provider have it.
+- `setTimeout`: byoa calls it when a job has the user's AI login, so the time the job waited in line for the login does not count. E2B and Sprites have it, and Daytona for a sandbox of one job. Without it, a job that waited long for the login can reach the sandbox's time before its own ends.
 - An adapter of the app's own can check itself with the conformance check in byoa's tests (`test/helpers/conformance.ts`).
 - E2B: `pause` ends the sandbox's processes, then takes a full snapshot, with the memory: the next job's resume takes about 0.3 seconds, and node and the harness start warm. When E2B refuses it, because it still saves the sandbox's previous snapshot, byoa takes a snapshot of the files only; the next resume then boots the sandbox again and reads its disk cold, which can add 10 to 20 seconds. E2B keeps a paused sandbox with no time limit, and charges no compute for it.
 - E2B: the default template is `byoa`; build it once per pin change with `buildE2BTemplate()`. Any template with Node 20 or later works (byoa installs the pinned harness when it is missing, more slowly).
 - Daytona: `pause` stops the sandbox; `resume` starts it (also from archived, more slowly). A kept sandbox is not ephemeral and has no time to live; Daytona archives it after 7 days stopped.
 - Daytona: with `cliLogin`, every user's login is a subpath of one shared volume (`byoa` by default). On Tier 1 and 2 a sandbox reaches only allowed domains, so serve the proxy on one (for example `*.convex.site`, `*.workers.dev`).
 - Instabox: `pause` stops the sandbox; `resume` starts it, and a sandbox that paused itself (idle for 30 minutes, or at the plan's longest run) is booted again, so no process of an earlier job runs. A kept sandbox has no time limit, and Instabox keeps it until it is deleted; a sandbox for one job is deleted after it, and at the latest at its `timeoutMs`. The home folder is `/data/home`. A sandbox gets none of the account's Vault items or org Secrets, and no command is in Instabox's command history. Sandboxes reach every public domain. `create` with volumes throws. The free plan allows one sandbox at a time and three starts a minute; the adapter waits for a start when Instabox answers 429.
+- Sprites: a Sprite sleeps by itself when nothing runs in it, so the adapter holds it awake until its time (the Tasks API in the Sprite); `setTimeout` and `keepAlive` set that time. At its time a kept Sprite sleeps with its files; one that is not kept ends its processes and deletes its home folder, and the next `create` deletes it. `pause` ends the job's processes and lets it sleep; `resume` after its time ends any old process. The home folder is `/home/sprite`. Each command runs with no Linux capabilities. Sprites reach every public domain. `create` with volumes throws. Labels become `key=value` labels of the Sprite.
 
 ## The fake harness
 
@@ -1767,7 +1786,7 @@ In scope for version 1:
 
 - Harnesses: Claude Code and Codex, both from the first version, and Grok Build (xAI), added on 2026-11-25.
 - Plans: the user's Claude, ChatGPT or Grok plan, through the lab's own sign-in; and OpenCode Go, through a key that the user gives, with Claude Code or Codex (R1.8). OpenCode Go is a plan, not a harness.
-- Sandbox providers: E2B, Daytona and Instabox.
+- Sandbox providers: E2B, Daytona, Instabox and Sprites (Fly.io).
 - Backends: Node, and Convex actions. Cloudflare Workers SHOULD work if it costs little.
 - Store adapters: Convex and Postgres.
 
@@ -1823,9 +1842,9 @@ Out of scope for version 1:
 
 - **R5.1** byoa MUST install a pinned version of each harness in each sandbox, or use a provider template with that version.
 - **R5.2** A new harness version MUST reach every user at their next job. (Bookish had to copy a new core into old sandboxes, because a template reaches only new sandboxes.)
-- **R5.3** Each sandbox provider MUST be one adapter with one interface: create, resume, run a command, write a file, read a file, mount a volume, pause, destroy. A command that runs out of its time MUST end with exit code 137 on every provider, not throw. Reading a file is optional: without it, byoa reads a file as base64 on a command's output. Setting a running sandbox's time again is optional too: byoa does it when a job has the AI login, so the job's wait in line for the login does not count. A provider says what it can do (`capabilities`): a provider with no volumes (Instabox) refuses a volume, so the volume login of R1.5 does not work on it and createAgents refuses it; the stored login of R1.4 does. One conformance check (`test/helpers/conformance.ts`) MUST pass for each adapter.
+- **R5.3** Each sandbox provider MUST be one adapter with one interface: create, resume, run a command, write a file, read a file, mount a volume, pause, destroy. A command that runs out of its time MUST end with exit code 137 on every provider, not throw. Reading a file is optional: without it, byoa reads a file as base64 on a command's output. Setting a running sandbox's time again is optional too: byoa does it when a job has the AI login, so the job's wait in line for the login does not count. A provider says what it can do (`capabilities`): a provider with no volumes (Instabox, Sprites) refuses a volume, so the volume login of R1.5 does not work on it and createAgents refuses it; the stored login of R1.4 does. One conformance check (`test/helpers/conformance.ts`) MUST pass for each adapter.
 - **R5.4** The lifecycle MUST be the app's choice, with the same app code on every provider:
-  - **One kept sandbox per user (the default).** Each user has one sandbox of the app for each harness. The first job creates it. After each job, byoa pauses it (E2B: pause; Daytona and Instabox: stop), and the next job resumes it, with a new job folder. One job of a user and harness runs at a time; the others wait in line (R5.8). When the provider no longer has the sandbox (it was deleted, or it expired), the next job creates a new one. A sandbox that times out during a job (a crash, a lost network) is paused, not deleted, and no process of that job runs when it resumes. byoa MUST delete the user's sandbox at sign-out, and MUST give the app a way to delete it, such as when it deletes the user.
+  - **One kept sandbox per user (the default).** Each user has one sandbox of the app for each harness. The first job creates it. After each job, byoa pauses it (E2B: pause; Daytona and Instabox: stop; Sprites: sleep), and the next job resumes it, with a new job folder. One job of a user and harness runs at a time; the others wait in line (R5.8). When the provider no longer has the sandbox (it was deleted, or it expired), the next job creates a new one. A sandbox that times out during a job (a crash, a lost network) is paused, not deleted, and no process of that job runs when it resumes. byoa MUST delete the user's sandbox at sign-out, and MUST give the app a way to delete it, such as when it deletes the user.
   - **Many kept sandboxes per user (a `sandboxKey` for each job).** The same, but each key that the app gives a job (such as a project), and each conversation (R5.9), has its own sandbox and its own lease, so jobs with different keys run at the same time. With the stored login of R1.4, jobs share the login by default, for every harness. The app MUST be able to delete the sandbox of one key, or all of the user's.
   - **One sandbox per job (`sandboxPer: 'job'`).** Create a sandbox, load the user's setup, run the job, destroy the sandbox.
 
@@ -1902,7 +1921,7 @@ Version 1 is done when every check below passes. Each check names the requiremen
 | V22 | Protocol models | TLC checks TLA+ models (`spec/tla/`) of the job lifecycle and the slot's lease, the shared login's lease and its refresh, crash recovery, the sign-in sandbox and sign-out, the store indexes, each store adapter's guarantees (lost answers, retries, stale reads), steering, the MCP grant's refresh, job tokens, plan keys, the usage-limit hold, and the hosted demo and help agent, with backends that die, leases that run out and clocks that differ, and liveness under stated fairness. Each model says what TLC must find (no error, or the counterexample of a known issue) and whether it is in the fast set. | R1.4, R1.6, R1.7, R1.8, R1.9, R2.3, R3.4, R5.4, R5.8, R5.9, R5.10, R6 |
 | V23 | A used-up plan | With output of each pinned CLI for a used-up plan, in the shape that its binary writes, and a stand-in for OpenCode's 429 and usage meter: the job ends with `usage-limit` and the reset that the tool said; the next job of that user and harness ends at once, with no sandbox and no request to OpenCode; after the reset, a job runs. A refusal for now is `rate-limited`, and Codex's `unauthorized` is `expired`. | R1.9 |
 
-V1 to V9 and V13 to V21 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11, V12 and the fake-harness tests run on every commit; these include V13, V14, V16, V17, V18, V19, V20 and V21 with the fake harness, a stand-in CLI and, for V20, a stand-in for OpenCode's API. V23 runs only so (`test/login.test.ts`, `test/plan.test.ts`): no real check runs a plan out, so the stand-ins' output comes from the pinned binaries (Claude Code's stream-json schema, Codex's `generate-json-schema` and source of 0.171.0, Grok Build's strings) and from OpenCode's docs, not from a plan that ran out. In this repository: `npm test` runs V10, V12 and the fake-harness tests, `npm run test:v11` runs V11, `spec/tla/check.sh` runs V22 by hand, when a protocol or its model changes (`TLA_SET=fast` for the fast set; no CI runs it, because the models do not read the code: each finding's test in `npm test` guards the code), and the job `example-todo` runs the to-do example's fake-harness tests (`.github/workflows/ci.yml`). `npm test` starts no paid sandbox, also when the providers' keys are set: each paid check needs its own flag. `npm run test:v4` runs V4 (`test/v4.test.ts`) with `E2B_API_KEY` and `DAYTONA_API_KEY`; `BYOA_V4_PROVIDERS=e2b,instabox` runs it on E2B and Instabox. `npm run test:e2b` runs V8 on E2B (`test/e2b.test.ts`), `npm run test:daytona` runs V8 on Daytona (`test/daytona.test.ts`), and `npm run test:instabox` runs V8 on Instabox (`test/instabox.test.ts`). `npm run test:v20` runs V20 on E2B (`test/v20.test.ts`), with `OPENCODE_GO_API_KEY` and `E2B_API_KEY` set. V20 has not run yet, so OpenCode Go (R1.8) is in beta: its tests use a stand-in for OpenCode's API, and the real Claude Code and Codex were checked only against that stand-in, locally and on E2B. `node scripts/v21.ts` runs V21 on E2B in steps (`login <harness>`, `check`, `cleanup`), because it needs a person to sign in. On an Instabox plan that allows fewer than three sandboxes (the free plan allows one), V8 there checks one sandbox key alone, not two at the same time.
+V1 to V9 and V13 to V21 run against real providers and real plans, so they cost money. They run before each release, not on every commit. V10, V11, V12 and the fake-harness tests run on every commit; these include V13, V14, V16, V17, V18, V19, V20 and V21 with the fake harness, a stand-in CLI and, for V20, a stand-in for OpenCode's API. V23 runs only so (`test/login.test.ts`, `test/plan.test.ts`): no real check runs a plan out, so the stand-ins' output comes from the pinned binaries (Claude Code's stream-json schema, Codex's `generate-json-schema` and source of 0.171.0, Grok Build's strings) and from OpenCode's docs, not from a plan that ran out. In this repository: `npm test` runs V10, V12 and the fake-harness tests, `npm run test:v11` runs V11, `spec/tla/check.sh` runs V22 by hand, when a protocol or its model changes (`TLA_SET=fast` for the fast set; no CI runs it, because the models do not read the code: each finding's test in `npm test` guards the code), and the job `example-todo` runs the to-do example's fake-harness tests (`.github/workflows/ci.yml`). `npm test` starts no paid sandbox, also when the providers' keys are set: each paid check needs its own flag. `npm run test:v4` runs V4 (`test/v4.test.ts`) with `E2B_API_KEY` and `DAYTONA_API_KEY`; `BYOA_V4_PROVIDERS=e2b,instabox` runs it on E2B and Instabox. `npm run test:e2b` runs V8 on E2B (`test/e2b.test.ts`), `npm run test:daytona` runs V8 on Daytona (`test/daytona.test.ts`), `npm run test:instabox` runs V8 on Instabox (`test/instabox.test.ts`), and `npm run test:sprites` runs V8 on Sprites (`test/sprites.test.ts`). `npm run test:v20` runs V20 on E2B (`test/v20.test.ts`), with `OPENCODE_GO_API_KEY` and `E2B_API_KEY` set. V20 has not run yet, so OpenCode Go (R1.8) is in beta: its tests use a stand-in for OpenCode's API, and the real Claude Code and Codex were checked only against that stand-in, locally and on E2B. `node scripts/v21.ts` runs V21 on E2B in steps (`login <harness>`, `check`, `cleanup`), because it needs a person to sign in. On an Instabox plan that allows fewer than three sandboxes (the free plan allows one), V8 there checks one sandbox key alone, not two at the same time.
 
 ## Open questions
 
@@ -1921,7 +1940,7 @@ Source: https://github.com/madeyexz/byoa/blob/main/skills/byoa/SKILL.md
 
 ---
 name: byoa
-description: Adds byoa to an app, so the app runs each user's own Claude Code, Codex or Grok Build in a sandbox (E2B, Daytona, Instabox or local), on the user's own Claude, ChatGPT, Grok or OpenCode Go plan, with the user's MCP connections. Use when you add AI agent jobs to an app's backend with byoa, write its sign-in, MCP connect, proxy or callback routes, stream agents.run events to a UI, write a byoa store adapter, or test with byoa's fake harness.
+description: Adds byoa to an app, so the app runs each user's own Claude Code, Codex or Grok Build in a sandbox (E2B, Daytona, Instabox, Sprites or local), on the user's own Claude, ChatGPT, Grok or OpenCode Go plan, with the user's MCP connections. Use when you add AI agent jobs to an app's backend with byoa, write its sign-in, MCP connect, proxy or callback routes, stream agents.run events to a UI, write a byoa store adapter, or test with byoa's fake harness.
 metadata:
   version: "1.1.0"
 ---
@@ -1943,7 +1962,7 @@ npm install @madeyexz/byoa
 bun add @madeyexz/byoa
 ```
 
-Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona; Instabox needs none. byoa needs Node 22.18 or later, or Bun. The package is `@madeyexz/byoa`: do not write `npm install byoa` or `import ... from 'byoa'`, and do not install `byoa-sdk`, an unrelated package.
+Also install the sandbox SDK that the app uses: `e2b` for E2B, `@daytona/sdk` for Daytona; Instabox and Sprites need none. byoa needs Node 22.18 or later, or Bun. The package is `@madeyexz/byoa`: do not write `npm install byoa` or `import ... from 'byoa'`, and do not install `byoa-sdk`, an unrelated package.
 
 `metadata.version` above is the `version` in the package.json next to this skill. The npm package has this skill in it (from 1.1.0), so `npx skills experimental_sync -y` after the install links `node_modules/@madeyexz/byoa/skills/byoa` into the app's skills, and the skill always matches the installed byoa. When the installed version is not `metadata.version`, believe the installed version's types.
 
@@ -1955,7 +1974,7 @@ Make one `agents` object in the backend. Do it once per process (or once per Con
 
 ```ts
 import { createAgents } from '@madeyexz/byoa'
-import { e2b } from '@madeyexz/byoa/sandbox/e2b'           // or: daytona from '@madeyexz/byoa/sandbox/daytona', instabox from '@madeyexz/byoa/sandbox/instabox'
+import { e2b } from '@madeyexz/byoa/sandbox/e2b'           // or: daytona from '@madeyexz/byoa/sandbox/daytona', instabox from '@madeyexz/byoa/sandbox/instabox', sprites from '@madeyexz/byoa/sandbox/sprites'
 import { postgresStore } from '@madeyexz/byoa/store/postgres' // or: convexStore, or the app's own Store
 
 const agents = createAgents({
@@ -1970,8 +1989,8 @@ const agents = createAgents({
 ```
 
 - **Store.** `postgresStore` needs its table once: run `POSTGRES_SCHEMA` (from `@madeyexz/byoa/store/postgres`). For Convex, see reference/api.md. For another database, write a `Store` with four methods: `get`, `put`, `delete`, `cas` (compare-and-set). The example's `sqliteStore` in `examples/todo/todos.ts` is one in 19 lines. A new version on every write is required, and a deleted and rewritten key must never get an old version back.
-- **Sandbox.** `e2b()`, `daytona()` and `instabox()` read their API key from `E2B_API_KEY` / `DAYTONA_API_KEY` / `INSTABOX_API_KEY` when you give none. Instabox has no volumes, so use the default `storedLogin()` there, not `cliLogin`. The default E2B template is named `byoa`, and a new E2B account does not have it: the first job then fails with `404: template 'byoa' not found`. Build it one time with `buildE2BTemplate()` from `@madeyexz/byoa/sandbox/e2b`, or pass `e2b({ template: 'base' })`: byoa then installs the pinned harness in each new sandbox (about 10 seconds). `localSandbox()` from `@madeyexz/byoa/sandbox/local` is a folder on this computer. It isolates nothing: use it only for development and tests.
-- **The sandbox must reach `proxyUrl`.** With E2B, Daytona or Instabox it must be a public HTTPS URL (in development, a tunnel such as `cloudflared tunnel --url http://localhost:3000`). On Daytona Tier 1 and 2, only allowed domains work, such as `*.convex.site` or `*.workers.dev`.
+- **Sandbox.** `e2b()`, `daytona()` and `instabox()` read their API key from `E2B_API_KEY` / `DAYTONA_API_KEY` / `INSTABOX_API_KEY` when you give none, and `sprites()` its token from `SPRITES_TOKEN`. Instabox and Sprites have no volumes, so use the default `storedLogin()` there, not `cliLogin`. The default E2B template is named `byoa`, and a new E2B account does not have it: the first job then fails with `404: template 'byoa' not found`. Build it one time with `buildE2BTemplate()` from `@madeyexz/byoa/sandbox/e2b`, or pass `e2b({ template: 'base' })`: byoa then installs the pinned harness in each new sandbox (about 10 seconds). `localSandbox()` from `@madeyexz/byoa/sandbox/local` is a folder on this computer. It isolates nothing: use it only for development and tests.
+- **The sandbox must reach `proxyUrl`.** With E2B, Daytona, Instabox or Sprites it must be a public HTTPS URL (in development, a tunnel such as `cloudflared tunnel --url http://localhost:3000`). On Daytona Tier 1 and 2, only allowed domains work, such as `*.convex.site` or `*.workers.dev`.
 
 ## 3. Routes the app must serve
 

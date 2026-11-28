@@ -6,7 +6,7 @@ Think of the user's AI subscription as a battery pack, and of your app as an app
 
 ## Who brings what
 
-Diagram: You build the app and import byoa. You pay only for the sandbox. Each user signs in with their own Claude, ChatGPT or Grok plan, which pays for the AI, and connects their tools once. Your app code calls agents.run. byoa is a library inside your app's backend, and keeps AI logins and MCP grants in your database. Below your backend's edge, byoa drives three things that run outside it: a new sandbox for each job at E2B, Daytona or Instabox on your account, where the user's own Claude Code, Codex or Grok Build runs; the AI labs, whose model calls the user's own plan pays; and the user's MCP servers, which get the real token from byoa's proxy.
+Diagram: You build the app and import byoa. You pay only for the sandbox. Each user signs in with their own Claude, ChatGPT or Grok plan, which pays for the AI, and connects their tools once. Your app code calls agents.run. byoa is a library inside your app's backend, and keeps AI logins and MCP grants in your database. Below your backend's edge, byoa drives three things that run outside it: a new sandbox for each job at E2B, Daytona, Instabox or Sprites on your account, where the user's own Claude Code, Codex or Grok Build runs; the AI labs, whose model calls the user's own plan pays; and the user's MCP servers, which get the real token from byoa's proxy.
 
 ```text
 DEVELOPER · YOU                                           END USER
@@ -31,8 +31,8 @@ DEVELOPER · YOU                                           END USER
   ┃              │ create · run · destroy                         real token │               ┃
   ┃              ▼                                                           ▼               ┃
   ┃ ┌─ SANDBOX ────────────────┐  ┌─ AI LABS ────────────────┐  ┌─ MCP SERVERS ────────────┐ ┃
-  ┃ │    E2B,    Daytona or    │  │ Anthropic · OpenAI · xAI │  │ Notion · Gmail · …       │ ┃
-  ┃ │    Instabox,             │  │                          │  │                          │ ┃
+  ┃ │    E2B,    Daytona,      │  │ Anthropic · OpenAI · xAI │  │ Notion · Gmail · …       │ ┃
+  ┃ │    Instabox,    Sprites, │  │                          │  │                          │ ┃
   ┃ │ on your account          ├─▶│ model calls, paid by     │  │ the user's own accounts  │ ┃
   ┃ │ runs the user's own      │  │ the user's own plan      │  │                          │ ┃
   ┃ │ Claude Code, Codex or    │  │                          │  │                          │ ┃
@@ -42,7 +42,7 @@ DEVELOPER · YOU                                           END USER
   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
-- **You, the developer**, build the app, pick the sandbox provider (E2B, Daytona or Instabox, on your own account) and own the database. You import byoa into your app's backend.
+- **You, the developer**, build the app, pick the sandbox provider (E2B, Daytona, Instabox or Sprites, on your own account) and own the database. You import byoa into your app's backend.
 - **The end user** uses your app. They have a Claude, ChatGPT or Grok plan, and accounts in tools such as Notion or Gmail. They sign in on the lab's own page one time, and connect each MCP tool one time.
 - **byoa** is a library in your backend. It keeps the user's AI login and MCP grants in your database, encrypted with your key. For each job, it gets a sandbox at your provider and runs the user's own, unmodified Claude Code, Codex or Grok Build there.
 - **The AI labs** (Anthropic, OpenAI) get the model calls. The user's own plan pays for them, not your API bill.
@@ -70,7 +70,7 @@ byoa is that layer, as a library, so you do not build it again for each app.
 |---|---|---|
 | Agents | Claude Code, Codex, Grok Build | Gemini or Antigravity, maybe |
 | User plans | Claude, ChatGPT, Grok, OpenCode Go key (beta) | |
-| Sandboxes | E2B, Daytona, Instabox | other providers |
+| Sandboxes | E2B, Daytona, Instabox, Sprites (Fly.io) | other providers |
 | Backends | Node, Convex actions | Cloudflare Workers |
 | Token stores | Convex, Postgres, or your own with get, put, delete and compare-and-set | |
 

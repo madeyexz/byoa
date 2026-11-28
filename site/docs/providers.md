@@ -1,22 +1,22 @@
 # Sandbox providers
 
-Each sandbox provider is one adapter with one interface. Version 1 has E2B, Daytona and Instabox, and a local sandbox for development and tests. To change the provider, change the adapter that you give `createAgents`:
+Each sandbox provider is one adapter with one interface. Version 1 has E2B, Daytona, Instabox and Sprites (Fly.io), and a local sandbox for development and tests. To change the provider, change the adapter that you give `createAgents`:
 
 ```ts
 import { e2b } from '@madeyexz/byoa/sandbox/e2b'
-const agents = createAgents({ ...options, sandbox: e2b({ apiKey }) })   // or daytona({ apiKey }), instabox({ apiKey })
+const agents = createAgents({ ...options, sandbox: e2b({ apiKey }) })   // or daytona({ apiKey }), instabox({ apiKey }), sprites({ token })
 ```
 
-`e2b()`, `daytona()` and `instabox()` read their API key from `E2B_API_KEY`, `DAYTONA_API_KEY` or `INSTABOX_API_KEY` when you give none. The sandbox must reach your `proxyUrl`. [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle.md#how-each-provider-pauses-and-times-out) compares how each provider pauses and times out.
+`e2b()`, `daytona()` and `instabox()` read their API key from `E2B_API_KEY`, `DAYTONA_API_KEY` or `INSTABOX_API_KEY` when you give none, and `sprites()` reads its token from `SPRITES_TOKEN`. The sandbox must reach your `proxyUrl`. [Sandbox lifecycle](https://byoa.rippling.computer/docs/sandbox-lifecycle.md#how-each-provider-pauses-and-times-out) compares how each provider pauses and times out.
 
-| | E2B | Daytona | Instabox | Local |
-|---|---|---|---|---|
-| Import | `@madeyexz/byoa/sandbox/e2b` | `@madeyexz/byoa/sandbox/daytona` | `@madeyexz/byoa/sandbox/instabox` | `@madeyexz/byoa/sandbox/local` |
-| Package to install | `e2b` | `@daytona/sdk` | none | none |
-| Between jobs, a kept sandbox is | paused | stopped | stopped | a folder |
-| Volumes for `cliLogin` | yes, when volumes are on for your team | one shared volume, a subpath for each login | none: use `storedLogin()` | folders |
-| A sign-in with no check-in ends | 2 min after the last `finishLogin` | 2 min after the last `finishLogin` | after 15 min (no keepAlive) | 2 min after the last `finishLogin` |
-| Network | every public domain | Tier 1 and 2: allowed domains only | every public domain | this computer |
+| | E2B | Daytona | Instabox | Sprites | Local |
+|---|---|---|---|---|---|
+| Import | `@madeyexz/byoa/sandbox/e2b` | `@madeyexz/byoa/sandbox/daytona` | `@madeyexz/byoa/sandbox/instabox` | `@madeyexz/byoa/sandbox/sprites` | `@madeyexz/byoa/sandbox/local` |
+| Package to install | `e2b` | `@daytona/sdk` | none | none | none |
+| Between jobs, a kept sandbox is | paused | stopped | stopped | asleep (Sprites' own pause) | a folder |
+| Volumes for `cliLogin` | yes, when volumes are on for your team | one shared volume, a subpath for each login | none: use `storedLogin()` | none: use `storedLogin()` | folders |
+| A sign-in with no check-in ends | 2 min after the last `finishLogin` | 2 min after the last `finishLogin` | after 15 min (no keepAlive) | 2 min after the last `finishLogin` | 2 min after the last `finishLogin` |
+| Network | every public domain | Tier 1 and 2: allowed domains only | every public domain | every public domain | this computer |
 
 ## E2B
 
@@ -43,6 +43,18 @@ Use `instabox({ apiKey?, apiUrl?, template?, snapshot?, timeoutMs? })`. It calls
 - byoa gives a sandbox none of your account's Vault items or org Secrets, and leaves its commands out of Instabox's command history, which would otherwise keep their output (and so the AI login that byoa reads back).
 - Instabox has no volumes, so `cliLogin` does not work there; the default stored login does. Instabox sandboxes reach every public domain, so a tunnel works for `proxyUrl`.
 - On the free plan, a workspace has one sandbox in all, also when it is stopped (so one user with one kept sandbox, or one job), and three starts a minute (byoa waits when Instabox answers 429). A run starts with 2 hours before Instabox pauses the sandbox, and grows to 8 hours at most while the sandbox is in use ([limits](https://instabox.sh/docs/account/limits)).
+
+## Sprites
+
+Use `sprites({ token?, apiUrl?, init?, timeoutMs? })`. A [Sprite](https://fly.io/sprites) is a Linux VM of Fly.io with a disk that stays. The adapter calls the Sprites API itself, so it needs no package. Make a Sprites token of your Fly.io organization ([how](https://docs.fly.io/sprites/cli/authentication)), and set it as `SPRITES_TOKEN`.
+
+- Each Sprite has Ubuntu, Node, git and the labs' CLIs; user `sprite`, home `/home/sprite`. byoa still installs its pinned harness (about 5 seconds). Sprites has no templates: to add what your jobs need, such as a clone of a repository, pass a shell command as `init`, which runs once in each new Sprite, with the network and sudo.
+- A Sprite sleeps by itself about 30 seconds after nothing runs in it, also when a process of byoa still has work, such as the watcher that takes the AI login out (R1.4). So the adapter holds each Sprite awake until its time, with the Tasks API in the Sprite: a sandbox's `timeoutMs`, `setTimeout` and `keepAlive` work as on E2B. At its time, a kept Sprite sleeps with its files; one that is not kept stops its processes and deletes its home folder, and the next `create` deletes it at Sprites.
+- `pause` ends the job's processes and lets the Sprite sleep, so the next job wakes it in about a second, with its files. When byoa resumes a Sprite whose time ran out (your backend died during a job), it ends any old process first.
+- A Sprite's user has some Linux capabilities, such as `CAP_SYS_ADMIN`. byoa runs each command with none, so the agent has no more power than an ordinary user, and Codex's own sandbox, which `access: 'read-only'` uses, works.
+- Sprites has no volumes, so `cliLogin` does not work there; the default stored login does. Sprites reach every public domain by default, so a tunnel works for `proxyUrl`.
+- byoa names its Sprites `byoa-` and 20 hex characters, and gives each the job's labels as `key=value`. A Sprites [connector](https://docs.fly.io/sprites/concepts/connectors) can give your app's Sprites an API without its key in them: limit the connector to the label `byoa-app=<your app>`. Do not use a connector for the user's AI login: byoa's stored login keeps it in your database, for each user (see [AI login](https://byoa.rippling.computer/docs/ai-login.md)).
+- On the Free plan, an organization has 3 Sprites; Pay As You Go removes that limit. Plans set how many run at once (10 or more) and how many start a minute ([pricing](https://fly.io/sprites)).
 
 ## The local sandbox
 

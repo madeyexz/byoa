@@ -93,6 +93,7 @@ nav.top .gh:hover { background: #000; color: #fff; }
 .ascii .lg-e2b { background-image: url(/art/logo-e2b.png); }
 .ascii .lg-daytona { background-image: url(/art/logo-daytona.png); }
 .ascii .lg-instabox { background-image: url(/art/logo-instabox.png); }
+.ascii .lg-sprites { background-image: url(/art/logo-sprites.png); }
 
 /* what each user pays (build.mjs, priceBars): the home page's "Why" and the docs' "What your users pay". The bars
    adapt to the width of their box, so they fit the home page, the docs column and a phone. */
