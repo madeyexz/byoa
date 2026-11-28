@@ -2,9 +2,11 @@
 // is gone; a kept Sprite stops its job's processes and sleeps, and resumes with its files; a Sprite is held awake
 // until its time, so a background command (the login's watcher) runs before it sleeps; one that is not kept ends at its
 // time. Then V8 on Sprites. Needs SPRITES_TOKEN, and costs a little, so it runs only with BYOA_SPRITES=1
-// (npm run test:sprites), not on every commit.
+// (npm run test:sprites), not on every commit. The last check uses a stand-in for the API, and runs always.
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
+import { createServer, type ServerResponse } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { test } from 'node:test'
 import { sprites } from '../src/sandbox/sprites.ts'
 import { SandboxGoneError } from '../src/sandbox/types.ts'
@@ -129,4 +131,28 @@ test('V8 on Sprites: a user\'s jobs run in one kept Sprite, or in one for each s
   for (let i = 0; i < 2; i++) assert.deepEqual((await collect(perJob.run('alice', job))).at(-1), ok)
   assert.equal(ids.length, 6)
   for (const id of ids.slice(4)) await gone(id, 'V8: gone at Sprites')
+})
+
+// With a stand-in for the Sprites API, so it runs on every commit: about one call in ten to a Sprite hangs for 11 s
+// or more before it gets there.
+test('Sprites adapter: a call with no answer after a second is sent again beside it, and the first answer counts', async () => {
+  const seen: string[] = []
+  const hung: ServerResponse[] = []
+  const server = createServer((req, res) => {
+    seen.push(`${req.method} ${req.url}`)
+    if (seen.length === 1) hung.push(res) // the first call gets no answer
+    else res.writeHead(204).end()
+  })
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+  try {
+    const t0 = Date.now()
+    await sprites({ token: 'none', apiUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}` }).destroy('byoa-00')
+    const ms = Date.now() - t0
+    assert.deepEqual(seen, ['DELETE /v1/sprites/byoa-00', 'DELETE /v1/sprites/byoa-00'])
+    assert.ok(ms >= 900 && ms < 4000, `the second call's answer ended the wait after ${ms} ms`)
+  } finally {
+    for (const r of hung) r.destroy()
+    server.closeAllConnections()
+    server.close()
+  }
 })

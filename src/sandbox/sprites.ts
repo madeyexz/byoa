@@ -60,8 +60,32 @@ done`
 
 interface SpriteInfo { name: string; status: string; labels?: string[] }
 
-/** The exec socket did not open: the command did not run, so it may be sent again. */
-class NotOpened extends Error {}
+/** A call with no answer after HEDGE_MS is sent again beside the first, at most HEDGES at the same time; a usual call
+ *  takes 0.1 to 0.4 s. No exec socket open after OPEN_MS: the command fails. */
+const HEDGE_MS = 1000
+const HEDGES = 3
+const OPEN_MS = 60_000
+
+/** Runs `start`, and again each `ms` while none has a result, `n` at most. The first result wins, and the others get
+ *  an abort. It fails when each one that started has failed. */
+function first<T>(n: number, ms: number, start: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const all: AbortController[] = []
+    let live = 0, done = false
+    const go = () => {
+      if (done || all.length >= n) return
+      const c = new AbortController()
+      all.push(c)
+      live++
+      start(c.signal).then(
+        (v) => { if (done) return; done = true; clearInterval(more); for (const x of all) if (x !== c) x.abort(); resolve(v) },
+        (e) => { if (--live === 0 && !done) { done = true; clearInterval(more); reject(e) } },
+      )
+    }
+    const more = setInterval(go, ms)
+    go()
+  })
+}
 
 class SpritesError extends Error {
   readonly status: number
@@ -77,20 +101,24 @@ export function sprites(opts: SpritesOptions = {}): SandboxProvider {
   const base = (opts.apiUrl ?? process.env.SPRITES_API_URL ?? 'https://api.sprites.dev').replace(/\/+$/, '')
   const defaultMs = opts.timeoutMs ?? 30 * 60_000
 
-  /** One API call. Each try may take 8 s, then 16 and 32: a call from some hosts (seen from Convex) sometimes
-   *  hangs for 11 s or more and then works, so a short first try and a new one save that wait. Each call here may be
-   *  sent again: a write writes the same bytes, and a create has its own name (409 the second time). */
-  async function send(method: string, path: string, o: { body?: unknown; raw?: Uint8Array<ArrayBuffer> } = {}): Promise<Uint8Array> {
+  /** One API call. About one call in ten to a Sprite hangs for 11 s or 22 s before it reaches the Sprite, and then
+   *  works (seen from Convex and from other hosts, November 2026). So a call with no answer after a second is sent
+   *  once more, and once more a second later: the first answer wins, and the others are given up. Each call here may
+   *  be sent twice: a write writes the same bytes, and a create has its own name (409 the second time). A large write
+   *  waits longer (10 ms for each KB), so that two copies do not write one file at the same time, and a create waits
+   *  3 s, so that its second copy does not say that the Sprite is there before the first has made it. A lost connection,
+   *  a call with no answer in a minute and a 5xx are tried again, 4 times in all. */
+  async function send(method: string, path: string, o: { body?: unknown; raw?: Uint8Array<ArrayBuffer>; againMs?: number } = {}): Promise<Uint8Array> {
     for (let i = 0; ; i++) {
       let status = 0, err: unknown
       try {
-        const res = await fetch(base + path, {
+        const res = await first(HEDGES, (o.againMs ?? HEDGE_MS) + (o.raw?.byteLength ?? 0) / 100, (signal) => fetch(base + path, {
           method,
           headers: { Authorization: `Bearer ${token()}`, ...(o.body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(o.raw ? { 'Content-Type': 'application/octet-stream' } : {}) },
           body: o.raw ?? (o.body === undefined ? undefined : JSON.stringify(o.body)),
           // the last try has 10 minutes, for a large file
-          signal: AbortSignal.timeout(i >= 3 ? 10 * 60_000 : 8_000 * 2 ** i),
-        })
+          signal: AbortSignal.any([signal, AbortSignal.timeout(i >= 3 ? 10 * 60_000 : 60_000)]),
+        }))
         status = res.status
         // the body too, within the try's time
         const body = new Uint8Array(await res.arrayBuffer())
@@ -108,61 +136,76 @@ export function sprites(opts: SpritesOptions = {}): SandboxProvider {
   const api = async <T>(method: string, path: string, o?: Parameters<typeof send>[2]) => JSON.parse(new TextDecoder().decode(await send(method, path, o))) as T
   const at = (id: string) => `/v1/sprites/${encodeURIComponent(id)}`
 
-  /** One command over the exec WebSocket: stdout and stderr as they come, then the exit code. A socket that does not
-   *  open in 6 s (then 12, 24) is given up and opened again, as an API call that hangs (`send`). */
-  async function exec(id: string, script: string, o: RunOptions): Promise<RunResult> {
-    for (let i = 0; ; i++) {
-      try { return await execOnce(id, script, o, 6_000 * 2 ** i) } catch (e) {
-        if (!(e instanceof NotOpened) || i >= 2) throw e
-      }
-    }
-  }
-
-  function execOnce(id: string, script: string, o: RunOptions, openMs: number): Promise<RunResult> {
+  /** One command over the exec WebSocket: stdout and stderr as they come, then the exit code. A socket that is not
+   *  open after a second gets a second one beside it, and a third a second later, as an API call that hangs (`send`):
+   *  the first that opens runs the command, and the others are closed. */
+  function exec(id: string, script: string, o: RunOptions): Promise<RunResult> {
     const url = new URL(`${base.replace(/^http/, 'ws')}${at(id)}/exec`)
-    // the command runs only when the socket is open and sends it the byte `g`: Sprites keeps only about the last 64 KB
-    // of output from before a client attaches, so a fast command's first bytes were lost; and a command whose socket
-    // never opened (given up, then sent again) ends with no byte and does nothing. Then its stdin ends.
-    for (const a of ['bash', '-c', `IFS= read -r -n 1 go; [ "$go" = g ] || exit 97; ${script}`]) url.searchParams.append('cmd', a)
+    // the command runs only when its socket is open and sends it the byte `g`: Sprites keeps only about the last 64 KB
+    // of output from before a client attaches, so a fast command's first bytes were lost. A socket that lost to
+    // another sends another byte, and one that was closed while it opened sends none: its command does nothing, and
+    // ends at once or after a minute (Sprites keeps a command whose client went away). Then the command's stdin ends.
+    for (const a of ['bash', '-c', `IFS= read -r -n 1 -t 60 go; [ "$go" = g ] || exit 97; ${script}`]) url.searchParams.append('cmd', a)
     url.searchParams.set('path', 'bash')
     url.searchParams.set('stdin', 'true')
     for (const [k, v] of Object.entries(o.env ?? {})) url.searchParams.append('env', `${k}=${v}`)
     return new Promise((resolve, reject) => {
-      // Node's WebSocket (undici) takes headers in its second argument
-      const ws = new WebSocket(url, { headers: { Authorization: `Bearer ${token()}` } } as unknown as string[])
-      ws.binaryType = 'arraybuffer'
-      let stdout = '', stderr = '', done = false, opened = false
-      const notOpened = setTimeout(() => fail(new NotOpened()), openMs)
-      ws.addEventListener('open', () => { opened = true; clearTimeout(notOpened); ws.send(new Uint8Array([0, 103])); ws.send(new Uint8Array([4])) })
-      const fail = (e: Error) => { if (!done) { done = true; clearTimeout(guard); clearTimeout(notOpened); reject(opened ? e : new NotOpened()); ws.close() } }
+      const socks = new Set<WebSocket>()
+      let won: WebSocket | undefined, started = 0, done = false, stdout = '', stderr = ''
       const dec = [new TextDecoder(), new TextDecoder()]
       const out = (c: string) => { if (c) { stdout += c; o.onStdout?.(c) } }
       const err = (c: string) => { if (c) { stderr += c; o.onStderr?.(c) } }
+      const settle = () => { done = true; clearTimeout(guard); clearTimeout(notOpened); clearInterval(more); for (const s of socks) s.close() }
       const end = (exitCode: number) => {
         if (done) return
-        done = true
-        clearTimeout(guard); clearTimeout(notOpened)
+        settle()
         out(dec[0]!.decode()); err(dec[1]!.decode())
         resolve({ exitCode, stdout, stderr })
-        ws.close()
       }
+      const fail = (e: Error) => { if (!done) { settle(); reject(e) } }
       // `timeout -s KILL` ends the command at its time; this ends the wait if the Sprite does not answer after it
       const guard = o.timeoutMs ? setTimeout(() => end(137), o.timeoutMs + 60_000) : undefined
-      ws.addEventListener('message', (e: MessageEvent) => {
-        if (typeof e.data === 'string') {
-          let m: { type?: string; exit_code?: number; error?: string } | undefined
-          try { m = JSON.parse(e.data) } catch {}
-          if (m?.type === 'exit') end(Number(m.exit_code))
-          else if (m?.type === 'error') fail(new Error(`byoa sprites: ${m.error ?? 'the command failed'} (Sprite ${id})`))
-          return
+      const notOpened = setTimeout(() => { if (!won) fail(new Error(`byoa sprites: no connection to the Sprite ${id} opened in ${OPEN_MS / 1000} s`)) }, OPEN_MS)
+      const start = () => {
+        if (done || won || started >= HEDGES) return
+        started++
+        // Node's WebSocket (undici) takes headers in its second argument
+        const ws = new WebSocket(url, { headers: { Authorization: `Bearer ${token()}` } } as unknown as string[])
+        ws.binaryType = 'arraybuffer'
+        socks.add(ws)
+        ws.addEventListener('open', () => {
+          if (done || won) { ws.send(new Uint8Array([0, 120])); ws.send(new Uint8Array([4])); ws.close(); return }
+          won = ws
+          clearTimeout(notOpened); clearInterval(more)
+          for (const s of socks) if (s !== ws) s.close()
+          ws.send(new Uint8Array([0, 103])); ws.send(new Uint8Array([4]))
+        })
+        ws.addEventListener('message', (e: MessageEvent) => {
+          if (ws !== won) return
+          if (typeof e.data === 'string') {
+            let m: { type?: string; exit_code?: number; error?: string } | undefined
+            try { m = JSON.parse(e.data) } catch {}
+            if (m?.type === 'exit') end(Number(m.exit_code))
+            else if (m?.type === 'error') fail(new Error(`byoa sprites: ${m.error ?? 'the command failed'} (Sprite ${id})`))
+            return
+          }
+          const d = new Uint8Array(e.data as ArrayBuffer)
+          if (d[0] === 1) out(dec[0]!.decode(d.subarray(1), { stream: true }))
+          else if (d[0] === 2) err(dec[1]!.decode(d.subarray(1), { stream: true }))
+          else if (d[0] === 3) end(d[1] ?? 0)
+        })
+        // the command's own socket: the command is lost. Another, with none left that may open: the next one starts,
+        // and when each of them failed, the command did not run
+        const gone = (e: Error) => {
+          socks.delete(ws)
+          if (ws === won) fail(e)
+          else if (!won && !socks.size) { if (started >= HEDGES) fail(e); else start() }
         }
-        const d = new Uint8Array(e.data as ArrayBuffer)
-        if (d[0] === 1) out(dec[0]!.decode(d.subarray(1), { stream: true }))
-        else if (d[0] === 2) err(dec[1]!.decode(d.subarray(1), { stream: true }))
-        else if (d[0] === 3) end(d[1] ?? 0)
-      })
-      ws.addEventListener('error', () => fail(new Error(`byoa sprites: the command's connection to the Sprite ${id} failed`)))
-      ws.addEventListener('close', (e: CloseEvent) => fail(new Error(`byoa sprites: the connection to the Sprite ${id} closed before the command ended (${e.code})`)))
+        ws.addEventListener('error', () => gone(new Error(`byoa sprites: the command's connection to the Sprite ${id} failed`)))
+        ws.addEventListener('close', (e: CloseEvent) => gone(new Error(`byoa sprites: the connection to the Sprite ${id} closed before the command ended (${e.code})`)))
+      }
+      const more = setInterval(start, HEDGE_MS)
+      start()
     })
   }
 
@@ -256,7 +299,7 @@ export function sprites(opts: SpritesOptions = {}): SandboxProvider {
       const ms = c.timeoutMs ?? defaultMs
       const name = PREFIX + randomBytes(10).toString('hex')
       const labels = [...Object.entries(c.labels ?? {}).map(([k, v]) => `${k}=${v}`), ...(c.keep ? [] : [`${END}${Math.ceil((Date.now() + ms) / 1000)}`])]
-      try { await send('POST', '/v1/sprites', { body: { name, labels } }) } catch (e) {
+      try { await send('POST', '/v1/sprites', { body: { name, labels }, againMs: 3000 }) } catch (e) {
         // a create sent again after a lost answer finds the Sprite it made
         if (!(e instanceof SpritesError && e.status === 409)) throw e
       }
