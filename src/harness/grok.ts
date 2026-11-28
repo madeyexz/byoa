@@ -11,8 +11,13 @@ import { REFRESH_WINDOW_MS, type JobArgs, type LabHarness, type ModelChoice } fr
 /** Grok's own postinstall (1.0.92) unpacks its native binary twice: beside its launcher (`bin/grok` becomes a link to
  *  `bin/grok-native`, which V11 checks) and into `$GROK_HOME/bin`, with a `config.toml` there. The second copy is for
  *  Grok's own updater, which byoa turns off, so it goes to a folder that byoa removes after the install, not into the
- *  user's `~/.grok`, where the login is. */
-export const GROK_INSTALL = { env: { GROK_HOME: '/tmp/byoa-grok-install' }, after: 'rm -rf /tmp/byoa-grok-install' }
+ *  user's `~/.grok`, where the login is. npm 12 (as on Sprites) runs a package's install script only when
+ *  `allow-scripts` names it; without it, the launcher stays and runs any `~/.grok/bin/grok`, such as an older Grok
+ *  that the image has. Older npm ignores the setting. */
+export const GROK_INSTALL = {
+  env: { GROK_HOME: '/tmp/byoa-grok-install', npm_config_allow_scripts: PACKAGES.grok },
+  after: 'rm -rf /tmp/byoa-grok-install',
+}
 
 /** `-m` and `--reasoning-effort`, options of `grok agent` (1.0.92); a model's own efforts are in its `efforts` from
  *  listModels. */
