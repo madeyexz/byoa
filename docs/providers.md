@@ -54,6 +54,7 @@ Use `sprites({ token?, apiUrl?, init?, timeoutMs? })`. A [Sprite](https://fly.io
 - A Sprite's user has some Linux capabilities, such as `CAP_SYS_ADMIN`. byoa runs each command with none, so the agent has no more power than an ordinary user, and Codex's own sandbox, which `access: 'read-only'` uses, works.
 - Sprites has no volumes, so `cliLogin` does not work there; the default stored login does. Sprites reach every public domain by default, so a tunnel works for `proxyUrl`.
 - byoa names its Sprites `byoa-` and 20 hex characters, and gives each the job's labels as `key=value`. A Sprites [connector](https://docs.fly.io/sprites/concepts/connectors) can give your app's Sprites an API without its key in them: limit the connector to the label `byoa-app=<your app>`. Do not use a connector for the user's AI login: byoa's stored login keeps it in your database, for each user (see [AI login](ai-login.md)).
+- From some hosts (seen from Convex), a call to the Sprites API sometimes hangs for 11 seconds or more. The adapter gives each call 8 seconds, and a command's connection 6 seconds to open, then tries again; a command runs only when its connection is open, so it never runs twice.
 - On the Free plan, an organization has 3 Sprites; Pay As You Go removes that limit. Plans set how many run at once (10 or more) and how many start a minute ([pricing](https://fly.io/sprites)).
 
 ## The local sandbox

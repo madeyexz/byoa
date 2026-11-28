@@ -60,6 +60,9 @@ done`
 
 interface SpriteInfo { name: string; status: string; labels?: string[] }
 
+/** The exec socket did not open: the command did not run, so it may be sent again. */
+class NotOpened extends Error {}
+
 class SpritesError extends Error {
   readonly status: number
   constructor(status: number, message: string) { super(message); this.status = status }
@@ -74,35 +77,53 @@ export function sprites(opts: SpritesOptions = {}): SandboxProvider {
   const base = (opts.apiUrl ?? process.env.SPRITES_API_URL ?? 'https://api.sprites.dev').replace(/\/+$/, '')
   const defaultMs = opts.timeoutMs ?? 30 * 60_000
 
-  async function send(method: string, path: string, o: { body?: unknown; raw?: Uint8Array<ArrayBuffer>; timeoutMs?: number } = {}): Promise<Response> {
+  /** One API call. Each try may take 8 s, then 16 and 32: a call from some hosts (seen from Convex) sometimes
+   *  hangs for 11 s or more and then works, so a short first try and a new one save that wait. Each call here may be
+   *  sent again: a write writes the same bytes, and a create has its own name (409 the second time). */
+  async function send(method: string, path: string, o: { body?: unknown; raw?: Uint8Array<ArrayBuffer> } = {}): Promise<Uint8Array> {
     for (let i = 0; ; i++) {
-      let res: Response | undefined, err: unknown
+      let status = 0, err: unknown
       try {
-        res = await fetch(base + path, {
+        const res = await fetch(base + path, {
           method,
           headers: { Authorization: `Bearer ${token()}`, ...(o.body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(o.raw ? { 'Content-Type': 'application/octet-stream' } : {}) },
           body: o.raw ?? (o.body === undefined ? undefined : JSON.stringify(o.body)),
-          signal: AbortSignal.timeout(o.timeoutMs ?? 60_000),
+          // the last try has 10 minutes, for a large file
+          signal: AbortSignal.timeout(i >= 3 ? 10 * 60_000 : 8_000 * 2 ** i),
         })
-      } catch (e) { err = e }
-      // a lost connection or a 5xx may go away; each call here may be sent again (a create has its own name)
-      if (res && (res.ok || res.status < 500)) {
-        if (res.ok) return res
-        throw new SpritesError(res.status, `byoa sprites: ${method} ${path.split('?')[0]}: ${res.status} ${(await res.text().catch(() => '')).trim().slice(0, 300)}`)
+        status = res.status
+        // the body too, within the try's time
+        const body = new Uint8Array(await res.arrayBuffer())
+        if (res.ok) return body
+        if (status < 500) throw new SpritesError(status, `byoa sprites: ${method} ${path.split('?')[0]}: ${status} ${new TextDecoder().decode(body).trim().slice(0, 300)}`)
+      } catch (e) {
+        if (e instanceof SpritesError) throw e
+        err = e
       }
-      if (i >= 3) throw err ?? new SpritesError(res!.status, `byoa sprites: ${method} ${path.split('?')[0]}: ${res!.status}`)
-      await sleep(1000 * (i + 1))
+      // a lost connection, a try that ran out of its time or a 5xx may go away
+      if (i >= 3) throw err ?? new SpritesError(status, `byoa sprites: ${method} ${path.split('?')[0]}: ${status}`)
+      await sleep(500 * (i + 1))
     }
   }
-  const api = async <T>(method: string, path: string, o?: Parameters<typeof send>[2]) => (await (await send(method, path, o)).json()) as T
+  const api = async <T>(method: string, path: string, o?: Parameters<typeof send>[2]) => JSON.parse(new TextDecoder().decode(await send(method, path, o))) as T
   const at = (id: string) => `/v1/sprites/${encodeURIComponent(id)}`
 
-  /** One command over the exec WebSocket: stdout and stderr as they come, then the exit code. */
-  function exec(id: string, script: string, o: RunOptions): Promise<RunResult> {
+  /** One command over the exec WebSocket: stdout and stderr as they come, then the exit code. A socket that does not
+   *  open in 6 s (then 12, 24) is given up and opened again, as an API call that hangs (`send`). */
+  async function exec(id: string, script: string, o: RunOptions): Promise<RunResult> {
+    for (let i = 0; ; i++) {
+      try { return await execOnce(id, script, o, 6_000 * 2 ** i) } catch (e) {
+        if (!(e instanceof NotOpened) || i >= 2) throw e
+      }
+    }
+  }
+
+  function execOnce(id: string, script: string, o: RunOptions, openMs: number): Promise<RunResult> {
     const url = new URL(`${base.replace(/^http/, 'ws')}${at(id)}/exec`)
-    // the command starts only when the socket is open and sends it a byte: Sprites keeps only about the last 64 KB of
-    // output from before a client attaches, so a fast command's first bytes were lost. Then its stdin ends.
-    for (const a of ['bash', '-c', `head -c 1 >/dev/null; ${script}`]) url.searchParams.append('cmd', a)
+    // the command runs only when the socket is open and sends it the byte `g`: Sprites keeps only about the last 64 KB
+    // of output from before a client attaches, so a fast command's first bytes were lost; and a command whose socket
+    // never opened (given up, then sent again) ends with no byte and does nothing. Then its stdin ends.
+    for (const a of ['bash', '-c', `IFS= read -r -n 1 go; [ "$go" = g ] || exit 97; ${script}`]) url.searchParams.append('cmd', a)
     url.searchParams.set('path', 'bash')
     url.searchParams.set('stdin', 'true')
     for (const [k, v] of Object.entries(o.env ?? {})) url.searchParams.append('env', `${k}=${v}`)
@@ -110,15 +131,17 @@ export function sprites(opts: SpritesOptions = {}): SandboxProvider {
       // Node's WebSocket (undici) takes headers in its second argument
       const ws = new WebSocket(url, { headers: { Authorization: `Bearer ${token()}` } } as unknown as string[])
       ws.binaryType = 'arraybuffer'
-      ws.addEventListener('open', () => { ws.send(new Uint8Array([0, 10])); ws.send(new Uint8Array([4])) })
+      let stdout = '', stderr = '', done = false, opened = false
+      const notOpened = setTimeout(() => fail(new NotOpened()), openMs)
+      ws.addEventListener('open', () => { opened = true; clearTimeout(notOpened); ws.send(new Uint8Array([0, 103])); ws.send(new Uint8Array([4])) })
+      const fail = (e: Error) => { if (!done) { done = true; clearTimeout(guard); clearTimeout(notOpened); reject(opened ? e : new NotOpened()); ws.close() } }
       const dec = [new TextDecoder(), new TextDecoder()]
-      let stdout = '', stderr = '', done = false
       const out = (c: string) => { if (c) { stdout += c; o.onStdout?.(c) } }
       const err = (c: string) => { if (c) { stderr += c; o.onStderr?.(c) } }
       const end = (exitCode: number) => {
         if (done) return
         done = true
-        clearTimeout(guard)
+        clearTimeout(guard); clearTimeout(notOpened)
         out(dec[0]!.decode()); err(dec[1]!.decode())
         resolve({ exitCode, stdout, stderr })
         ws.close()
@@ -130,7 +153,7 @@ export function sprites(opts: SpritesOptions = {}): SandboxProvider {
           let m: { type?: string; exit_code?: number; error?: string } | undefined
           try { m = JSON.parse(e.data) } catch {}
           if (m?.type === 'exit') end(Number(m.exit_code))
-          else if (m?.type === 'error' && !done) { done = true; clearTimeout(guard); reject(new Error(`byoa sprites: ${m.error ?? 'the command failed'} (Sprite ${id})`)); ws.close() }
+          else if (m?.type === 'error') fail(new Error(`byoa sprites: ${m.error ?? 'the command failed'} (Sprite ${id})`))
           return
         }
         const d = new Uint8Array(e.data as ArrayBuffer)
@@ -138,10 +161,8 @@ export function sprites(opts: SpritesOptions = {}): SandboxProvider {
         else if (d[0] === 2) err(dec[1]!.decode(d.subarray(1), { stream: true }))
         else if (d[0] === 3) end(d[1] ?? 0)
       })
-      ws.addEventListener('error', () => { if (!done) { done = true; clearTimeout(guard); reject(new Error(`byoa sprites: the command's connection to the Sprite ${id} failed`)) } })
-      ws.addEventListener('close', (e: CloseEvent) => {
-        if (!done) { done = true; clearTimeout(guard); reject(new Error(`byoa sprites: the connection to the Sprite ${id} closed before the command ended (${e.code})`)) }
-      })
+      ws.addEventListener('error', () => fail(new Error(`byoa sprites: the command's connection to the Sprite ${id} failed`)))
+      ws.addEventListener('close', (e: CloseEvent) => fail(new Error(`byoa sprites: the connection to the Sprite ${id} closed before the command ended (${e.code})`)))
     })
   }
 
@@ -204,12 +225,12 @@ export function sprites(opts: SpritesOptions = {}): SandboxProvider {
     },
     async writeFile(path, data) {
       await send('PUT', `${at(id)}/fs/write?path=${encodeURIComponent(path)}&mkdir=true`, {
-        raw: typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data), timeoutMs: 10 * 60_000,
+        raw: typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data),
       })
     },
     async readFile(path) {
       try {
-        return new Uint8Array(await (await send('GET', `${at(id)}/fs/read?path=${encodeURIComponent(path)}`, { timeoutMs: 10 * 60_000 })).arrayBuffer())
+        return await send('GET', `${at(id)}/fs/read?path=${encodeURIComponent(path)}`)
       } catch (e) {
         if (e instanceof SpritesError && e.status === 404) return null
         throw e
