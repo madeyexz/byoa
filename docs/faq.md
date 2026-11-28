@@ -6,6 +6,21 @@ byoa, short for "bring your own agent", is the simplest way to let your users br
 
 byoa is an open-source library (Apache 2.0), the npm package `@madeyexz/byoa`. It runs inside your app's own backend, on Node or Bun. It is not a hosted service. See [Why and when you need byoa](README.md#why-and-when-you-need-byoa) and [Getting started](getting-started.md).
 
+## How can my web app let each user run Claude Code on their own Claude subscription?
+
+Run the real, unmodified Claude Code for each user in a sandbox, and let the user sign in to it on Anthropic's own page. Anthropic's [Claude Code legal and compliance page](https://code.claude.com/docs/en/legal-and-compliance) says that its rules do not prevent "an end user from signing in to the unmodified Claude Code binary with their own Claude subscription, including where a platform hosts Claude Code". byoa does these steps in your backend:
+
+1. `agents.connectLogin(userId, 'claude')` starts the unmodified `claude` sign-in in a sandbox and gives your app the URL of Anthropic's sign-in page. The user signs in there, and `agents.finishLogin(userId, 'claude', { code })` gives the CLI the code that the page shows.
+2. byoa keeps the CLI's login files for that user, encrypted ([AI login](ai-login.md)).
+3. For each job, `agents.run(userId, { harness: 'claude', task })` starts a sandbox on your [sandbox provider](providers.md)'s account, puts the user's login in it, runs Claude Code, and streams its events to your app. The user's plan pays for the AI.
+
+Two other routes do not work with a Claude subscription:
+
+- **A "Log in with Claude" button that calls Claude with the user's plan.** The same page says: "Anthropic does not permit third-party developers to offer Claude.ai login into their own applications, or to route requests through Free, Pro, Max, or Ultra plan credentials on behalf of their users."
+- **Claude Platform [Linked billing](https://platform.claude.com/docs/en/manage-claude/oauth-apps/linked-billing)** (beta). It bills the API usage in your app to the customer's Claude Console organization, and "Claude subscription plans (Pro, Max, Ultra, Team, and Enterprise) can't be linked" ([Claude Help Center](https://support.claude.com/en/articles/18467148-use-your-claude-platform-account-in-a-third-party-app)).
+
+The same page also limits where a login may be stored. Read the next question before you launch.
+
 ## Can my user's AI account get banned?
 
 It can. byoa cannot promise that it will not, because the labs decide, and their terms allow parts of what byoa does but not all of it. byoa is built to stay inside the parts that the labs allow:
@@ -14,7 +29,7 @@ It can. byoa cannot promise that it will not, because the labs decide, and their
 - **The user signs in on the lab's own page,** with the CLI's own sign-in. byoa never sees a password.
 - **Each user uses their own plan, for their own work,** and one app's login is only for that app.
 
-Anthropic's [Claude Code legal and compliance page](https://code.claude.com/docs/en/legal-and-compliance) allows "an end user signing in to the unmodified Claude Code binary with their own Claude subscription, including where a platform hosts Claude Code". But the same page also says:
+Anthropic's [Claude Code legal and compliance page](https://code.claude.com/docs/en/legal-and-compliance) does not prevent "an end user from signing in to the unmodified Claude Code binary with their own Claude subscription, including where a platform hosts Claude Code". But the same page also says:
 
 - developers "may not collect, store, or intermediate Claude.ai credentials or session tokens". byoa's default login stores the CLI's login files, encrypted, in your app's database ([AI login](ai-login.md)).
 - "Advertised usage limits for Pro, Max, and Ultra plans assume ordinary, individual usage of Claude Code". An app that runs many jobs for one user can go beyond that.

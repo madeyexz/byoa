@@ -82,7 +82,7 @@ These pages are the Markdown files in [docs/](../docs) of the repository. The si
 
 - [Supported AI subscriptions](subscriptions.md): which Claude, ChatGPT, Grok and OpenCode Go (beta) plans your users can bring, and whether their accounts can get banned
 - [Lab rules](lab-rules.md): what Anthropic's, OpenAI's, xAI's and OpenCode's terms allow, and what byoa and each app must do
-- [FAQ](faq.md): what byoa is, whether a user's AI account can get banned, many agents at once, memory between jobs, models, and what a job costs with byoa and with an API key
+- [FAQ](faq.md): what byoa is, how a web app runs Claude Code on each user's own plan, account bans, many agents at once, memory, models, and what a job costs
 
 ## Reference
 
